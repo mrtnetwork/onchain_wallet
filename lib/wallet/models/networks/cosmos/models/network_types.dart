@@ -1,23 +1,17 @@
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-class CosmosNetworkTypes {
-  final int value;
-  const CosmosNetworkTypes._(this.value);
-  static const CosmosNetworkTypes main = CosmosNetworkTypes._(0);
-  static const CosmosNetworkTypes forked = CosmosNetworkTypes._(1);
-  static const CosmosNetworkTypes thorAndForked = CosmosNetworkTypes._(2);
-  static const CosmosNetworkTypes ethermint = CosmosNetworkTypes._(3);
-  bool get isEthermint => this == ethermint;
+enum CosmosNetworkTypes {
+  main(0),
+  forked(1),
+  thorAndForked(2),
+  ethermint(3);
+
+  bool get isEthreum => this == ethermint;
   bool get isThorAndForked => this == thorAndForked;
-  static const List<CosmosNetworkTypes> values = [
-    main,
-    forked,
-    thorAndForked,
-    ethermint
-  ];
+  final int value;
+  const CosmosNetworkTypes(this.value);
   factory CosmosNetworkTypes.fromValue(int value) {
     return values.firstWhere((e) => e.value == value,
-        orElse: () =>
-            throw AppSerializationException(objectName: "CosmosNetworkTypes"));
+        orElse: () => throw AppInternalError.internalError("CosmosNetworkTypes"));
   }
 }

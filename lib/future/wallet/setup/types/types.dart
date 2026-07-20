@@ -1,6 +1,7 @@
-import 'package:blockchain_utils/bip/mnemonic/mnemonic_utils.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/network/bridge/bridge.dart';
+import 'package:on_chain_wallet/network/bridge/onchain/types/types.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/wallet/models/wallet/models/backup.dart';
 
 enum WalletStupPage {
@@ -80,5 +81,14 @@ enum WalletBackupPage { backup, review }
 typedef ONGENERATEMNEMONIC = Future<GeneratedMnemonic?> Function(
     MnemonicType? type, SetupWalletMode mode);
 
-typedef ONRESTOREWALLETBACKUP = Future<WalletRestoreV2?> Function(
+typedef ONRESTOREWALLETBACKUP = Future<VerifiedMainWalletBackup?> Function(
     String password);
+typedef ONSETUPEXTERNALWALLET = Future<ExternalWalletData?> Function(String password);
+
+class ExternalWalletData {
+  final VerifiedExternalWalletBackup backup;
+  final WCMSession session;
+  final IBridgeClient client;
+  const ExternalWalletData(
+      {required this.backup, required this.client, required this.session});
+}

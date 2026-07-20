@@ -1,10 +1,10 @@
-import 'package:on_chain_wallet/app/live_listener/live.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'dart:async';
 import 'package:on_chain/tron/src/models/contract/transaction/transaction.dart';
 import 'package:on_chain/tron/src/models/contract/transaction/transaction_raw.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/future.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 mixin TronTransactionSignerController on DisposableMixin {
@@ -31,12 +31,11 @@ mixin TronTransactionSignerController on DisposableMixin {
             BigInt threshHold = BigInt.zero;
             for (final i in multiSigAddress.multiSignatureAccount.signers) {
               final signRequest = GlobalSignRequest.tron(
-                  digest: transactionDigest, index: i.keyIndex);
+                  digest: transactionDigest, index: i.derivationIndex);
               final sss = await generateSignature(signRequest);
               signerSignatures.add(sss.signature);
               threshHold += i.weight;
-              if (threshHold >=
-                  multiSigAddress.multiSignatureAccount.threshold) {
+              if (threshHold >= multiSigAddress.multiSignatureAccount.threshold) {
                 break;
               }
             }
@@ -46,14 +45,14 @@ mixin TronTransactionSignerController on DisposableMixin {
             return signerSignatures;
           }
           final signRequest = GlobalSignRequest.tron(
-              digest: transactionDigest, index: address.keyIndex.cast());
+              digest: transactionDigest, index: address.derivationIndex.cast());
           final signature = await generateSignature(signRequest);
           return [signature.signature];
         },
       );
-      final signature =
-          await walletProvider.wallet.signTransaction(request: request);
-      signatures = signature.result;
+      final signature = await walletProvider.wallet
+          .signTransaction(params: WalletActionSign(request: request));
+      signatures = signature.unwrap();
     }
 
     return Transaction(rawData: transaction, signature: signatures);

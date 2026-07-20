@@ -8,8 +8,7 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class SetupNetworkAmount extends StatefulWidget {
-  const SetupNetworkAmount(
-      {super.key, required this.token, this.max, required this.min});
+  const SetupNetworkAmount({super.key, required this.token, this.max, required this.min});
 
   final BigInt? max;
   final BigInt min;
@@ -22,11 +21,10 @@ class SetupNetworkAmount extends StatefulWidget {
 class _SetupNetworkAmountState extends State<SetupNetworkAmount>
     with SafeState<SetupNetworkAmount> {
   late StreamValue<IntegerBalance> balance =
-      StreamValue(IntegerBalance.zero(widget.token));
+      StreamValue(IntegerBalance.zero(widget.token), name: "SetupNetworkAmount");
   bool isMax = false;
   bool isMin = false;
-  final CurrencyTextEdittingController controller =
-      CurrencyTextEdittingController();
+  final CurrencyTextEdittingController controller = CurrencyTextEdittingController();
   late final BigInt? maxValue = widget.max == null
       ? null
       : widget.max!.isNegative
@@ -59,11 +57,13 @@ class _SetupNetworkAmountState extends State<SetupNetworkAmount>
       return "decimal_int_validator".tr;
     }
     if (maxValue != null && toBigit > maxValue!) {
-      return "price_less_than".tr.replaceOne(
-          PriceUtils.priceWithCoinName(maxString!, widget.token.symbolView));
+      return "price_less_than"
+          .tr
+          .replaceOne(PriceUtils.priceWithCoinName(maxString!, widget.token.symbolView));
     } else if (toBigit < widget.min) {
-      return "price_greather_than".tr.replaceOne(
-          PriceUtils.priceWithCoinName(minString!, widget.token.symbolView));
+      return "price_greather_than"
+          .tr
+          .replaceOne(PriceUtils.priceWithCoinName(minString!, widget.token.symbolView));
     }
     return null;
   }
@@ -71,8 +71,7 @@ class _SetupNetworkAmountState extends State<SetupNetworkAmount>
   void onChanged() {
     final price = controller.getText();
     if (maxValue == null && !enableMin) return;
-    final toBigit =
-        PriceUtils.tryDecodePrice<BigInt?>(price, widget.token.decimal);
+    final toBigit = PriceUtils.tryDecodePrice<BigInt?>(price, widget.token.decimal);
     final equal = toBigit == maxValue;
     if (equal != isMax) {
       updateState(() {
@@ -264,18 +263,17 @@ class SetupDecimalTokenAmountView extends StatefulWidget {
   final NonDecimalToken token;
 
   @override
-  State<SetupDecimalTokenAmountView> createState() =>
-      _SetupDecimalTokenAmountViewState();
+  State<SetupDecimalTokenAmountView> createState() => _SetupDecimalTokenAmountViewState();
 }
 
-class _SetupDecimalTokenAmountViewState
-    extends State<SetupDecimalTokenAmountView> with SafeState {
+class _SetupDecimalTokenAmountViewState extends State<SetupDecimalTokenAmountView>
+    with SafeState {
   final GlobalKey<FormState> form =
       GlobalKey<FormState>(debugLabel: "_SetupDecimalTokenAmountViewState");
-  final CurrencyTextEdittingController controller =
-      CurrencyTextEdittingController();
-  late StreamValue<DecimalBalance> balance =
-      StreamValue(DecimalBalance.zero(widget.token));
+  final CurrencyTextEdittingController controller = CurrencyTextEdittingController();
+  late StreamValue<DecimalBalance> balance = StreamValue(
+      DecimalBalance.zero(widget.token),
+      name: "_SetupDecimalTokenAmountViewState");
 
   BigRational? maxValue;
   bool enableMin = false;
@@ -286,18 +284,20 @@ class _SetupDecimalTokenAmountViewState
   bool isMin = false;
   String? onValidatePrice(String? v) {
     if (v == null) return "decimal_int_validator".tr;
-    final rational = BigRational.tryParseDecimaal(StrUtils.removeSeperator(v));
+    final rational = BigRational.tryParse(StrUtils.removeSeperator(v));
     if (rational == null) {
       return "decimal_int_validator".tr;
     }
     balance.value.updateBalance(rational);
     balance.notify();
     if (widget.max != null && rational > widget.max!) {
-      return "price_less_than".tr.replaceOne(
-          PriceUtils.priceWithCoinName(maxString!, widget.token.symbol));
+      return "price_less_than"
+          .tr
+          .replaceOne(PriceUtils.priceWithCoinName(maxString!, widget.token.symbol));
     } else if (rational < widget.min) {
-      return "price_greather_than".tr.replaceOne(
-          PriceUtils.priceWithCoinName(minString!, widget.token.symbol));
+      return "price_greather_than"
+          .tr
+          .replaceOne(PriceUtils.priceWithCoinName(minString!, widget.token.symbol));
     }
     return null;
   }
@@ -309,7 +309,7 @@ class _SetupDecimalTokenAmountViewState
 
   void onSetup() {
     if (!form.ready()) return;
-    final rational = BigRational.tryParseDecimaal(price);
+    final rational = BigRational.tryParse(price);
     if (rational == null) return;
     if (mounted) {
       context.pop(rational);
@@ -431,8 +431,7 @@ class _SetupDecimalTokenAmountViewState
                                               ? context.colors.onErrorContainer
                                               : context.colors.onSurface,
                                           shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  WidgetConstant.border8)),
+                                              borderRadius: WidgetConstant.border8)),
                                       child: Text("min".tr)),
                                   if (maxValue != null) WidgetConstant.width8,
                                 ],
@@ -447,8 +446,7 @@ class _SetupDecimalTokenAmountViewState
                                             ? context.colors.onErrorContainer
                                             : context.colors.onSurface,
                                         shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                WidgetConstant.border8)),
+                                            borderRadius: WidgetConstant.border8)),
                                     child: Text("max".tr),
                                   ),
                               ],
@@ -500,8 +498,8 @@ class SetupDecimalExchangeRateInput extends StatefulWidget {
       _SetupDecimalExchangeRateInputState();
 }
 
-class _SetupDecimalExchangeRateInputState
-    extends State<SetupDecimalExchangeRateInput> with SafeState {
+class _SetupDecimalExchangeRateInputState extends State<SetupDecimalExchangeRateInput>
+    with SafeState {
   final CurrencyTextEdittingController controller =
       CurrencyTextEdittingController(text: "0.0");
   final GlobalKey<FormState> form =
@@ -511,16 +509,14 @@ class _SetupDecimalExchangeRateInputState
   String? validator(String? v) {
     if (v == null) return "decimal_int_validator".tr;
     v = StrUtils.removeSeperator(v);
-    final rational = BigRational.tryParseDecimaal(v);
+    final rational = BigRational.tryParse(v);
     if (rational == null) {
       return "decimal_int_validator".tr;
     }
     if (widget.max != null && rational > widget.max!) {
       return "price_less_than".tr.replaceOne(widget.max!.toDecimal(digits: 8));
     } else if (widget.min != null && rational < widget.min!) {
-      return "price_greather_than"
-          .tr
-          .replaceOne(widget.min!.toDecimal(digits: 8));
+      return "price_greather_than".tr.replaceOne(widget.min!.toDecimal(digits: 8));
     }
     return null;
   }
@@ -534,7 +530,7 @@ class _SetupDecimalExchangeRateInputState
   String? helper;
   void buildHelper(String val) {
     final currentHelper = helper;
-    final rational = BigRational.tryParseDecimaal(price);
+    final rational = BigRational.tryParse(price);
     if (rational == null) {
       helper = null;
     } else {
@@ -559,7 +555,7 @@ class _SetupDecimalExchangeRateInputState
 
   void onSetup() {
     if (!form.ready()) return;
-    final rational = BigRational.tryParseDecimaal(price);
+    final rational = BigRational.tryParse(price);
     if (rational == null) return;
     context.pop(rational);
   }
@@ -592,8 +588,7 @@ class _SetupDecimalExchangeRateInputState
               Stack(
                 alignment: Alignment.centerLeft,
                 children: [
-                  CircleTokenImageView(widget.tokenB,
-                      radius: APPConst.largeCircleRadius),
+                  CircleTokenImageView(widget.tokenB, radius: APPConst.largeCircleRadius),
                   Container(
                     padding: const EdgeInsets.only(left: 40),
                     child: CircleTokenImageView(widget.tokenA,
@@ -607,8 +602,7 @@ class _SetupDecimalExchangeRateInputState
           Theme(
             data: context.theme.copyWith(
               inputDecorationTheme: InputDecorationTheme(
-                  border: OutlineInputBorder(
-                      borderRadius: WidgetConstant.border25)),
+                  border: OutlineInputBorder(borderRadius: WidgetConstant.border25)),
             ),
             child: Align(
               alignment: Alignment.center,

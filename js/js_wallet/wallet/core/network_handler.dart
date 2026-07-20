@@ -1,19 +1,21 @@
 import 'dart:js_interop';
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:blockchain_utils/utils/string/string.dart';
+import 'package:on_chain_bridge/web/api/types/types.dart';
 import 'package:on_chain_bridge/web/web.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/utils/web3_validator_utils.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+import 'package:on_chain_wallet/web3/web3/utils/web3_validator_utils.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import '../../models/models/exception.dart';
-import '../../models/models/networks/solana.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../../models/models/requests.dart';
 import '../../utils/utils.dart';
 import 'wallet.dart';
 
 abstract class Web3JSStateAddress<
-        NETWORKADDRESS,
-        CHAINACCOUNT extends Web3ChainAccount,
+        NETWORKADDRESS extends IAddress,
+        CHAINACCOUNT extends Web3ChainAccount<NETWORKADDRESS>,
         JSACCOUNT extends JSWalletStandardAccount,
         CHAIN extends Web3ChainIdnetifier>
     extends Web3StateAddress<NETWORKADDRESS, CHAINACCOUNT, JSACCOUNT, CHAIN> {
@@ -26,13 +28,13 @@ abstract class Web3JSStateAddress<
 }
 
 abstract class Web3JSStateAccount<
-        NETWORKADDRESS,
-        CHAINACCOUNT extends Web3ChainAccount,
-        JSACCOUNT extends JSWalletStandardAccount,
-        CHAIN extends Web3ChainIdnetifier,
-        STATEADDRESS extends Web3JSStateAddress>
-    extends Web3StateAccount<NETWORKADDRESS, CHAINACCOUNT, JSACCOUNT, CHAIN,
-        STATEADDRESS> {
+    NETWORKADDRESS extends IAddress,
+    CHAINACCOUNT extends Web3ChainAccount<NETWORKADDRESS>,
+    JSACCOUNT extends JSWalletStandardAccount,
+    CHAIN extends Web3ChainIdnetifier,
+    STATEADDRESS extends Web3JSStateAddress<NETWORKADDRESS, CHAINACCOUNT, JSACCOUNT,
+        CHAIN>> extends Web3StateAccount<NETWORKADDRESS, CHAINACCOUNT, JSACCOUNT, CHAIN,
+    STATEADDRESS> {
   Web3JSStateAccount(
       {required super.state,
       required super.accounts,
@@ -44,8 +46,7 @@ abstract class Web3JSStateAccount<
     return accounts.any((e) => e.jsAccount.address == address.address);
   }
 
-  CHAINACCOUNT getJsAddressChainAccountOrThrow(JSAny? address,
-      {CHAIN? network}) {
+  CHAINACCOUNT getJsAddressChainAccountOrThrow(JSAny? address, {CHAIN? network}) {
     if (address != null) {
       final jsAccount =
           JSOBJ.as<JSWalletStandardAccount>(object: address, keys: ['address']);
@@ -64,7 +65,7 @@ abstract class Web3JSStateAccount<
                     e.chainaccount.addressStr == jsAccount.address &&
                     e.networkIdentifier.isChain(chain),
                 orElse: () => throw Web3RequestExceptionConst.missingPermission)
-            .chainaccount as CHAINACCOUNT;
+            .chainaccount;
 
         return account;
       } else {
@@ -75,11 +76,10 @@ abstract class Web3JSStateAccount<
       Iterable<STATEADDRESS> existsAccount =
           accounts.where((e) => e.chainaccount.addressStr == addr);
       if (network != null) {
-        existsAccount =
-            existsAccount.where((e) => e.networkIdentifier.id == network.id);
+        existsAccount = existsAccount.where((e) => e.networkIdentifier.id == network.id);
       }
       if (existsAccount.length == 1) {
-        return existsAccount.first.chainaccount as CHAINACCOUNT;
+        return existsAccount.first.chainaccount;
       }
     }
     throw Web3RequestExceptionConst.missingPermission;
@@ -90,38 +90,38 @@ abstract class Web3JSStateAccount<
 }
 
 abstract class Web3JSStateHandler<
-        NETWORKADDRESS,
-        CHAINACCOUNT extends Web3ChainAccount,
-        JSACCOUNT extends JSWalletStandardAccount,
-        CHAIN extends Web3ChainIdnetifier,
-        STATE extends Web3JSStateAccount>
-    extends Web3StateHandler<
-        NETWORKADDRESS,
-        CHAINACCOUNT,
-        JSACCOUNT,
-        CHAIN,
-        STATE,
-        WalletMessageResponse,
-        Web3JsClientRequest,
-        JSWalletNetworkEvent> {
-  late STATE _state = createState(null);
+    NETWORKADDRESS extends IAddress,
+    CHAINACCOUNT extends Web3ChainAccount<NETWORKADDRESS>,
+    JSACCOUNT extends JSWalletStandardAccount,
+    CHAIN extends Web3ChainIdnetifier,
+    STATEADDRESS extends Web3JSStateAddress<NETWORKADDRESS, CHAINACCOUNT, JSACCOUNT,
+        CHAIN>,
+    STATE extends Web3JSStateAccount<NETWORKADDRESS, CHAINACCOUNT, JSACCOUNT, CHAIN,
+        STATEADDRESS>> extends Web3StateHandler<
+    NETWORKADDRESS,
+    CHAINACCOUNT,
+    JSACCOUNT,
+    CHAIN,
+    STATEADDRESS,
+    STATE,
+    WalletMessageResponse,
+    Web3JsClientRequest,
+    JSWalletNetworkEvent> {
+  late STATE _state = createState(null, null);
   final SendMessageToClient sendMessageToClient;
   Web3JSStateHandler(
       {required this.sendMessageToClient, required super.sendInternalMessage});
 
   @override
-  Future<WalletMessageResponse> onConnectResponse(
-      Web3JsClientRequest? message) async {
+  Future<WalletMessageResponse> onConnectResponse(Web3JsClientRequest? message) async {
     Web3ChainIdnetifier? chain;
     final state = await getState();
-    final error = Web3RequestExceptionConst.rejectedByUser
-        .toResponseMessage()
-        .toWalletError();
+    final error =
+        Web3RequestExceptionConst.rejectedByUser.toResponseMessage().toWalletError();
     if (message != null) {
       final chainId = message.requestParams.elementAtOrNull(0);
       if (chainId != null) {
-        chain =
-            state.chains.firstWhereOrNull((e) => e.isChain(chainId.toString()));
+        chain = state.chains.firstWhereOrNull((e) => e.isChain(chainId.toString()));
       }
     }
     switch (message?.source) {
@@ -129,14 +129,13 @@ abstract class Web3JSStateHandler<
       case Web3RequestSource.walletStandard:
         List<Web3JSStateAddress> accounts = state.accounts;
         if (chain != null) {
-          accounts =
-              accounts.where((e) => e.networkIdentifier == chain).toList();
+          accounts = accounts.where((e) => e.networkIdentifier == chain).toList();
         }
         if (accounts.isEmpty) {
           return WalletMessageResponse.fail(error);
         }
-        return WalletMessageResponse.success(JSWalletStandardConnect.setup(
-            accounts.map((e) => e.jsAccount).toList()));
+        return WalletMessageResponse.success(
+            JSWalletStandardConnect.setup(accounts.map((e) => e.jsAccount).toList()));
 
       case Web3RequestSource.injected:
         List<Web3JSStateAddress> accounts = state.networkAccounts;
@@ -150,10 +149,10 @@ abstract class Web3JSStateHandler<
         return WalletMessageResponse.fail(error);
 
       case Web3RequestSource.walletConnect:
-        return WalletMessageResponse.fail(Web3RequestExceptionConst
-            .internalError
-            .toResponseMessage()
-            .toWalletError());
+        return WalletMessageResponse.fail(
+            Web3RequestExceptionConst.internalErr("onConnectResponse")
+                .toResponseMessage()
+                .toWalletError());
     }
   }
 
@@ -183,9 +182,7 @@ abstract class Web3JSStateHandler<
         networkAccounts: networkAccountsChanged
             ? JSWalletConnectEvent.setup(currentState.defaultStateAccounts)
             : null,
-        account: networkAccountsChanged
-            ? currentState.defaultAccount?.jsAccount
-            : null);
+        account: networkAccountsChanged ? currentState.defaultAccount?.jsAccount : null);
   }
 
   JSWalletNetworkEvent _createStateEvent(STATE other, STATE currentState) {
@@ -194,8 +191,7 @@ abstract class Web3JSStateHandler<
         previousState: other,
         currentState: currentState,
         networksChanged: stateChanged || currentState.networksChanged(other),
-        networkAccountsChanged:
-            stateChanged || currentState.networkAccountChanged(other),
+        networkAccountsChanged: stateChanged || currentState.networkAccountChanged(other),
         networkChanged: stateChanged || currentState.networkChanged(other),
         accountsChanged: stateChanged || currentState.accountsChanged(other));
   }
@@ -224,10 +220,11 @@ abstract class Web3JSStateHandler<
   }
 
   @override
-  Future<JSWalletNetworkEvent> initChain(Web3APPData? authenticated) async {
+  Future<JSWalletNetworkEvent> initChain(
+      Web3APPData? authenticated, AppContext? context) async {
     return await lock.run(() async {
       final currentState = _state;
-      final state = createState(authenticated);
+      final state = createState(authenticated, context);
       final event = _createStateEvent(currentState, state);
       _state = state;
       return event;
@@ -252,8 +249,7 @@ abstract class Web3JSStateHandler<
               JSNetworkEventType.networkAccountsChanged
             ],
             account: state.defaultAccount?.jsAccount,
-            networkAccounts:
-                JSWalletConnectEvent.setup(state.defaultStateAccounts));
+            networkAccounts: JSWalletConnectEvent.setup(state.defaultStateAccounts));
       default:
         break;
     }
@@ -267,14 +263,12 @@ abstract class Web3JSStateHandler<
     sendMessageToClient(WalletMessageEvent.build(data: e), jsNetworkType);
   }
 
-  late final JSClientType jsNetworkType =
-      JSClientType.fromNetworkName(networkType.name);
+  late final JSClientType jsNetworkType = JSClientType.fromNetworkName(networkType.name);
 }
 
 class Web3JsClientRequest extends Web3ClientRequest {
   final PageMessageRequest request;
-  const Web3JsClientRequest._(
-      {required this.request, required this.requestParams});
+  const Web3JsClientRequest._({required this.request, required this.requestParams});
   factory Web3JsClientRequest(PageMessageRequest request) {
     final params = request.dartParams.cast<Object?>();
     return Web3JsClientRequest._(request: request, requestParams: params);
@@ -308,10 +302,9 @@ class Web3JsClientRequest extends Web3ClientRequest {
     // ignore: invalid_runtime_check_with_js_interop_types
     if (object is JSAny) {
       final List<int>? bytes = Web3ValidatorUtils.parseParams2(() {
-        final param =
-            JSOBJ.as<APPJSUint8Array>(object: object, keys: ["slice"]);
+        final param = JSOBJ.as<APPJSUint8Array>(object: object, keys: ["slice"]);
         if (param != null) {
-          return param.toListInt();
+          return param.toBytes();
         }
         return null;
       },
@@ -321,13 +314,10 @@ class Web3JsClientRequest extends Web3ClientRequest {
                   arg: name, encoding: encoding));
       if (bytes != null) return bytes;
       return super.objectAsBytes(
-          object: object.dartify(),
-          name: name,
-          error: error,
-          encoding: encoding);
+          object: object.dartify(), name: name, error: error, encoding: encoding);
     }
-    return super.objectAsBytes(
-        object: object, name: name, error: error, encoding: encoding);
+    return super
+        .objectAsBytes(object: object, name: name, error: error, encoding: encoding);
   }
 
   @override
@@ -341,21 +331,17 @@ class Web3JsClientRequest extends Web3ClientRequest {
       final result = JsUtils.toDartMap(object);
       if (result == null || !keys.every((e) => result.containsKey(e))) {
         throw error ??
-            Web3RequestExceptionConst.invalidMapArguments(
-                name: name, keys: keys);
+            Web3RequestExceptionConst.invalidMapArguments(name: name, keys: keys);
       }
       return result;
     }
 
-    return super
-        .objectAsMap(object: object, name: name, error: error, keys: keys);
+    return super.objectAsMap(object: object, name: name, error: error, keys: keys);
   }
 
   @override
   List<Map<String, dynamic>> objectAsListOfMap(
-      {required Object? object,
-      required String name,
-      Web3RequestException? error}) {
+      {required Object? object, required String name, Web3RequestException? error}) {
     // ignore: invalid_runtime_check_with_js_interop_types
     if (object is JSAny) {
       final result = JsUtils.toListOfMap(object);

@@ -17,6 +17,7 @@ class TransactionReviewView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StateBuilder<SwapTransactionStateController>(
+      disposeStrategy: StateBuilderDisposeStrategy.onDispose,
       controller: () =>
           SwapTransactionStateController(route: route, wallet: context.wallet),
       builder: (controller) {
@@ -75,8 +76,7 @@ class TransactionReviewView extends StatelessWidget {
                                             shape: CircleBorder(),
                                             elevation: 10,
                                             child: CircleTokenImageView(
-                                                controller
-                                                    .route.destAsset.token,
+                                                controller.route.destAsset.token,
                                                 radius: 60),
                                           ),
                                         ),
@@ -92,27 +92,22 @@ class TransactionReviewView extends StatelessWidget {
                                     children: [
                                       Expanded(
                                           child: ContainerWithBorder(
-                                        backgroundColor:
-                                            context.onPrimaryContainer,
+                                        backgroundColor: context.onPrimaryContainer,
                                         child: CoinAndMarketPriceView(
                                           showTokenImage: true,
-                                          balance:
-                                              controller.route.sourceAmount,
-                                          style: context
-                                              .primaryTextTheme.titleMedium,
+                                          balance: controller.route.sourceAmount,
+                                          style: context.primaryTextTheme.titleMedium,
                                           symbolColor: context.primaryContainer,
                                         ),
                                       )),
                                       Icon(Icons.forward, size: 45),
                                       Expanded(
                                           child: ContainerWithBorder(
-                                        backgroundColor:
-                                            context.onPrimaryContainer,
+                                        backgroundColor: context.onPrimaryContainer,
                                         child: CoinAndMarketPriceView(
                                           showTokenImage: true,
                                           balance: controller.route.destAmount,
-                                          style: context
-                                              .primaryTextTheme.titleMedium,
+                                          style: context.primaryTextTheme.titleMedium,
                                           symbolColor: context.primaryContainer,
                                         ),
                                       ))
@@ -122,28 +117,25 @@ class TransactionReviewView extends StatelessWidget {
                                   ContainerWithBorder(
                                     backgroundColor: context.onPrimaryContainer,
                                     child: CopyableTextWidget(
-                                        text: controller.route.transaction
-                                            .params.destinationAddress,
+                                        text: controller
+                                            .route.transaction.params.destinationAddress,
                                         color: context.primaryContainer),
                                   ),
                                 ]),
                               ),
                               ConditionalWidget(
-                                  enable: controller.route.transaction.route
-                                          .provider.service ==
+                                  enable: controller
+                                          .route.transaction.route.provider.service ==
                                       SwapServiceType.chainFlip,
                                   onActive: (context) => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           WidgetConstant.height20,
                                           Text("channel".tr,
-                                              style: context
-                                                  .textTheme.titleMedium),
+                                              style: context.textTheme.titleMedium),
                                           WidgetConstant.height8,
                                           _CfChannelInformation(
-                                              channel: controller
-                                                  .route.transaction.params
+                                              channel: controller.route.transaction.params
                                                   .cast())
                                         ],
                                       )),
@@ -160,11 +152,9 @@ class TransactionReviewView extends StatelessWidget {
                                 );
                               }),
                               WidgetConstant.height20,
-                              ReceiptAddressView(
-                                  address: controller.destAddress),
+                              ReceiptAddressView(address: controller.destAddress),
                               WidgetConstant.height20,
-                              Text("operations".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("operations".tr, style: context.textTheme.titleMedium),
                               WidgetConstant.height8,
                             ],
                           ),
@@ -172,15 +162,12 @@ class TransactionReviewView extends StatelessWidget {
                         SliverPadding(
                           padding: WidgetConstant.padding5,
                           sliver: SliverList.separated(
-                            itemCount:
-                                controller.route.transaction.operations.length,
-                            separatorBuilder: (context, index) =>
-                                WidgetConstant.height8,
+                            itemCount: controller.route.transaction.operations.length,
+                            separatorBuilder: (context, index) => WidgetConstant.height8,
                             itemBuilder: (context, index) {
-                              final operation = controller
-                                  .route.transaction.operations[index];
-                              if (operation
-                                  is SwapRouteTransactionTransferDetails) {
+                              final operation =
+                                  controller.route.transaction.operations[index];
+                              if (operation is SwapRouteTransactionTransferDetails) {
                                 return _TransactionNativeTransferOperationView(
                                   operation: operation,
                                   route: controller.route.transaction.route,
@@ -200,38 +187,31 @@ class TransactionReviewView extends StatelessWidget {
                         ),
                         SliverToBoxAdapter(
                             child: ErrorTextContainer(
-                                error: controller.latestError,
-                                enableTap: false)),
+                                error: controller.latestError, enableTap: false)),
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: WidgetConstant.paddingVertical40,
                             child: Shimmer(
                               enable: !controller.inProgress,
-                              onActive: (enable, context) =>
-                                  FixedElevatedButton(
+                              onActive: (enable, context) => FixedElevatedButton(
                                 onPressed: () {
                                   controller.signTransaction();
                                 },
-                                child: APPAnimatedSwitcher<
-                                    TransactionOperationStep?>(
+                                child: APPAnimatedSwitcher<TransactionOperationStep?>(
                                   enable: controller.step,
                                   widgets: {
                                     null: (context) =>
                                         Text("sign_and_send_transaction".tr),
-                                    TransactionOperationStep.client:
-                                        (context) =>
-                                            Text("connecting_to_network".tr),
-                                    TransactionOperationStep.generateTx:
-                                        (context) =>
-                                            Text("generating_transaction".tr),
-                                    TransactionOperationStep.signing:
-                                        (context) =>
-                                            Text("signing_transaction".tr),
-                                    TransactionOperationStep.broadcast:
-                                        (context) =>
-                                            Text("broadcasting_transaction".tr),
-                                    TransactionOperationStep.complete:
-                                        (context) => Text("complete".tr),
+                                    TransactionOperationStep.client: (context) =>
+                                        Text("connecting_to_network".tr),
+                                    TransactionOperationStep.generateTx: (context) =>
+                                        Text("generating_transaction".tr),
+                                    TransactionOperationStep.signing: (context) =>
+                                        Text("signing_transaction".tr),
+                                    TransactionOperationStep.broadcast: (context) =>
+                                        Text("broadcasting_transaction".tr),
+                                    TransactionOperationStep.complete: (context) =>
+                                        Text("complete".tr),
                                   },
                                 ),
                               ),
@@ -265,8 +245,7 @@ class _TransactionNativeTransferOperationView extends StatelessWidget {
   Widget build(BuildContext context) {
     return APPExpansionListTile(
       title: operation.tokenAddress != null
-          ? Text('token_transfer'.tr,
-              style: context.onPrimaryTextTheme.bodyMedium)
+          ? Text('token_transfer'.tr, style: context.onPrimaryTextTheme.bodyMedium)
           : Text('transfer'.tr, style: context.onPrimaryTextTheme.bodyMedium),
       children: [
         ContainerWithBorder(
@@ -283,19 +262,16 @@ class _TransactionNativeTransferOperationView extends StatelessWidget {
                 ),
               ),
               WidgetConstant.height20,
-              Text("destionation".tr,
-                  style: context.onPrimaryTextTheme.titleMedium),
+              Text("destionation".tr, style: context.onPrimaryTextTheme.titleMedium),
               WidgetConstant.height8,
               ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
                 onRemove: () {},
                 enableTap: false,
                 onRemoveWidget: BarcodeImageIconView(
-                    data: operation.destinationAddress,
-                    color: context.primaryContainer),
+                    data: operation.destinationAddress, color: context.primaryContainer),
                 child: CopyableTextWidget(
-                    text: operation.destinationAddress,
-                    color: context.primaryContainer),
+                    text: operation.destinationAddress, color: context.primaryContainer),
               ),
               WidgetConstant.height20,
               Text("amount".tr, style: context.onPrimaryTextTheme.titleMedium),
@@ -315,14 +291,12 @@ class _TransactionNativeTransferOperationView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     WidgetConstant.height20,
-                    Text("token".tr,
-                        style: context.onPrimaryTextTheme.titleMedium),
+                    Text("token".tr, style: context.onPrimaryTextTheme.titleMedium),
                     WidgetConstant.height8,
                     ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
                       child: CopyableTextWidget(
-                          text: operation.tokenAddress!,
-                          color: context.primaryContainer),
+                          text: operation.tokenAddress!, color: context.primaryContainer),
                     ),
                   ],
                 ),
@@ -333,8 +307,7 @@ class _TransactionNativeTransferOperationView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     WidgetConstant.height20,
-                    Text("memo".tr,
-                        style: context.onPrimaryTextTheme.titleMedium),
+                    Text("memo".tr, style: context.onPrimaryTextTheme.titleMedium),
                     WidgetConstant.height8,
                     ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
@@ -356,9 +329,7 @@ class _TransactionNativeTransferOperationView extends StatelessWidget {
 
 class _TransactionNativeContractOperationView extends StatelessWidget {
   const _TransactionNativeContractOperationView(
-      {required this.operation,
-      required this.route,
-      required this.sourceAmount});
+      {required this.operation, required this.route, required this.sourceAmount});
   final SwapRouteTransactionContractDetails operation;
   final SwapRoute route;
   final IntegerBalance sourceAmount;
@@ -382,8 +353,7 @@ class _TransactionNativeContractOperationView extends StatelessWidget {
                 ),
               ),
               WidgetConstant.height20,
-              Text("contract".tr,
-                  style: context.onPrimaryTextTheme.titleMedium),
+              Text("contract".tr, style: context.onPrimaryTextTheme.titleMedium),
               WidgetConstant.height8,
               ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
@@ -399,8 +369,7 @@ class _TransactionNativeContractOperationView extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         WidgetConstant.height20,
-                        Text("amount".tr,
-                            style: context.onPrimaryTextTheme.titleMedium),
+                        Text("amount".tr, style: context.onPrimaryTextTheme.titleMedium),
                         WidgetConstant.height8,
                         ContainerWithBorder(
                           backgroundColor: context.onPrimaryContainer,
@@ -414,14 +383,12 @@ class _TransactionNativeContractOperationView extends StatelessWidget {
                     );
                   }),
               WidgetConstant.height20,
-              Text("function".tr,
-                  style: context.onPrimaryTextTheme.titleMedium),
+              Text("function".tr, style: context.onPrimaryTextTheme.titleMedium),
               WidgetConstant.height8,
               ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
                 child: CopyableTextWidget(
-                    text: operation.functionName,
-                    color: context.primaryContainer),
+                    text: operation.functionName, color: context.primaryContainer),
               ),
               WidgetConstant.height20,
               Text("input".tr, style: context.onPrimaryTextTheme.titleMedium),
@@ -429,9 +396,7 @@ class _TransactionNativeContractOperationView extends StatelessWidget {
               ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
                 child: CopyableTextWidget(
-                    text: operation.data,
-                    color: context.primaryContainer,
-                    maxLines: 3),
+                    text: operation.data, color: context.primaryContainer, maxLines: 3),
               ),
             ],
           ),
@@ -448,15 +413,13 @@ class _CfChannelInformation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return APPExpansionListTile(
-      title: Text('channel_information'.tr,
-          style: context.onPrimaryTextTheme.bodyMedium),
+      title: Text('channel_information'.tr, style: context.onPrimaryTextTheme.bodyMedium),
       children: [
         ContainerWithBorder(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("channel_id".tr,
-                  style: context.onPrimaryTextTheme.titleMedium),
+              Text("channel_id".tr, style: context.onPrimaryTextTheme.titleMedium),
               WidgetConstant.height8,
               ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
@@ -470,8 +433,7 @@ class _CfChannelInformation extends StatelessWidget {
                 ),
               ),
               WidgetConstant.height20,
-              Text("expiration_block".tr,
-                  style: context.onPrimaryTextTheme.titleMedium),
+              Text("expiration_block".tr, style: context.onPrimaryTextTheme.titleMedium),
               WidgetConstant.height8,
               ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,

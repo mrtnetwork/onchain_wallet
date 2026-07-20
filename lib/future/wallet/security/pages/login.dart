@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/constant/constant.dart';
 
-typedef ONSUCCESSWALLETACCESS<RESPONSE extends WalletCredentialResponse>
-    = FutureOr<void> Function(RESPONSE credential);
+typedef ONSUCCESSWALLETACCESS<RESPONSE extends WalletCredentialResponse> = FutureOr<void>
+    Function(RESPONSE credential);
 
 class WalletLoginView<RESPONSE extends WalletCredentialResponse,
     REQUEST extends WalletCredential<RESPONSE>> extends StatefulWidget {
@@ -38,8 +38,7 @@ class _WalletLoginViewState<RESPONSE extends WalletCredentialResponse,
   // late final MainWallet wallet;
   bool platformCredential = false;
   String _entredPassword = "";
-  final GlobalKey<FormState> form =
-      GlobalKey<FormState>(debugLabel: "ExportSeedView");
+  final GlobalKey<FormState> form = GlobalKey<FormState>(debugLabel: "ExportSeedView");
   final GlobalKey<StreamWidgetState> progressKey =
       GlobalKey<StreamWidgetState>(debugLabel: "ExportSeedView");
   final GlobalKey<AppTextFieldState> textFildState =
@@ -80,25 +79,26 @@ class _WalletLoginViewState<RESPONSE extends WalletCredentialResponse,
     String? password = textFildState.currentState?.getValue().nullOnEmpty;
     progressKey.process();
     try {
-      final request = WalletCredentialRequest(
-          credential: widget.request,
-          password: usePlatformCredential ? null : password,
-          platformCredential: platformCredential);
+      final request = WalletActionAccess(
+          request: WalletCredentialRequest(
+              credential: widget.request,
+              password: usePlatformCredential ? null : password,
+              platformCredential: platformCredential));
 
-      final result = await walletProvider.wallet.login_(request);
-      if (result.hasError) {
-        error = result.localizationError;
+      final result = await walletProvider.wallet.doAction(request);
+      if (result.isErr) {
+        error = result.unwrapErr().localizationError;
         progressKey.error();
       } else {
-        final r = await MethodUtils.call(() async {
-          return widget.onWalletAccess.call(result.result);
+        final r = await IResult.call(() async {
+          return widget.onWalletAccess.call(result.unwrap());
         });
-        if (r.hasError) {
-          error = result.localizationError;
+        if (r.isErr) {
+          error = result.unwrapErr().localizationError;
           progressKey.error();
           return;
         }
-        credentials = result.result;
+        credentials = result.unwrap();
         progressKey.success();
       }
     } finally {
@@ -113,7 +113,7 @@ class _WalletLoginViewState<RESPONSE extends WalletCredentialResponse,
     platformCredential = walletProvider.wallet.hasWalletKey &&
         widget.request.type.allowPlatformCredential &&
         wallet.platformCredential != null;
-    MethodUtils.after(() => getCredential(firstTry: true),
+    MethodUtils.executeAfterDelay(() => getCredential(firstTry: true),
         duration: APPConst.animationDuraion);
   }
 
@@ -147,12 +147,12 @@ class _WalletLoginViewState<RESPONSE extends WalletCredentialResponse,
                           onDeactive: (context) => Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Row(
+                                Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.security,
                                         size: APPConst.double80,
-                                        color: ColorConst.green)
+                                        color: context.colors.green)
                                   ],
                                 ),
                                 WidgetConstant.height8,

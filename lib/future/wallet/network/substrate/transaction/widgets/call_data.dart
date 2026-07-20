@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/widgets.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/substrate/substrate.dart';
+import 'package:on_chain_wallet/crypto/networks/substrate/substrate.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/models/networks/substrate/models/multisig.dart';
@@ -27,16 +27,14 @@ class SubstrateMultisigCallDataField extends StatefulWidget {
   final SubstrateMultisigCallData? defaultValue;
 
   @override
-  State<SubstrateMultisigCallDataField> createState() =>
-      _StringWriterViewState();
+  State<SubstrateMultisigCallDataField> createState() => _StringWriterViewState();
 }
 
 class _StringWriterViewState extends State<SubstrateMultisigCallDataField>
     with SafeState {
   AutovalidateMode autovalidateMode = AutovalidateMode.disabled;
   bool allowHash = false;
-  final GlobalKey<FormState> formKey =
-      GlobalKey(debugLabel: "_StringWriterViewState_1");
+  final GlobalKey<FormState> formKey = GlobalKey(debugLabel: "_StringWriterViewState_1");
 
   _SubstrateMultisigData data = _SubstrateMultisigData.call;
 
@@ -57,16 +55,17 @@ class _StringWriterViewState extends State<SubstrateMultisigCallDataField>
     text = v;
   }
 
-  String? validateCallOrHash(String? value) {
+  String? validateCallOrHash(String? v) {
     // final data=
-    if (value == null || !StringUtils.isHexBytes(value)) {
+    if (v == null || !StringUtils.isHexBytes(v)) {
       return "invalid_hex_validator".tr;
     }
-    value = StringUtils.normalizeHex(value);
+    final value = StringUtils.normalizeHex(v);
     switch (data) {
       case _SubstrateMultisigData.call:
-        final content = MethodUtils.nullOnException(
-            () => widget.api.decodeCall(BytesUtils.fromHexString(value!)));
+        final content = MethodUtils.fallbackOnException(
+            () => widget.api.decodeCall(BytesUtils.fromHexString(value)),
+            logOnDebug: false);
         if (content == null) {
           return "failed_to_decode_call_data".tr;
         }
@@ -84,19 +83,16 @@ class _StringWriterViewState extends State<SubstrateMultisigCallDataField>
   void onPressed() {
     if (!formKey.ready()) return;
     final dataBytes = BytesUtils.fromHexString(text);
-    final data = MethodUtils.nullOnException(() => SubstrateMultisigCallData(
+    final data = MethodUtils.fallbackOnException(() => SubstrateMultisigCallData(
         multisig: null,
         weight: null,
         call: switch (this.data) {
           _SubstrateMultisigData.call => SubstrateMultisigCall(
-              callData: dataBytes,
-              callHash: SubstrateUtils.callHash(dataBytes)),
-          _SubstrateMultisigData.hash =>
-            SubstrateMultisigCall(callHash: dataBytes),
+              callData: dataBytes, callHash: SubstrateUtils.callHash(dataBytes)),
+          _SubstrateMultisigData.hash => SubstrateMultisigCall(callHash: dataBytes),
         },
         content: switch (this.data) {
-          _SubstrateMultisigData.call =>
-            widget.api.decodeCall(dataBytes).toJson(),
+          _SubstrateMultisigData.call => widget.api.decodeCall(dataBytes).toJson(),
           _SubstrateMultisigData.hash => null,
         }));
     if (data == null) return;
@@ -127,8 +123,7 @@ class _StringWriterViewState extends State<SubstrateMultisigCallDataField>
     allowHash = widget.method != MultisigCallPalletMethod.asMulti;
     items = {
       _SubstrateMultisigData.call: Text(_SubstrateMultisigData.call.tr.tr),
-      if (allowHash)
-        _SubstrateMultisigData.hash: Text(_SubstrateMultisigData.hash.tr.tr)
+      if (allowHash) _SubstrateMultisigData.hash: Text(_SubstrateMultisigData.hash.tr.tr)
     };
     final callData = widget.defaultValue;
     if (callData == null) return;

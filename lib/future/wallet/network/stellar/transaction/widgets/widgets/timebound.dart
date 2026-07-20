@@ -7,8 +7,7 @@ import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/
 
 class StellarTransactionSetupTimeBoundView extends StatefulWidget {
   final TransactionTimeBound currentTimeBound;
-  const StellarTransactionSetupTimeBoundView(
-      {required this.currentTimeBound, super.key});
+  const StellarTransactionSetupTimeBoundView({required this.currentTimeBound, super.key});
 
   @override
   State<StellarTransactionSetupTimeBoundView> createState() =>
@@ -39,8 +38,7 @@ class _StellarTransactionSetupTimeBoundViewState
   void checkIsReady() {
     if (timeBoundType.isManual) {
       final timeBound = this.timeBound;
-      final minimumTime =
-          DateTime.now().toLocal().add(const Duration(minutes: 3));
+      final minimumTime = DateTime.now().toLocal().add(const Duration(minutes: 3));
       if (timeBound == null || timeBound.isBefore(minimumTime)) {
         isReady = false;
         if (timeBound != null) {
@@ -66,16 +64,12 @@ class _StellarTransactionSetupTimeBoundViewState
     if (!mounted) return;
     try {
       final date = await showDatePicker(
-          context: context,
-          firstDate: DateTime.now().toLocal(),
-          lastDate: maximumDate);
+          context: context, firstDate: DateTime.now().toLocal(), lastDate: maximumDate);
       if (!mounted || date == null) return;
-      final now =
-          DateTime.now().toLocal().add(const Duration(minutes: 10)).timeOfDay();
+      final now = DateTime.now().toLocal().add(const Duration(minutes: 10)).timeOfDay();
       final time = await showTimePicker(context: context, initialTime: now);
       if (!mounted || time == null) return;
-      final minimumTime =
-          DateTime.now().toLocal().add(const Duration(minutes: 3));
+      final minimumTime = DateTime.now().toLocal().add(const Duration(minutes: 3));
       final finalTime = date.copyWith(hour: time.hour, minute: time.minute);
       if (finalTime.isBefore(minimumTime)) {
         context.showAlert("time_is_insufficient".tr);
@@ -91,8 +85,7 @@ class _StellarTransactionSetupTimeBoundViewState
   void setup() {
     checkIsReady();
     if (!isReady) return;
-    final timebound =
-        TransactionTimeBound(type: timeBoundType, time: timeBound);
+    final timebound = TransactionTimeBound(type: timeBoundType, time: timeBound);
     context.pop(timebound);
   }
 
@@ -112,32 +105,27 @@ class _StellarTransactionSetupTimeBoundViewState
           onChanged: onChangeTimeBound,
           helperText: timeBoundType.helperText.tr,
         ),
-        APPAnimatedSwitcher<TransactiomTimeBoundType>(
-            enable: timeBoundType,
-            widgets: {
-              TransactiomTimeBoundType.manual: (context) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      WidgetConstant.height20,
-                      Text("expiration_time".tr,
-                          style: context.textTheme.titleMedium),
-                      Text("stellar_time_bound_max_time_desc".tr),
-                      WidgetConstant.height8,
-                      ContainerWithBorder(
-                        onRemoveIcon: Icon(Icons.edit,
-                            color: context.colors.onPrimaryContainer),
-                        onRemove: pickTime,
-                        child: timeBound == null
-                            ? Text("tap_to_choose_data".tr,
-                                style: context.colors.onPrimaryContainer
-                                    .bodyMedium(context))
-                            : Text(timeBound!.toDateAndTimeWithSecound(),
-                                style: context.colors.onPrimaryContainer
-                                    .bodyMedium(context)),
-                      )
-                    ],
+        APPAnimatedSwitcher<TransactiomTimeBoundType>(enable: timeBoundType, widgets: {
+          TransactiomTimeBoundType.manual: (context) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  WidgetConstant.height20,
+                  Text("expiration_time".tr, style: context.textTheme.titleMedium),
+                  Text("stellar_time_bound_max_time_desc".tr),
+                  WidgetConstant.height8,
+                  ContainerWithBorder(
+                    onRemoveIcon:
+                        Icon(Icons.edit, color: context.colors.onPrimaryContainer),
+                    onRemove: pickTime,
+                    child: timeBound == null
+                        ? Text("tap_to_choose_data".tr,
+                            style: context.onPrimaryTextTheme.bodyMedium)
+                        : Text(timeBound!.toDateAndTimeWithSecound(),
+                            style: context.onPrimaryTextTheme.bodyMedium),
                   )
-            }),
+                ],
+              )
+        }),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

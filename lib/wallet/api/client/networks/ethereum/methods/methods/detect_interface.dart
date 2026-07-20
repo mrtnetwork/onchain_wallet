@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/crypto/utils/solidity/solidity.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/solidity/solidity.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain/solidity/address/core.dart';
 
@@ -10,7 +10,7 @@ enum SolidityContractInterface {
   erc1155,
   none;
 
-  String? get getContractAssetPath {
+  APPAssetUri? get getContractAssetPath {
     return switch (this) {
       SolidityContractInterface.erc1155 => APPConst.assetErc1155Abi,
       SolidityContractInterface.erc721 => APPConst.assetErc721Abi,
@@ -58,8 +58,8 @@ class RPCDetectContactInterface extends EthereumRequest<bool, String> {
         prefix: "0x");
     return [
       {
-        "from": from.toHex(),
-        "to": contractAddress.toHex(),
+        "from": from.toSolidityHex(),
+        "to": contractAddress.toSolidityHex(),
         "data": data,
       },
       blockNumber

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/metadata/fields/fields.dart';
@@ -19,17 +18,15 @@ class SubstrateMetadataStoragesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<SubstrateClient, ISubstrateAddress,
+    return NetworkAccountControllerView<SubstrateNetworkClient, ISubstrateAddress,
             SubstrateChain>(
         addressRequired: true,
         clientRequired: true,
         account: account,
         title: 'storages'.tr,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
+        childBulder: (wallet, account, client, address) =>
             SubstrateMetadataStoragesWidget(
-                account: account,
-                scrollController: scrollController,
-                client: client));
+                account: account, scrollController: scrollController, client: client));
   }
 }
 
@@ -43,7 +40,7 @@ class SubstrateMetadataStoragesWidget extends StatefulWidget {
   final ScrollController? scrollController;
   final SubstrateChain account;
   final StorageInfo? storage;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
 
   @override
   State<SubstrateMetadataStoragesWidget> createState() =>
@@ -55,7 +52,7 @@ class _SubstrateMetadataStoragesWidgetState
   @override
   SubstrateChain get account => widget.account;
   @override
-  SubstrateClient get client => widget.client;
+  SubstrateNetworkClient get client => widget.client;
 
   SubstrateChainMetadata get metadata => client.metadata;
 
@@ -74,11 +71,9 @@ class _SubstrateMetadataStoragesWidgetState
     if (storages.isEmpty) return;
     final List<_StorageLookupField> fields = [];
     for (final i in storages) {
-      final loockup =
-          metadata.getLookupTypeInfo(i.inputLookupId, name: i.viewName);
+      final loockup = metadata.getLookupTypeInfo(i.inputLookupId, name: i.viewName);
       final field = _StorageLookupField(
-          form:
-              loockup == null ? null : MetadataFormValidator.fromType(loockup),
+          form: loockup == null ? null : MetadataFormValidator.fromType(loockup),
           storage: i,
           pallet: pallet.name);
       fields.add(field);
@@ -134,20 +129,18 @@ class _SubstrateMetadataStoragesWidgetState
     final error = fields.any((e) => e.form?.error != null);
     if (error) return;
     progressKey.progressText("retrieving_data_please_wait".tr);
-    final r = await MethodUtils.call(() async {
+    final r = await IResult.call(() async {
       _results.clear();
       return client.queryStorage(fields
           .map((e) => SubstrateStorageQueryParams(
-              pallet: pallet.name,
-              storage: e.storage,
-              input: e.form?.getResult()))
+              pallet: pallet.name, storage: e.storage, input: e.form?.getResult()))
           .toList());
     });
-    if (r.hasError) {
-      progressKey.errorText(r.localizationError,
+    if (r.isErr) {
+      progressKey.errorText(r.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
-      _results = r.result;
+      _results = r.unwrap();
       _showResult = true;
       progressKey.success();
     }
@@ -162,7 +155,7 @@ class _SubstrateMetadataStoragesWidgetState
   @override
   void onInitOnce() {
     super.onInitOnce();
-    MethodUtils.after(() => init(), duration: APPConst.animationDuraion);
+    MethodUtils.executeAfterDelay(() => init(), duration: APPConst.animationDuraion);
   }
 
   @override
@@ -181,54 +174,44 @@ class _SubstrateMetadataStoragesWidgetState
       },
       child: StreamPageProgress(
         controller: progressKey,
-        initialWidget:
-            ProgressWithTextView(text: 'retrieving_data_please_wait'.tr),
+        initialWidget: ProgressWithTextView(text: 'retrieving_data_please_wait'.tr),
         builder: (context) => UnfocusableChild(
           child: CustomScrollView(
             controller: widget.scrollController,
             slivers: [
               SliverConstraintsBoxView(
                 padding: WidgetConstant.paddingHorizontal20,
-                sliver: APPSliverAnimatedSwitcher<_StoragePage>(
-                    enable: page,
-                    widgets: {
-                      _StoragePage.select: (context) => MultiSliver(children: [
-                            SliverPinnedHeaderSurface(
-                                elevation: APPConst.elevation,
-                                child: AppDropDownBottom(
-                                    items: items,
-                                    onChanged: onChangePallet,
-                                    value: pallet)),
-                            SliverPadding(
-                              padding: WidgetConstant.paddingHorizontal20,
-                              sliver: APPSliverAnimatedSwitcher(
-                                  enable: pallet,
-                                  widgets: {
-                                    pallet: (context) => PalletStoragesView(
-                                        pallet: pallet,
-                                        onTap: onTapStorage,
-                                        storages: storages)
-                                  }),
-                            ),
-                            SliverToBoxAdapter(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  FixedElevatedButton(
-                                      activePress: storages.isNotEmpty,
-                                      padding: WidgetConstant.paddingVertical40,
-                                      key: getStoragesKey,
-                                      onPressed: () {
-                                        queryStorages();
-                                      },
-                                      child: Text("get_storages".tr))
-                                ],
-                              ),
-                            ),
-                          ]),
-                      _StoragePage.query: (context) =>
-                          _StorageFieldsWidget(state: this)
-                    }),
+                sliver: APPSliverAnimatedSwitcher<_StoragePage>(enable: page, widgets: {
+                  _StoragePage.select: (context) => MultiSliver(children: [
+                        SliverPinnedHeaderSurface(
+                            elevation: APPConst.elevation,
+                            child: AppDropDownBottom(
+                                items: items, onChanged: onChangePallet, value: pallet)),
+                        SliverPadding(
+                          padding: WidgetConstant.paddingHorizontal20,
+                          sliver: APPSliverAnimatedSwitcher(enable: pallet, widgets: {
+                            pallet: (context) => PalletStoragesView(
+                                pallet: pallet, onTap: onTapStorage, storages: storages)
+                          }),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              FixedElevatedButton(
+                                  activePress: storages.isNotEmpty,
+                                  padding: WidgetConstant.paddingVertical40,
+                                  key: getStoragesKey,
+                                  onPressed: () {
+                                    queryStorages();
+                                  },
+                                  child: Text("get_storages".tr))
+                            ],
+                          ),
+                        ),
+                      ]),
+                  _StoragePage.query: (context) => _StorageFieldsWidget(state: this)
+                }),
               )
             ],
           ),
@@ -242,10 +225,7 @@ typedef ONTAPSTORAGE = void Function(StorageInfo);
 
 class PalletStoragesView extends StatelessWidget {
   const PalletStoragesView(
-      {super.key,
-      required this.pallet,
-      required this.onTap,
-      required this.storages});
+      {super.key, required this.pallet, required this.onTap, required this.storages});
   final PalletInfo pallet;
   final ONTAPSTORAGE onTap;
   final List<StorageInfo> storages;
@@ -263,8 +243,7 @@ class PalletStoragesView extends StatelessWidget {
               },
               value: storages.contains(storage),
               contentPadding: EdgeInsets.zero,
-              subtitle:
-                  LargeTextView(storage.docs, textAligen: TextAlign.start));
+              subtitle: LargeTextView(storage.docs, textAligen: TextAlign.start));
         },
         itemCount: pallet.storage!.length);
   }

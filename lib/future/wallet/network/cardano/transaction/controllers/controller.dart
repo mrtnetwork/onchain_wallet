@@ -4,11 +4,11 @@ import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/controllers/memo.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 import 'certificate.dart';
@@ -16,8 +16,7 @@ import 'fee.dart';
 import 'provider.dart';
 import 'utxos.dart';
 
-abstract class ADATransactionStateController
-    extends BaseADATransactionController
+abstract class ADATransactionStateController extends BaseADATransactionController
     with
         ADATransactionApiController,
         ADATransactionFeeController,
@@ -30,9 +29,7 @@ abstract class ADATransactionStateController
   ADAEpochParametersResponse get latestEpochParams => _latestEpochParams;
 
   ADATransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   Future<IADASignedTransaction> signTransaction(IADATransaction transaction,
@@ -56,13 +53,13 @@ abstract class ADATransactionStateController
           if (signer.multiSigAccount) {
             final mAccount = signer as ICardanoMultiSigAddress;
             bool isRewardOfBaseAddress = mAccount.rewardAddress == address;
-            final BaseCardanoMultiSignatureCredential? cred =
-                switch (isRewardOfBaseAddress) {
+            final BaseCardanoMultiSignatureCredential? cred = switch (
+                isRewardOfBaseAddress) {
               true => mAccount.addressInfo.stakeCredential,
               false => mAccount.addressInfo.credential
             };
             if (cred == null) {
-              throw WalletExceptionConst.invalidAccountDeta("signTransaction");
+              throw WalletExceptionConst.invalidAccountData("signTransaction");
             }
             List<Vkeywitness> witnesses = [];
             for (int i = 0; i <= cred.threshold; i++) {
@@ -87,29 +84,28 @@ abstract class ADATransactionStateController
     }
 
     final adaTransaction = await walletProvider.wallet.signTransaction(
-        request: WalletSigningRequest(
+        params: WalletActionSign(
+            request: WalletSigningRequest(
       addresses: signers,
       network: network,
       sign: (generateSignature) {
         return transaction.transaction.signAndBuildTransactionAsync(
           ({required address, required digest}) async {
             final signer = signers.firstWhere(
-                (e) =>
-                    e.networkAddress == address || e.rewardAddress == address,
+                (e) => e.networkAddress == address || e.rewardAddress == address,
                 orElse: () => throw WalletExceptionConst.signerAccountNotFound);
             bool isRewardOfBaseAddress = signer.rewardAddress == address;
 
             if (signer.multiSigAccount) {
               final mAccount = signer as ICardanoMultiSigAddress;
 
-              final BaseCardanoMultiSignatureCredential? cred =
-                  switch (isRewardOfBaseAddress) {
+              final BaseCardanoMultiSignatureCredential? cred = switch (
+                  isRewardOfBaseAddress) {
                 true => mAccount.addressInfo.stakeCredential,
                 false => mAccount.addressInfo.credential
               };
               if (cred == null) {
-                throw WalletExceptionConst.invalidAccountDeta(
-                    "signTransaction");
+                throw WalletExceptionConst.invalidAccountData("signTransaction");
               }
               final indexes = cred.keyIndexes;
               List<Vkeywitness> witnesses = [];
@@ -117,22 +113,19 @@ abstract class ADATransactionStateController
                 final signRequest =
                     GlobalSignRequest.cardano(digest: digest, index: i.cast());
                 final sig = await generateSignature(signRequest);
-                final pubkey =
-                    AdaPublicKey.fromBytes(sig.signerPubKey.keyBytes());
+                final pubkey = AdaPublicKey.fromBytes(sig.signerPubKey.keyBytes());
                 final ed25519Signature = Ed25519Signature(sig.signature);
                 signatures.add(sig.signature);
                 witnesses.add(Vkeywitness(
-                    vKey: pubkey.toVerificationKey(),
-                    signature: ed25519Signature));
+                    vKey: pubkey.toVerificationKey(), signature: ed25519Signature));
                 if (witnesses.length >= cred.threshold) break;
               }
               return witnesses;
             }
-            final keyIndex = isRewardOfBaseAddress
-                ? signer.rewardKeyIndex!
-                : signer.keyIndex;
-            final signRequest = GlobalSignRequest.cardano(
-                digest: digest, index: keyIndex.cast());
+            final keyIndex =
+                isRewardOfBaseAddress ? signer.rewardKeyIndex! : signer.derivationIndex;
+            final signRequest =
+                GlobalSignRequest.cardano(digest: digest, index: keyIndex.cast());
             final sig = await generateSignature(signRequest);
             signatures.add(sig.signature);
             final pubkey = AdaPublicKey.fromBytes(sig.signerPubKey.keyBytes());
@@ -143,22 +136,20 @@ abstract class ADATransactionStateController
                     vkey: Vkey(pubkey.toBytes(false)),
                     signature: ed25519Signature,
                     chainCode: sig.signerPubKey.chainCodeBytes()!,
-                    attributes:
-                        address.cast<ADAByronAddress>().attributeSerialize())
+                    attributes: address.cast<ADAByronAddress>().attributeSerialize())
               ];
             }
             return [
-              Vkeywitness(
-                  vKey: pubkey.toVerificationKey(), signature: ed25519Signature)
+              Vkeywitness(vKey: pubkey.toVerificationKey(), signature: ed25519Signature)
             ];
           },
         );
       },
-    ));
+    )));
     return IADASignedTransaction(
         transaction: transaction,
         signatures: signatures,
-        finalTransactionData: adaTransaction.result);
+        finalTransactionData: adaTransaction.unwrap());
   }
 
   @override
@@ -166,19 +157,17 @@ abstract class ADATransactionStateController
       {required IADASignedTransaction signedTransaction}) async {
     final ser = signedTransaction.finalTransactionData.serialize();
     final txId = await client.broadcastTransaction(ser);
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required ADAClient client,
+    required ADANetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     _latestEpochParams = await latestEpochProtocolParameters();
     await initUtxos();
     return this;

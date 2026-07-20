@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
-mixin SecureState<T extends StatefulWidget> on State<T> {
+mixin AndroidSecureState<T extends StatefulWidget> on SafeState<T> {
   bool _enabled = false;
   @override
-  void initState() {
-    super.initState();
-    if (PlatformInterface.appPlatform == AppPlatform.android) {
-      PlatformInterface.instance.secureFlag(isSecure: true);
-      _enabled = true;
-    }
+  void onInitOnce() {
+    super.onInitOnce();
+    appContext?.platformUtls.secureFlag(true).then((e) {
+      if (e.isOk) _enabled = true;
+    });
   }
 
   @override
-  void dispose() {
+  void safeDispose() {
+    super.safeDispose();
     if (_enabled) {
-      PlatformInterface.instance.secureFlag(isSecure: false);
-      _enabled = false;
+      appContext?.platformUtls.secureFlag(false).then((e) {
+        _enabled = false;
+      });
     }
-    super.dispose();
   }
 }

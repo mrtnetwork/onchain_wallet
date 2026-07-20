@@ -1,5 +1,4 @@
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/operations.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:stellar_dart/stellar_dart.dart';
@@ -13,7 +12,7 @@ mixin StellarTransactionApiController on DisposableMixin {
     await receiver.lock.run(() async {
       if (!receiver.status.canTry) return;
       receiver.setPendig();
-      final result = await MethodUtils.call(() async {
+      final result = await IResult.call(() async {
         if (_accountActivities.containsKey(receiver.address.networkAddress)) {
           return _accountActivities[receiver.address.networkAddress];
         }
@@ -21,10 +20,10 @@ mixin StellarTransactionApiController on DisposableMixin {
             await client.getAccount(receiver.address.networkAddress);
         return _accountActivities[receiver.address.networkAddress];
       });
-      if (result.hasError) {
+      if (result.isErr) {
         receiver.setError();
       } else {
-        receiver.setResource(result.result);
+        receiver.setResource(result.unwrap());
       }
     });
   }

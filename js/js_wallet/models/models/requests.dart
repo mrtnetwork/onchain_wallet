@@ -2,7 +2,7 @@ import 'dart:js_interop';
 
 import 'package:on_chain_bridge/web/web.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
 
 import '../models.dart';
 
@@ -12,7 +12,8 @@ enum JSWalletMessageType {
 
   static JSWalletMessageType fromName(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("JSWalletMessageType",
+            details: {"name": name}));
   }
 }
 
@@ -25,7 +26,8 @@ enum JSNetworkEventType {
 
   static JSNetworkEventType name(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("JSNetworkEventType",
+            details: {"name": name}));
   }
 
   static JSNetworkEventType? fromName(String? name) {
@@ -49,7 +51,8 @@ enum JSEventType {
 
   static JSEventType name(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("JSEventType",
+            details: {"name": name}));
   }
 
   static JSEventType? fromName(String? name) {
@@ -63,7 +66,8 @@ enum JSWalletResponseType {
 
   static JSWalletResponseType fromName(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("JSWalletResponseType",
+            details: {"name": name}));
   }
 }
 
@@ -82,19 +86,23 @@ enum JSClientType {
   cosmos(networkName: "Cosmos"),
   monero(networkName: "Monero"),
   cardano(networkName: "Cardano"),
-  bitcoinCash(networkName: "BitcoinCash");
+  bitcoinCash(networkName: "BitcoinCash"),
+  zcash(networkName: "Zcash");
 
   final String networkName;
   const JSClientType({required this.networkName});
 
   static JSClientType fromNetworkName(String? name) {
+    // NetworkType.zcash
     return values.firstWhere((e) => e.networkName == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("JSClientType",
+            details: {"name": name}));
   }
 
   static JSClientType fromName(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("JSClientType.fromName",
+            details: {"name": name}));
   }
 }
 
@@ -104,7 +112,8 @@ enum PageMessageType {
 
   static PageMessageType fromName(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("PageMessageType",
+            details: {"name": name}));
   }
 }
 
@@ -115,7 +124,8 @@ enum PageRequestType {
 
   static PageRequestType fromName(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr("PageRequestType",
+            details: {"name": name}));
   }
 }
 
@@ -124,8 +134,7 @@ extension type WalletMessage._(JSObject object) implements JSAny {
   external String get requestId;
   external String? get client;
   external WalletMessageData get data;
-  JSClientType? get clientType =>
-      client == null ? null : JSClientType.fromName(client);
+  JSClientType? get clientType => client == null ? null : JSClientType.fromName(client);
   external factory WalletMessage(
       {required String requestId,
       required String? client,
@@ -134,11 +143,9 @@ extension type WalletMessage._(JSObject object) implements JSAny {
       {required String requestId,
       required JSClientType? client,
       required WalletMessageResponse data}) {
-    return WalletMessage(
-        requestId: requestId, client: client?.name, data: data);
+    return WalletMessage(requestId: requestId, client: client?.name, data: data);
   }
-  factory WalletMessage.event(
-      {JSClientType? client, required WalletMessageEvent data}) {
+  factory WalletMessage.event({JSClientType? client, required WalletMessageEvent data}) {
     return WalletMessage(requestId: 'event', client: client?.name, data: data);
   }
 }
@@ -153,8 +160,7 @@ extension type WalletMessageData._(JSObject object) implements JSAny {
 }
 
 @JS()
-extension type WalletMessageResponse._(JSObject object)
-    implements WalletMessageData {
+extension type WalletMessageResponse._(JSObject object) implements WalletMessageData {
   external factory WalletMessageResponse(
       {required String type, required String status, required JSAny? data});
   external String get type;
@@ -174,10 +180,8 @@ extension type WalletMessageResponse._(JSObject object)
   }
 }
 @JS()
-extension type WalletMessageEvent._(JSObject object)
-    implements WalletMessageData {
-  external factory WalletMessageEvent(
-      {required String type, required JSAny? data});
+extension type WalletMessageEvent._(JSObject object) implements WalletMessageData {
+  external factory WalletMessageEvent({required String type, required JSAny? data});
   factory WalletMessageEvent.build({JSAny? data}) {
     return WalletMessageEvent(type: JSWalletMessageType.event.name, data: data);
   }
@@ -191,20 +195,16 @@ extension type PageMessage._(JSObject object) implements JSAny {
   external String get requestId;
   external String? get client;
   external PageMessageData get data;
-  JSClientType? get clientType =>
-      client == null ? null : JSClientType.fromName(client);
+  JSClientType? get clientType => client == null ? null : JSClientType.fromName(client);
   external factory PageMessage(
-      {required PageMessageData data,
-      required String requestId,
-      String? client});
+      {required PageMessageData data, required String requestId, String? client});
   factory PageMessage.request(
       {required String requestId,
       JSClientType? client,
       required PageMessageRequest data}) {
     return PageMessage(requestId: requestId, client: client?.name, data: data);
   }
-  factory PageMessage.event(
-      {JSClientType? client, required PageMessageEvent data}) {
+  factory PageMessage.event({JSClientType? client, required PageMessageEvent data}) {
     return PageMessage(requestId: 'event', client: client?.name, data: data);
   }
 }
@@ -221,14 +221,15 @@ extension type PageMessageData._(JSObject object) implements JSAny {
 
   PageMessageRequest asRequest() {
     if (type != PageMessageType.request.name) {
-      throw Web3RequestExceptionConst.internalError;
+      throw Web3RequestExceptionConst.internalErr("PageMessageType",
+          details: {"type": type});
     }
     return this as PageMessageRequest;
   }
 
   PageMessageEvent asEvent() {
     if (type != PageMessageType.event.name) {
-      throw Web3RequestExceptionConst.internalError;
+      throw Web3RequestExceptionConst.internalErr("asEvent", details: {"type": type});
     }
     return this as PageMessageEvent;
   }
@@ -244,8 +245,7 @@ extension type Web3JSRequestParams._(JSObject o) implements JSAny {
 }
 
 @JS()
-extension type PageMessageRequest._(JSObject object)
-    implements PageMessageData {
+extension type PageMessageRequest._(JSObject object) implements PageMessageData {
   external String get type;
   external String get method;
   external JSArray<JSAny?>? params;
@@ -270,8 +270,7 @@ extension type PageMessageRequest._(JSObject object)
         providerType: provider.name);
   }
 
-  List<Object?> get dartParams =>
-      params?.toDart.map((e) => e.dartify()).toList() ?? [];
+  List<Object?> get dartParams => params?.toDart.map((e) => e.dartify()).toList() ?? [];
 
   T? getElementAt<T extends JSAny?>(int index) {
     try {
@@ -331,8 +330,7 @@ enum JSWorkerType {
 
 @JS()
 extension type JSWorkerEvent._(JSObject o) implements JSAny {
-  factory JSWorkerEvent(
-      {required JSWorkerType type, JSAny? data, String? clientId}) {
+  factory JSWorkerEvent({required JSWorkerType type, JSAny? data, String? clientId}) {
     return JSWorkerEvent._(JSObject())
       ..type = type.name
       ..data = data

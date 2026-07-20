@@ -1,5 +1,7 @@
 import 'package:blockchain_utils/bip/bip/conf/bip44/bip44_coins.dart';
 import 'package:blockchain_utils/bip/ecc/bip_ecc.dart';
+import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:on_chain_bridge/serialization/src/serialization.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
@@ -20,8 +22,7 @@ enum AptosSupportKeyScheme {
   const AptosSupportKeyScheme({required this.value, required this.name});
   static AptosSupportKeyScheme fromValue(int? value) {
     return values.firstWhere((e) => e.value == value,
-        orElse: () => throw AppSerializationException(
-            objectName: "AptosSupportKeyScheme"));
+        orElse: () => throw AppInternalError.internalError("AptosSupportKeyScheme"));
   }
 
   AptosSigningScheme get toSigningScheme {
@@ -45,21 +46,36 @@ enum AptosSupportKeyScheme {
   static AptosSupportKeyScheme fromCoin(Bip44Coins coin) {
     return switch (coin) {
       Bip44Coins.aptos => AptosSupportKeyScheme.ed25519,
-      Bip44Coins.aptosEd25519SingleKey =>
-        AptosSupportKeyScheme.signleKeyEd25519,
-      Bip44Coins.aptosSecp256k1SingleKey =>
-        AptosSupportKeyScheme.signleKeySecp256k1,
+      Bip44Coins.aptosEd25519SingleKey => AptosSupportKeyScheme.signleKeyEd25519,
+      Bip44Coins.aptosSecp256k1SingleKey => AptosSupportKeyScheme.signleKeySecp256k1,
       _ => throw AppCryptoExceptionConst.invalidCoin
     };
   }
 }
 
-class AptosAccountTokenInfo {
+class AptosAccountTokenInfo with AppSerialization {
   final BigInt balance;
   final bool frozen;
   final String assetType;
   const AptosAccountTokenInfo(
       {required this.balance, required this.frozen, required this.assetType});
+  factory AptosAccountTokenInfo.deserialize({List<int>? bytes, CborObject? object}) {
+    final values = AppSerialization.decodeTaggedValue(
+        identifier: AppSerializationIdentifier.runtimeTag,
+        cborBytes: bytes,
+        cborObject: object);
+    return AptosAccountTokenInfo(
+        balance: values.rawValueAt(0),
+        frozen: values.rawValueAt(1),
+        assetType: values.rawValueAt(2));
+  }
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.runtimeTag;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [balance.toCbor(), frozen.toCbor(), assetType.toCbor()];
 }
 
 class AptosTransferDetails extends TransferOutputDetails<AptosAddress> {
@@ -88,5 +104,5 @@ class AptosTransferDetails extends TransferOutputDetails<AptosAddress> {
   }
 
   @override
-  List get variabels => [recipient];
+  List get variables => [recipient];
 }

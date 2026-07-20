@@ -36,12 +36,11 @@ class MnemonicView extends StatelessWidget {
                           Chip(
                             elevation: 3,
                             padding: WidgetConstant.padding10,
-                            backgroundColor:
-                                color ?? context.colors.primaryContainer,
+                            backgroundColor: color ?? context.colors.primaryContainer,
                             label: Text(
                               mnemonic[index],
-                              style: context.textTheme.bodySmall
-                                  ?.copyWith(color: reverse),
+                              style:
+                                  context.textTheme.bodySmall?.copyWith(color: reverse),
                             ),
                           ),
                           Badge.count(

@@ -1,6 +1,6 @@
-import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/read_account_private_key.dart';
 import 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 enum WalletCredentialType {
@@ -9,30 +9,30 @@ enum WalletCredentialType {
   accountKey(allowPlatformCredential: false),
   importedKey(allowPlatformCredential: false),
   mnemonic(allowPlatformCredential: false),
-  requirePassword(allowPlatformCredential: false);
+  backup(allowPlatformCredential: false),
+  changePassword(allowPlatformCredential: false),
+  pairingWallet(allowPlatformCredential: false);
 
   final bool allowPlatformCredential;
   const WalletCredentialType({this.allowPlatformCredential = true});
   bool get isLogin => this == login;
 }
 
-abstract final class WalletCredentialResponse {
+sealed class WalletCredentialResponse {
   final WalletCredentialType type;
   WalletCredentialResponseVerify? get verificationId;
   const WalletCredentialResponse({required this.type});
   T cast<T extends WalletCredentialResponse>() {
     if (this is! T) {
-      throw WalletExceptionConst.internalError("WalletCredentialResponse");
+      throw AppInternalError.internalError("WalletCredentialResponse");
     }
     return this as T;
   }
 }
 
 final class WalletCredentialResponseLogin extends WalletCredentialResponse {
-  const WalletCredentialResponseLogin._()
-      : super(type: WalletCredentialType.login);
-  static const WalletCredentialResponseLogin instance =
-      WalletCredentialResponseLogin._();
+  const WalletCredentialResponseLogin._() : super(type: WalletCredentialType.login);
+  static const WalletCredentialResponseLogin instance = WalletCredentialResponseLogin._();
 
   @override
   WalletCredentialResponseVerify? get verificationId => null;
@@ -41,8 +41,7 @@ final class WalletCredentialResponseLogin extends WalletCredentialResponse {
 final class WalletCredentialResponseMnemonic extends WalletCredentialResponse {
   final AccessMnemonicResponse credential;
   final WalletCredentialResponseVerify id;
-  const WalletCredentialResponseMnemonic(
-      {required this.credential, required this.id})
+  const WalletCredentialResponseMnemonic({required this.credential, required this.id})
       : super(type: WalletCredentialType.mnemonic);
 
   @override
@@ -51,52 +50,47 @@ final class WalletCredentialResponseMnemonic extends WalletCredentialResponse {
 
 final class WalletCredentialResponseVerify extends WalletCredentialResponse {
   final String id;
-  const WalletCredentialResponseVerify(this.id)
+  final WalletCredentialType requestType;
+  const WalletCredentialResponseVerify(this.id, this.requestType)
       : super(type: WalletCredentialType.verify);
   @override
   WalletCredentialResponseVerify? get verificationId => this;
 }
 
-final class WalletCredentialResponseRequirePassword
-    extends WalletCredentialResponse {
+final class WalletCredentialResponseCredential extends WalletCredentialResponse {
   final WalletCredentialResponseVerify id;
-  const WalletCredentialResponseRequirePassword({required this.id})
-      : super(type: WalletCredentialType.requirePassword);
+  const WalletCredentialResponseCredential({required this.id, required super.type});
   @override
   WalletCredentialResponseVerify? get verificationId => id;
 }
 
-final class WalletCredentialResponseAccountKey
-    extends WalletCredentialResponse {
-  final List<CryptoPrivateKeyData> credentials;
+final class WalletCredentialResponseAccountKey extends WalletCredentialResponse {
+  final ReadAccountPrivateKeysResponse credentials;
   final WalletCredentialResponseVerify id;
   @override
   WalletCredentialResponseVerify? get verificationId => id;
-  WalletCredentialResponseAccountKey(
-      {required List<CryptoPrivateKeyData> credentials, required this.id})
-      : credentials = credentials.immutable,
-        super(type: WalletCredentialType.accountKey);
+  WalletCredentialResponseAccountKey({required this.credentials, required this.id})
+      : super(type: WalletCredentialType.accountKey);
 }
 
-final class WalletCredentialResponseImportedKey
-    extends WalletCredentialResponse {
-  final CryptoPrivateKeyData credential;
+final class WalletCredentialResponseImportedKey extends WalletCredentialResponse {
+  final CryptoPrivateKeyDataWithInfo credential;
+  final String? keyName;
   final WalletCredentialResponseVerify id;
   @override
   WalletCredentialResponseVerify? get verificationId => id;
   WalletCredentialResponseImportedKey(
-      {required this.credential, required this.id})
+      {required this.credential, required this.id, required this.keyName})
       : super(type: WalletCredentialType.importedKey);
 }
 
-abstract final class WalletCredential<
-    RESPONSE extends WalletCredentialResponse> {
+abstract final class WalletCredential<RESPONSE extends Object?> {
   final WalletCredentialType type;
   const WalletCredential({required this.type});
 
   T cast<T extends WalletCredential>() {
     if (this is! T) {
-      throw WalletExceptionConst.internalError("WalletCredential");
+      throw AppInternalError.internalError("WalletCredential");
     }
     return this as T;
   }
@@ -108,8 +102,7 @@ final class WalletCredentialRequest<RESPONSE extends WalletCredentialResponse> {
   final bool? platformCredential;
   const WalletCredentialRequest(
       {required this.credential, this.password, this.platformCredential});
-  static const login =
-      WalletCredentialRequest(credential: WalletCredentialLogin._());
+  static const login = WalletCredentialRequest(credential: WalletCredentialLogin._());
 }
 
 final class WalletCredentialLogin
@@ -127,8 +120,8 @@ final class WalletCredentialAccountKey
 
 final class WalletCredentialImportedKey
     extends WalletCredential<WalletCredentialResponseImportedKey> {
-  final String keyId;
-  const WalletCredentialImportedKey({required this.keyId})
+  final ViewImportedSecretKey key;
+  const WalletCredentialImportedKey({required this.key})
       : super(type: WalletCredentialType.importedKey);
 }
 
@@ -137,19 +130,12 @@ final class WalletCredentialMnemonic
   const WalletCredentialMnemonic() : super(type: WalletCredentialType.mnemonic);
 }
 
-final class WalletCredentialRequirePassword
-    extends WalletCredential<WalletCredentialResponseRequirePassword> {
-  const WalletCredentialRequirePassword()
-      : super(type: WalletCredentialType.requirePassword);
+final class WalletCredentialPasswordRequire
+    extends WalletCredential<WalletCredentialResponseCredential> {
+  const WalletCredentialPasswordRequire({required super.type});
 }
 
 final class WalletCredentialVerify
     extends WalletCredential<WalletCredentialResponseVerify> {
   const WalletCredentialVerify() : super(type: WalletCredentialType.verify);
 }
-
-// final class CachedCredential {
-//   final WalletCredentialResponseVerify credential;
-//   final String? password;
-//   const CachedCredential({required this.credential, required this.password});
-// }

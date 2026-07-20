@@ -44,7 +44,8 @@ class TronTransactionAccountUpdateContractOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(
+      ITronAddress address) async {
     return TronTransactionAccountUpdateContractOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

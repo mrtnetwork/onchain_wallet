@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.7.0+2
+version: 0.8.0+2
 
 homepage: "https://github.com/mrtnetwork/onchain_wallet"
 repository: "https://github.com/mrtnetwork/onchain_wallet"
@@ -52,10 +52,10 @@ dependencies:
     sdk: flutter
   http: ^1.2.2
 
-  blockchain_utils: ^5.4.0
+  blockchain_utils: ^7.1.0
   # blockchain_utils:
   #   path: ../blockchain_utils
-  cosmos_sdk: ^3.0.0
+  cosmos_sdk: ^4.0.0
   # cosmos_sdk:
   #   path: ../cosmos_sdk
   on_chain_swap:
@@ -68,35 +68,37 @@ dependencies:
     git:
       url: https://github.com/mrtnetwork/onchain_bridge.git
       ref: main
-  bitcoin_base: ^7.0.0
+  bitcoin_base: ^7.2.0
   # bitcoin_base:
   #   path: ../bitcoin_base
-  xrpl_dart: ^7.3.0
+  xrpl_dart: ^7.4.0
   # xrpl_dart:
   #   path: ../xrpl_dart
-  on_chain: ^7.1.0
+  on_chain: ^8.1.0
   # on_chain:
   #   path: ../On_chain
-  ton_dart: ^2.1.0
+  ton_dart: ^2.3.0
   # ton_dart:
   #   path: ../ton_dart
-  polkadot_dart: ^5.1.0
+  polkadot_dart: ^5.3.0
   # polkadot_dart:
   #   path: ../polkadot_dart
-  stellar_dart: ^2.1.0
+  stellar_dart: ^2.3.0
   # stellar_dart:
   #   path: ../stellar_dart
-  monero_dart: ^1.5.0
+  monero_dart: ^1.7.0
   # monero_dart:
   #   path: ../monero_dart
-  
+  zcash_dart: ^0.2.0
+    # path: ../zcash_dart
   cupertino_icons: ^1.0.2
-  
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  
+  archive: ^4.0.9
+  path: ^1.9.0
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -120,11 +122,19 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - path: assets/web_scripts/
+      platform:
+        - web
+    - path: assets/web_scripts/zk/
+      platform:
+        - web
+    - path: assets/webview/
+      platform:
+        - android
+        - macos
     - assets/image/
     - assets/fonts/
-    - assets/wasm/
     - assets/solidity/
-    - assets/webview/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
@@ -138,10 +148,56 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   fonts:
-    - family:  CustomIcons
+    - family:  Icon
       fonts:
-       - asset: assets/fonts/CustomIcons.ttf
-
+       - asset: assets/fonts/icon.ttf
+    # - family: Ubuntu
+    #   fonts:
+    #     - asset: assets/ubuntu/Ubuntu-Light.ttf
+    #       weight: 100
+    #     - asset: assets/ubuntu/Ubuntu-LightItalic.ttf
+    #       style: italic
+    #       weight: 100
+    #     - asset: assets/ubuntu/Ubuntu-Light.ttf
+    #       weight: 200
+    #     - asset: assets/ubuntu/Ubuntu-LightItalic.ttf
+    #       style: italic
+    #       weight: 200
+    #     - asset: assets/ubuntu/Ubuntu-Light.ttf
+    #       weight: 300
+    #     - asset: assets/ubuntu/Ubuntu-LightItalic.ttf
+    #       style: italic
+    #       weight: 300
+    #     - asset: assets/ubuntu/Ubuntu-Regular.ttf
+    #       weight: 400
+    #     - asset: assets/ubuntu/Ubuntu-Italic.ttf
+    #       style: italic
+    #       weight: 400
+    #     - asset: assets/ubuntu/Ubuntu-Medium.ttf
+    #       weight: 500
+    #     - asset: assets/ubuntu/Ubuntu-MediumItalic.ttf
+    #       style: italic
+    #       weight: 500
+    #     - asset: assets/ubuntu/Ubuntu-Medium.ttf
+    #       weight: 600
+    #     - asset: assets/ubuntu/Ubuntu-MediumItalic.ttf
+    #       style: italic
+    #       weight: 600
+    #     - asset: assets/ubuntu/Ubuntu-Bold.ttf
+    #       weight: 700
+    #     - asset: assets/ubuntu/Ubuntu-BoldItalic.ttf
+    #       style: italic
+    #       weight: 700
+    #     - asset: assets/ubuntu/Ubuntu-Bold.ttf
+    #       weight: 800
+    #     - asset: assets/ubuntu/Ubuntu-BoldItalic.ttf
+    #       style: italic
+    #       weight: 800
+    #     - asset: assets/ubuntu/Ubuntu-Bold.ttf
+    #       weight: 900
+    #     - asset: assets/ubuntu/Ubuntu-BoldItalic.ttf
+    #       style: italic
+    #       weight: 900
   # fonts:
   #   - family: Schyler
   #     fonts:

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/app/models/models/typedef.dart';
-import 'package:on_chain_wallet/app/utils/string/password.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/setup/types/types.dart';
 import 'package:on_chain_wallet/wallet/models/wallet/models/backup.dart';
 import 'package:on_chain_wallet/wallet/models/wallet/models/hd_wallet.dart';
 import 'package:on_chain_wallet/wallet/models/wallet/models/subwallet.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 
 class SetupWalletStateController with DisposableMixin, StreamStateController {
   final WalletProvider walletProvider;
@@ -23,10 +22,10 @@ class SetupWalletStateController with DisposableMixin, StreamStateController {
   String confirmPassword = "";
   String subWalletName = "";
   final GlobalKey<FormState> passwordFormKey = GlobalKey<FormState>();
-  MainWallet? mainWallet;
-  WalletRestoreV2? backup;
-  final StreamPageProgressController pageController =
-      StreamPageProgressController();
+  IMainWallet? mainWallet;
+  VerifiedMainWalletBackup? backup;
+  ExternalWalletData? externalWallet;
+  final StreamPageProgressController pageController = StreamPageProgressController();
   void onStateUpdated() {
     notify();
   }
@@ -75,8 +74,8 @@ class SetupWalletStateController with DisposableMixin, StreamStateController {
     return null;
   }
 
-  Future<void> onSetupMainWalletPassword(ONGENERATEMNEMONIC onGenerateMnemonic,
-      FuncFutureNullableBoold onShowTerms) async {
+  Future<void> onSetupMainWalletPassword(
+      ONGENERATEMNEMONIC onGenerateMnemonic, FuncFutureNullableBool onShowTerms) async {
     final password = this.password;
     if (passwordFormKey.ready()) {
       final mnemonic = await onGenerateMnemonic(MnemonicType.bip39, mode);
@@ -84,20 +83,24 @@ class SetupWalletStateController with DisposableMixin, StreamStateController {
       final acceptTerms = await onShowTerms();
       if (acceptTerms != true) return;
       pageController.progressText("setup_wallet_please_wait".tr);
-      mainWallet = await walletProvider.wallet.createWallet(
+      final newWallet = await walletProvider.wallet.doAction(WalletActionCreateWallet(
           mnemonic: mnemonic.mnemonic.toStr(),
           passphrase: mnemonic.passphrase,
-          password: password);
-      if (mainWallet != null) {
+          password: password));
+      if (newWallet.isErr) {
+        pageController.errorText(newWallet.unwrapErr().localizationError,
+            backToIdle: false, showBackButton: true);
+      } else {
+        mainWallet = newWallet.unwrap();
         page = WalletStupPage.mainWalletSetting;
+        pageController.backToIdle();
       }
-      pageController.backToIdle();
     }
     onStateUpdated();
   }
 
-  Future<void> onSetupSubWallet(ONGENERATEMNEMONIC onGenerateMnemonic,
-      FuncFutureNullableBoold onShowTerms) async {
+  Future<void> onSetupSubWallet(
+      ONGENERATEMNEMONIC onGenerateMnemonic, FuncFutureNullableBool onShowTerms) async {
     if (passwordFormKey.ready()) {
       final mnemonic = await onGenerateMnemonic(null, mode);
       if (mnemonic == null) return;
@@ -111,14 +114,13 @@ class SetupWalletStateController with DisposableMixin, StreamStateController {
           name: subWalletName,
           mainWalletId: mainWallet!.id);
       final result = await walletProvider.wallet
-          .setupSubWallet(subWalletData: subWalletData);
-      if (result.hasError) {
-        pageController.errorText(result.localizationError,
+          .doAction(WalletActionSetupSubWallet(subWallet: subWalletData));
+      if (result.isErr) {
+        pageController.errorText(result.unwrapErr().localizationError,
             backToIdle: false, showBackButton: true);
         return;
       }
-      pageController.successText("wallet_has_been_imported".tr,
-          backToIdle: false);
+      pageController.successText("wallet_has_been_imported".tr, backToIdle: false);
     }
   }
 
@@ -136,21 +138,51 @@ class SetupWalletStateController with DisposableMixin, StreamStateController {
     onStateUpdated();
   }
 
+  Future<void> onConnectToExternalWallet(ONSETUPEXTERNALWALLET onGenerateMnemonic) async {
+    final password = this.password;
+    if (passwordFormKey.ready()) {
+      externalWallet = await onGenerateMnemonic(password);
+      if (externalWallet == null) return;
+      mainWallet = externalWallet?.backup.wallet;
+      if (mainWallet != null) {
+        page = WalletStupPage.mainWalletSetting;
+      }
+    }
+    onStateUpdated();
+  }
+
   Future<void> onSetupMainWallet(WalletUpdateInfosData setting) async {
     final mainWallet = this.mainWallet;
     if (mainWallet == null) return;
+    final externalWallet = this.externalWallet;
+
     pageController.progressText("launch_the_wallet".tr);
-    final result = await switch (backup == null) {
-      true => walletProvider.wallet.setup(
-          hdWallet: mainWallet, password: password, walletInfos: setting),
-      false => walletProvider.wallet.setupBackup(
-          backup: backup!, password: password, walletInfos: setting)
-    };
-    if (result.hasError) {
-      pageController.errorText(result.localizationError);
+
+    /// TODO
+    /// Implement external wallet pairing.
+    if (externalWallet != null) {
+      // final result = await externalWallet.client.client.sendSessionRequest(
+      //     WCMActionVerifyPair(
+      //         checksum: externalWallet.backup.checksum,
+      //         clientId: externalWallet.session.session.clientId),
+      //     externalWallet.session);
+      // if (result.hasError) {
+      //   pageController.errorText(result.localizationError,
+      //       backToIdle: false, showBackButton: true);
+      //   return;
+      // }
+    }
+    final params = WalletActionSetup(
+      hdWallet: backup?.wallet ?? mainWallet,
+      password: password,
+      walletInfos: setting,
+      backup: externalWallet?.backup ?? backup,
+    );
+    final result = await walletProvider.wallet.doAction(params);
+    if (result.isErr) {
+      pageController.errorText(result.unwrapErr().localizationError);
     } else {
-      pageController.successText("wallet_has_been_imported".tr,
-          backToIdle: false);
+      pageController.successText("wallet_has_been_imported".tr, backToIdle: false);
     }
   }
 
@@ -161,5 +193,7 @@ class SetupWalletStateController with DisposableMixin, StreamStateController {
     nextFocus.dispose();
     backup = null;
     backup = null;
+    externalWallet?.client.dispose();
+    externalWallet = null;
   }
 }

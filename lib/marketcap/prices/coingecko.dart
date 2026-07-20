@@ -39,7 +39,7 @@ class CoingeckoPriceHandler {
   CoingeckoPriceHandler(this._coins);
   List<String> _supportIds = [];
   bool get hasCoinList => _supportIds.isNotEmpty;
-
+  bool get inited => _coins.isNotEmpty;
   void updateSupportIds(List<String> ids) {
     _supportIds = ids;
     if (hasCoinList) {
@@ -48,14 +48,12 @@ class CoingeckoPriceHandler {
   }
 
   factory CoingeckoPriceHandler.fromJson(Map<String, dynamic> json) {
-    return CoingeckoPriceHandler(json.map(
-        (key, value) => MapEntry(key, CoingeckoCoinInfo.fromJson(value, key))));
+    return CoingeckoPriceHandler(
+        json.map((key, value) => MapEntry(key, CoingeckoCoinInfo.fromJson(value, key))));
   }
   final Map<String, IntegerBalance> _caches = {};
   IntegerBalance? getPrice(
-      {required Currency baseCurrency,
-      required String amount,
-      required APPToken token}) {
+      {required Currency baseCurrency, required String amount, required APPToken token}) {
     final String? coingeckoId = token.market?.apiId;
     if (coingeckoId == null || amount.startsWith("-")) {
       return null;
@@ -67,10 +65,7 @@ class CoingeckoPriceHandler {
     final BigRational? basePrice = _coins[coingeckoId]?.getPrice(baseCurrency);
     if (basePrice == null) return null;
     _caches[name] ??= _getPrice(
-        basePrice: basePrice,
-        token: token,
-        amount: amount,
-        baseCurrency: baseCurrency);
+        basePrice: basePrice, token: token, amount: amount, baseCurrency: baseCurrency);
     return _caches[name];
   }
 
@@ -117,8 +112,7 @@ class CoingeckoPriceHandler {
   }
 
   List<String> getIds() {
-    final ids =
-        _coins.keys.where((k) => _coins[k]?.isExpired() ?? true).toList();
+    final ids = _coins.keys.where((k) => _coins[k]?.isExpired() ?? true).toList();
     return ids;
   }
 

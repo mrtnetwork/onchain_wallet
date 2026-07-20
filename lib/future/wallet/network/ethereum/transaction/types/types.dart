@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:on_chain/ethereum/ethereum.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/crypto/utils/ethereum/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/ethereum/utils.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -55,8 +55,7 @@ class EthereumTransactionFee extends TransactionFee {
     return EthereumTransactionFee._(
         gasLimit: gasLimit,
         gasPrice: gasPrice,
-        fee: IntegerBalance.token(fee, feeToken,
-            immutable: true, allowNegative: false),
+        fee: IntegerBalance.token(fee, feeToken, immutable: true, allowNegative: false),
         type: type,
         ethereumFeeMode: EthereumFeeMode.legacy);
   }
@@ -73,8 +72,7 @@ class EthereumTransactionFee extends TransactionFee {
         gasLimit: gasLimit,
         maxFeePerGas: mFeePerGas,
         maxPriorityFeePerGas: maxPriorityFeePerGas,
-        fee: IntegerBalance.token(fee, feeToken,
-            immutable: true, allowNegative: false),
+        fee: IntegerBalance.token(fee, feeToken, immutable: true, allowNegative: false),
         type: type,
         ethereumFeeMode: EthereumFeeMode.eip1559);
   }
@@ -84,8 +82,7 @@ class EthereumTransactionGasInfo {
   final FeeHistorical? eip1559;
   final BigInt? gasPrice;
   final int gasLimit;
-  const EthereumTransactionGasInfo(
-      {this.eip1559, this.gasPrice, required this.gasLimit});
+  const EthereumTransactionGasInfo({this.eip1559, this.gasPrice, required this.gasLimit});
 }
 
 class EthereumTransactionFeeData
@@ -93,9 +90,7 @@ class EthereumTransactionFeeData
   EthereumFeeMode _mode;
   EthereumFeeMode get mode => _mode;
   EthereumTransactionFeeData(
-      {required super.select,
-      required super.feeToken,
-      required EthereumFeeMode mode})
+      {required super.select, required super.feeToken, required EthereumFeeMode mode})
       : _mode = mode;
 
   void onUpdateMode(EthereumFeeMode mode) {
@@ -119,13 +114,12 @@ enum EthereumTransactionOperations implements TransactionOperations {
 
 typedef ONUPDATEETHEREUMTXMEMO = Future<String?> Function(String?);
 
-abstract class BaseEthereumTransactionController<
-        TXDATA extends IEthereumTransactionData>
+abstract class BaseEthereumTransactionController<TXDATA extends IEthereumTransactionData>
     extends TransactionStateController<
         ETHERC20Token,
-        IEthAddress,
-        EthereumClient,
         WalletEthereumNetwork,
+        IEthereumAddress,
+        EthereumNetworkClient,
         EthereumChain,
         TXDATA,
         IEthereumTransaction<TXDATA>,
@@ -134,9 +128,7 @@ abstract class BaseEthereumTransactionController<
         SubmitTransactionSuccess<IEthereumSignedTransaction<TXDATA>>,
         EthereumTransactionFeeData> {
   BaseEthereumTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class IEthereumTransactionData extends ITransactionData {
@@ -184,7 +176,7 @@ class IEthereumTransactionTokenTransferData extends IEthereumTransactionData {
 }
 
 class IEthereumTransaction<TXDATA extends IEthereumTransactionData>
-    extends ITransaction<TXDATA, IEthAddress> {
+    extends ITransaction<TXDATA, IEthereumAddress> {
   IEthereumTransaction(
       {required super.account,
       required super.transactionData,

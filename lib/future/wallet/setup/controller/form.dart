@@ -1,11 +1,10 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/live_listener/progress_bar.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/crypto/requests/generate_mnemonic.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/crypto/requests/generate_monero_mnemonic.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/crypto/requests/ton.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/crypto/requests/generate_mnemonic.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/crypto/requests/generate_monero_mnemonic.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/crypto/requests/ton.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/setup/types/types.dart';
@@ -14,12 +13,12 @@ import 'package:on_chain_wallet/future/widgets/widgets/text_field.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/text_or_file_picker.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/ton.dart';
 import 'package:on_chain_wallet/wallet/models/wallet/models/backup.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 
 class MnemonicStateController with DisposableMixin, StreamStateController {
   final WalletProvider walletProvider;
   SetupMnemonicPage page = SetupMnemonicPage.generate;
-  MnemonicStateController(
-      {required this.walletProvider, this.allowMnemonicType});
+  MnemonicStateController({required this.walletProvider, this.allowMnemonicType});
   GeneratedMnemonic? _mnemonic;
   GeneratedMnemonic? get mnemonic => _mnemonic;
   late MnemonicType type = allowMnemonicType ?? MnemonicType.bip39;
@@ -30,8 +29,7 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
   }
 
   final FocusNode nextFocus = FocusNode();
-  final StreamPageProgressController pageController =
-      StreamPageProgressController();
+  final StreamPageProgressController pageController = StreamPageProgressController();
   final GlobalKey<FormState> formKey =
       GlobalKey(debugLabel: "MnemonicStateController_formKey");
 
@@ -78,19 +76,16 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
       case MnemonicType.bip39:
         return Bip39WordsNum.values
             .map((e) => MnemonicWordCountView(
-                number: e.value,
-                name: "n_word".tr.replaceOne(e.value.toString())))
+                number: e.value, name: "n_word".tr.replaceOne(e.value.toString())))
             .toList();
       case MnemonicType.monero:
         return MoneroWordsNum.values
             .map((e) => MnemonicWordCountView(
-                number: e.value,
-                name: "n_word".tr.replaceOne(e.value.toString())))
+                number: e.value, name: "n_word".tr.replaceOne(e.value.toString())))
             .toList();
       case MnemonicType.ton:
         return List.generate(
-            (TonConst.maxTonMnemonicWords - TonConst.minTonMnemonicWords) + 1,
-            (i) {
+            (TonConst.maxTonMnemonicWords - TonConst.minTonMnemonicWords) + 1, (i) {
           final value = TonConst.minTonMnemonicWords + i;
           return MnemonicWordCountView(
               number: value, name: "n_word".tr.replaceOne(value.toString()));
@@ -100,8 +95,7 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
 
   void _buildState() {
     _languages = _buildLanguages();
-    _language = _languages
-        .firstWhere((e) => e.identifier == Bip39Languages.english.name);
+    _language = _languages.firstWhere((e) => e.identifier == Bip39Languages.english.name);
     _wordsCounts = _buildWordNumbers();
     _wordCount = wordsCounts.first;
   }
@@ -170,28 +164,28 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
         MoneroLanguages.values.firstWhere((e) => e.name == languageIdentifier),
       _ => null
     };
-    Mnemonic mnemonic;
+    IResult<Mnemonic> mnemonic;
     switch (type) {
       case MnemonicType.bip39:
         final wNum = Bip39WordsNum.fromValue(wordCounts);
-        mnemonic = await walletProvider.wallet.crypto.cryptoIsolateRequest(
-            CryptoRequestGenerateBip39Mnemonic(
-                language: language as Bip39Languages, wordNums: wNum!));
+        mnemonic = await walletProvider.wallet.doAction(WalletActionCryptoRequest(
+            request: CryptoRequestGenerateBip39Mnemonic(
+                language: language as Bip39Languages, wordNums: wNum!)));
         break;
       case MnemonicType.ton:
-        mnemonic = await walletProvider.wallet.crypto.cryptoIsolateRequest(
-            TonMenmonicGenerateMessage(
-                password: passphrase, wordsNum: wordCounts));
+        mnemonic = await walletProvider.wallet.doAction(WalletActionCryptoRequest(
+            request:
+                TonMenmonicGenerateMessage(password: passphrase, wordsNum: wordCounts)));
         break;
       case MnemonicType.monero:
-        mnemonic = await walletProvider.wallet.cryptoIsolateRequest(
-            MoneroMenmonicGenerateMessage(
+        mnemonic = await walletProvider.wallet.doAction(WalletActionCryptoRequest(
+            request: MoneroMenmonicGenerateMessage(
                 language: language as MoneroLanguages,
-                wordsNum: MoneroWordsNum.fromValue(wordCounts)));
+                wordsNum: MoneroWordsNum.fromValue(wordCounts))));
         break;
     }
     return GeneratedMnemonic(
-        mnemonic: mnemonic,
+        mnemonic: mnemonic.unwrap(),
         passphrase: passphrase,
         language: language,
         languageIdentifer: languageIdentifier,
@@ -202,21 +196,20 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
     if (page == SetupMnemonicPage.generate && !formKey.ready()) return;
     pageController.progressText("generating_mnemonic_please_wait".tr);
     page = SetupMnemonicPage.generate;
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       return _generateMnemonic(
           passphrase: mnemonic?.passphrase ??
               (usePassphrase && type.supportPassPhrase ? _passphrase : null),
-          languageIdentifier:
-              mnemonic?.languageIdentifer ?? language.identifier,
+          languageIdentifier: mnemonic?.languageIdentifer ?? language.identifier,
           wordCounts: mnemonic?.mnemonicWords.length ?? wordCounts.number,
           type: type);
     }, delay: type == MnemonicType.bip39 ? APPConst.oneSecoundDuration : null);
-    if (result.hasResult) {
-      _mnemonic = result.result;
+    if (result.isOk) {
+      _mnemonic = result.unwrap();
       page = SetupMnemonicPage.review;
       pageController.success();
     } else {
-      pageController.errorText(result.localizationError);
+      pageController.errorText(result.unwrapErr().localizationError);
     }
     notify();
   }
@@ -230,8 +223,7 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
   void onValidateMnemonic(List<String> mnemonic, ONMNEMONICREADY onReady) {
     final generatedMnemonic = this.mnemonic;
     if (generatedMnemonic == null) return;
-    if (CompareUtils.iterableIsEqual(
-        mnemonic, generatedMnemonic.mnemonicWords)) {
+    if (CompareUtils.iterableIsEqual(mnemonic, generatedMnemonic.mnemonicWords)) {
       onReady(generatedMnemonic);
     }
   }
@@ -252,11 +244,9 @@ class MnemonicStateController with DisposableMixin, StreamStateController {
   }
 }
 
-class ExistsMnemonicStateController
-    with DisposableMixin, StreamStateController {
+class ExistsMnemonicStateController with DisposableMixin, StreamStateController {
   final WalletProvider walletProvider;
-  ExistsMnemonicStateController(
-      {required this.walletProvider, this.allowMnemonicType});
+  ExistsMnemonicStateController({required this.walletProvider, this.allowMnemonicType});
 
   late MnemonicType type = allowMnemonicType ?? MnemonicType.bip39;
   final MnemonicType? allowMnemonicType;
@@ -266,11 +256,10 @@ class ExistsMnemonicStateController
   }
 
   final FocusNode nextFocus = FocusNode();
-  final StreamPageProgressController pageController =
-      StreamPageProgressController();
+  final StreamPageProgressController pageController = StreamPageProgressController();
   final GlobalKey<FormState> formKey =
       GlobalKey(debugLabel: "MnemonicStateController_formKey");
-  final GlobalKey<AppTextFieldState> mnemonicTextFieldKey = GlobalKey();
+  GlobalKey<AppTextFieldState> mnemonicTextFieldKey = GlobalKey();
   bool _usePassphrase = false;
   bool get usePassphrase => _usePassphrase;
 
@@ -284,6 +273,7 @@ class ExistsMnemonicStateController
   void onChangeMnemonicType(final MnemonicType? type) {
     if (type == null) return;
     this.type = type;
+    mnemonicTextFieldKey = GlobalKey();
     onStateUpdated();
   }
 
@@ -354,8 +344,8 @@ class ExistsMnemonicStateController
     return switch (type) {
       MnemonicType.bip39 => () {
           try {
-            final language = Bip39WordsListFinder().findLanguage(mnemonic).item2
-                as Bip39Languages;
+            final language =
+                Bip39WordsListFinder(Bip39Languages.values).findLanguage(mnemonic).$2;
             return MenemonicLanguageView(
                 language: language,
                 name: language.name.camelCase,
@@ -366,9 +356,7 @@ class ExistsMnemonicStateController
         }(),
       MnemonicType.monero => () {
           try {
-            final language = MoneroWordsListFinder()
-                .findLanguage(mnemonic)
-                .item2 as MoneroLanguages;
+            final language = MoneroWordsListFinder().findLanguage(mnemonic).$2;
             return MenemonicLanguageView(
                 language: language,
                 name: language.name.camelCase,
@@ -378,8 +366,9 @@ class ExistsMnemonicStateController
           }
         }(),
       MnemonicType.ton => () {
-          if (mnemonic.toList().every(
-              (e) => TonMnemonicLanguages.english.wordList.contains(e))) {
+          if (mnemonic
+              .toList()
+              .every((e) => TonMnemonicLanguages.english.wordList.contains(e))) {
             return MenemonicLanguageView(
                 language: TonMnemonicLanguages.english,
                 name: TonMnemonicLanguages.english.name.camelCase,
@@ -406,9 +395,8 @@ class ExistsMnemonicStateController
     final language = findMnemonicLanguage(mnemonic);
     if (lengthValidator != null || language == null) return;
     pageController.progressText("verifying_mnemonic_please_wait".tr);
-    final passphrase =
-        (usePassphrase && type.supportPassPhrase ? _passphrase : null);
-    final result = await MethodUtils.call(() async {
+    final passphrase = (usePassphrase && type.supportPassPhrase ? _passphrase : null);
+    final result = await IResult.call(() async {
       switch (type) {
         case MnemonicType.bip39:
           CryptoKeyUtils.validateMnemonic(mnemonic.toStr());
@@ -421,10 +409,11 @@ class ExistsMnemonicStateController
 
         case MnemonicType.ton:
           CryptoKeyUtils.validateMnemonicWords(mnemonic.toList());
-          final isValid = await walletProvider.wallet.cryptoIsolateRequest(
-              TonMnemonicValidateMessage(
-                  mnemonic: mnemonic.toStr(), password: passphrase));
-          if (!isValid) {
+          final isValid = (await walletProvider.wallet.doAction(WalletActionCryptoRequest(
+                  request: TonMnemonicValidateMessage(
+                      mnemonic: mnemonic.toStr(), password: passphrase))))
+              .unwrap();
+          if (!isValid.data) {
             throw AppCryptoExceptionConst.invalidMnemonic;
           }
           return GeneratedMnemonic(
@@ -444,11 +433,11 @@ class ExistsMnemonicStateController
               type: type);
       }
     }, delay: APPConst.oneSecoundDuration);
-    if (result.hasResult) {
+    if (result.isOk) {
       pageController.backToIdle();
-      onReady(result.result);
+      onReady(result.unwrap());
     } else {
-      pageController.errorText(result.localizationError);
+      pageController.errorText(result.unwrapErr().localizationError);
     }
     onStateUpdated();
   }
@@ -467,26 +456,23 @@ class ExistsMnemonicStateController
 class WalletBackupStateController with DisposableMixin, StreamStateController {
   final WalletProvider walletProvider;
   final String password;
-  WalletBackupStateController(
-      {required this.walletProvider, required this.password});
+  WalletBackupStateController({required this.walletProvider, required this.password});
   final FocusNode nextFocus = FocusNode();
-  final StreamPageProgressController pageController =
-      StreamPageProgressController();
+  final StreamPageProgressController pageController = StreamPageProgressController();
   final GlobalKey<FormState> formKey =
       GlobalKey(debugLabel: "MnemonicStateController_formKey");
   final GlobalKey<BackupDataPickerViewState> backupKey =
       GlobalKey(debugLabel: "MnemonicStateController_backupKey");
+  LivePercentProgressBar? progressBar;
   WalletBackupPage page = WalletBackupPage.backup;
-  WalletRestoreV2? backupData;
+  VerifiedMainWalletBackup? backupData;
   bool _usePassphrase = false;
   bool get usePassphrase => _usePassphrase;
 
-  String _passphrase = "";
-  String _confirmPassphrase = "";
-  String get passhrase => _passphrase;
-  String get confirmPassphrase => _confirmPassphrase;
-  String _backupPassword = "";
-  String get backupPassword => _backupPassword;
+  String passphrase = "";
+
+  String backupPassword = "";
+  // String get backupPassword => _backupPassword;
   bool verifyBackupContent = false;
   void onStateUpdated() {
     notify();
@@ -499,27 +485,23 @@ class WalletBackupStateController with DisposableMixin, StreamStateController {
 
   void onChangeUsePassphrase(bool? v) {
     _usePassphrase = v ?? usePassphrase;
-    _passphrase = "";
+    passphrase = "";
     onStateUpdated();
   }
 
   void onChangeBackupPassword(String v) {
-    _backupPassword = v;
+    backupPassword = v;
   }
 
   String? onValidateBackupPassword(String? v) {
     if (v?.isEmpty ?? true) {
-      return "backup_password_validator".tr;
+      return "password_validator_desc".tr;
     }
     return null;
   }
 
   void onChangePassphrase(String v) {
-    _passphrase = v;
-  }
-
-  void onChangeConfrimPassphrase(String v) {
-    _confirmPassphrase = v;
+    passphrase = v;
   }
 
   String? onValidatePassphrase(String? v) {
@@ -529,17 +511,12 @@ class WalletBackupStateController with DisposableMixin, StreamStateController {
     return null;
   }
 
-  String? onValidateConfirmPassphrase(String? v) {
-    if (_passphrase == v) return null;
-    return "p_does_not_match".tr;
-  }
-
   Future<void> validateBackup() async {
     if (!formKey.ready()) return;
     final backup = backupKey.currentState?.getData();
     if (backup == null) return;
     pageController.progressText("validate_backup_content".tr);
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       WalletBackup walletBackup;
       try {
         final b = WalletBackupCore.deserialize(bytes: backup);
@@ -547,54 +524,59 @@ class WalletBackupStateController with DisposableMixin, StreamStateController {
           throw WalletExceptionConst.invalidBackupData;
         }
         walletBackup = b as WalletBackup;
+      } on IException catch (_) {
+        throw WalletExceptionConst.invalidBackupData;
       } catch (e) {
         throw WalletExceptionConst.invalidBackupData;
       }
 
-      final decodeBytes = await walletProvider.wallet.restoreKeysBackup(
+      final decodeBytes =
+          await walletProvider.wallet.doAction(WalletActionDecryptKeysBackup(
         backup: walletBackup.key,
         password: backupPassword,
         encoding: walletBackup.type.encoding,
-      );
-      return walletBackup.decrypt(decodeBytes.result);
+      ));
+      return walletBackup.decrypt(decodeBytes.unwrap());
     });
-    if (result.hasError) {
-      pageController.errorText(result.localizationError,
+    if (result.isErr) {
+      pageController.errorText(result.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
       return;
     }
+    progressBar?.dispose();
 
-    final progressBar = LivePercentProgressBar();
+    progressBar = LivePercentProgressBar();
     pageController.progressText("verifying_backup_please_wait".tr,
         progressBar: progressBar);
-    final backupData = await MethodUtils.call(() async {
-      final String? passPhrase = usePassphrase ? _passphrase : null;
-      return await walletProvider.wallet.restoreWalletBackupV3(
-          backup: result.result,
-          passhphrase: passPhrase,
-          password: password,
-          progress: progressBar,
-          verify: verifyBackupContent);
-    });
-    if (backupData.hasError) {
-      pageController.errorText(backupData.localizationError,
+    final backupData = await walletProvider.wallet.doAction(
+        WalletActionVerifyWalletBackup(
+            backup: result.unwrap(),
+            passhphrase: usePassphrase ? passphrase : null,
+            password: password,
+            progress: progressBar,
+            verify: verifyBackupContent));
+
+    if (backupData.isErr) {
+      pageController.errorText(backupData.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
       return;
     }
-    this.backupData = backupData.result;
+    this.backupData = backupData.unwrap();
     page = WalletBackupPage.review;
     pageController.backToIdle();
     onStateUpdated();
-    progressBar.dispose();
+    progressBar?.dispose();
   }
 
   @override
   void dispose() {
     super.dispose();
+    progressBar?.dispose();
+    progressBar = null;
     pageController.dispose();
     nextFocus.dispose();
-    _passphrase = '';
-    _backupPassword = '';
+    passphrase = '';
+    backupPassword = '';
     backupData = null;
   }
 }

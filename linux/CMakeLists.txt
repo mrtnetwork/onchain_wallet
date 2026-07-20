@@ -135,28 +135,33 @@ else()
     message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}. Only x86_64 and aarch64 are supported.")
 endif()
 
-set(ED_LIB "${CMAKE_SOURCE_DIR}/${ARCH}/libed25519.so")
+set(ED_LIB "${CMAKE_SOURCE_DIR}/${ARCH}/libcrypto_c.so")
 set(SQLITE_LIB "${CMAKE_SOURCE_DIR}/${ARCH}/libsqlite3mc.so")
+set(NET_SDK "${CMAKE_SOURCE_DIR}/${ARCH}/libnet_sdk.so")
+set(ZK "${CMAKE_SOURCE_DIR}/${ARCH}/libzk.so")
 if(NOT EXISTS "${ED_LIB}")
     message(FATAL_ERROR "Cannot find ${ED_LIB} for architecture ${ARCH}")
 endif()
 if(NOT EXISTS "${SQLITE_LIB}")
     message(FATAL_ERROR "Cannot find ${SQLITE_LIB} for architecture ${ARCH}")
 endif()
+if(NOT EXISTS "${NET_SDK}")
+    message(FATAL_ERROR "Cannot find ${NET_SDK} for architecture ${ARCH}")
+endif()
+if(NOT EXISTS "${ZK}")
+    message(FATAL_ERROR "Cannot find ${ZK} for architecture ${ARCH}")
+endif()
+install(FILES "${NET_SDK}"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+        COMPONENT Runtime)
 install(FILES "${ED_LIB}"
         DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
         COMPONENT Runtime)
 install(FILES "${SQLITE_LIB}"
         DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
         COMPONENT Runtime)
+install(FILES "${ZK}"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+        COMPONENT Runtime)
 install(FILES "${CMAKE_SOURCE_DIR}/icons/icon.png"
         DESTINATION icons)
-
-# # Create a portable .desktop file inside the bundle
-# configure_file(
-#     "${CMAKE_SOURCE_DIR}/my_app.desktop.in"
-#     "${CMAKE_BINARY_DIR}/my_app.desktop"
-#     @ONLY
-# )
-# install(FILES "${CMAKE_BINARY_DIR}/my_app.desktop"
-#         DESTINATION bundle)

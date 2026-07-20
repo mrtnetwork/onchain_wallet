@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/update_network_provider.dart';
+import 'package:on_chain_wallet/future/wallet/global/provider/update_network_provider.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain/ethereum/ethereum.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
 class UpdateEthereumProvider extends StatelessWidget {
   const UpdateEthereumProvider({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<EthereumClient?, IEthAddress?,
+    return NetworkAccountControllerView<EthereumNetworkClient?, IEthereumAddress?,
             EthereumChain>(
         addressRequired: false,
         clientRequired: false,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
+        childBulder: (wallet, account, client, address) =>
             _UpdateEthereumProvider(account));
   }
 }
@@ -31,49 +31,26 @@ class _UpdateEthereumProvider extends StatefulWidget {
 class _UpdateSolanaProviderState extends State<_UpdateEthereumProvider>
     with
         SafeState<_UpdateEthereumProvider>,
-        UpdateNetworkProviderState<
-            _UpdateEthereumProvider,
-            EthereumAPIProvider,
-            ETHAddress,
-            IEthAddress,
-            EthereumClient,
-            TokenCore,
-            NFTCore,
-            EthereumChain> {
+        UpdateNetworkProviderState<_UpdateEthereumProvider, ETHAddress, IEthereumAddress,
+            EthereumNetworkClient, TokenCore, NFTCore, EthereumChain> {
   @override
   EthereumChain get chain => widget.account;
 
   @override
-  EthereumAPIProvider createProvider(
-      {required String url,
-      required APIProviderServiceInfo service,
-      ProviderAuthenticated? auth}) {
-    return EthereumAPIProvider(
-        uri: url, auth: auth, identifier: APIUtils.getProviderIdentifier());
-  }
-
-  @override
-  late final List<ServiceProtocol> supportedProtocol;
-
-  void init() {
-    supportedProtocol = [ServiceProtocol.http, ServiceProtocol.websocket];
-    protocol = supportedProtocol.first;
-  }
-
-  @override
-  void onInitOnce() {
-    MethodUtils.after(() async => init());
-    super.onInitOnce();
-  }
-
-  @override
-  Future<EthereumAPIProvider> validate(EthereumAPIProvider provider) async {
-    final client = APIUtils.buildEthereumProvider(
-        provider: provider, network: network.toNetwork());
-    final init = await client.checkNetworkChainId();
-    if (!init) {
-      throw AppException("network_incorrect_chain_id");
+  Future<DefaultAPIProvider> validate(DefaultAPIProvider provider) async {
+    final client = EthereumNetworkClient.fromProvider(
+      provider: EthereumNetworkProvider(provider),
+      network: network.cast(),
+      netApi: context.appContext.netApi,
+    );
+    try {
+      final init = await client.checkNetworkChainId();
+      if (!init) {
+        throw AppException("network_incorrect_chain_id");
+      }
+      return provider;
+    } finally {
+      client.dispose();
     }
-    return provider;
   }
 }

@@ -1,10 +1,10 @@
 export 'controller/web3_request_controller.dart';
 export 'pages/client_info.dart';
 export 'pages/permission_view.dart';
-export 'pages/view_controller.dart';
-export 'pages/page_progress.dart';
+export 'pages/global_controller.dart';
 export 'pages/chain_permission.dart';
 export 'pages/web3_request_page_builder.dart';
+export 'pages/wallet_connect.dart';
 export 'pages/daps.dart';
 export 'global/global.dart';
 export 'core/state.dart';

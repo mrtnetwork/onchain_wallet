@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ethereum/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/ethereum/utils.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/ethereum/client/ethereum.dart';
@@ -10,7 +10,7 @@ import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart'
 
 mixin EthereumTransactionFeeController on DisposableMixin {
   WalletEthereumNetwork get network;
-  EthereumClient get client;
+  EthereumNetworkClient get client;
   StreamSubscription<EthereumTransactionGasInfo>? _listener;
   final _lock = SafeAtomicLock();
 
@@ -63,8 +63,7 @@ mixin EthereumTransactionFeeController on DisposableMixin {
 
   void _setDefaultFee({String? error}) {
     txFee.setDefaultFees([
-      EthereumTransactionFee.init(
-          feeToken: network.token, error: error, mode: txFee.mode)
+      EthereumTransactionFee.init(feeToken: network.token, error: error, mode: txFee.mode)
     ]);
   }
 
@@ -82,11 +81,10 @@ mixin EthereumTransactionFeeController on DisposableMixin {
   }
 
   Stream<EthereumTransactionGasInfo> _fetchGasFee(
-      {int defaultGasLimit = EthereumUtils.baseGasLimit,
-      Map<String, dynamic>? txJson}) {
-    final controller = StreamController<EthereumTransactionGasInfo>();
-    final Duration blockInterval =
-        Duration(seconds: network.coinParam.averageBlockTime);
+      {int defaultGasLimit = EthereumUtils.baseGasLimit, Map<String, dynamic>? txJson}) {
+    final controller = SafeStreamController<EthereumTransactionGasInfo>(
+        name: "EthereumTransactionFeeController");
+    final Duration blockInterval = Duration(seconds: network.coinParam.averageBlockTime);
     bool isClosed = false;
     EthereumTransactionGasInfo? latestFee;
     int? gasLimit = fixedGasLimit;
@@ -95,7 +93,7 @@ mixin EthereumTransactionFeeController on DisposableMixin {
     Future<void> poll() async {
       if (isClosed) return;
       txFee.setPending();
-      final gas = await MethodUtils.call(() async {
+      final gas = await IResult.call(() async {
         if (gasLimit == null) {
           if (txJson == null) {
             gasLimit = defaultGasLimit;
@@ -108,35 +106,37 @@ mixin EthereumTransactionFeeController on DisposableMixin {
           return EthereumTransactionGasInfo(eip1559: fee, gasLimit: gasLimit!);
         } else {
           final gasPrice = await client.gasPrice();
-          return EthereumTransactionGasInfo(
-              gasPrice: gasPrice, gasLimit: gasLimit!);
+          return EthereumTransactionGasInfo(gasPrice: gasPrice, gasLimit: gasLimit!);
         }
       });
       if (isClosed) return;
-      if (gas.hasResult) {
-        latestFee = gas.result;
-        controller.add(gas.result);
-      } else {
-        if (latestFee == null) {
-          _setDefaultFee(error: gas.localizationError);
-          isClosed = true;
-          controller.close();
-        } else {
-          controller.add(latestFee!);
-        }
-      }
+      gas.fold(
+        onOk: (gas) {
+          latestFee = gas;
+          controller.add(gas);
+        },
+        onErr: (error) {
+          if (latestFee == null) {
+            _setDefaultFee(error: error.localizationError);
+            isClosed = true;
+            controller.close();
+          } else {
+            controller.add(latestFee!);
+          }
+        },
+      );
       if (!isClosed) {
-        await MethodUtils.wait(duration: blockInterval);
+        await MethodUtils.delayed(duration: blockInterval);
         poll();
       }
     }
 
-    controller.onListen = poll;
-    controller.onCancel = () {
+    controller.onListenListener(poll);
+    controller.onCancelListener(() {
       isClosed = true;
-    };
+    });
 
-    return controller.stream;
+    return controller.stream();
   }
 
   Future<void> initFee({EthereumFeeMode? mode}) async {
@@ -154,7 +154,5 @@ mixin EthereumTransactionFeeController on DisposableMixin {
     _listener?.cancel();
     _listener = null;
     txFee.dispose();
-    appLogger.debug(
-        runtime: "EthereumTransactionFeeController", functionName: "dispose");
   }
 }

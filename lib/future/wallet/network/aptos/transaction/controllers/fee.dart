@@ -16,21 +16,27 @@ mixin AptosTransactionFeeController on AptosTransactionApiController {
       select: AptosTransactionFee(gasUnitPrice: BigInt.zero, network: network),
       feeToken: network.token);
   void setDefaultFee({String? error}) {
-    txFee.setFee(AptosTransactionFee(
-        gasUnitPrice: BigInt.zero, network: network, error: error));
+    txFee.setFee(
+        AptosTransactionFee(gasUnitPrice: BigInt.zero, network: network, error: error));
   }
 
   Future<AptosSignedTransaction> simulateTransaction(
       {required BigInt maxGasAmount, required BigInt gasUnitPrice});
 
-  Future<IAptosTransactionSimulateInfo> simulateFee() async {
+  Future<IAptosTransactionSimulateInfo> simulateFee(BigInt? balance) async {
     final gasPrice = await getGasPrice();
-    final transaction = await simulateTransaction(
-        gasUnitPrice: gasPrice,
-        maxGasAmount: AptosConstants.defaultMinGasAmount);
-
-    final simulateResult =
-        await simulate(rawTransaction: transaction.rawTransaction);
+    BigInt gasAmount = AptosConstants.defaultMaxGasAmount;
+    if (balance != null && gasPrice != BigInt.zero) {
+      gasAmount = balance ~/ gasPrice;
+      if (gasAmount < AptosConstants.defaultMinGasAmount) {
+        gasAmount = AptosConstants.defaultMinGasAmount;
+      } else if (gasAmount > AptosConstants.defaultMaxGasAmount) {
+        gasAmount = AptosConstants.defaultMaxGasAmount;
+      }
+    }
+    final transaction =
+        await simulateTransaction(gasUnitPrice: gasPrice, maxGasAmount: gasAmount);
+    final simulateResult = await simulate(rawTransaction: transaction.rawTransaction);
     if (!simulateResult.success) {
       throw AppException(simulateResult.vmStatus);
     }
@@ -38,29 +44,26 @@ mixin AptosTransactionFeeController on AptosTransactionApiController {
         vmStatus: simulateResult.vmStatus, simulateTx: simulateResult);
   }
 
-  Future<void> estimateFee() async {
+  Future<void> estimateFee({BigInt? accountBalance}) async {
     _cancelable.cancel();
     await _lock.run(() async {
       setDefaultFee();
       txFee.setPending();
-      final fee = await MethodUtils.call(() async => await simulateFee());
-      if (fee.isCancel) return;
-      if (fee.hasError) {
-        appLogger.error(
-            runtime: runtimeType,
-            functionName: "estimateFee",
-            msg: fee.exception);
-        setDefaultFee(error: fee.localizationError);
+      final fee = await IResult.call(() async => await simulateFee(accountBalance));
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
+        setDefaultFee(error: fee.unwrapErr().localizationError);
         return;
       }
-      if (!fee.result.isSuccess) {
-        setDefaultFee(error: fee.result.vmStatus);
+      final feeData = fee.unwrap();
+      if (!feeData.isSuccess) {
+        setDefaultFee(error: feeData.vmStatus);
         return;
       }
       txFee.setFee(AptosTransactionFee(
-          maxGasAmount: fee.result.simulateTx.gasUsed,
-          gasUnitPrice: fee.result.simulateTx.gasUnitPrice,
-          simulateInfo: fee.result,
+          gasUsed: feeData.simulateTx.gasUsed,
+          gasUnitPrice: feeData.simulateTx.gasUnitPrice,
+          simulateInfo: feeData,
           network: network));
     });
   }

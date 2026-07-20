@@ -2,34 +2,65 @@ import 'dart:async';
 
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain/on_chain.dart';
+import 'package:on_chain_bridge/net_sdk/types/config.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
 import 'package:on_chain_wallet/wallet/api/client/core/client.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/ethereum/client/ethereum.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/tron/tron.dart';
-import 'package:on_chain_wallet/wallet/api/provider/networks/tron.dart';
-import 'package:on_chain_wallet/wallet/api/services/service.dart';
+import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/services/default.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/network_providers.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/networks.dart';
 import 'package:on_chain_wallet/wallet/models/token/token.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/tron.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
-class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
-    TronNetworkToken, TronAddress> with CryptoWokerImpl, HttpImpl {
-  TronClient(
+class TronClient extends NetworkClient<TronWalletTransaction, TronNetworkToken,
+    TronAddress, WalletTronNetwork> {
+  @override
+  final TronNetworkProvider networkProvider;
+  TronClient._(
       {required this.provider,
-      required this.solidityProvider,
-      required this.network});
+      required this.ethClient,
+      required super.network,
+      required this.networkProvider});
 
-  final TronProvider provider;
-  final EthereumClient solidityProvider;
-  @override
-  final WalletTronNetwork network;
-  @override
-  NetworkServiceProtocol<TronAPIProvider> get service =>
-      provider.rpc as NetworkServiceProtocol<TronAPIProvider>;
+  factory TronClient.fromProvider({
+    required TronNetworkProvider provider,
+    required WalletTronNetwork network,
+    required INetApi netApi,
+  }) {
+    return TronClient._(
+        networkProvider: provider,
+        provider: DefaultProvider(TronProvider(MultiChainServiceClient.fromProvider(
+            provider: provider.node, netApi: netApi))),
+        ethClient:
+            EthereumClient.fromProviders(provider: provider.ethereum, netApi: netApi),
+        network: network);
+  }
+
+  factory TronClient.fromService({
+    required TronNetworkProvider provider,
+    required WalletTronNetwork network,
+    required MultiChainServiceClient node,
+    required MultiChainServiceClient ethereum,
+  }) {
+    assert(provider.ethereum == ethereum.provider);
+    assert(provider.node == node.provider);
+    return TronClient._(
+        networkProvider: provider,
+        provider: DefaultProvider(TronProvider(node)),
+        ethClient: EthereumClient.fromService(ethereum),
+        network: network);
+  }
+
+  final DefaultProvider<TronProvider<MultiChainServiceClient>, TronRequestDetails>
+      provider;
+  final EthereumClient ethClient;
 
   Future<TronAccountInfo?> getAccount(TronAddress account) async {
     final tronAccount =
@@ -47,15 +78,12 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
   Future<BigInt> getTrc10Balance(String tokenID, TronAddress account) async {
     final tronAccount =
         await provider.request(TronRequestGetAccountInfo(address: account));
-    final tokenBalance =
-        tronAccount?.assetV2.firstWhereOrNull((e) => e.key == tokenID);
+    final tokenBalance = tronAccount?.assetV2.firstWhereOrNull((e) => e.key == tokenID);
     return tokenBalance?.value ?? BigInt.zero;
   }
 
-  Future<TronAccountResourceInfo> getAccountResource(
-      TronAddress account) async {
-    return await provider
-        .request(TronRequestGetAccountResourceInfo(address: account));
+  Future<TronAccountResourceInfo> getAccountResource(TronAddress account) async {
+    return await provider.request(TronRequestGetAccountResourceInfo(address: account));
   }
 
   Future<TronChainParameters> getChainParameters() async {
@@ -72,8 +100,7 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
     return tokens;
   }
 
-  Future<TronTRC10Token?> getIssueById(String id,
-      {TronAddress? account}) async {
+  Future<TronTRC10Token?> getIssueById(String id, {TronAddress? account}) async {
     final issue = await provider.request(TronRequestIssueById(id));
     if (issue == null) {
       return null;
@@ -92,8 +119,7 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
   }
 
   Future<TronBroadcastHexResponse> sendTransaction(String digest) async {
-    final result =
-        await provider.request(TronRequestBroadcastHex(transaction: digest));
+    final result = await provider.request(TronRequestBroadcastHex(transaction: digest));
     return result;
   }
 
@@ -106,18 +132,17 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
     BigInt? callTokenValue,
     BigInt? tokenID,
   }) async {
-    final energyRequired = await provider.request(
-        TronRequestTriggerConstantContract(
-            ownerAddress: ownerAddress,
-            contractAddress: contractAddress,
-            data: data,
-            fragment: fragment,
-            callValue: callValue,
-            callTokenValue: callTokenValue,
-            tokenId: tokenID));
+    final energyRequired = await provider.request(TronRequestTriggerConstantContract(
+        ownerAddress: ownerAddress,
+        contractAddress: contractAddress,
+        data: data,
+        fragment: fragment,
+        callValue: callValue,
+        callTokenValue: callTokenValue,
+        tokenId: tokenID));
     if (!energyRequired.isSuccess) {
-      throw ApiProviderException.message(
-          energyRequired.error ?? 'fee_estimate_failed');
+      final error = energyRequired.error;
+      throw AppException(error ?? 'fee_estimate_failed', localizedMessage: error != null);
     }
     return energyRequired.energyUsed!;
   }
@@ -129,48 +154,39 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
     BigInt? callTokenValue,
     BigInt? tokenID,
   }) async {
-    final energyRequired = await provider.request(
-        TronRequestTriggerConstantContract(
-            ownerAddress: ownerAddress,
-            data: byteCode,
-            callValue: callValue,
-            callTokenValue: callTokenValue,
-            tokenId: tokenID));
+    final energyRequired = await provider.request(TronRequestTriggerConstantContract(
+        ownerAddress: ownerAddress,
+        data: byteCode,
+        callValue: callValue,
+        callTokenValue: callTokenValue,
+        tokenId: tokenID));
     if (!energyRequired.isSuccess) {
-      throw ApiProviderException.message(
-          energyRequired.error ?? 'fee_estimate_failed');
+      final error = energyRequired.error;
+      throw AppException(energyRequired.error ?? 'fee_estimate_failed',
+          localizedMessage: error != null);
     }
     return energyRequired.energyUsed!;
   }
 
   Future<(MaxDelegatedResourceAmount, MaxDelegatedResourceAmount)>
       getMaxDelegatedEnergyAndBandwidth(TronAddress address) async {
-    final bandwidth = await provider.request(
-        TronRequestGetCanDelegatedMaxSizeV2(
-            ownerAddress: address,
-            type: ResourceCode.bandWidth.value,
-            network: network));
+    final bandwidth = await provider.request(TronRequestGetCanDelegatedMaxSizeV2(
+        ownerAddress: address, type: ResourceCode.bandWidth.value, network: network));
     final energy = await provider.request(TronRequestGetCanDelegatedMaxSizeV2(
-        ownerAddress: address,
-        type: ResourceCode.energy.value,
-        network: network));
-
+        ownerAddress: address, type: ResourceCode.energy.value, network: network));
     return (energy, bandwidth);
   }
 
-  Future<List<String>> getDelegatedResourceAddresses(
-      ITronAddress address) async {
+  Future<List<String>> getDelegatedResourceAddresses(ITronAddress address) async {
     final delegatedAddresses = await provider.request(
-        TronRequestGetAccountDelegatedResourceAddresses(
-            value: address.networkAddress));
+        TronRequestGetAccountDelegatedResourceAddresses(value: address.networkAddress));
     return delegatedAddresses;
   }
 
   Future<DelegatedAccountResourceInfo> getDelegatedResourceInfo(
       TronAddress from, TronAddress to) async {
-    final details = await provider.request(
-        TronRequestGetDelegatedResourceV2Details(
-            fromAddress: from, toAddress: to, network: network));
+    final details = await provider.request(TronRequestGetDelegatedResourceV2Details(
+        fromAddress: from, toAddress: to, network: network));
     return details;
   }
 
@@ -180,18 +196,20 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
   }
 
   Future<bool> checkSolidityChainId() async {
-    final chainId = await solidityProvider.getChainId();
+    final chainId = await ethClient.getChainId();
     return chainId.toInt() == network.tronNetworkType.genesisBlockNumber;
   }
 
-  Future<TronScanAccountTokens> getTronScanAccountTokens(TronAddress address,
+  Future<IResult<TronScanAccountTokens>> getTronScanAccountTokens(TronAddress address,
       {int start = 0}) async {
-    final tokens = await httpGet<Map<String, dynamic>>(
+    final tokens = await provider.netApi.httpGet<Map<String, dynamic>>(
         TronClientUtils.buildTronScanUrl(
             address: address, chain: network.tronNetworkType, start: start),
-        headers: HttpCallerUtils.applicationJsonContentType,
-        responseType: HTTPResponseType.map);
-    return TronScanAccountTokens.fromJson(tokens.result);
+        headers: TronClientUtils.getHeaders(network.tronNetworkType),
+        responseType: StreamEncoding.map);
+    return tokens.mapCatchAsync((e) {
+      return TronScanAccountTokens.fromJson(e);
+    });
   }
 
   Future<void> _fetchTrc10TokenMetadatas(List<TronNetworkToken> tokens) async {
@@ -203,15 +221,22 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
     for (final i in trc10Tokens) {
       i.setPending();
     }
-    final issueList = await MethodUtils.call(() async {
-      return await getIssueAssetList();
-    });
+    final issueList = await IResult.call(
+      () async {
+        return await getIssueAssetList();
+      },
+      onError: (exception, trace) => AppLogData(
+          runtime: runtimeType,
+          function: "_fetchTrc10TokenMetadatas",
+          err: exception,
+          trace: trace.toString()),
+    );
 
-    final issueTokens = issueList.resultOrNull ?? [];
+    final issueTokens = issueList.ok() ?? [];
     for (final i in trc10Tokens) {
-      final token = issueTokens
-          .firstWhereNullable((element) => element.id == i.token.issuer);
-      assert(token != null, "unknow trc10 asset.");
+      final token =
+          issueTokens.firstWhereNullable((element) => element.id == i.token.issuer);
+      assert(issueList.isErr || token != null, "unknow trc10 asset.");
       if (token == null) {
         i.setError();
         continue;
@@ -219,14 +244,14 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
       i.updaetTokenMetadata(Token(
           name: token.name,
           symbol: token.abbr ?? token.name,
-          // assetLogo: APPImage.network(token.url),
           decimal: token.precision ?? 0));
     }
   }
 
   @override
   Stream<List<TronNetworkToken>> getAccountTokensStream(TronAddress address) {
-    final controller = StreamController<List<TronNetworkToken>>();
+    final controller = SafeStreamController<List<TronNetworkToken>>(
+        name: "TronClient.getAccountTokensStream");
     void add(List<TronNetworkToken> tokens) {
       if (!controller.isClosed) {
         controller.add(tokens);
@@ -234,7 +259,7 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
     }
 
     void error(Object err) {
-      if (!controller.isClosed) controller.addError(err);
+      if (!controller.isClosed) controller.addError(IExceptionUtils.findError(err));
     }
 
     void close() {
@@ -243,16 +268,14 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
 
     Future<void> fetchTokens() async {
       try {
-        final result =
-            await MethodUtils.call(() async => await getAccount(address));
-
-        if (result.hasError) {
-          error(result.exception!);
+        final result = await IResult.call(() async => await getAccount(address));
+        if (result.isErr) {
+          error(result.unwrapErr().exception);
           close();
           return;
         }
 
-        final account = result.result;
+        final account = result.unwrap();
         List<TronNetworkToken> trc10Tokens = [];
         if (account != null && account.assetV2.isNotEmpty) {
           trc10Tokens = account.assetV2
@@ -269,27 +292,25 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
         int max = TronClientUtils.tronScanMaxTokenLimit;
         int offset = 0;
         while (max == TronClientUtils.tronScanMaxTokenLimit) {
-          final tronscanAssets = await MethodUtils.call(() async {
-            return await getTronScanAccountTokens(address,
-                start: offset * TronClientUtils.tronScanMaxTokenLimit);
-          });
-          if (tronscanAssets.hasError) {
-            error(tronscanAssets.exception!);
+          final tronscanAssets = await getTronScanAccountTokens(address,
+              start: offset * TronClientUtils.tronScanMaxTokenLimit);
+          if (tronscanAssets.isErr) {
+            error(tronscanAssets.unwrapErr().exception);
             close();
             return;
           }
-          final trc10Metadatas = tronscanAssets.result.tokens
-              .where((e) => e.tokenType == TronTokenTypes.trc10.name)
-              .toList();
+          final tokens = tronscanAssets.unwrap().tokens;
+          final trc10Metadatas =
+              tokens.where((e) => e.tokenType == TronTokenTypes.trc10.name).toList();
           for (final i in trc10Tokens) {
-            final metadata = trc10Metadatas
-                .firstWhereNullable((e) => e.tokenId == i.token.identifier);
+            final metadata =
+                trc10Metadatas.firstWhereNullable((e) => e.tokenId == i.token.identifier);
             if (metadata != null) {
               i.updaetTokenMetadata(i.token.token
                   .copyWith(assetLogo: APPImage.network(metadata.tokenLogo)));
             }
           }
-          final tc20Assets = tronscanAssets.result.tokens
+          final tc20Assets = tokens
               .where((e) => e.tokenType == TronTokenTypes.trc20.name)
               .map((e) => TronNetworkToken(
                   status: NetworkTokenFetchingStatus.success,
@@ -302,7 +323,7 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
                           assetLogo: APPImage.network(e.tokenLogo)),
                       contractAddress: TronAddress(e.tokenId))))
               .toList();
-          max = tronscanAssets.result.tokens.length;
+          max = tokens.length;
           offset++;
           add(tc20Assets);
         }
@@ -313,41 +334,35 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronAPIProvider,
       }
     }
 
-    controller.onListen = fetchTokens;
-    controller.onCancel = close;
+    controller.onListenListener(fetchTokens);
+    controller.onCancelListener(close);
 
-    return controller.stream;
-  }
-
-  @override
-  Future<bool> onInit() async {
-    final result = await MethodUtils.call<bool>(() async {
-      return await checkGenesis();
-    });
-    if (result.hasResult && result.result) {
-      final chainIdResult = await MethodUtils.call<bool>(() async {
-        return await checkSolidityChainId();
-      });
-      return chainIdResult.hasResult && chainIdResult.result;
-    }
-
-    return false;
+    return controller.stream();
   }
 
   @override
   Future<WalletTransactionStatus> transactionStatus(
-      {required String txId}) async {
-    try {
-      final r =
-          await provider.request(TronRequestGetTransactionById(value: txId));
-      if (r == null) return WalletTransactionStatus.unknown;
-      if (r.isSuccess) return WalletTransactionStatus.block;
-      return WalletTransactionStatus.unknown;
-    } catch (_) {
-      return WalletTransactionStatus.unknown;
-    }
+      TronWalletTransaction transaction) async {
+    final tx =
+        await provider.request(TronRequestGetTransactionById(value: transaction.txId));
+    if (tx == null) return WalletTransactionStatus.unknown;
+    if (tx.isSuccess) return WalletTransactionStatus.block;
+    return WalletTransactionStatus.failed;
   }
 
   @override
-  NetworkType get networkType => NetworkType.tron;
+  List<MultiChainServiceClient> services() {
+    return [provider.service];
+  }
+
+  @override
+  Future<bool> verifyService(DefaultAPIProvider provider) async {
+    if (provider == this.provider.service.provider) {
+      return checkGenesis();
+    }
+    if (provider == ethClient.provider.service.provider) {
+      return checkSolidityChainId();
+    }
+    return false;
+  }
 }

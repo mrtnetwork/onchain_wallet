@@ -160,7 +160,7 @@ class XRPLAccountTx {
 }
 
 class XRPLAccountTxs {
-  final XRPAddress address;
+  final XRPBaseAddress address;
   final List<XRPLAccountTx> txes;
   final int latestLedger;
   XRPLAccountTxs(

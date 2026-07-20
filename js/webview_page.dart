@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:on_chain_bridge/models/events/models/wallet_event.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/messages/models/models/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/messages/models/models/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'js_wallet/js_wallet.dart';
 import 'package:on_chain_bridge/web/web.dart';
 
@@ -19,14 +19,12 @@ external JSFunction get onWorkerErrorListener;
 @JS("encodeURIComponent")
 external String encodeURIComponent(String uriComponent);
 
-void postToWallet(
-    {required JSWorkerWalletData data, required JSWebviewTraget target}) {
+void postToWallet({required JSWorkerWalletData data, required JSWebviewTraget target}) {
   if (target.isMacos) {
     jsWindow.webkit.messageHandlers.onChain.postMessage(data.toJson().jsify());
     return;
   }
-  onChain.onChainInternalJsRequest(
-      data.clientId, data.data, data.requestId, data.type);
+  onChain.onChainInternalJsRequest(data.clientId, data.data, data.requestId, data.type);
 }
 
 void main(List<String> args) async {
@@ -56,8 +54,8 @@ void main(List<String> args) async {
     if (target == null) return false;
 
     final workerModule = data.additional!;
-    final blob = Blob(
-        [workerModule.toJS].toJS, BlobOptions(type: 'application/javascript'));
+    final blob =
+        Blob([workerModule.toJS].toJS, BlobOptions(type: 'application/javascript'));
     final obj = URL.createObjectURL(blob);
     final worker = Worker(obj, WorkerOptions(name: 'js'));
     onWorkerErrorListener = (MessageEvent event) {}.toJS;
@@ -79,9 +77,8 @@ void main(List<String> args) async {
                   : JSWebviewTraget.android);
           onChain.onWebViewMessage = (JSWalletEvent event) {
             if (walletEvent.type == WalletEventTypes.exception) {
-              final error =
-                  Web3ExceptionMessage.deserialize(bytes: walletEvent.data)
-                      .toWalletError();
+              final error = Web3ExceptionMessage.deserialize(bytes: walletEvent.data)
+                  .toWalletError();
               workerCompleter.completeError(error);
               worker.terminate();
               pageController.disable(error);
@@ -146,8 +143,7 @@ void main(List<String> args) async {
   onChain.onWebViewMessage = null;
 
   bool onWalletEvent(JSWalletEvent jsRequest) {
-    worker
-        .postMessage(JSWorkerEvent(type: JSWorkerType.wallet, data: jsRequest));
+    worker.postMessage(JSWorkerEvent(type: JSWorkerType.wallet, data: jsRequest));
     return true;
   }
 

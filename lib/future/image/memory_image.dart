@@ -1,32 +1,34 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/impl/worker_impl.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
-class CacheMemoryImageProvider extends ImageProvider<CacheMemoryImageProvider>
-    with CryptoWokerImpl, HttpImpl {
+class CacheMemoryImageProvider extends ImageProvider<CacheMemoryImageProvider> {
   final APPImageInfo image;
-  CacheMemoryImageProvider(this.image);
+  final INetApi netApi;
+  CacheMemoryImageProvider({required this.image, required this.netApi});
 
   @override
   ImageStreamCompleter loadImage(
       CacheMemoryImageProvider key, ImageDecoderCallback decode) {
-    StreamController<ImageChunkEvent>? chunkEvent;
-    if (image.type == ContentType.favIcon ||
-        image.type == ContentType.network ||
-        image.type == ContentType.lazy) {
-      chunkEvent = StreamController<ImageChunkEvent>();
-      chunkEvent.add(
-          ImageChunkEvent(cumulativeBytesLoaded: 0, expectedTotalBytes: 100));
+    SafeStreamController<ImageChunkEvent>? chunkEvent;
+    if (image.type == ContentType.favIcon || image.type == ContentType.network) {
+      chunkEvent =
+          SafeStreamController<ImageChunkEvent>(name: "CacheMemoryImageProvider");
+      chunkEvent.add(ImageChunkEvent(cumulativeBytesLoaded: 0, expectedTotalBytes: 100));
     }
     final Future<ui.Codec> codec = _loadAsync(
         decode: decode,
-        onStreamResponse: (cumulativeBytesLoaded, expectedTotalBytes) {
-          chunkEvent?.add(ImageChunkEvent(
-              cumulativeBytesLoaded: cumulativeBytesLoaded,
-              expectedTotalBytes: expectedTotalBytes));
+        onStreamResponse: (progress) {
+          if (progress.isValid) {
+            chunkEvent?.add(ImageChunkEvent(
+                cumulativeBytesLoaded: progress.loaded,
+                expectedTotalBytes: progress.total));
+          }
         },
         onDone: () {
           chunkEvent?.close();
@@ -39,12 +41,12 @@ class CacheMemoryImageProvider extends ImageProvider<CacheMemoryImageProvider>
         informationCollector: () sync* {
           yield ErrorDescription('Tag: ${image.toString()}');
         },
-        chunkEvents: chunkEvent?.stream);
+        chunkEvents: chunkEvent?.stream());
   }
 
   Future<ui.Codec> _loadAsync(
       {required ImageDecoderCallback decode,
-      required OnStreamReapose onStreamResponse,
+      required CbOnHttpStreamProgress onStreamResponse,
       required DynamicVoid onDone}) async {
     ui.ImmutableBuffer buffer;
     try {
@@ -55,25 +57,29 @@ class CacheMemoryImageProvider extends ImageProvider<CacheMemoryImageProvider>
       }
       switch (image.type) {
         case ContentType.local:
-          final bytes = await PlatformUtils.loadAssets(uri);
-          buffer =
-              await ui.ImmutableBuffer.fromUint8List(Uint8List.fromList(bytes));
+          final bytes = await IResult.call(() async {
+            return rootBundle.loadBuffer(uri);
+          });
+          buffer = await bytes.foldAsync(
+            onOk: (value) async => value,
+            onErr: (_) => throw StateError('${image.type} cannot be loaded as an image.'),
+          );
           break;
         case ContentType.hex:
-          final data = Uint8List.fromList(await crypto.hexToBytes(uri));
+          final data = Uint8List.fromList(BytesUtils.fromHexString(uri));
           buffer = await ui.ImmutableBuffer.fromUint8List(data);
           break;
         case ContentType.favIcon:
         case ContentType.network:
-        case ContentType.lazy:
           if (image.type == ContentType.favIcon) {
             uri = LinkConst.faviIconGenerator + uri;
           }
-          final fetch =
-              await makeStream(uri: uri, onProgress: onStreamResponse);
-
-          buffer = await ui.ImmutableBuffer.fromUint8List(
-              Uint8List.fromList(fetch.result));
+          final fetch = await netApi.makeStream(uri: uri, onProgress: onStreamResponse);
+          buffer = await fetch.foldAsync(
+            onOk: (value) async =>
+                await ui.ImmutableBuffer.fromUint8List(Uint8List.fromList(value)),
+            onErr: (_) => throw StateError('${image.type} cannot be loaded as an image.'),
+          );
 
           break;
         default:

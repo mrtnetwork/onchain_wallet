@@ -9,8 +9,8 @@ class TonConst {
   static const int defaultTonMnemonicWordsLength = 24;
   static const int deciaml = 9;
   static const int mainnetWokchainId = 0;
-  static final BigRational maxTransferQueryId = BlockchainConst.maxSupply;
-  static const int maximumSubWalletId = mask32 - 1;
+  static BigRational get maxTransferQueryId => BlockchainConst.maxSupply;
+  static const int maximumSubWalletId = BinaryOps.mask32 - 1;
   static const int maximumWalletId = (1 << 31) - 1;
   static const int maximumV5SubWalletId = (1 << 15) - 1;
 }

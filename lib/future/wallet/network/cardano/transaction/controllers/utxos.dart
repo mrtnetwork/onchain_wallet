@@ -13,20 +13,18 @@ mixin ADATransactionUtxosController on ADATransactionApiController {
   ADAChain get account;
   bool _allowAssets = true;
   final StreamValue<List<ADAAccountFetchedUtxos>> accountUtxos =
-      StreamValue([]);
+      StreamValue([], name: "ADATransactionUtxosController");
   void onSelectedUtxosChanged(List<CardanoAccountUtxo> utxos);
   bool get hasUtxos => totalUtxos.value.largerThanZero;
   bool _allSelected = false;
   bool get allUtxosSelected => _allSelected;
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> totalUtxos =
-      LiveFormField(
-          title: "spendable_amount".tr,
-          value: IntegerBalance.zero(network.token),
-          optional: false);
+  late final LiveFormField<IntegerBalance, IntegerBalance> totalUtxos = LiveFormField(
+      title: "spendable_amount".tr,
+      value: IntegerBalance.zero(network.token),
+      optional: false);
 
-  Future<void> getAccountsUtxos(
-      {List<ADAAccountFetchedUtxos>? accountUtxos}) async {
+  Future<void> getAccountsUtxos({List<ADAAccountFetchedUtxos>? accountUtxos}) async {
     accountUtxos ??= this.accountUtxos.value;
     await Future.wait(accountUtxos.map((e) {
       return e.lock.run(() async {
@@ -63,8 +61,7 @@ mixin ADATransactionUtxosController on ADATransactionApiController {
   }
 
   void _updateAmount() {
-    final total =
-        accountUtxos.value.fold(BigInt.zero, (p, c) => p + c.totalUtxo);
+    final total = accountUtxos.value.fold(BigInt.zero, (p, c) => p + c.totalUtxo);
     totalUtxos.value.updateBalance(total);
     totalUtxos.notify();
     _onSelectedUtxosChanged();

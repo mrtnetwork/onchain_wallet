@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain/tron/src/address/tron_address.dart';
 import 'package:on_chain/tron/src/models/contract/base_contract/transaction_type.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/operations/account/account_permission_update.dart';
@@ -12,75 +12,89 @@ import 'package:on_chain_wallet/wallet/models/networks/tron/models/tron_account_
 
 import 'fee.dart';
 
-class TronTransactionAccountPermissionUpdateContractWidget
-    extends StatelessWidget {
+class TronTransactionAccountPermissionUpdateContractWidget extends StatelessWidget {
   final TronTransactionAccountPermissionUpdateContractOperation form;
   const TronTransactionAccountPermissionUpdateContractWidget(
       {required this.form, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiSliver(children: [
-      LiveFormWidget(
-        field: form.permission,
-        builder: (context, field, value) {
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                APPAnimatedSize(
-                    duration: APPConst.animationDuraion,
-                    isActive: value != null,
-                    onActive: (context) =>
-                        _EditPermissionView(validator: value!, form: form),
-                    onDeactive: (context) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppDropDownBottom<TronPermissionBuilder?>(
-                                value: value,
-                                key: ValueKey(value),
-                                items: {
-                                  for (final i in form.permissions)
-                                    i: RichText(
-                                        text: TextSpan(
-                                            style: context.textTheme.bodyMedium,
-                                            text: i
-                                                .permission.type.name.camelCase,
-                                            children: [
-                                          if (i
-                                                  .permission.permissionName !=
-                                              null)
-                                            TextSpan(
-                                                text:
-                                                    " (${i.permission.permissionName}) ",
-                                                style:
-                                                    context.textTheme.bodySmall)
-                                        ])),
-                                  null: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.add_box),
-                                      WidgetConstant.width8,
-                                      Text("new_active_permission".tr,
-                                          style: context.textTheme.bodySmall)
-                                    ],
-                                  )
-                                },
-                                onChanged: form.onUpdatePermission,
-                                hint: "permissions".tr),
-                            WidgetConstant.height20,
-                            LiveFormWidgetMemo(
-                                field: form.memo,
-                                onUpdateMemo: form.onUpdateMemo),
-                            WidgetConstant.height20,
-                            TronTransactionFeeDataView(controller: form),
-                            TransactionStateSendTransaction(controller: form)
-                          ],
-                        ))
-              ]);
-        },
-      ),
-    ]);
+    return APPStreamBuilder(
+        value: form.notifier,
+        builder: (context, _) {
+          return MultiSliver(children: [
+            LiveFormWidget(
+              field: form.permission,
+              showFieldTitle: !form.permission.hasValue,
+              builder: (context, field, value) {
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  APPAnimatedSize(
+                      duration: APPConst.animationDuraion,
+                      isActive: value != null,
+                      onActive: (context) =>
+                          _EditPermissionView(validator: value!, form: form),
+                      onDeactive: (context) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppDropDownBottom<TronPermissionBuilder?>(
+                                  value: value,
+                                  key: ValueKey(value),
+                                  items: {
+                                    for (final i in form.permissions)
+                                      i: RichText(
+                                          text: TextSpan(
+                                              style: context.textTheme.bodyMedium,
+                                              text: i.permission.type.name.camelCase,
+                                              children: [
+                                            if (i.permission.permissionName != null)
+                                              TextSpan(
+                                                  text:
+                                                      " (${i.permission.permissionName}) ",
+                                                  style: context.textTheme.bodySmall)
+                                          ])),
+                                    null: Text(
+                                      "choose_a_permission".tr,
+                                      style: context.textTheme.bodyMedium,
+                                    ),
+                                  },
+                                  selectedItemBuilder: {
+                                    for (final i in form.permissions)
+                                      i: RichText(
+                                          text: TextSpan(
+                                              style: context.textTheme.bodyMedium,
+                                              text: i.permission.type.name.camelCase,
+                                              children: [
+                                            if (i.permission.permissionName != null)
+                                              TextSpan(
+                                                  text:
+                                                      " (${i.permission.permissionName}) ",
+                                                  style: context.textTheme.bodySmall)
+                                          ])),
+                                    null: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add_box),
+                                        WidgetConstant.width8,
+                                        Text("new_active_permission".tr,
+                                            style: context.textTheme.bodySmall)
+                                      ],
+                                    )
+                                  },
+                                  onChanged: form.onUpdatePermission,
+                                  hint: "permissions".tr),
+                              WidgetConstant.height20,
+                              LiveFormWidgetMemo(
+                                  field: form.memo, onUpdateMemo: form.onUpdateMemo),
+                              WidgetConstant.height20,
+                              TronTransactionFeeDataView(controller: form),
+                              TransactionStateSendTransaction(controller: form)
+                            ],
+                          ))
+                ]);
+              },
+            ),
+          ]);
+        });
   }
 }
 
@@ -111,8 +125,7 @@ class _EditPermissionView extends StatelessWidget {
               Text("input_the_permission_name".tr),
               WidgetConstant.height8,
               ContainerWithBorder(
-                onRemoveIcon:
-                    Icon(Icons.edit, color: context.onPrimaryContainer),
+                onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                 onRemove: () {
                   context
                       .openSliverBottomSheet<String>(
@@ -127,8 +140,7 @@ class _EditPermissionView extends StatelessWidget {
                       )
                       .then(validator.onUpdatePermissionName);
                 },
-                child: Text(
-                    permission.permissionName ?? "tap_to_input_value".tr,
+                child: Text(permission.permissionName ?? "tap_to_input_value".tr,
                     style: context.onPrimaryTextTheme.bodyMedium),
               ),
               WidgetConstant.height20,
@@ -138,7 +150,7 @@ class _EditPermissionView extends StatelessWidget {
               ContainerWithBorder(
                   child: NumberTextField(
                       label: "threshold".tr,
-                      onChange: validator.onUpdateTheresHold,
+                      onChangeValue: validator.onUpdateTheresHold,
                       defaultValue: validator.permission.threshold.toInt(),
                       max: TronUtils.maxPermissionThreshhold,
                       min: 1)),
@@ -155,52 +167,47 @@ class _EditPermissionView extends StatelessWidget {
                                   _TronSelectPermissionContact(validator));
                         }
                       : null,
-                  onRemoveIcon:
-                      Icon(Icons.edit, color: context.onPrimaryContainer),
-                  child: ConditionalWidgets(
-                      enable: validator.canUpdateOperations,
-                      widgets: {
-                        false: (context) => Text("all_operations".tr,
-                            style: context.onPrimaryTextTheme.bodyMedium),
-                        true: (context) => Text(
-                            "n_item_selected".tr.replaceOne(
-                                validator.operations.length.toString()),
-                            style: context.onPrimaryTextTheme.bodyMedium),
-                      }),
+                  onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
+                  child:
+                      ConditionalWidgets(enable: validator.canUpdateOperations, widgets: {
+                    false: (context) => Text("all_operations".tr,
+                        style: context.onPrimaryTextTheme.bodyMedium),
+                    true: (context) => Text(
+                        "n_item_selected"
+                            .tr
+                            .replaceOne(validator.operations.length.toString()),
+                        style: context.onPrimaryTextTheme.bodyMedium),
+                  }),
                 ),
               ],
               WidgetConstant.height20,
-              Text("tron_permission_key".tr,
-                  style: context.textTheme.titleMedium),
+              Text("tron_permission_key".tr, style: context.textTheme.titleMedium),
               Text("tron_permission_key_desc".tr),
               WidgetConstant.height8,
               ...List.generate(validator.permission.keys.length, (index) {
-                return ContainerWithBorder(
+                return CustomizedContainer(
                     iconAlginment: CrossAxisAlignment.start,
                     enableTap: false,
-                    onRemove: () {
-                      validator
-                          .onRemoveSigner(validator.permission.keys[index]);
+                    onTapStackIcon: () {
+                      validator.onRemoveSigner(validator.permission.keys[index]);
                     },
-                    onRemoveIcon: Icon(Icons.remove_circle,
-                        color: context.onPrimaryContainer),
+                    onStackIcon: Icons.remove_circle,
+                    reverseColor: context.onPrimaryContainer,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         OneLineTextWidget(
-                            validator.permission.keys[index].address
-                                .toAddress(),
+                            validator.permission.keys[index].address.toAddress(),
                             style: context.onPrimaryTextTheme.bodyMedium),
                         Divider(color: context.onPrimaryContainer),
                         NumberTextField(
                             label: "weight".tr,
-                            onChange: (p0) {
+                            onChangeValue: (p0) {
                               validator.updateKeyThereshHold(
                                   validator.permission.keys[index], p0);
                             },
                             max: TronUtils.maxPermissionThreshhold,
-                            defaultValue:
-                                validator.permission.keys[index].weight.toInt(),
+                            defaultValue: validator.permission.keys[index].weight.toInt(),
                             min: 1),
                       ],
                     ));
@@ -208,8 +215,7 @@ class _EditPermissionView extends StatelessWidget {
               if (validator.permission.keys.length < 5)
                 ContainerWithBorder(
                   validate: validator.error == null,
-                  onRemoveIcon:
-                      Icon(Icons.add_box, color: context.onPrimaryContainer),
+                  onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
                   child: Text("tap_to_input_new_signer".tr,
                       style: context.onPrimaryTextTheme.bodyMedium),
                   onRemove: () {
@@ -263,11 +269,9 @@ class _TronSelectPermissionContact extends StatefulWidget {
       __TronSelectPermissionContactState();
 }
 
-class __TronSelectPermissionContactState
-    extends State<_TronSelectPermissionContact> {
+class __TronSelectPermissionContactState extends State<_TronSelectPermissionContact> {
   List<TransactionContractType> get permissions => widget.builder.operations;
-  bool get allSelected =>
-      permissions.length == TronUtils.supportedOperations.length;
+  bool get allSelected => permissions.length == TronUtils.supportedOperations.length;
   @override
   Widget build(BuildContext context) {
     return APPStreamBuilder(
@@ -287,8 +291,7 @@ class __TronSelectPermissionContactState
                     icon: ConditionalWidget(
                       enable: widget.builder.allOperationSelected,
                       onActive: (context) => Icon(Icons.check_box),
-                      onDeactive: (context) =>
-                          Icon(Icons.check_box_outline_blank),
+                      onDeactive: (context) => Icon(Icons.check_box_outline_blank),
                     ),
                   ),
                 ],

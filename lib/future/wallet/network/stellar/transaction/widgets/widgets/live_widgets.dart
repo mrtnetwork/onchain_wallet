@@ -1,16 +1,16 @@
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
+import 'package:on_chain_wallet/wallet/chain/chain/typedef/types.dart';
+import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/operations.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/widgets/widgets/extensions.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/widgets/widgets/pick_asset.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/pages/live_form_widget.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:stellar_dart/stellar_dart.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/types.dart';
 
 typedef ONSELECTSTELLARASSET = void Function(StellarPickedIssueAsset asset);
@@ -22,9 +22,8 @@ typedef ONSELECTSTELLARASSETPICKED = Widget Function(
 class LiveFormPickStellarAssetWidget<T extends Object?, E extends Object>
     extends StatelessWidget {
   final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> field;
-  final StellarChain account;
+  final StellarTransactionStateController controller;
   final bool allowCreateAsset;
-  final StellarAccountResponse accountInfo;
   final ONSELECTSTELLARASSET onSelectAsset;
   final ONSELECTSTELLARASSETPICKED? onAssetPicked;
   final bool allowNativeAssets;
@@ -33,8 +32,9 @@ class LiveFormPickStellarAssetWidget<T extends Object?, E extends Object>
   const LiveFormPickStellarAssetWidget(
       {required this.field,
       required this.onSelectAsset,
-      required this.account,
-      required this.accountInfo,
+      required this.controller,
+      // required this.accountInfo,
+      // required this.tokens,
       this.showBalance = true,
       this.allowNativeAssets = true,
       this.onAssetPicked,
@@ -46,50 +46,49 @@ class LiveFormPickStellarAssetWidget<T extends Object?, E extends Object>
     return LiveFormWidget(
         field: field,
         builder: (context, field, value) {
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ContainerWithBorder(
-                  onRemoveIcon: AddOrEditIconWidget(value != null),
-                  validate: field.hasValue,
-                  child: value == null
-                      ? Text("tap_to_select_or_create_asset".tr,
-                          style: context.onPrimaryTextTheme.bodyMedium)
-                      : AccountTokenDetailsWidget(
-                          token: value.token,
-                          color: context.onPrimaryContainer,
-                          balance: showBalance ? value.tokenBalance : null,
-                          radius: APPConst.circleRadius25),
-                  onRemove: () {
-                    context
-                        .openDialogPage<StellarPickedIssueAsset>('',
-                            child: (context) => StellarPickAssetView(
-                                accountInfo: accountInfo,
-                                chain: account,
-                                allowNativeAssets: allowNativeAssets,
-                                allowCreate: allowCreateAsset))
-                        .then((v) {
-                      if (v == null) return;
-                      onSelectAsset(v);
-                    });
-                  },
-                ),
-                APPAnimated(
-                    isActive: true,
-                    onActive: (context) => ConditionalWidget(
-                        key: ValueKey(value),
-                        enable: value != null && onAssetPicked != null,
-                        onActive: (context) {
-                          return FullWidthWrapper(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  WidgetConstant.height20,
-                                  onAssetPicked!(context, field, value!)
-                                ]),
-                          );
-                        }))
-              ]);
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ContainerWithBorder(
+              onRemoveIcon: AddOrEditIconWidget(value != null),
+              validate: field.hasValue,
+              child: value == null
+                  ? Text("tap_to_select_or_create_asset".tr,
+                      style: context.onPrimaryTextTheme.bodyMedium)
+                  : AccountTokenDetailsWidget(
+                      token: value.token,
+                      color: context.onPrimaryContainer,
+                      balance: showBalance ? value.tokenBalance : null,
+                      radius: APPConst.circleRadius25),
+              onRemove: () {
+                context
+                    .openDialogPage<StellarPickedIssueAsset>('',
+                        child: (context) => StellarPickAssetView(
+                            accountInfo: controller.accountData,
+                            tokens: controller.addressTokens,
+                            chain: controller.account,
+                            allowNativeAssets: allowNativeAssets,
+                            allowCreate: allowCreateAsset))
+                    .then((v) {
+                  if (v == null) return;
+                  onSelectAsset(v);
+                });
+              },
+            ),
+            APPAnimated(
+                isActive: true,
+                onActive: (context) => ConditionalWidget(
+                    key: ValueKey(value),
+                    enable: value != null && onAssetPicked != null,
+                    onActive: (context) {
+                      return FullWidthWrapper(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              WidgetConstant.height20,
+                              onAssetPicked!(context, field, value!)
+                            ]),
+                      );
+                    }))
+          ]);
         });
   }
 }
@@ -97,12 +96,12 @@ class LiveFormPickStellarAssetWidget<T extends Object?, E extends Object>
 typedef ONTAPSTELLARADDRESSACTIVITYERROR = void Function(
     TransactionResourceRequirementStellarAccountActivity);
 
-class LiveFormWidgetStellarAddressWithActivity<NETWORKADDRESS>
+class LiveFormWidgetStellarAddressWithActivity<NETWORKADDRESS extends IAddress>
     extends StatelessWidget {
   final bool visibleOnNull;
   final LiveFormField<TransactionResourceRequirementStellarAccountActivity?,
       TransactionResourceRequirementStellarAccountActivity> field;
-  final APPCHAINNETWORK<NETWORKADDRESS> account;
+  final APPCHAINADDRESS<NETWORKADDRESS> account;
   final ONUPDATEADDRESS<NETWORKADDRESS>? onUpdateAddress;
   final ONTAPSTELLARADDRESSACTIVITYERROR? onTapError;
   const LiveFormWidgetStellarAddressWithActivity(
@@ -134,9 +133,7 @@ class LiveFormWidgetStellarAddressWithActivity<NETWORKADDRESS>
               onRemove: onUpdateAddress == null
                   ? null
                   : () {
-                      context
-                          .selectAccount<NETWORKADDRESS>(account: account)
-                          .then(
+                      context.selectAccount<NETWORKADDRESS>(account: account).then(
                         (value) {
                           final address = value?.firstOrNull;
                           onUpdateAddress(address);
@@ -162,8 +159,7 @@ class LiveFormWidgetStellarAddressWithActivity<NETWORKADDRESS>
                             ? null
                             : () {
                                 context
-                                    .selectAccount<NETWORKADDRESS>(
-                                        account: account)
+                                    .selectAccount<NETWORKADDRESS>(account: account)
                                     .then(
                                   (value) {
                                     final address = value?.firstOrNull;

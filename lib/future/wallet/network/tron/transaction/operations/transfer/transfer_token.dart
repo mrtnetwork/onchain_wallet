@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/tron/tron.dart';
-import 'package:on_chain_wallet/crypto/utils/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/utils.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/string.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/widgets/widgets/transfer.dart';
@@ -11,13 +11,14 @@ import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/tron/client/tron.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/token_core.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/tron.dart';
 
 import 'transfer.dart';
 
-abstract class TronTransactionBaseTransferTokenOperation<
-        TOKEN extends TronToken, CONTRACT extends TronBaseContract>
+abstract class TronTransactionBaseTransferTokenOperation<TOKEN extends TronToken,
+        CONTRACT extends TronBaseContract>
     extends TronTransactionBaseTransferOperation<CONTRACT> {
   final TOKEN token;
   @override
@@ -41,7 +42,7 @@ abstract class TronTransactionBaseTransferTokenOperation<
     if (!status.isReady) {
       return status;
     }
-    IntegerBalance total = address.address.balance.value - txFee.fee.fee;
+    IntegerBalance total = address.addressData.balance.value - txFee.fee.fee;
     if (total.isNegative) {
       return TransactionStateStatus.insufficient(total);
     }
@@ -64,15 +65,13 @@ abstract class TronTransactionBaseTransferTokenOperation<
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super
-        .initForm(context: context, client: client, updateAccount: false);
-    if (!address.tokens.contains(token)) {
+    await super.initForm(context: context, client: client, updateAccount: false);
+    if (!addressTokens.contains(token)) {
       await account.updateTokenBalance(address: address, tokens: [token]);
     } else {
       account.updateTokenBalance(address: address, tokens: [token]);
     }
-    _tokenBalanceListener =
-        token.streamBalance.stream.listen((_) => onStateUpdated());
+    _tokenBalanceListener = token.streamBalance.stream.listen((_) => onStateUpdated());
     return this;
   }
 
@@ -102,19 +101,22 @@ class TronTransactionTransferTRC10TokenOperation
   @override
   Future<List<IWalletTransaction<TronWalletTransaction, ITronAddress>>>
       buildWalletTransaction(
-          {required ITronSignedTransaction<
-                  ITronTransactionData<TransferAssetContract>>
+          {required ITronSignedTransaction<ITronTransactionData<TransferAssetContract>>
               signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final transfer = signedTx.transaction.transactionData.tokenTransfer;
+    final txData = signedTx.transaction.transactionData;
+    final transfer = txData.tokenTransfer;
     final token = transfer?.token;
     assert(transfer != null && token != null);
     if (transfer == null || token == null) {
       return super.buildWalletTransaction(signedTx: signedTx, txId: txId);
     }
+
+    final txMemo = txData.getMemo();
     final transaction = TronWalletTransaction(
         txId: txId.txId,
         network: network,
+        memos: [if (txMemo != null) txMemo],
         totalOutput: WalletTransactionIntegerAmount(
             amount: transfer.amount,
             network: network,
@@ -131,8 +133,7 @@ class TronTransactionTransferTRC10TokenOperation
           ),
         ]);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
@@ -157,15 +158,13 @@ class TronTransactionTransferTRC10TokenOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
-    final token = address.tokens.whereType<TronTRC10Token>().firstWhere(
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
+    final tokens = (await address.getAccountTokens()).unwrap();
+    final token = tokens.whereType<TronTRC10Token>().firstWhere(
         (e) => e.identifier == this.token.identifier,
         orElse: () => this.token.clone());
     return TronTransactionTransferTRC10TokenOperation(
-        walletProvider: walletProvider,
-        account: account,
-        address: address,
-        token: token);
+        walletProvider: walletProvider, account: account, address: address, token: token);
   }
 }
 
@@ -228,19 +227,22 @@ class TronTransactionTransferTRC20TokenOperation
   @override
   Future<List<IWalletTransaction<TronWalletTransaction, ITronAddress>>>
       buildWalletTransaction(
-          {required ITronSignedTransaction<
-                  ITronTransactionData<TriggerSmartContract>>
+          {required ITronSignedTransaction<ITronTransactionData<TriggerSmartContract>>
               signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final transfer = signedTx.transaction.transactionData.tokenTransfer;
+    final txData = signedTx.transaction.transactionData;
+
+    final transfer = txData.tokenTransfer;
     final token = transfer?.token;
     assert(transfer != null && token != null);
     if (transfer == null || token == null) {
       return super.buildWalletTransaction(signedTx: signedTx, txId: txId);
     }
+    final txMemo = txData.getMemo();
     final transaction = TronWalletTransaction(
         txId: txId.txId,
         network: network,
+        memos: [if (txMemo != null) txMemo],
         totalOutput: WalletTransactionIntegerAmount(
             amount: transfer.amount,
             network: network,
@@ -257,21 +259,18 @@ class TronTransactionTransferTRC20TokenOperation
           ),
         ]);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
-    final token = address.tokens.whereType<TronTRC20Token>().firstWhere(
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
+    final tokens = (await address.getAccountTransactions()).unwrap();
+    final token = tokens.whereType<TronTRC20Token>().firstWhere(
         (e) => e.identifier == this.token.identifier,
         orElse: () => this.token.clone());
     return TronTransactionTransferTRC20TokenOperation(
-        walletProvider: walletProvider,
-        account: account,
-        address: address,
-        token: token);
+        walletProvider: walletProvider, account: account, address: address, token: token);
   }
 
   @override
@@ -281,8 +280,7 @@ class TronTransactionTransferTRC20TokenOperation
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     _listener = feeLimit.live.stream.listen(_onFeeLimitUpdated);
     return this;
   }

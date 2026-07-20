@@ -10,8 +10,7 @@ class TransactionStateBuilder extends StatefulWidget {
   const TransactionStateBuilder({super.key});
 
   @override
-  State<TransactionStateBuilder> createState() =>
-      _TransactionStateBuilderState();
+  State<TransactionStateBuilder> createState() => _TransactionStateBuilderState();
 }
 
 class _TransactionStateBuilderState extends State<TransactionStateBuilder>
@@ -32,14 +31,14 @@ class _TransactionStateBuilderState extends State<TransactionStateBuilder>
     if (address == null) return;
     final currentController = internalController;
     final initController = controller;
-    currentController.setPageProgress(text: "switching_account_please_wait".tr);
-    await MethodUtils.wait(duration: APPConst.animationDuraion);
-    final newController = internalController.cloneController(address);
+    currentController.setPageProgress("switching_account_please_wait".tr);
+    await MethodUtils.delayed(duration: APPConst.animationDuraion);
+    final newController = await internalController.cloneController(address);
     internalController = newController;
     controller = newController;
     updateState();
     await init();
-    MethodUtils.after(() async {
+    MethodUtils.executeAfterDelay(() async {
       currentController.dispose();
       if (!identical(currentController, initController)) {
         initController.dispose();
@@ -69,11 +68,10 @@ class _TransactionStateBuilderState extends State<TransactionStateBuilder>
     return NetworkAccountControllerView<NetworkClient, ChainAccount, Chain>(
         key: ValueKey(internalController),
         title: internalController.operation.value.tr,
-        childBulder: (wallet, account, client, address, _) {
+        childBulder: (wallet, account, client, address) {
           return StreamPageProgress(
             controller: internalController.pageKey,
-            initialWidget:
-                ProgressWithTextView(text: 'retrieving_network_condition'.tr),
+            initialWidget: ProgressWithTextView(text: 'retrieving_network_condition'.tr),
             builder: (context) {
               return CustomScrollView(slivers: [
                 SliverConstraintsBoxView(
@@ -82,8 +80,7 @@ class _TransactionStateBuilderState extends State<TransactionStateBuilder>
                       Text("account".tr, style: context.textTheme.titleMedium),
                       WidgetConstant.height8,
                       ContainerWithBorder(
-                        onRemoveIcon:
-                            Icon(Icons.edit, color: context.onPrimaryContainer),
+                        onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                         onRemove: internalController.swtichAddressEnabled
                             ? () {
                                 context
@@ -95,6 +92,7 @@ class _TransactionStateBuilderState extends State<TransactionStateBuilder>
                             : null,
                         child: AddressDetailsView(
                             address: internalController.address,
+                            chain: internalController.account,
                             color: context.onPrimaryContainer,
                             key: ValueKey(internalController.address)),
                       ),
@@ -107,7 +105,6 @@ class _TransactionStateBuilderState extends State<TransactionStateBuilder>
         },
         addressRequired: true,
         clientRequired: true,
-        account: internalController.account,
-        initAccount: true);
+        account: internalController.account);
   }
 }

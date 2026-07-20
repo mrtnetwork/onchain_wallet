@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/account_state.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-abstract class BitcoinAccountState<W extends StatefulWidget>
-    extends ChainAccountState<
-        W,
-        BaseBitcoinAPIProvider,
-        BitcoinBaseAddress,
-        TokenCore,
-        NFTCore,
-        IBitcoinAddress,
-        BitcoinClient,
-        BitcoinChain,
-        BitcoinWalletTransaction> {}
+abstract class BitcoinAccountState<W extends StatefulWidget> extends ChainAccountState<
+    W,
+    BitcoinNetworkAddress,
+    TokenCore,
+    NFTCore,
+    WalletBitcoinNetwork,
+    BitcoinWalletTransaction,
+    IBitcoinAddress,
+    BitcoinNetworkClient,
+    BitcoinChain> {}

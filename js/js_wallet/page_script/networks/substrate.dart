@@ -31,10 +31,9 @@ class SubstratePageController extends WalletStandardPageController {
             addNewChain: _metadataProvide.toJS);
     feature.substrateConnect =
         JSSubstrateWalletStandardConnectFeature.setup(connect: _connect.toJS);
-    feature.substrateEvents =
-        JSWalletStandardEventsFeature.setup(on: _onEvents.toJS);
-    feature.polkadotDisconnect = JSWalletStandardDisconnectFeature.setup(
-        disconnect: _disconnectChain.toJS);
+    feature.substrateEvents = JSWalletStandardEventsFeature.setup(on: _onEvents.toJS);
+    feature.polkadotDisconnect =
+        JSWalletStandardDisconnectFeature.setup(disconnect: _disconnectChain.toJS);
   }
 
   void _initJsPolkadotAdapter() {
@@ -84,8 +83,7 @@ class SubstratePageController extends WalletStandardPageController {
     );
   }
 
-  JSPromise<JSSubstrateTxResponse> signTransaction(
-      JSSubstrateTransaction transaction) {
+  JSPromise<JSSubstrateTxResponse> signTransaction(JSSubstrateTransaction transaction) {
     return waitForSuccessResponsePromise(
       method: _SubstratePageControllerConst.signTransaction,
       params: [transaction].toJS,
@@ -113,7 +111,8 @@ class SubstratePageController extends WalletStandardPageController {
   }
 
   JSPromise update([JSAny? _]) {
-    throw JSWalletConstant.methodDisabled;
+    // throw JSWalletConstant.methodDisabled;
+    return Future.value(null).toJS;
   }
 
   JSPromise<Proxy<JSPolkadotJSWalletAdapter>?> _enable(String origin) {

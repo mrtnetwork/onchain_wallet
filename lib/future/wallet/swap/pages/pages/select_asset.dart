@@ -94,15 +94,14 @@ class _AsseetsState extends State<SwapSelectAssetView>
                     Expanded(
                       child: SingleChildScrollView(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                              maxWidth: APPConst.naviationRailWidth),
+                          constraints:
+                              const BoxConstraints(maxWidth: APPConst.naviationRailWidth),
                           child: IntrinsicHeight(
                             child: NavigationRail(
                                 useIndicator: true,
                                 onDestinationSelected: onDestinationSelected,
                                 labelType: NavigationRailLabelType.none,
-                                destinations:
-                                    List.generate(networks.length, (index) {
+                                destinations: List.generate(networks.length, (index) {
                                   final network = networks[index];
                                   return _NavigationRailDestination(
                                       network: network, disabled: false);
@@ -132,22 +131,17 @@ class _AsseetsState extends State<SwapSelectAssetView>
                                         return ContainerWithBorder(
                                           onRemoveIcon: ConditionalWidget(
                                               enable: url != null,
-                                              onActive: (context) =>
-                                                  LaunchBrowserIcon(
-                                                      url: url,
-                                                      color: context
-                                                          .onPrimaryContainer)),
+                                              onActive: (context) => LaunchBrowserIcon(
+                                                  url: url,
+                                                  color: context.onPrimaryContainer)),
                                           onRemove: () => onSelectAsset(asset),
                                           child: Row(children: [
                                             Stack(
                                               children: [
-                                                CircleTokenImageView(
-                                                    asset.token,
-                                                    radius: APPConst
-                                                        .circleRadius25),
+                                                CircleTokenImageView(asset.token,
+                                                    radius: APPConst.circleRadius25),
                                                 Align(
-                                                    alignment:
-                                                        Alignment.bottomRight,
+                                                    alignment: Alignment.bottomRight,
                                                     child: CircleTokenImageView(
                                                         asset.network.token,
                                                         radius: 10))
@@ -157,19 +151,14 @@ class _AsseetsState extends State<SwapSelectAssetView>
                                             Expanded(
                                                 child: Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
+                                                        CrossAxisAlignment.start,
                                                     children: [
                                                   Text(asset.asset.symbol,
-                                                      style: context
-                                                          .onPrimaryTextTheme
+                                                      style: context.onPrimaryTextTheme
                                                           .titleMedium),
-                                                  Text(
-                                                      asset.asset.fullName ??
-                                                          '',
+                                                  Text(asset.asset.fullName ?? '',
                                                       style: context
-                                                          .onPrimaryTextTheme
-                                                          .bodySmall),
+                                                          .onPrimaryTextTheme.bodySmall),
                                                 ])),
                                           ]),
                                         );
@@ -192,8 +181,7 @@ class _AsseetsState extends State<SwapSelectAssetView>
 }
 
 class _NavigationRailDestination extends NavigationRailDestination {
-  _NavigationRailDestination(
-      {required WalletNetwork network, required super.disabled})
+  _NavigationRailDestination({required WalletNetwork network, required super.disabled})
       : super(
             label: WidgetConstant.sizedBox,
             icon: Opacity(

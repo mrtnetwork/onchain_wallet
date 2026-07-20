@@ -6,8 +6,8 @@ import 'package:on_chain/solana/src/rpc/models/models/commitment.dart';
 import 'package:on_chain/solana/src/rpc/models/models/encoding.dart';
 import 'package:on_chain/solana/src/transaction/transaction/transaction.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/controllers/controllers.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/pages/send_transaction.dart';
@@ -19,22 +19,22 @@ import 'package:on_chain_wallet/wallet/api/client/networks/solana/solana.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/signing/signing.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/transaction.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/solana/params/models/transaction.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/solana/params/models/transaction.dart';
 
 class WebSolanaSignTransactionStateController
-    extends Web3SolanaTransactionStateController<
-        List<Web3SolanaTransactionResponse>,
-        Web3SolanaSendTransaction,
-        IWeb3SolanaTransactionRawData> {
+    extends Web3SolanaTransactionStateController<List<Web3SolanaTransactionResponse>,
+        Web3SolanaSendTransaction, IWeb3SolanaTransactionRawData> {
   IWeb3SolanaTransactionRawData? _transactionData;
   IWeb3SolanaTransactionRawData get transactionData => _transactionData!;
   bool _hasSimulateError = false;
   bool get hasSimulateError => _hasSimulateError;
   bool _hasFeeError = false;
   bool get hasFeeError => _hasFeeError;
-  late final StreamValue<IntegerBalance> totalFee =
-      StreamValue(IntegerBalance.zero(network.token));
+  late final StreamValue<IntegerBalance> totalFee = StreamValue(
+      IntegerBalance.zero(network.token),
+      name: "WebSolanaSignTransactionStateController");
   // late final StreamValue<IntegerBalance> totalSol =
   //     StreamValue(IntegerBalance.zero(network.token));
 
@@ -53,7 +53,7 @@ class WebSolanaSignTransactionStateController
       required IWeb3SolanaSignedTransaction<IWeb3SolanaTransactionRawData>
           signedTransaction}) async {
     final config = transaction.sendTransactionOptions;
-    final txId = await MethodUtils.call(() async {
+    final txId = await IResult.call(() async {
       return await client.sendTransaction(
         transaction.transaction,
         encoding: SolanaRequestEncoding.base64,
@@ -64,16 +64,15 @@ class WebSolanaSignTransactionStateController
             defaultValue: Commitment.processed),
       );
     });
-    if (txId.hasError) {
-      return SubmitTransactionFailed(txId.localizationError);
+    if (txId.isErr) {
+      return SubmitTransactionFailed(txId.unwrapErr().localizationError);
     }
     return SubmitTransactionSuccess(
-        txId: txId.result, signedTransaction: signedTransaction);
+        txId: txId.unwrap(), signedTransaction: signedTransaction);
   }
 
   void onMessageChanged(void _) {
-    totalFee.value
-        .updateBalance(transactionData.messagess.map((e) => e.fee.balance).sum);
+    totalFee.value.updateBalance(transactionData.messagess.map((e) => e.fee.balance).sum);
     _hasFeeError = transactionData.messagess.any((e) => e.feeStatus.isError);
     totalFee.notify();
     _hasSimulateError = transactionData.messagess.any((e) => e.status.isError);
@@ -89,16 +88,15 @@ class WebSolanaSignTransactionStateController
       return TransactionStateStatus.error();
     }
     if (transactionData.messagess.any((e) => e.status.isError)) {
-      return TransactionStateStatus.ready(
-          warning: "transaction_simulation_failed".tr);
+      return TransactionStateStatus.ready(warning: "transaction_simulation_failed".tr);
     }
 
     return TransactionStateStatus.ready();
   }
 
   @override
-  Future<IWeb3SolanaTransaction<IWeb3SolanaTransactionRawData>>
-      buildTransaction({bool simulate = false}) async {
+  Future<IWeb3SolanaTransaction<IWeb3SolanaTransactionRawData>> buildTransaction(
+      {bool simulate = false}) async {
     return IWeb3SolanaTransaction(
         account: defaultAccount, transactionData: transactionData);
   }
@@ -124,11 +122,9 @@ class WebSolanaSignTransactionStateController
         messagess.add(message);
       }
       bool isSend = params.isSend;
-      bool canReplaceBlockHash =
-          isSend && messagess.any((e) => e.canUpdateBlockHash);
-      final hasSameOwner =
-          messagess.map((e) => e.signer.networkAddress).toSet().length !=
-              messagess.length;
+      bool canReplaceBlockHash = isSend && messagess.any((e) => e.canUpdateBlockHash);
+      final hasSameOwner = messagess.map((e) => e.signer.networkAddress).toSet().length !=
+          messagess.length;
 
       final messages = IWeb3SolanaTransactionRawData(
           messagess: messagess,
@@ -144,18 +140,17 @@ class WebSolanaSignTransactionStateController
   @override
   Future<List<IWalletTransaction<SolanaWalletTransaction, ISolanaAddress>>>
       buildWalletTransaction(
-          {required IWeb3SolanaSignedTransaction<IWeb3SolanaTransactionRawData>
-              signedTx,
+          {required IWeb3SolanaSignedTransaction<IWeb3SolanaTransactionRawData> signedTx,
           required SubmitTransactionSuccess<
                   IWeb3SolanaSignedTransaction<IWeb3SolanaTransactionRawData>>?
               txId}) async {
     if (txId == null) return [];
-    final id = StringUtils.encode(txId.txId, type: StringEncoding.base58);
+    final id = StringUtils.encode(txId.txId, encoding: StringEncoding.base58);
     final tx = txId.signedTransaction.finalTransactionData.firstWhereOrNull(
-        (e) => e.info.transaction.signatures
-            .any((e) => BytesUtils.bytesEqual(e, id)));
+        (e) => e.info.transaction.signatures.any((e) => BytesUtils.bytesEqual(e, id)));
     assert(tx != null);
     if (tx == null) return [];
+
     final transaction = SolanaWalletTransaction(
       txId: txId.txId,
       type: WalletTransactionType.web3Tx,
@@ -163,9 +158,7 @@ class WebSolanaSignTransactionStateController
       outputs: [],
       network: network,
     );
-    return [
-      IWalletTransaction(transaction: transaction, account: tx.info.signer)
-    ];
+    return [IWalletTransaction(transaction: transaction, account: tx.info.signer)];
   }
 
   @override
@@ -184,8 +177,8 @@ class WebSolanaSignTransactionStateController
     if (!transactionData.isSend) {
       return Web3RequestTransactionResponseData(response: result);
     }
-    final isSerial = transaction.transactionData.mode ==
-        SolanaSignAndSendAllTransactionMode.serial;
+    final isSerial =
+        transaction.transactionData.mode == SolanaSignAndSendAllTransactionMode.serial;
     List<SubmitTransactionResult> results = [];
 
     for (final i in signedTransaction.finalTransactionData) {
@@ -194,44 +187,39 @@ class WebSolanaSignTransactionStateController
       results.add(result);
       if (result.status.isFailed && isSerial) break;
     }
-    return Web3RequestTransactionResponseData.submitTx(
-        response: result, txIds: results);
+    return Web3RequestTransactionResponseData.submitTx(response: result, txIds: results);
   }
 
   @override
-  Future<IWeb3SolanaSignedTransaction<IWeb3SolanaTransactionRawData>>
-      signTransaction(
-          IWeb3SolanaTransaction<IWeb3SolanaTransactionRawData> transaction,
-          {bool fakeSignature = false}) async {
+  Future<IWeb3SolanaSignedTransaction<IWeb3SolanaTransactionRawData>> signTransaction(
+      IWeb3SolanaTransaction<IWeb3SolanaTransactionRawData> transaction,
+      {bool fakeSignature = false}) async {
     final messages = transaction.transactionData.messagess;
-    final signers =
-        transaction.transactionData.messagess.map((e) => e.signer).toList();
+    final signers = transaction.transactionData.messagess.map((e) => e.signer).toList();
     final signatures = await walletProvider.wallet.signTransaction(
-        request: WalletSigningRequest(
+        params: WalletActionSign(
+            request: WalletSigningRequest(
       network: network,
       addresses: signers,
       sign: (generateSignature) async {
         final List<SolanaWeb3SignedTransactionInfo> signatures = [];
         for (final i in messages) {
-          final digest =
-              List<int>.unmodifiable(i.transaction.serializeMessage());
-          final Bip32AddressIndex signer = i.signer.keyIndex.cast();
-          final signRequest =
-              GlobalSignRequest.solana(digest: digest, index: signer);
+          final digest = List<int>.unmodifiable(i.transaction.serializeMessage());
+          final Bip32DerivationIndex signer = i.signer.derivationIndex.cast();
+          final signRequest = GlobalSignRequest.solana(digest: digest, index: signer);
           final signingResponse = await generateSignature(signRequest);
-          i.transaction
-              .addSignature(i.signer.networkAddress, signingResponse.signature);
+          i.transaction.addSignature(i.signer.networkAddress, signingResponse.signature);
           final signignInfo = SolanaWeb3SignedTransactionInfo(
               info: i, signature: signingResponse.signature);
           signatures.add(signignInfo);
         }
         return signatures;
       },
-    ));
+    )));
     return IWeb3SolanaSignedTransaction(
         transaction: transaction,
-        signatures: signatures.result.map((e) => e.signature).toList(),
-        finalTransactionData: signatures.result);
+        signatures: signatures.unwrap().map((e) => e.signature).toList(),
+        finalTransactionData: signatures.unwrap());
   }
 
   @override
@@ -240,7 +228,7 @@ class WebSolanaSignTransactionStateController
   }
 
   @override
-  Future<void> initForm(SolanaClient client) async {
+  Future<void> initForm(SolanaNetworkClient client) async {
     await super.initForm(client);
     _transactionData = await buildTransactionData();
     for (final message in transactionData.messagess) {

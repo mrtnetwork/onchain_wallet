@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/operations/resource/frozen_balance.dart';
@@ -8,8 +8,7 @@ import 'fee.dart';
 
 class TronTransactionFreezeBalanceV2ContractWidget extends StatelessWidget {
   final TronTransactionFreezeBalanceV2ContractOperation form;
-  const TronTransactionFreezeBalanceV2ContractWidget(
-      {required this.form, super.key});
+  const TronTransactionFreezeBalanceV2ContractWidget({required this.form, super.key});
 
   @override
   Widget build(BuildContext context) {

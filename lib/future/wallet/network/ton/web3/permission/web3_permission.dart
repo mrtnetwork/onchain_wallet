@@ -4,7 +4,7 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'package:ton_dart/ton_dart.dart';
 
 class TonWeb3PermissionView extends StatefulWidget {

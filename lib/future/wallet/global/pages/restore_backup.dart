@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
@@ -16,25 +15,15 @@ class RestoreBackupView extends StatefulWidget {
 }
 
 class _RestoreBackupViewState extends State<RestoreBackupView> with SafeState {
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
-  final GlobalKey<FormState> form =
-      GlobalKey(debugLabel: "_RestoreBackupViewState_2");
+  final StreamPageProgressController progressKey = StreamPageProgressController();
+  final GlobalKey<FormState> form = GlobalKey(debugLabel: "_RestoreBackupViewState_2");
   bool showContet = false;
-  // String backup = "";
+  BackupDataPickerContent? content = BackupDataPickerContent();
   String password = "";
-
+  String? restored;
   _Pages page = _Pages.restore;
   final GlobalKey<BackupDataPickerViewState> backupKey =
       GlobalKey(debugLabel: "_RestoreBackupViewState.backupKey");
-  String? restored;
-  // void onChange(String v) {
-  //   backup = v;
-  // }
-
-  // void onPaseBackupText(String v) {
-  //   // backupTextField.currentState?.updateText(v);
-  // }
 
   void onChangePassword(String v) {
     password = v;
@@ -57,7 +46,7 @@ class _RestoreBackupViewState extends State<RestoreBackupView> with SafeState {
 
   String? passwordForm(String? v) {
     if (v?.isEmpty ?? true) {
-      return "backup_password_validator".tr;
+      return "password_validator_desc".tr;
     }
     return null;
   }
@@ -67,29 +56,25 @@ class _RestoreBackupViewState extends State<RestoreBackupView> with SafeState {
     final backup = backupKey.currentState?.getDataString();
     if (backup == null) return;
     progressKey.progressText("restoring_backup_please_wait".tr);
-    final wallet = context.watch<WalletProvider>(StateConst.main);
-    final result = await MethodUtils.call(() async => await wallet.wallet
-        .restoreWalletBackup(password: password, backup: backup));
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError,
+    final wallet = context.wallet;
+    final result = await wallet.wallet
+        .doAction(WalletActionDecryptWalletBackup(backup: backup, password: password));
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
-      final keyType = result.result.type;
+      final keyType = result.unwrap().type;
       bool isCorrectKey = true;
-      if (widget.accepted != null) {
-        isCorrectKey = (keyType == widget.accepted ||
-            keyType.isPrivateKey && widget.accepted!.isPrivateKey);
+      final accepted = widget.accepted;
+      if (accepted != null) {
+        isCorrectKey =
+            (keyType == accepted || keyType.isPrivateKey && accepted.isPrivateKey);
       }
       if (!isCorrectKey) {
-        progressKey.errorText(
-            "invalid_backup_type_desc"
-                .tr
-                .replaceOne(widget.accepted!.value.tr)
-                .replaceTwo(keyType.value.tr),
-            backToIdle: false,
-            showBackButton: true);
+        progressKey.errorText("different_backup_type_detected".tr,
+            backToIdle: false, showBackButton: true);
       } else {
-        restored = result.result.key;
+        restored = result.unwrap().key;
         page = _Pages.content;
         progressKey.backToIdle();
       }
@@ -105,6 +90,9 @@ class _RestoreBackupViewState extends State<RestoreBackupView> with SafeState {
   void safeDispose() {
     super.safeDispose();
     progressKey.dispose();
+    content = null;
+    password = '';
+    restored = null;
   }
 
   @override
@@ -170,9 +158,11 @@ class _RestoreBackupRestorePage extends StatelessWidget {
       child: Column(
         children: [
           PageTitleSubtitle(
-              title: "restore_encrypted_backup".tr,
-              body: Text("restore_backup_desc".tr)),
-          BackupDataPickerView(key: state.backupKey),
+              title: "restore_encrypted_backup".tr, body: Text("restore_backup_desc".tr)),
+          BackupDataPickerView(
+            key: state.backupKey,
+            content: state.content,
+          ),
           WidgetConstant.height20,
           AppTextField(
               label: "input_backup_password".tr,

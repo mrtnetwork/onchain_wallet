@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 import 'package:blockchain_utils/utils/string/string.dart';
+import 'package:on_chain_bridge/web/api/types/types.dart';
 import 'package:on_chain_bridge/web/web.dart';
 import '../../models.dart';
 import 'wallet_standard.dart';
@@ -22,15 +23,12 @@ class SuiJSConstant {
   ].toJS;
   static const String requestAccountRequestName = "sui_requestAccounts";
   static const String signTransactionRequestName = "sui_signTransaction";
-  static const String signAndExecuteTransaction =
-      "sui_signAndExecuteTransaction";
-  static const String signTransactionBlockRequestName =
-      "sui_signTransactionBlock";
+  static const String signAndExecuteTransaction = "sui_signAndExecuteTransaction";
+  static const String signTransactionBlockRequestName = "sui_signTransactionBlock";
   static const String signAndExecuteTransactionBlock =
       "sui_signAndExecuteTransactionBlock";
   static const String signMessageRequestName = "sui_signMessage";
-  static const String signPersonalMessageRequestName =
-      "sui_signPersonalMessage";
+  static const String signPersonalMessageRequestName = "sui_signPersonalMessage";
   static final JSError invalidTransaction = JSError(
       message:
           "Invalid Sui transaction. The transaction must include transactionBlock with the blockData property for v1, or transaction with the toJSON property for v2.");
@@ -66,24 +64,20 @@ extension type SuiWalletAdapterFeatures(JSAny _) implements JSAny {
   external set signAndExecuteTransactionBlock(
       SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature _);
   @JS("sui:signTransaction")
-  external set signTransaction(
-      SuiWalletAdapterStandardSignTransactionFeature _);
+  external set signTransaction(SuiWalletAdapterStandardSignTransactionFeature _);
   @JS("sui:signTransactionBlock")
   external set signTransactionBlock(
       SuiWalletAdapterStandardSignTransactionBlockFeature _);
   @JS("sui:signPersonalMessage")
-  external set signPersonalMessage(
-      SuiWalletAdapterStandardSignPersonalMessageFeature _);
+  external set signPersonalMessage(SuiWalletAdapterStandardSignPersonalMessageFeature _);
   @JS("sui:signMessage")
   external set signMessage(SuiWalletAdapterStandardSignMessageFeature _);
 }
 
 @JS()
-extension type SuiWalletAdapterStandardConnectFeature(JSAny _)
-    implements JSAny {
+extension type SuiWalletAdapterStandardConnectFeature(JSAny _) implements JSAny {
   factory SuiWalletAdapterStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return SuiWalletAdapterStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;
@@ -104,11 +98,9 @@ extension type SuiWalletAdapterStandardEventsFeature(JSAny _) implements JSAny {
 }
 
 @JS()
-extension type SuiWalletAdapterStandardDisconnectFeature(JSAny _)
-    implements JSAny {
+extension type SuiWalletAdapterStandardDisconnectFeature(JSAny _) implements JSAny {
   factory SuiWalletAdapterStandardDisconnectFeature.setup(
-      {required JSFunction disconnect,
-      String version = SuiJSConstant.version}) {
+      {required JSFunction disconnect, String version = SuiJSConstant.version}) {
     return SuiWalletAdapterStandardDisconnectFeature(JSObject())
       ..disconnect = disconnect
       ..version = version;
@@ -145,13 +137,12 @@ extension type SuiWalletAdapterStandardSignAndExecuteTransactionFeature(JSAny _)
   external set signAndExecuteTransaction(JSFunction _);
 }
 @JS()
-extension type SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature(
-    JSAny _) implements JSAny {
+extension type SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature(JSAny _)
+    implements JSAny {
   factory SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature.setup(
       {required JSFunction signAndExecuteTransactionBlock,
       String version = SuiJSConstant.version}) {
-    return SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature(
-        JSObject())
+    return SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature(JSObject())
       ..signAndExecuteTransactionBlock = signAndExecuteTransactionBlock
       ..version = version;
   }
@@ -172,11 +163,9 @@ extension type SuiWalletAdapterStandardSignTransactionBlockFeature(JSAny _)
   external set signTransactionBlock(JSFunction _);
 }
 @JS()
-extension type SuiWalletAdapterStandardSignTransactionFeature(JSAny _)
-    implements JSAny {
+extension type SuiWalletAdapterStandardSignTransactionFeature(JSAny _) implements JSAny {
   factory SuiWalletAdapterStandardSignTransactionFeature.setup(
-      {required JSFunction signTransaction,
-      String version = SuiJSConstant.version}) {
+      {required JSFunction signTransaction, String version = SuiJSConstant.version}) {
     return SuiWalletAdapterStandardSignTransactionFeature(JSObject())
       ..signTransaction = signTransaction
       ..version = version;
@@ -186,11 +175,9 @@ extension type SuiWalletAdapterStandardSignTransactionFeature(JSAny _)
 }
 
 @JS("sui:signMessage")
-extension type SuiWalletAdapterStandardSignMessageFeature(JSAny _)
-    implements JSAny {
+extension type SuiWalletAdapterStandardSignMessageFeature(JSAny _) implements JSAny {
   factory SuiWalletAdapterStandardSignMessageFeature.setup(
-      {required JSFunction signMessage,
-      String version = SuiJSConstant.version}) {
+      {required JSFunction signMessage, String version = SuiJSConstant.version}) {
     return SuiWalletAdapterStandardSignMessageFeature(JSObject())
       ..signMessage = signMessage
       ..version = version;
@@ -202,8 +189,7 @@ extension type SuiWalletAdapterStandardSignMessageFeature(JSAny _)
 extension type SuiWalletAdapterStandardSignPersonalMessageFeature(JSAny _)
     implements JSAny {
   factory SuiWalletAdapterStandardSignPersonalMessageFeature.setup(
-      {required JSFunction signPersonalMessage,
-      String version = SuiJSConstant.version}) {
+      {required JSFunction signPersonalMessage, String version = SuiJSConstant.version}) {
     return SuiWalletAdapterStandardSignPersonalMessageFeature(JSObject())
       ..signPersonalMessage = signPersonalMessage
       ..version = version;
@@ -212,8 +198,7 @@ extension type SuiWalletAdapterStandardSignPersonalMessageFeature(JSAny _)
   external set signPersonalMessage(JSFunction _);
 }
 
-extension type JSSuiWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSSuiWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSSuiWalletAccount.setup(
       {required String address,
       required List<int> publicKey,
@@ -238,8 +223,7 @@ extension type JSSuiWalletConnectResponse._(JSObject _) implements JSAny {
 
 extension type JSSuiAccountChanged(JSAny _) implements JSAny {
   factory JSSuiAccountChanged.setup(
-      {required List<JSSuiWalletAccount> accounts,
-      JSSuiWalletAccount? defaultAddress}) {
+      {required List<JSSuiWalletAccount> accounts, JSSuiWalletAccount? defaultAddress}) {
     return JSSuiAccountChanged(JSObject())
       ..accounts = accounts.toJS
       ..defaultAddress = defaultAddress;
@@ -305,7 +289,7 @@ extension type JSSuiSignOrExcuteTransactionParams(JSAny _) implements JSAny {
         } else {
           final json = (await transaction!.toJSON().toDart).toDart;
           transactionJson = StringUtils.decode(StringUtils.encode(json),
-                  type: StringEncoding.base64)
+                  encoding: StringEncoding.base64)
               .toJS;
         }
         return JSSuiSignTransactionWalletRequest(JSObject())
@@ -323,9 +307,8 @@ extension type JSSuiSignOrExcuteTransactionParams(JSAny _) implements JSAny {
           transactionJson = transactionBlock!.blockData as JSString;
         } else {
           transactionJson = StringUtils.decode(
-                  StringUtils.encode(
-                      jsJson.stringify(transactionBlock!.blockData)),
-                  type: StringEncoding.base64)
+                  StringUtils.encode(jsJson.stringify(transactionBlock!.blockData)),
+                  encoding: StringEncoding.base64)
               .toJS;
         }
 
@@ -374,8 +357,7 @@ extension type JSSuiSignTransactionBlockResponse(JSAny _) implements JSAny {
   external set transactionBlockBytes(String _);
   external set signature(String _);
 }
-extension type JSSuiSignAndExecuteTransactionResponse(JSAny _)
-    implements JSAny {
+extension type JSSuiSignAndExecuteTransactionResponse(JSAny _) implements JSAny {
   factory JSSuiSignAndExecuteTransactionResponse.setup(
       {required String digest, required String effects}) {
     return JSSuiSignAndExecuteTransactionResponse(JSObject())
@@ -385,12 +367,10 @@ extension type JSSuiSignAndExecuteTransactionResponse(JSAny _)
   external set digest(String _);
   external set effects(String _);
 }
-extension type JSSuiSignAndExecuteTransactionBlockResponse(JSAny _)
-    implements JSAny {
+extension type JSSuiSignAndExecuteTransactionBlockResponse(JSAny _) implements JSAny {
   factory JSSuiSignAndExecuteTransactionBlockResponse.setup(
       {required String digest, required String effects}) {
-    return JSSuiSignAndExecuteTransactionBlockResponse(JSObject())
-      ..digest = digest;
+    return JSSuiSignAndExecuteTransactionBlockResponse(JSObject())..digest = digest;
   }
   external set digest(String _);
 }
@@ -422,8 +402,7 @@ extension type JSSuiSignPrsonalMessageResponse(JSAny _) implements JSAny {
 @JS()
 extension type JSSuiWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSSuiWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSSuiWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;

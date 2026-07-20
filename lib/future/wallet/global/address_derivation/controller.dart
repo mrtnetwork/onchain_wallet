@@ -5,21 +5,21 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 
 class AddressDerivationController extends StateController {
   AddressDerivationController({required this.wallet, required this.chain});
   final Chain chain;
   final WalletProvider wallet;
   WalletNetwork get network => chain.network;
-  final StreamPageProgressController pageProgressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController pageProgressKey = StreamPageProgressController();
   final GlobalKey<FormState> form = GlobalKey<FormState>();
   List<CryptoCoins> get coins => network.coins;
   CryptoCoins get coin => coins.first;
 
-  Future<AddressDerivationIndex?> getCoin(
+  Future<DerivableIndex?> getCoin(
       {required BuildContext context,
       required SeedTypes seedGeneration,
       required CryptoCoins selectedCoins,
@@ -28,7 +28,7 @@ class AddressDerivationController extends StateController {
     if (!coins.contains(selectedCoins)) {
       throw AppCryptoExceptionConst.invalidCoin;
     }
-    return await context.openMaxExtendSliverBottomSheet<AddressDerivationIndex>(
+    return await context.openMaxExtendSliverBottomSheet<DerivableIndex>(
         "setup_derivation".tr,
         bodyBuilder: (controller) => SetupDerivationModeView(
             coin: selectedCoins,
@@ -41,10 +41,10 @@ class AddressDerivationController extends StateController {
   Future<void> generateAddress(NewAccountParams newAccount) async {
     if (!form.ready()) return;
     pageProgressKey.progressText("generating_new_addr".tr);
-    final result = await wallet.wallet
-        .deriveNewAccount(newAccountParams: newAccount, chain: chain);
-    if (result.hasError) {
-      pageProgressKey.errorText(result.localizationError);
+    final result = await wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: newAccount, chain: chain));
+    if (result.isErr) {
+      pageProgressKey.errorText(result.unwrapErr().localizationError);
     } else {
       pageProgressKey.success(
           backToIdle: false,
@@ -52,7 +52,10 @@ class AddressDerivationController extends StateController {
               buttonText: "generate_new_address".tr,
               buttonWidget: ContainerWithBorder(
                   margin: WidgetConstant.paddingVertical8,
-                  child: AddressDetailsView(address: result.result)),
+                  child: AddressDetailsView(
+                    address: result.unwrap(),
+                    chain: chain,
+                  )),
               onPressed: () {
                 pageProgressKey.backToIdle();
               },

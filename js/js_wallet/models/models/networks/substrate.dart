@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../utils/utils/extensions.dart';
 import '../../models.dart';
 import 'wallet_standard.dart';
@@ -28,8 +30,7 @@ extension type JSPolkadotJSWalletAdapter(JSAny _) implements JSWalletAdapter {
   external set enable(JSFunction f);
 }
 
-extension type JSSubstrateWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSSubstrateWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSSubstrateWalletAccount.setup(
       {required String address,
       required String genesisHash,
@@ -49,8 +50,7 @@ extension type JSSubstrateWalletAccount._(JSObject _)
 extension type JSSubstrateWalletStandardConnect._(JSObject _) implements JSAny {
   factory JSSubstrateWalletStandardConnect.setup(
       List<JSSubstrateWalletAccount> accounts) {
-    return JSSubstrateWalletStandardConnect._(JSObject())
-      ..accounts = accounts.toJS;
+    return JSSubstrateWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSSubstrateWalletAccount> get accounts;
   external set accounts(JSArray<JSSubstrateWalletAccount> _);
@@ -110,7 +110,7 @@ extension type JSSubstrateWalletAdapterAccounts(JSObject _) implements JSAny {
 
 @JS("injectedWeb3")
 extension type JSInjectedWeb3(JSObject _) implements JSAny {
-  @JS("onChain/0.4.0")
+  @JS("onChain/1")
   external set onChain(Proxy? _);
 }
 extension type JSSubstrateWalletAdapterSigner(JSObject _) implements JSAny {
@@ -283,11 +283,9 @@ extension type JSSubstrateKnownMetadata._(JSObject _) implements JSAny {
   external String get identifier;
 }
 @JS()
-extension type JSSubstrateWalletStandardConnectFeature(JSAny _)
-    implements JSAny {
+extension type JSSubstrateWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSSubstrateWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSSubstrateWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;

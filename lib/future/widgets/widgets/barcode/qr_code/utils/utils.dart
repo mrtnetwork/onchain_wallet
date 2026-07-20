@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart' as material;
+import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/platform_methods/cross/methods.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/barcode/qr_code/qr_view.dart';
 
 class QrUtils {
@@ -14,8 +15,7 @@ class QrUtils {
       final ui.Image image = await QrPainter(
         data: data,
         version: QrVersions.auto,
-        eyeStyle:
-            QrEyeStyle(eyeShape: QrEyeShape.square, color: color.onSurface),
+        eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: color.onSurface),
         dataModuleStyle: QrDataModuleStyle(
             dataModuleShape: QrDataModuleShape.square, color: color.onSurface),
       ).toImage(500);
@@ -35,21 +35,15 @@ class QrUtils {
     }
   }
 
-  static Future<(String, String)?> qrCodeToFile(
+  static Future<IResult<IBuffer?>> qrCodeToBytes(
       {required String data,
       required String uderImage,
+      required AppContext context,
       required material.ColorScheme color}) async {
-    try {
-      final fileName = "${StrUtils.toFileName(DateTime.now())}.png";
-      final List<int>? bufferData =
-          await qrCodeTobytes(data: data, uderImage: uderImage, color: color);
-      if (bufferData == null) return null;
-      final write = await PlatformMethods.writeBytes(
-          bytes: bufferData, fileName: fileName, validate: false);
-      return (write, fileName);
-    } catch (e) {
-      return null;
-    }
+    final List<int>? bufferData =
+        await qrCodeTobytes(data: data, uderImage: uderImage, color: color);
+    if (bufferData == null) return ResultOk(null);
+    return ResultOk(IBuffer.binary(bufferData));
   }
 }
 
@@ -81,13 +75,12 @@ class _QrCodeMarkerPainter extends material.CustomPainter {
         borderRadius);
     canvas.drawRRect(rect, _paint);
     canvas.drawImage(qrImage, material.Offset(margin * 2, margin), _paint);
-    final ui.ParagraphBuilder paragraphBuilder =
-        ui.ParagraphBuilder(ui.ParagraphStyle(
+    final ui.ParagraphBuilder paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
       textAlign: material.TextAlign.justify,
       fontSize: 14,
     ))
-          ..pushStyle(ui.TextStyle(color: textColor, fontSize: 14))
-          ..addText(LinkConst.appGithub);
+      ..pushStyle(ui.TextStyle(color: textColor, fontSize: 14))
+      ..addText(LinkConst.appGithub);
     final ui.Paragraph paragraph = paragraphBuilder.build()
       ..layout(ui.ParagraphConstraints(width: size.width - 12.0 - 12.0));
     canvas.drawParagraph(paragraph, material.Offset(25, (imageSize + 10)));
@@ -109,8 +102,7 @@ class _QrCodeMarkerPainter extends material.CustomPainter {
   }
 
   Future<ByteData?> toImageData() async {
-    final image =
-        await toImage(imageSize + margin * 4, format: ui.ImageByteFormat.png);
+    final image = await toImage(imageSize + margin * 4, format: ui.ImageByteFormat.png);
     return image.toByteData(format: ui.ImageByteFormat.png);
   }
 }

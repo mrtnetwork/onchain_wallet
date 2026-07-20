@@ -10,12 +10,9 @@ import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/widgets
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 
-class CosmosTransactionTransferOperation
-    extends CosmosTransactionStateController2 {
+class CosmosTransactionTransferOperation extends CosmosTransactionStateController2 {
   CosmosTransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   late final LiveFormFields<CosmosTransferDetails> recipients =
       LiveFormFields<CosmosTransferDetails>(
@@ -37,7 +34,7 @@ class CosmosTransactionTransferOperation
   void onUpdateRecipients(List<ReceiptAddress<CosmosBaseAddress>> addressess) {
     final recipients = addressess
         .map((e) => CosmosTransferDetails(
-            recipient: e, token: nativeToken, balance: address.address.balance))
+            recipient: e, token: nativeToken, balance: address.addressData.balance))
         .toList();
     this.recipients.addValues(recipients);
     onStateUpdated();
@@ -62,10 +59,8 @@ class CosmosTransactionTransferOperation
   BigInt _getMaxInput(CosmosTransferDetails recipient) {
     final token = tokens.firstWhereOrNull((e) => e == recipient.token);
     if (token == null) return BigInt.zero;
-    final total = recipients.value
-        .where((e) => e.token == token)
-        .map((e) => e.amount.balance)
-        .sum;
+    final total =
+        recipients.value.where((e) => e.token == token).map((e) => e.amount.balance).sum;
     BigInt remain = token.balance.balance - total;
     if (token.denom == txFee.denom) {
       remain -= txFee.fee.fee.balance;
@@ -79,8 +74,7 @@ class CosmosTransactionTransferOperation
     return remain;
   }
 
-  void onUpdateAmount(
-      CosmosTransferDetails recipient, BigInt amount, bool max) {
+  void onUpdateAmount(CosmosTransferDetails recipient, BigInt amount, bool max) {
     recipient.onUpdateBalance(amount);
     onStateUpdated();
     estimateFee();
@@ -104,12 +98,10 @@ class CosmosTransactionTransferOperation
   }
 
   @override
-  Future<ICosmosTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ICosmosTransactionData> buildTransactionData({bool simulate = false}) async {
     final messages = recipients.value
         .map((e) => CosmosTransactionMessage(
-            message: e.toMessage(address.networkAddress, network),
-            signer: address))
+            message: e.toMessage(address.networkAddress, network), signer: address))
         .toList();
     final payments = recipients.value
         .map((e) => ICosmosTransactionDataTokenTransfer(
@@ -121,14 +113,14 @@ class CosmosTransactionTransferOperation
         fee: txFee.fee,
         memo: memo.value,
         messages: messages,
-        sequence: transactionRequirment.account!.sequence,
-        accountNumber: transactionRequirment.account!.accountNumber,
+        sequence: transactionRequirment.account!.sequence ?? BigInt.zero,
+        accountNumber: transactionRequirment.account!.accountNumber ?? BigInt.zero,
         feeDenom: txFee.denom,
         payments: payments);
   }
 
   @override
-  TransactionStateController cloneController(ICosmosAddress address) {
+  Future<TransactionStateController> cloneController(ICosmosAddress address) async {
     return CosmosTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

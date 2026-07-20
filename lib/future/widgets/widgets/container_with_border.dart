@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/models/models/typedef.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
-import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/context.dart'
-    show QuickContextAccsess;
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class ContainerWithBorder extends StatelessWidget {
@@ -73,8 +71,7 @@ class ContainerWithBorder extends StatelessWidget {
                       ],
                 border: validate
                     ? null
-                    : Border.all(
-                        color: context.colors.error, width: 2, strokeAlign: 2)),
+                    : Border.all(color: context.colors.error, width: 2, strokeAlign: 2)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -92,8 +89,7 @@ class ContainerWithBorder extends StatelessWidget {
                             onRemoveWidget ??
                                 IconButton(
                                     onPressed: onRemove,
-                                    icon: onRemoveIcon ??
-                                        Icon(Icons.remove_circle))
+                                    icon: onRemoveIcon ?? Icon(Icons.remove_circle))
                           ],
                         )
                     ],
@@ -139,8 +135,7 @@ class EditOrRemoveIconWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (remove) {
-      true =>
-        Icon(Icons.remove_circle, color: color ?? context.onPrimaryContainer),
+      true => Icon(Icons.remove_circle, color: color ?? context.onPrimaryContainer),
       _ => Icon(Icons.edit, color: color ?? context.onPrimaryContainer)
     };
   }
@@ -153,8 +148,7 @@ class AddOrRemoveIconWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (remove) {
-      true =>
-        Icon(Icons.remove_circle, color: color ?? context.onPrimaryContainer),
+      true => Icon(Icons.remove_circle, color: color ?? context.onPrimaryContainer),
       _ => Icon(Icons.add_box, color: color ?? context.onPrimaryContainer)
     };
   }
@@ -184,7 +178,8 @@ class CustomizedContainer extends StatelessWidget {
       this.onStackIcon,
       this.onTapStackIcon,
       this.reverseColor,
-      this.onStackWidget});
+      this.onStackWidget,
+      this.onButtomStackWidget});
   final Widget? child;
   final EdgeInsets padding;
   final EdgeInsets margin;
@@ -207,10 +202,10 @@ class CustomizedContainer extends StatelessWidget {
   final IconData? errorIcon;
   final Color? focusColor;
   final Color? hoverColor;
+  final Widget? onButtomStackWidget;
   @override
   Widget build(BuildContext context) {
-    final backgroundColor =
-        this.backgroundColor ?? context.colors.primaryContainer;
+    final backgroundColor = this.backgroundColor ?? context.colors.primaryContainer;
     final reverseColor = this.reverseColor ?? context.colors.onPrimaryContainer;
     final tap = enableTap && (onRemove != null || onTapStackIcon != null);
     final bool hasTapStack = onTapStackIcon != null;
@@ -239,8 +234,7 @@ class CustomizedContainer extends StatelessWidget {
                       ],
                 border: validate
                     ? null
-                    : Border.all(
-                        color: context.colors.error, width: 2, strokeAlign: 2)),
+                    : Border.all(color: context.colors.error, width: 2, strokeAlign: 2)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -259,8 +253,8 @@ class CustomizedContainer extends StatelessWidget {
                                   onRemoveWidget ??
                                       IconButton(
                                           onPressed: onRemove,
-                                          icon: onRemoveIcon ??
-                                              Icon(Icons.remove_circle)),
+                                          icon:
+                                              onRemoveIcon ?? Icon(Icons.remove_circle)),
                                   if (hasTapStack) WidgetConstant.width20,
                                 ],
                               ))
@@ -293,8 +287,7 @@ class CustomizedContainer extends StatelessWidget {
                       elevation: 5,
                       color: reverseColor,
                       borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          bottomLeft: Radius.circular(25)),
+                          topRight: Radius.circular(8), bottomLeft: Radius.circular(25)),
                       child: ConditionalWidget(
                           enable: onStackWidget != null,
                           onDeactive: (context) => InkWell(
@@ -305,8 +298,7 @@ class CustomizedContainer extends StatelessWidget {
                                 child: IgnorePointer(
                                   child: IconButton(
                                       onPressed: onTapStackIcon,
-                                      icon: Icon(
-                                          onStackIcon ?? Icons.remove_circle,
+                                      icon: Icon(onStackIcon ?? Icons.remove_circle,
                                           color: backgroundColor)),
                                 ),
                               ),
@@ -315,6 +307,21 @@ class CustomizedContainer extends StatelessWidget {
                                   topRight: Radius.circular(8),
                                   bottomLeft: Radius.circular(25)),
                               child: onStackWidget!))),
+                ))),
+        // Positioned.fill(child: child),
+        ConditionalWidgetWithValue(
+            value: onButtomStackWidget,
+            onValue: (context, onButtomStackWidget) => Positioned(
+                right: 0,
+                bottom: 0,
+                child: Padding(
+                  padding: margin,
+                  child: Material(
+                      elevation: 5,
+                      color: reverseColor,
+                      borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                      child: onButtomStackWidget),
                 )))
       ],
     );

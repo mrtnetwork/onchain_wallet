@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -15,9 +15,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionNFTokenCreateOfferOperation
     extends RippleTransactionStateController<NFTokenCreateOffer> {
   RippleTransactionNFTokenCreateOfferOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   final CachedObject<List<RippleIssueToken>> tokens = CachedObject();
   factory RippleTransactionNFTokenCreateOfferOperation(
       {required WalletProvider walletProvider,
@@ -41,8 +39,8 @@ class RippleTransactionNFTokenCreateOfferOperation
     },
   );
 
-  late final LiveFormField<ReceiptAddress<XRPAddress>?,
-      ReceiptAddress<XRPAddress>> owner = LiveFormField(
+  late final LiveFormField<ReceiptAddress<XRPBaseAddress>?,
+      ReceiptAddress<XRPBaseAddress>> owner = LiveFormField(
     title: "owner".tr,
     subtitle: "ripple_create_offer_owner".tr,
     optional: true,
@@ -55,16 +53,15 @@ class RippleTransactionNFTokenCreateOfferOperation
     optional: true,
     value: null,
   );
-  late final LiveFormField<ReceiptAddress<XRPAddress>?,
-      ReceiptAddress<XRPAddress>> destination = LiveFormField(
+  late final LiveFormField<ReceiptAddress<XRPBaseAddress>?,
+      ReceiptAddress<XRPBaseAddress>> destination = LiveFormField(
     title: "destination".tr,
     subtitle: "ripple_create_offer_destination".tr,
     optional: true,
     value: null,
   );
 
-  final LiveFormField<RipplePickedAsset?, RipplePickedAsset> token =
-      LiveFormField(
+  final LiveFormField<RipplePickedAsset?, RipplePickedAsset> token = LiveFormField(
     title: "token".tr,
     subtitle: "token_to_offer".tr,
     optional: false,
@@ -109,13 +106,13 @@ class RippleTransactionNFTokenCreateOfferOperation
     estimateFee();
   }
 
-  void onUpdateOwner(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateOwner(ReceiptAddress<XRPBaseAddress>? address) {
     owner.setValue(address);
     onStateUpdated();
     estimateFee();
   }
 
-  void onUpdateDestination(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateDestination(ReceiptAddress<XRPBaseAddress>? address) {
     destination.setValue(address);
     onStateUpdated();
     estimateFee();
@@ -157,23 +154,22 @@ class RippleTransactionNFTokenCreateOfferOperation
           issuer: token.issueToken!.issuer);
     }
     return NFTokenCreateOffer(
-      account: address.networkAddress.toAddress(),
+      account: address.networkAddress.address,
       sourceTag: address.networkAddress.tag,
       memos: RippleUtils.toXrplMemos(memos),
       fee: txFee.fee.fee.balance,
       flags: flags.value?.value == null ? null : [flags.value!.value],
       amount: rippleAmount,
       nftokenId: nftokenId.value!,
-      destination: destination.value?.networkAddress.address,
-      expiration: expiration.hasValue
-          ? XRPHelper.datetimeToRippleTime(expiration.value!)
-          : null,
-      owner: owner.value?.networkAddress.address,
+      destination: destination.value?.networkAddress.classicAddress,
+      expiration:
+          expiration.hasValue ? XRPHelper.datetimeToRippleTime(expiration.value!) : null,
+      owner: owner.value?.networkAddress.classicAddress,
     );
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionNFTokenCreateOfferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -190,12 +186,11 @@ class RippleTransactionNFTokenCreateOfferOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required XRPClient client,
+    required XRPNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     tokens
         .get(onFetch: () async => client.accountTokens(address))
         .catchError((_) => <RippleIssueToken>[]);

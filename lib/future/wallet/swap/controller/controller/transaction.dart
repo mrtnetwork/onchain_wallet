@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:on_chain/ethereum/src/address/evm_address.dart';
@@ -11,8 +10,9 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/networks.dart';
+import 'package:on_chain_wallet/web3/web3/networks/networks.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
 class SwapTransactionStateController extends StateController {
@@ -22,8 +22,7 @@ class SwapTransactionStateController extends StateController {
   List<ChainAccount> get sources => route.sources;
   ReceiptAddress get destAddress => route.destAddress;
   final _lock = SafeAtomicLock();
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController progressKey = StreamPageProgressController();
   TransactionOperationStep? _step;
   TransactionOperationStep? get step => _step;
 
@@ -35,13 +34,13 @@ class SwapTransactionStateController extends StateController {
 
   bool get inProgress => _step != null;
   SwapNetwork get network => route.route.route.quote.sourceAsset.network;
-  Future<bool> onPop(FuncFutureNullableBoold callback) async {
+  Future<bool> onPop(FuncFutureNullableBool callback) async {
     if (allowPop) return true;
     final pop = await callback();
     if (pop == true) {
       allowPop = true;
       notify();
-      return MethodUtils.after(() async => true);
+      return MethodUtils.executeAfterDelay(() async => true);
     }
     return false;
   }
@@ -49,8 +48,7 @@ class SwapTransactionStateController extends StateController {
   String? _latestError;
   String? get latestError => _latestError;
   bool allowPop = false;
-  void _onUpdateState(TransactionOperationStep step,
-      {String? transactionHash}) {
+  void _onUpdateState(TransactionOperationStep step, {String? transactionHash}) {
     _step = step;
 
     if (step == TransactionOperationStep.txHash) {
@@ -66,14 +64,12 @@ class SwapTransactionStateController extends StateController {
   }
 
   Future<void> _signTransaction(
-      StreamController<(TransactionOperationStep, String?)>
-          onUpdateState) async {
+      SafeStreamController<(TransactionOperationStep, String?)> onUpdateState) async {
     final transaction = route.transaction;
     final source = route.sourceChain;
-    final client = await source.client();
+    final client = (await source.client()).unwrap();
     final accounts = route.sources;
-    void statusChanged(TransactionOperationStep step,
-        {String? transactionHash}) {
+    void statusChanged(TransactionOperationStep step, {String? transactionHash}) {
       assert(!onUpdateState.isClosed);
       onUpdateState.add((step, transactionHash));
     }
@@ -90,20 +86,21 @@ class SwapTransactionStateController extends StateController {
                   final ethChain = route.sourceChain.cast<EthereumChain>();
                   return SwapWeb3SignerEthereum(
                       onSign: (e) async {
-                        final r = Web3EthreumSendTransaction(
-                            account: Web3EthereumChainAccount.fromChainAccount(
-                                address: accounts.first.cast<IEthAddress>(),
-                                id: ethChain.network.value,
-                                isDefault: true),
-                            to: e.to,
-                            value: e.value,
-                            gas: e.gasLimit?.toInt(),
-                            data: BytesUtils.fromHexString(e.data),
-                            chainId: e.chainId,
-                            gasPrice: e.gasPrice,
-                            maxPriorityFeePerGas: e.maxPriorityFeePerGas,
-                            maxFeePerGas: e.maxFeePerGas);
-                        return wallet.wallet.localWeb3Request(r);
+                        final params = WalletActionInAppWeb3Request<String>(
+                            request: Web3EthreumSendTransaction(
+                                account: Web3EthereumChainAccount.fromChainAccount(
+                                    address: accounts.first.cast<IEthereumAddress>(),
+                                    id: ethChain.network.value,
+                                    isDefault: true),
+                                to: e.to,
+                                value: e.value,
+                                gas: e.gasLimit?.toInt(),
+                                data: BytesUtils.fromHexString(e.data),
+                                chainId: e.chainId,
+                                gasPrice: e.gasPrice,
+                                maxPriorityFeePerGas: e.maxPriorityFeePerGas,
+                                maxFeePerGas: e.maxFeePerGas));
+                        return (await wallet.wallet.doAction(params)).unwrap();
                       },
                       onSigner: () async => accounts
                           .map((e) => e.networkAddress)
@@ -111,40 +108,46 @@ class SwapTransactionStateController extends StateController {
                           .toList());
                 });
       case const (SwapRouteCosmosTransactionBuilder):
-        return await (transaction as SwapRouteCosmosTransactionBuilder)
-            .buildTransactions(
-                stepsCallBack: statusChanged,
-                client: (network) async => client as BaseSwapCosmosClient,
-                signer: (e) async {
-                  return SwapWeb3SignerCosmos(onSigner: () async {
-                    final cosmosAccounts = accounts.cast<ICosmosAddress>();
-                    return cosmosAccounts
-                        .map((e) => CosmosSpenderAddress(
-                            address: e.networkAddress,
-                            publicKey: e.toCosmosPublicKey()))
-                        .toList();
-                  }, onSign: (e) async {
-                    final cosmosChain = route.sourceChain.cast<CosmosChain>();
-                    final transaction = Web3CosmosSignTransactionDirectParams(
-                        bodyBytes: e.signDoc.bodyBytes,
-                        authInfos: e.signDoc.authInfoBytes,
-                        accountNumber: e.signDoc.accountNumber);
-                    final params = Web3CosmosSignTransaction(
-                        account: Web3CosmosChainAccount.fromChainAccount(
-                            address: accounts.first.cast<ICosmosAddress>(),
-                            id: cosmosChain.network.value,
-                            isDefault: false),
-                        chainId: e.signDoc.chainId,
-                        transaction: transaction);
-                    final signature = (await wallet.wallet
-                            .localWeb3Request(params))
-                        .cast<Web3CosmosSignTransactionDirectSignResponse>();
-                    return CosmosSignResponse(
-                        bodyBytes: signature.bodyBytes,
-                        authBytes: signature.authInfoBytes,
-                        signature: signature.signature);
-                  });
-                });
+        return await (transaction as SwapRouteCosmosTransactionBuilder).buildTransactions(
+            stepsCallBack: statusChanged,
+            client: (network) async => client as BaseSwapCosmosClient,
+            signer: (e) async {
+              return SwapWeb3SignerCosmos(onSigner: () async {
+                final cosmosAccounts = accounts.cast<ICosmosAddress>();
+                return cosmosAccounts
+                    .map((e) => CosmosSpenderAddress(
+                        address: e.networkAddress, publicKey: e.toCosmosPublicKey()))
+                    .toList();
+              }, onSign: (e) async {
+                final bodyBytes = e.signDoc.bodyBytes;
+                final chainId = e.signDoc.chainId;
+                if (bodyBytes == null || chainId == null) {
+                  throw AppInternalError.internalError(
+                      "SwapTransactionStateController._signTransaction");
+                }
+                final cosmosChain = route.sourceChain.cast<CosmosChain>();
+                final transaction = Web3CosmosSignTransactionDirectParams(
+                    bodyBytes: bodyBytes,
+                    authInfos: e.signDoc.authInfoBytes,
+                    accountNumber: e.signDoc.accountNumber);
+                final params =
+                    WalletActionInAppWeb3Request<Web3CosmosSignTransactionResponse>(
+                        request: Web3CosmosSignTransaction(
+                            account: Web3CosmosChainAccount.fromChainAccount(
+                                address: accounts.first.cast<ICosmosAddress>(),
+                                id: cosmosChain.network.value,
+                                isDefault: false),
+                            chainId: chainId,
+                            transaction: transaction));
+                final signature = (await wallet.wallet.doAction(params))
+                    .unwrap()
+                    .cast<Web3CosmosSignTransactionDirectSignResponse>();
+                return CosmosSignResponse(
+                    bodyBytes: signature.bodyBytes,
+                    authBytes: signature.authInfoBytes,
+                    signature: signature.signature);
+              });
+            });
       case const (SwapRouteSubstrateTransactionBuilder):
         return await (transaction as SwapRouteSubstrateTransactionBuilder)
             .buildTransactions(
@@ -157,123 +160,110 @@ class SwapTransactionStateController extends StateController {
                           .cast<BaseSubstrateAddress>()
                           .toList(),
                       onSign: (e) async {
-                        final substrateChain =
-                            route.sourceChain.cast<SubstrateChain>();
-                        final param = Web3SubstrateSendTransaction(
-                            json: e.toJson(),
-                            address: Web3SubstrateChainAccount.fromChainAccount(
-                                address: accounts.first.cast(),
-                                id: substrateChain.network.value,
-                                isDefault: false));
-                        final signature =
-                            (await wallet.wallet.localWeb3Request(param));
+                        final substrateChain = route.sourceChain.cast<SubstrateChain>();
+                        final param = WalletActionInAppWeb3Request<
+                                Web3SubstrateSendTransactionResponse>(
+                            request: Web3SubstrateSendTransaction(
+                                json: e.toJson(),
+                                address: Web3SubstrateChainAccount.fromChainAccount(
+                                    address: accounts.first.cast(),
+                                    id: substrateChain.network.value,
+                                    isDefault: false)));
+                        final signature = (await wallet.wallet.doAction(param)).unwrap();
                         return signature.signatureHex;
                       });
                 });
       case const (SwapRouteSolanaTransactionBuilder):
-        return await (transaction as SwapRouteSolanaTransactionBuilder)
-            .buildTransactions(
-                stepsCallBack: statusChanged,
-                client: (network) async => client as BaseSwapSolanaClient,
-                signer: (e) async {
-                  return SwapWeb3SignerSolana(
-                      onSigner: () async => accounts
-                          .map((e) => e.networkAddress)
-                          .cast<SolAddress>()
-                          .toList(),
-                      onSign: (e) async {
-                        final substrateChain =
-                            route.sourceChain.cast<SolanaChain>();
-                        final param = Web3SolanaSendTransaction(messages: [
-                          Web3SolanaSendTransactionData(
-                              account: Web3SolanaChainAccount.fromChainAccount(
-                                  address: accounts.first.cast(),
-                                  id: substrateChain.network.value,
-                                  network:
-                                      substrateChain.network.coinParam.type,
-                                  isDefault: false),
-                              messageByte: e.v0.serialize(),
-                              sendConfig: null)
-                        ], method: Web3SolanaRequestMethods.signTransaction);
-                        final signedTransactions =
-                            (await wallet.wallet.localWeb3Request(param));
-                        return SolanaTransaction.deserialize(
-                            signedTransactions.elementAt(0).signedTx);
-                      });
-                });
+        return await (transaction as SwapRouteSolanaTransactionBuilder).buildTransactions(
+            stepsCallBack: statusChanged,
+            client: (network) async => client as BaseSwapSolanaClient,
+            signer: (e) async {
+              return SwapWeb3SignerSolana(
+                  onSigner: () async =>
+                      accounts.map((e) => e.networkAddress).cast<SolAddress>().toList(),
+                  onSign: (e) async {
+                    final substrateChain = route.sourceChain.cast<SolanaChain>();
+                    final param =
+                        WalletActionInAppWeb3Request<List<Web3SolanaTransactionResponse>>(
+                            request: Web3SolanaSendTransaction(messages: [
+                      Web3SolanaSendTransactionData(
+                          account: Web3SolanaChainAccount.fromChainAccount(
+                              address: accounts.first.cast(),
+                              id: substrateChain.network.value,
+                              network: substrateChain.network.coinParam.type,
+                              isDefault: false),
+                          messageByte: e.v0.serialize(),
+                          sendConfig: null)
+                    ], method: Web3SolanaRequestMethods.signTransaction));
+                    final signedTransactions =
+                        (await wallet.wallet.doAction(param)).unwrap();
+                    return SolanaTransaction.deserialize(
+                        signedTransactions.elementAt(0).signedTx);
+                  });
+            });
       case const (SwapRouteBitcoinTransactionBuilder):
         final btcAccounts = accounts.cast<IBitcoinAddress>();
-        final network =
-            source.cast<BitcoinChain>().network.coinParam.transacationNetwork;
-        final bitcoinClient = (client as BitcoinClient).clone();
-        try {
-          return await (transaction as SwapRouteBitcoinTransactionBuilder)
-              .buildTransactions(
-                  stepsCallBack: statusChanged,
-                  client: (network) async =>
-                      bitcoinClient as BaseSwapBitcoinClient,
-                  signer: (e) async {
-                    return SwapWeb3SignerBitcoin(onSigner: () async {
-                      return btcAccounts.map((e) {
-                        return BitcoinSpenderAddress(
-                            address: BitcoinNetworkAddress.fromBaseAddress(
-                                address: e.networkAddress, network: network),
-                            taprootInternal: e.xOnly(),
-                            witnessScript: e.witnessScript(),
-                            p2shreedemScript: e.redeemScript());
-                      }).toList();
-                    }, onSendPayment: (e) async {
-                      final bitcoinChain =
-                          route.sourceChain.cast<BitcoinChain>();
-                      final param = Web3BitcoinSendTransaction(
-                          requiredAccount:
-                              Web3BitcoinChainAccount.fromChainAccount(
-                                  address: accounts
-                                      .firstWhere((i) =>
-                                          i.address.address ==
-                                          e.source.address.toAddress())
-                                      .cast(),
-                                  isDefault: false,
-                                  network: bitcoinChain.network),
-                          outputs: e.outputs
-                              .map((e) => Web3BitcoinSendTransactionOutput(
-                                  value: e.value,
-                                  scriptPubKey: e.script,
-                                  address: e.address))
-                              .toList(),
-                          accounts: btcAccounts
-                              .map((e) =>
-                                  Web3BitcoinChainAccount.fromChainAccount(
-                                      address: e,
-                                      isDefault: false,
-                                      network: bitcoinChain.network))
-                              .toList());
-                      return await wallet.wallet.localWeb3Request(param);
-                    });
+        return await (transaction as SwapRouteBitcoinTransactionBuilder)
+            .buildTransactions(
+                stepsCallBack: statusChanged,
+                client: (network) async => client as BaseSwapBitcoinClient,
+                signer: (e) async {
+                  return SwapWeb3SignerBitcoin(onSigner: () async {
+                    return btcAccounts.map((e) {
+                      return BitcoinSpenderAddress(
+                          address: e.networkAddress,
+                          taprootInternal: e.xOnly(),
+                          witnessScript: e.witnessScript(),
+                          p2shreedemScript: e.redeemScript());
+                    }).toList();
+                  }, onSendPayment: (e) async {
+                    final bitcoinChain = route.sourceChain.cast<BitcoinChain>();
+                    final param = WalletActionInAppWeb3Request<String>(
+                        request: Web3BitcoinSendTransaction(
+                            requiredAccount: Web3BitcoinChainAccount.fromChainAccount(
+                                address: accounts
+                                    .firstWhere(
+                                        (i) => i.address == e.source.address.address)
+                                    .cast(),
+                                isDefault: false,
+                                network: bitcoinChain.network),
+                            outputs: e.outputs
+                                .map((e) => Web3BitcoinSendTransactionOutput(
+                                    value: e.value,
+                                    scriptPubKey: e.script,
+                                    address: e.address))
+                                .toList(),
+                            accounts: btcAccounts
+                                .map((e) => Web3BitcoinChainAccount.fromChainAccount(
+                                    address: e,
+                                    isDefault: false,
+                                    network: bitcoinChain.network))
+                                .toList()));
+                    return (await wallet.wallet.doAction(param)).unwrap();
                   });
-        } finally {
-          bitcoinClient.close();
-        }
+                });
+
       default:
     }
   }
 
   Future<void> signTransaction() async {
     await _lock.run(() async {
-      StreamController<(TransactionOperationStep, String?)> onstatus =
-          StreamController();
+      SafeStreamController<(TransactionOperationStep, String?)> onstatus =
+          SafeStreamController(name: "SwapTransactionStateController.signTransaction");
       _latestError = null;
       _step = TransactionOperationStep.client;
       allowPop = false;
       notify();
-      onstatus.stream.listen(
-          (event) => _onUpdateState(event.$1, transactionHash: event.$2));
-      final r = await MethodUtils.call(() async {
+      onstatus
+          .stream()
+          .listen((event) => _onUpdateState(event.$1, transactionHash: event.$2));
+      final r = await IResult.call(() async {
         return _signTransaction(onstatus);
       });
-      if (r.hasError) {
+      if (r.isErr) {
         _step = null;
-        _latestError = r.localizationError;
+        _latestError = r.unwrapErr().localizationError;
       }
       allowPop = true;
       notify();
@@ -305,8 +295,7 @@ class SwapWeb3SignerEthereum implements Web3SignerEthereum {
 
 class SwapWeb3SignerSolana implements Web3SignerSolana {
   final Future<List<SolAddress>> Function() onSigner;
-  final Future<SolanaTransaction> Function(Web3TransactionSolana transaction)
-      onSign;
+  final Future<SolanaTransaction> Function(Web3TransactionSolana transaction) onSign;
   const SwapWeb3SignerSolana({required this.onSigner, required this.onSign});
   @override
   Future<SolanaTransaction> signTransaction(Web3TransactionSolana transaction) {
@@ -321,10 +310,8 @@ class SwapWeb3SignerSolana implements Web3SignerSolana {
 
 class SwapWeb3SignerBitcoin implements Web3SignerBitcoin {
   final Future<List<BitcoinSpenderAddress>> Function() onSigner;
-  final Future<String> Function(Web3TransactionBitcoin transaction)
-      onSendPayment;
-  const SwapWeb3SignerBitcoin(
-      {required this.onSigner, required this.onSendPayment});
+  final Future<String> Function(Web3TransactionBitcoin transaction) onSendPayment;
+  const SwapWeb3SignerBitcoin({required this.onSigner, required this.onSendPayment});
   @override
   Future<String> signPsbt(Web3TransactionBitcoin transaction) {
     throw UnimplementedError();
@@ -362,8 +349,7 @@ class SwapWeb3SignerSubstrate implements Web3SignerSubstrate {
 
 class SwapWeb3SignerCosmos implements Web3SignerCosmos {
   final Future<List<CosmosSpenderAddress>> Function() onSigner;
-  final Future<CosmosSignResponse> Function(Web3TransactionCosmos transaction)
-      onSign;
+  final Future<CosmosSignResponse> Function(Web3TransactionCosmos transaction) onSign;
   const SwapWeb3SignerCosmos({required this.onSigner, required this.onSign});
 
   @override

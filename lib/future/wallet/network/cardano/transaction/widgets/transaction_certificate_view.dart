@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
@@ -21,8 +21,7 @@ class _CardanoTransactionCertificateViewState
   ReceiptAddress<ADAAddress>? reward;
   ICardanoAddress? address;
   String? poolId;
-  ADATransactionCertificateType type =
-      ADATransactionCertificateType.registraction;
+  ADATransactionCertificateType type = ADATransactionCertificateType.registraction;
 
   bool isReady = false;
 
@@ -77,26 +76,23 @@ class _CardanoTransactionCertificateViewState
   }
 
   String? validatePoolId(String? v) {
-    if (v?.trim().length != CardanoConst.poolIDbech32Length) {
+    if (v == null || v.trim().length != CardanoConst.poolIDbech32Length) {
       return "cardano_pool_id_validator".tr;
     }
-    final poolid =
-        MethodUtils.nullOnException(() => Ed25519PoolKeyHash.fromBech32(v!));
+    final poolid = MethodUtils.fallbackOnException(() => Ed25519PoolKeyHash.fromBech32(v),
+        logOnDebug: false);
     if (poolid == null) return "cardano_pool_id_validator".tr;
     return null;
   }
 
   ADACertificateBuilder toCertificateBuilder() {
-    final credential =
-        reward!.networkAddress.cast<ADARewardAddress>().paymentCredential;
+    final credential = reward!.networkAddress.cast<ADARewardAddress>().paymentCredential;
     switch (type) {
       case ADATransactionCertificateType.deregistration:
         return ADACertificateBuilder(
-            certificate: StakeDeregistration(credential),
-            signer: reward!.networkAddress);
+            certificate: StakeDeregistration(credential), signer: reward!.networkAddress);
       case ADATransactionCertificateType.registraction:
-        return ADACertificateBuilder(
-            certificate: StakeRegistration(credential));
+        return ADACertificateBuilder(certificate: StakeRegistration(credential));
       default:
         final poolid = Ed25519PoolKeyHash.fromBech32(poolId!);
         return ADACertificateBuilder(
@@ -134,8 +130,7 @@ class _CardanoTransactionCertificateViewState
         WidgetConstant.height8,
         AppDropDownBottom(
           items: {
-            for (final i in ADATransactionCertificateType.values)
-              i: Text(i.viewName.tr)
+            for (final i in ADATransactionCertificateType.values) i: Text(i.viewName.tr)
           },
           hint: "certificate_type".tr,
           onChanged: onChageCertificate,
@@ -147,9 +142,7 @@ class _CardanoTransactionCertificateViewState
           onTap: () {
             context
                 .selectOrSwitchAccount<ICardanoAddress>(
-                    account: widget.account,
-                    showMultiSig: true,
-                    filter: onFilterAccount)
+                    account: widget.account, showMultiSig: true, filter: onFilterAccount)
                 .then(updateRewardAddress);
           },
           address: reward,
@@ -178,8 +171,7 @@ class _CardanoTransactionCertificateViewState
                               title: PageTitleSubtitle(
                                   title: "pool_id".tr,
                                   body: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text("cardano_enter_pool_id_desc".tr),
                                     ],
@@ -192,8 +184,7 @@ class _CardanoTransactionCertificateViewState
                     },
                     child: Text(
                       poolId ?? "tap_to_input_value".tr,
-                      style:
-                          context.colors.onPrimaryContainer.bodyMedium(context),
+                      style: context.onPrimaryTextTheme.bodyMedium,
                     )),
               ],
             );

@@ -2,14 +2,15 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/sui/sui.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/account/state.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 enum _Pages { threshold, pickAddresses, review }
@@ -19,15 +20,14 @@ class SetupSuiMultisigAddress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "setup_multisig_address".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<SuiClient?, ISuiAddress?, SuiChain>(
+        return NetworkAccountControllerView<SuiNetworkClient?, ISuiAddress?, SuiChain>(
           addressRequired: false,
           clientRequired: false,
-          childBulder: (wallet, account, client, address, onAccountChanged) {
+          childBulder: (wallet, account, client, address) {
             return _SetupSuiMultisigAddress(account: account, wallet: wallet);
           },
         );
@@ -42,12 +42,11 @@ class _SetupSuiMultisigAddress extends StatefulWidget {
   final WalletProvider wallet;
 
   @override
-  State<_SetupSuiMultisigAddress> createState() =>
-      __SetupSuiMultisigAddressState();
+  State<_SetupSuiMultisigAddress> createState() => __SetupSuiMultisigAddressState();
 }
 
-class __SetupSuiMultisigAddressState
-    extends SuiAccountState<_SetupSuiMultisigAddress> with ProgressMixin {
+class __SetupSuiMultisigAddressState extends SuiAccountState<_SetupSuiMultisigAddress>
+    with ProgressMixin {
   @override
   SuiChain get account => widget.account;
   _Pages page = _Pages.threshold;
@@ -92,10 +91,8 @@ class __SetupSuiMultisigAddressState
           i.weight > SuiAccountConst.multisigAccountPublicKeyMaxWeight) {
         return "address_weight_validator"
             .tr
-            .replaceOne(
-                SuiAccountConst.multisigAccountPublicKeyMinWeight.toString())
-            .replaceTwo(
-                SuiAccountConst.multisigAccountPublicKeyMaxWeight.toString());
+            .replaceOne(SuiAccountConst.multisigAccountPublicKeyMinWeight.toString())
+            .replaceTwo(SuiAccountConst.multisigAccountPublicKeyMaxWeight.toString());
       }
     }
     final totalWeight = signers.fold(0, (p, c) => p + c.weight);
@@ -107,12 +104,11 @@ class __SetupSuiMultisigAddressState
 
   void checkError() {
     error = validateMultisig();
-    allowAddAccount =
-        signers.length < SuiAccountConst.multisigAccountMaxPublicKey;
+    allowAddAccount = signers.length < SuiAccountConst.multisigAccountMaxPublicKey;
   }
 
-  void onChangeThreshold(int threshold) {
-    this.threshold = threshold;
+  void onChangeThreshold(int? threshold) {
+    this.threshold = threshold ?? SuiAccountConst.multisigAccountMinThreshold;
     updateState();
   }
 
@@ -142,7 +138,7 @@ class __SetupSuiMultisigAddressState
         account: account, showMultiSig: false, filter: filterAccount);
     if (address == null) return;
     final signer = _SuiSigner(
-        keyIndex: address.keyIndex.cast(),
+        keyIndex: address.derivationIndex.cast(),
         publicKey: address.publicKey,
         account: address);
     signers.add(signer);
@@ -151,10 +147,10 @@ class __SetupSuiMultisigAddressState
   }
 
   Future<void> addPublicKey() async {
-    final pubKey = await context
-        .openMaxExtendSliverBottomSheet<PublicKeyDerivationWithMode>('',
-            bodyBuilder: (c) => PublicKeyDerivationView(
-                controller: c, coins: account.network.coins));
+    final pubKey =
+        await context.openMaxExtendSliverBottomSheet<PublicKeyDerivationWithMode>('',
+            bodyBuilder: (c) =>
+                PublicKeyDerivationView(controller: c, coins: account.network.coins));
     if (pubKey == null) return;
     final error = () {
       if (signers.any((e) => BytesUtils.bytesEqual(
@@ -179,8 +175,8 @@ class __SetupSuiMultisigAddressState
     updateState();
   }
 
-  void onChangeWeight(_SuiSigner address, int weight) {
-    address.weight = weight;
+  void onChangeWeight(_SuiSigner address, int? weight) {
+    address.weight = weight ?? SuiAccountConst.multisigAccountPublicKeyMinWeight;
     checkError();
     updateState();
   }
@@ -227,22 +223,21 @@ class __SetupSuiMultisigAddressState
   }
 
   bool get canBack {
-    return (page == _Pages.review && progressKey.isSuccess) ||
-        page == _Pages.threshold;
+    return (page == _Pages.review && progressKey.isSuccess) || page == _Pages.threshold;
   }
 
   Future<void> generateAddress() async {
     progressKey.progressText("setup_address".tr);
-    final r = await MethodUtils.call(() async {
+    final r = await IResult.call(() async {
       final publicKeys = signers
           .map((e) => SuiMultisigAccountPublicKeyInfo.create(
-              keyIndex: e.keyIndex.cast(),
+              derivationIndex: e.keyIndex.cast(),
               keyScheme: e.keyScheme,
               publicKey: e.publicKey,
               wieght: e.weight))
           .toList();
-      final multisig = SuiMultisigAccountInfo.create(
-          publicKeys: publicKeys, threshold: threshold);
+      final multisig =
+          SuiMultisigAccountInfo.create(publicKeys: publicKeys, threshold: threshold);
 
       final address = SuiAddrEncoder().encodeMultisigKey(
           pubKey: publicKeys.map((e) {
@@ -260,15 +255,15 @@ class __SetupSuiMultisigAddressState
           coin: account.network.coins.first,
           address: SuiAddress(address));
     }, delay: APPConst.oneSecoundDuration);
-    if (r.hasError) {
-      progressKey.errorText(r.localizationError,
+    if (r.isErr) {
+      progressKey.errorText(r.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
-    final import = await widget.wallet.wallet
-        .deriveNewAccount(newAccountParams: r.result, chain: account);
-    if (import.hasError) {
-      progressKey.errorText(import.localizationError,
+    final import = await widget.wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: r.unwrap(), chain: account));
+    if (import.isErr) {
+      progressKey.errorText(import.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
@@ -277,7 +272,7 @@ class __SetupSuiMultisigAddressState
         progressWidget: SuccessWithButtonView(
           buttonWidget: ContainerWithBorder(
               margin: WidgetConstant.paddingVertical8,
-              child: AddressDetailsView(address: import.result)),
+              child: AddressDetailsView(address: import.unwrap())),
           buttonText: "generate_new_address".tr,
           onPressed: () {
             clearState();
@@ -305,8 +300,7 @@ class __SetupSuiMultisigAddressState
                     body: Column(children: [
                       Text("multisig_address_desc".tr),
                       AlertTextContainer(
-                          message: "mutlisig_address_alert".tr,
-                          enableTap: false)
+                          message: "mutlisig_address_alert".tr, enableTap: false)
                     ])),
               ),
               APPSliverAnimatedSwitcher<_Pages>(enable: page, widgets: {
@@ -395,9 +389,7 @@ class _PickAddress extends StatelessWidget {
                     // final keys = state.selectedAccounts.keys.toList();
                     final account = state.signers[index];
                     return _ShowAddressView(
-                        signer: account,
-                        state: state,
-                        onRemove: state.removeAddress);
+                        signer: account, state: state, onRemove: state.removeAddress);
                   },
                   itemCount: state.signers.length,
                   separatorBuilder: (context, index) => WidgetConstant.divider,
@@ -459,7 +451,7 @@ class _SetupTreshold extends StatelessWidget {
                 child: NumberTextField(
                     label: "threshold".tr,
                     readOnly: false,
-                    onChange: state.onChangeThreshold,
+                    onChangeValue: state.onChangeThreshold,
                     validator: state.onValidateThreshold,
                     max: SuiAccountConst.multisigAccountMaxThreshold,
                     min: SuiAccountConst.multisigAccountMinThreshold,
@@ -488,8 +480,7 @@ class _ShowAddressView extends StatelessWidget {
   final _SuiSigner signer;
   final __SetupSuiMultisigAddressState state;
   final _ONSELECTSUISIGNER? onRemove;
-  const _ShowAddressView(
-      {required this.signer, required this.state, this.onRemove});
+  const _ShowAddressView({required this.signer, required this.state, this.onRemove});
   @override
   Widget build(BuildContext context) {
     return CustomizedContainer(
@@ -510,8 +501,7 @@ class _ShowAddressView extends StatelessWidget {
                 children: [
                   OneLineTextWidget(signer.publicKeyHex,
                       style: context.primaryTextTheme.bodyMedium),
-                  AddressDrivationInfo(signer.keyIndex,
-                      color: context.primaryContainer),
+                  AddressDrivationInfo(signer.keyIndex, color: context.primaryContainer),
                 ],
               ),
             )),
@@ -545,7 +535,7 @@ class _ShowAddressView extends StatelessWidget {
                 backgroundColor: context.colors.surface,
                 child: NumberTextField(
                     readOnly: false,
-                    onChange: (p0) {
+                    onChangeValue: (p0) {
                       state.onChangeWeight(signer, p0);
                     },
                     max: SuiAccountConst.multisigAccountPublicKeyMaxWeight,
@@ -559,17 +549,15 @@ class _ShowAddressView extends StatelessWidget {
 }
 
 class _SuiSigner with Equality {
-  final Bip32AddressIndex keyIndex;
+  final Bip32DerivationIndex keyIndex;
   final List<int> publicKey;
   final ISuiAddress? account;
   final SuiSupportKeyScheme keyScheme;
   int weight = 1;
   late final String publicKeyHex = BytesUtils.toHexString(publicKey);
-  _SuiSigner(
-      {required this.keyIndex, required this.publicKey, required this.account})
-      : keyScheme =
-            SuiSupportKeyScheme.fromCoin(keyIndex.currencyCoin as Bip44Coins);
+  _SuiSigner({required this.keyIndex, required this.publicKey, required this.account})
+      : keyScheme = SuiSupportKeyScheme.fromCoin(keyIndex.currencyCoin as Bip44Coins);
 
   @override
-  List get variabels => [publicKey];
+  List get variables => [publicKey];
 }

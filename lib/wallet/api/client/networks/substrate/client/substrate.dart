@@ -2,49 +2,36 @@ import 'dart:async';
 
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain/ethereum/src/rpc/core/methods.dart';
-import 'package:on_chain/ethereum/src/rpc/methds/rpc_call.dart';
+import 'package:on_chain/ethereum/src/rpc/methds/ethereum/rpc_call.dart';
 import 'package:on_chain/ethereum/src/rpc/provider/provider.dart';
 import 'package:on_chain/solidity/contract/fragments.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/substrate/methods/metadata.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
-class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
-        SubstrateAPIProvider, SubstrateNetworkToken, BaseSubstrateAddress>
-    implements
-        BaseSwapSubstrateClient,
-        SubstrateNetworkControllerParams,
-        SubstrateEvmNetworkControllerParams {
-  SubstrateClient({required this.provider, required this.network});
-
-  final SubstrateProvider provider;
-
+abstract mixin class SubstrateClientMethods
+    implements SubstrateNetworkControllerParams, SubstrateEvmNetworkControllerParams {
   EthereumProvider? _evmProvider;
-  @override
-  final WalletSubstrateNetwork? network;
+  DefaultProvider<SubstrateProvider<MultiChainServiceClient>, SubstrateRequestDetails>
+      get provider;
   SubstrateChainMetadata? _metadata;
   SubstrateChainMetadata? get metadataNullable => _metadata;
   SubstrateChainMetadata get metadata {
     final metadata = _metadata;
     if (metadata == null) {
-      throw ApiProviderExceptionConst.clientIsNotInitialized;
+      throw APIErrorConst.clientIsNotInitialized;
     }
     return metadata;
   }
 
-  BaseSubstrateNetworkController? get _internalController =>
-      metadata.controller;
+  BaseSubstrateNetworkController? get _internalController => metadata.controller;
 
-  @override
   MetadataApi get api => metadata.metadata;
   String get genesisBlock => metadata.genesis;
-
-  @override
-  NetworkServiceProtocol<SubstrateAPIProvider> get service =>
-      provider.rpc as NetworkServiceProtocol<SubstrateAPIProvider>;
 
   Future<BigInt> getAccountBalance(BaseSubstrateAddress address) async {
     final controller = _internalController;
@@ -57,49 +44,45 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     return account.data.free;
   }
 
-  @override
   Future<BigInt> getAccountNonce(BaseSubstrateAddress address) async {
     return await SubstrateQuickStorageApi.system
         .nonce(api: api, rpc: provider, address: address);
   }
 
   Future<SubstrateBlockHash> getBlockHash({int? atNumber}) async {
-    final blockHash = await provider
-        .request(SubstrateRequestChainGetBlockHash(number: atNumber));
+    final blockHash =
+        await provider.request(SubstrateRequestChainGetBlockHash(number: atNumber));
     if (blockHash == null) {
-      throw ApiProviderExceptionConst.serverUnexpectedResponse;
+      throw APIErrorConst.serverUnexpectedResponse;
     }
     return SubstrateBlockHash.hash(blockHash);
   }
 
   Future<ChainProperties?> systemProperties() async {
-    final result = await MethodUtils.call(
-        () => provider.request(SubstrateRequestSystemProperties()));
-    return result.resultOrNull;
+    final result =
+        await IResult.call(() => provider.request(SubstrateRequestSystemProperties()));
+    return result.ok();
   }
 
   Future<String?> systemChain() async {
-    final resilt = await MethodUtils.call(
-        () => provider.request(SubstrateRequestSystemChain()));
-    return resilt.resultOrNull;
+    final resilt =
+        await IResult.call(() => provider.request(SubstrateRequestSystemChain()));
+    return resilt.ok();
   }
 
-  @override
   Future<SubstrateBlockHash> getFinalizBlock({int? atNumber}) async {
-    final blockHash = await provider
-        .request(const SubstrateRequestChainChainGetFinalizedHead());
+    final blockHash =
+        await provider.request(const SubstrateRequestChainChainGetFinalizedHead());
     return SubstrateBlockHash.hash(blockHash);
   }
 
-  @override
   Future<SubstrateHeaderResponse> getBlockHeader({String? atBlockHash}) async {
     final header = await provider
         .request(SubstrateRequestChainChainGetHeader(atBlockHash: atBlockHash));
     return header;
   }
 
-  Future<SubstrateTxIdWithBlock> broadcastTransaction(
-      List<int> extrinsic) async {
+  Future<SubstrateTxIdWithBlock> broadcastTransaction(List<int> extrinsic) async {
     int? blockId;
     try {
       final finalizeHash =
@@ -114,8 +97,8 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
   }
 
   Future<SubstrateBlockWithEra> finalizeBlockWithEra() async {
-    final finalizeBlock = await provider
-        .request(const SubstrateRequestChainChainGetFinalizedHead());
+    final finalizeBlock =
+        await provider.request(const SubstrateRequestChainChainGetFinalizedHead());
     final header = await getBlockHeader(atBlockHash: finalizeBlock);
     return SubstrateBlockWithEra(
         block: finalizeBlock,
@@ -123,11 +106,10 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
         blockHashBytes: BytesUtils.fromHexString(finalizeBlock));
   }
 
-  Future<QueryFeeDetails> queryFeeDetails(
-      {required List<int> extrinsic}) async {
+  Future<QueryFeeDetails> queryFeeDetails({required List<int> extrinsic}) async {
     return await provider.request(
-        SubstrateRequestRuntimeTransactionPaymentApiQueryFeeDetails
-            .fromExtrinsic(exirceBytes: extrinsic));
+        SubstrateRequestRuntimeTransactionPaymentApiQueryFeeDetails.fromExtrinsic(
+            exirceBytes: extrinsic));
   }
 
   Future<QueryFeeInfo> queryFeeInfo({required List<int> extrinsic}) async {
@@ -139,8 +121,7 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
   // Future<XCMVersion> safeXcmVersion(){}
 
   Future<SubstrateDispatchResult<CallDryRunEffects>?> dryRunCall(
-      {required BaseSubstrateAddress owner,
-      required List<int> callData}) async {
+      {required BaseSubstrateAddress owner, required List<int> callData}) async {
     if (!metadata.hasDryRunApi) return null;
     return await SubstrateQuickRuntimeApi.dryRun.dryRunCall(
         owner: owner,
@@ -158,23 +139,18 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     if (!metadata.hasCurrencyConvertionApi) {
       return null;
     }
-    return await SubstrateQuickRuntimeApi.assetConversion
-        .quotePriceTokensForExactTokens(
-            params: QuotePriceParams(
-                includeFee: includeFee,
-                amount: amount,
-                assetB: baseAsset,
-                assetA: asset),
-            api: metadata.metadata,
-            rpc: provider);
+    return await SubstrateQuickRuntimeApi.assetConversion.quotePriceTokensForExactTokens(
+        params: QuotePriceParams(
+            includeFee: includeFee, amount: amount, assetB: baseAsset, assetA: asset),
+        api: metadata.metadata,
+        rpc: provider);
   }
 
   Future<SubstrateFeeInfos> estimateFee(
-      {required List<int> extrinsic,
-      required WalletSubstrateNetwork network}) async {
+      {required List<int> extrinsic, required WalletSubstrateNetwork network}) async {
     final fee = await provider.request(
-        SubstrateRequestRuntimeTransactionPaymentApiQueryFeeDetails
-            .fromExtrinsic(exirceBytes: extrinsic));
+        SubstrateRequestRuntimeTransactionPaymentApiQueryFeeDetails.fromExtrinsic(
+            exirceBytes: extrinsic));
     return SubstrateFeeInfos.fromFeeDetails(fee: fee, network: network);
   }
 
@@ -185,28 +161,25 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
       required BaseSubstrateAddress owner,
       SubstrateKeyAlgorithm? fakeSignatureAlgorithm =
           SubstrateKeyAlgorithm.ecdsa}) async {
-    final extrinsic =
-        await SubstrateTransactionBuilder.buildAndSignTransactionStatic(
-            owner: owner,
-            calls: SubstrateTransactionSubmitableParams(calls: [
-              SubstrateEncodedCallParams(
-                  pallet: pallet ?? '', method: method ?? '', bytes: call)
-            ]),
-            provider: MetadataWithProvider(
-                provider: provider,
-                metadata: MetadataWithExtrinsic(
-                    api: api, extrinsic: metadata.extrinsic)),
-            params: TransactionBuilderParams(
-              nonce: BigInt.zero,
-              genesisHash: genesisBlock,
-              specVersion: metadata.specVersion,
-              transactionVesrion: metadata.transactionVersion,
-            ),
-            fakeSignatureAlgorithm: metadata.extrinsic.crypto.cryptoAlgoritms
-                .firstWhere((e) => e == fakeSignatureAlgorithm,
-                    orElse: () =>
-                        metadata.extrinsic.crypto.cryptoAlgoritms.first),
-            fakeSignature: true);
+    final extrinsic = await SubstrateTransactionBuilder.buildAndSignTransactionStatic(
+        owner: owner,
+        calls: SubstrateTransactionSubmitableParams(calls: [
+          SubstrateEncodedCallParams(
+              pallet: pallet ?? '', method: method ?? '', bytes: call)
+        ]),
+        provider: MetadataWithProvider(
+            provider: provider,
+            metadata: MetadataWithExtrinsic(api: api, extrinsic: metadata.extrinsic)),
+        params: TransactionBuilderParams(
+          nonce: BigInt.zero,
+          genesisHash: genesisBlock,
+          specVersion: metadata.specVersion,
+          transactionVesrion: metadata.transactionVersion,
+        ),
+        fakeSignatureAlgorithm: metadata.extrinsic.crypto.cryptoAlgoritms.firstWhere(
+            (e) => e == fakeSignatureAlgorithm,
+            orElse: () => metadata.extrinsic.crypto.cryptoAlgoritms.first),
+        fakeSignature: true);
 
     final feeInfo = await provider.request(
         SubstrateRequestRuntimeTransactionPaymentApiQueryInfo.fromExtrinsic(
@@ -217,9 +190,9 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
   Future<MetadataApi?> getLastestVersionedMetadata() async {
     List<int> versionIds = [];
     try {
-      versionIds = await provider
-          .request(const SubstrateRequestRuntimeMetadataGetVersions());
-    } on RPCError catch (_) {}
+      versionIds =
+          await provider.request(const SubstrateRequestRuntimeMetadataGetVersions());
+    } on APIError catch (_) {}
     versionIds.sort((a, b) => b.compareTo(a));
     for (final i in versionIds) {
       if (APPSubstrateConst.supportedVersion.contains(i)) {
@@ -228,7 +201,7 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
           final metadata = await provider.requestDynamic(request);
           final supported = request.onResonse(metadata);
           if (supported != null) return supported;
-        } on ApiProviderException {
+        } on APIError {
           rethrow;
         } catch (_) {}
       }
@@ -242,32 +215,26 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     final api = await getLastestVersionedMetadata();
     if (api == null) return null;
     final genesis = (await _loadGenesis()).toHex();
-    final methods = await MethodUtils.call(
+    final methods = await IResult.call(
         () async => await provider.request(SubstrateRequestRpcMethods()));
-    assert(methods.hasResult, "failed to fetch rpc methods");
+    assert(methods.isOk, "failed to fetch rpc methods");
     return SubstrateChainMetadata(
         genesis: genesis,
         metadata: api,
         apiParams: this,
-        rpcMethods: methods.resultOrNull?.methods ?? []);
+        rpcMethods: methods.ok()?.methods ?? []);
   }
 
   Future<SubstrateBlockHash> _loadGenesis() async {
-    final genesis = await provider
-        .request(const SubstrateRequestChainGetBlockHash(number: 0));
+    final genesis =
+        await provider.request(const SubstrateRequestChainGetBlockHash(number: 0));
     if (genesis == null) {
-      throw ApiProviderExceptionConst.serverUnexpectedResponse;
+      throw APIErrorConst.serverUnexpectedResponse;
     }
     return SubstrateBlockHash.hash(genesis);
   }
 
-  Future<bool> validateNetworkGenesis() async {
-    final genesis = await _loadGenesis();
-    return StringUtils.strip0x(genesis.toHex()) == network?.genesisBlock;
-  }
-
-  Future<List<String>> queryStorage(
-      List<SubstrateStorageQueryParams> requests) async {
+  Future<List<String>> queryStorage(List<SubstrateStorageQueryParams> requests) async {
     final r = await api.queryStorageAtBlock(
         requestes: List.generate(requests.length, (i) {
           final request = requests[i];
@@ -281,8 +248,7 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     return List.generate(requests.length, (i) {
       final result = r.results[i].result;
       if (result is Map) {
-        return StringUtils.fromJson(result,
-            indent: '', toStringEncodable: true);
+        return StringUtils.fromJson(result, indent: '', toStringEncodable: true);
       }
       return result.toString();
     });
@@ -304,26 +270,44 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     return result.toString();
   }
 
-  @override
   Future<BigInt> getBalance(BaseSubstrateAddress address) async {
     return getAccountBalance(address);
   }
 
-  @override
   Future<SubstrateBlockHash> getGenesis() {
     return _loadGenesis();
   }
 
-  @override
   Future<String> sendTransaction(Extrinsic extrinsic) async {
     final txInfo = await broadcastTransaction(extrinsic.serialize());
     return txInfo.txId;
   }
 
-  @override
   Future<WalletTransactionStatus> transactionStatus(
-      {required String txId}) async {
-    return WalletTransactionStatus.unknown;
+      SubstrateWalletTransaction transaction) async {
+    final block = transaction.block;
+    if (block == null) {
+      return WalletTransactionStatus.unknown;
+    }
+    final stream = SubstrateTransactionBuilder.findEextrinsic(
+        txId: transaction.txId,
+        provider: metadataWitPorvider(),
+        extrinsic: transaction.extrinsics,
+        blockId: block);
+    final result = await stream.first;
+    final eventResult = result.txEvents;
+    Logging.error(
+      when: () => result.status == SubtrateTransactionSubmitionStatus.failed,
+      fn: () => AppLogData(
+          function: "trackMempoolTransaction",
+          runtime: runtimeType,
+          data: result.toJson()),
+    );
+    if (eventResult == null) {
+      return WalletTransactionStatus.unknown;
+    }
+    if (result.status.isSuccess) return WalletTransactionStatus.block;
+    return WalletTransactionStatus.failed;
   }
 
   Future<List<SubstrateMultisigWithCallhash>> getMultisigs(
@@ -335,17 +319,25 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
   Future<SubstrateMultisigCallData> getMultisig(
       {required SubstrateMultisigCall call,
       required BaseSubstrateAddress address}) async {
-    final multisig = await SubstrateQuickStorageApi.multisig.multisigs(
-        api: api, rpc: provider, address: address, callHashTx: call.callHash);
+    final multisig = await SubstrateQuickStorageApi.multisig
+        .multisigs(api: api, rpc: provider, address: address, callHashTx: call.callHash);
     QueryFeeInfo? fee;
     Map<String, dynamic>? content;
     final callBytes = call.callData;
     if (callBytes != null) {
       fee = await callQueryInfo(call: callBytes, owner: address);
-      content =
-          MethodUtils.nullOnException(() => api.decodeCall(callBytes).toJson());
+      content = MethodUtils.fallbackOnException(
+        () => api.decodeCall(callBytes).toJson(),
+        mode: LoggerMode.danger,
+        onError: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            function: "getMultisig",
+            err: exception,
+            trace: trace.toString(),
+            msg: "Failed to decode transaction call data."),
+      );
       if (content == null) {
-        throw ApiProviderException.message("failed_to_decode_call_data");
+        throw AppException("failed_to_decode_call_data");
       }
     }
     return SubstrateMultisigCallData(
@@ -368,12 +360,12 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     return tokens!;
   }
 
-  @override
   Stream<List<SubstrateNetworkToken>> getAccountTokensStream(
       BaseSubstrateAddress address) {
     BaseSubstrateNetworkController? internalController = metadata.controller;
 
-    final controller = StreamController<List<SubstrateNetworkToken>>();
+    final controller = SafeStreamController<List<SubstrateNetworkToken>>(
+        name: "SubstrateClientMethods.getAccountTokensStream");
     void close() {
       if (!controller.isClosed) controller.close();
     }
@@ -404,8 +396,7 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
         final tokens = await internalController?.getAccountAssets(
             address: address, nativeBalance: false);
         add(tokens?.balances
-                .where(
-                    (e) => e.asset.identifier != null && !e.asset.type.isNative)
+                .where((e) => e.asset.identifier != null && !e.asset.type.isNative)
                 .toList() ??
             []);
       } catch (e) {
@@ -415,80 +406,24 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
       }
     }
 
-    controller.onListen = fetchToken;
-    controller.onCancel = close;
+    controller.onListenListener(fetchToken);
+    controller.onCancelListener(close);
 
-    return controller.stream;
+    return controller.stream();
   }
 
-  @override
-  Stream<T> trackMempoolTransaction<T extends SubstrateWalletTransaction>(
-      List<T> transactions) {
-    Future<WalletTransactionStatus> transactionStatus(
-        SubstrateWalletTransaction transaction) async {
-      try {
-        final block = transaction.block;
-        if (block == null) {
-          return WalletTransactionStatus.unknown;
-        }
-        final stream = SubstrateTransactionBuilder.findEextrinsic(
-            txId: transaction.txId,
-            provider: metadataWitPorvider(),
-            extrinsic: transaction.extrinsics,
-            blockId: block);
-        final result = await stream.first;
-        final eventResult = result.txEvents;
-        appLogger.error(
-            when: () =>
-                result.status == SubtrateTransactionSubmitionStatus.failed,
-            functionName: "trackMempoolTransaction",
-            runtime: runtimeType,
-            msg: result.toJson());
-        if (eventResult == null) {
-          return WalletTransactionStatus.unknown;
-        }
-        if (result.status.isSuccess) return WalletTransactionStatus.block;
-        return WalletTransactionStatus.failed;
-      } catch (_) {
-        return WalletTransactionStatus.unknown;
-      }
-    }
-
-    final StreamController<T> controller = StreamController();
-    Future<void> run() async {
-      final future = transactions.map((e) async {
-        final r = await transactionStatus(e);
-
-        e.updateStatus(r);
-        controller.add(e);
-      });
-      await Future.wait(future);
-      controller.close();
-    }
-
-    run();
-
-    return controller.stream;
-  }
-
-  /// swap  methods
-  @override
   Future<SubtrateTransactionSubmitionResult> submitExtrinsicAndWatch(
       {required SubstrateSubmitableTransaction extrinsic,
       int maxRetryEachBlock = 10}) async {
-    final stream =
-        await SubstrateTransactionBuilder.submitExtrinsicAndWatchStatic(
-            extrinsic: extrinsic,
-            provider: MetadataWithProvider(
-                provider: provider,
-                metadata: MetadataWithExtrinsic(
-                    api: api, extrinsic: metadata.extrinsic)));
+    final stream = await SubstrateTransactionBuilder.submitExtrinsicAndWatchStatic(
+        extrinsic: extrinsic,
+        provider: MetadataWithProvider(
+            provider: provider,
+            metadata: MetadataWithExtrinsic(api: api, extrinsic: metadata.extrinsic)));
     return stream.first;
   }
 
-  @override
-  Future<SubstrateTransactionBlockRequirment>
-      transactionBlockRequirment() async {
+  Future<SubstrateTransactionBlockRequirment> transactionBlockRequirment() async {
     final finalizeBlock = (await getFinalizBlock());
     final genesis = await getGenesis();
     final blockHash = finalizeBlock.toHex();
@@ -501,38 +436,25 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
         genesisBlock: genesis);
   }
 
-  @override
-  Future<bool> initSwapClient() async {
-    final init = await this.init();
-    if (!init) {
-      throw ApiProviderExceptionConst.initializeClientFailed;
-    }
-    return true;
-  }
-
   Future<BigInt> _getPoladitAssetBalanceInternal(
       BaseSubstrateAddress account, BigInt assetId) async {
     final balancesEntries = await SubstrateNetworkControllerAssetQueryHelper
         .getAssetsPalletAccountIdentifierBigInt(
-            provider: metadataWitPorvider(),
-            address: account,
-            assetIds: [assetId]);
-    final balanceEntry = balancesEntries.entries
-        .firstWhereNullable((e) => e.key == assetId)
-        ?.value;
+            provider: metadataWitPorvider(), address: account, assetIds: [assetId]);
+    final balanceEntry =
+        balancesEntries.entries.firstWhereNullable((e) => e.key == assetId)?.value;
     if (balanceEntry == null) return BigInt.zero;
     final balance = PolkadotAssetBalance.fromJson(balanceEntry);
     return balance.balance;
   }
 
-  @override
   Future<SwapPolkadotAccountAssetBalance> getAccountsAssetBalance(
       PolkadotSwapAsset asset, BaseSubstrateAddress account) async {
     BigInt balance;
     if (!asset.type.isNative) {
       final assetId = asset.assetId;
       if (assetId == null) {
-        throw ApiProviderExceptionConst.unexpectedRequestData;
+        throw APIErrorConst.unexpectedRequestData;
       }
       final internalController = _internalController;
       if (internalController == null) {
@@ -552,54 +474,35 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
         address: account, balance: balance, asset: asset);
   }
 
-  @override
   Future<BigInt> getBlockHeight() async {
     final header = await getBlockHeader();
     return BigInt.from(header.number);
   }
 
-  @override
-  Future<bool> onInit() async {
-    if (_metadata != null) return true;
-    final api = await loadApi();
-    if (api == null) return false;
-    final metadata = api;
-    if (!StringUtils.hexEqual(
-        metadata.genesis, network?.genesisBlock ?? "0x")) {
-      return false;
-    }
-    _metadata = metadata;
-    return true;
-  }
-
-  @override
-  NetworkType get networkType => NetworkType.substrate;
-
-  @override
   MetadataWithProvider metadataWitPorvider() {
     return MetadataWithProvider(
         provider: provider,
-        metadata:
-            MetadataWithExtrinsic(api: api, extrinsic: metadata.extrinsic));
+        metadata: MetadataWithExtrinsic(api: api, extrinsic: metadata.extrinsic));
   }
 
   @override
-  Future<MetadataWithProvider> loadMetadata(
-      BaseSubstrateNetwork network) async {
+  Future<MetadataWithProvider> loadMetadata(BaseSubstrateNetwork network) async {
     return metadataWitPorvider();
   }
 
   @override
-  Future<SubstrateProvider> loadProvider(BaseSubstrateNetwork network) async {
+  Future<
+      DefaultProvider<SubstrateProvider<MultiChainServiceClient>,
+          SubstrateRequestDetails>> loadProvider(BaseSubstrateNetwork network) async {
     return provider;
   }
 
   @override
-  final BaseSubstrateCachedAssetStorage storage =
-      DefaultSubstrateCachedAssetStorage(interval: const Duration(hours: 1));
+  late final SubstrateEvmNetworkControllerParams evmParams = this;
 
   @override
-  late final SubstrateEvmNetworkControllerParams evmParams = this;
+  final BaseSubstrateCachedAssetStorage storage =
+      DefaultSubstrateCachedAssetStorage(interval: const Duration(hours: 1));
 
   @override
   Future<RESPONSE> ethCall<RESPONSE extends Object?>(
@@ -608,8 +511,7 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
       required MetadataWithProvider provider,
       List<Object>? params}) async {
     if (_metadata?.rpcMethods.contains(EthereumMethods.call.value) ?? false) {
-      final evmProvider =
-          _evmProvider ??= EthereumProvider(provider.provider.rpc);
+      final evmProvider = _evmProvider ??= EthereumProvider(provider.provider.service);
       final result = await evmProvider.request(EthereumRequestFunctionCall(
           contractAddress: contract.address,
           function: AbiFunctionFragment.fromJson(function.abi),
@@ -620,17 +522,101 @@ class SubstrateClient extends NetworkClient<SubstrateWalletTransaction,
     final result = await SubstrateQuickRuntimeApi.ethereumRuntimeRPCApis.call(
         api: api,
         rpc: provider.provider,
-        from: SubstrateAddressUtils.zeroAddress,
+        from: SubstrateEthereumAddress.zero,
         to: SubstrateEthereumAddress(contract.address),
         inputs: AbiFunctionFragment.fromJson(function.abi).encode(params ?? []),
         gasLmit: BigInt.one);
     final ok = result.ok;
     if (ok == null || !ok.exitReason.isSucceed) {
-      throw ApiProviderException.message("server_unexpected_response",
-          responseData: result.toJson());
+      throw APIErrorConst.serverUnexpectedResponse;
     }
-    final value =
-        AbiFunctionFragment.fromJson(function.abi).decodeOutput(ok.value);
+    final value = AbiFunctionFragment.fromJson(function.abi).decodeOutput(ok.value);
     return function.parser(value.cast());
+  }
+}
+
+class SubstrateNetworkClient extends NetworkClient<SubstrateWalletTransaction,
+        SubstrateNetworkToken, BaseSubstrateAddress, WalletSubstrateNetwork>
+    with SubstrateClientMethods
+    implements BaseSwapSubstrateClient {
+  @override
+  final SubstrateNetworkProvider networkProvider;
+  SubstrateNetworkClient._(
+      {required this.provider, required super.network, required this.networkProvider});
+
+  @override
+  final DefaultProvider<SubstrateProvider<MultiChainServiceClient>,
+      SubstrateRequestDetails> provider;
+
+  factory SubstrateNetworkClient.fromProvider({
+    required SubstrateNetworkProvider provider,
+    required WalletSubstrateNetwork network,
+    required INetApi netApi,
+  }) {
+    return SubstrateNetworkClient._(
+      network: network,
+      networkProvider: provider,
+      provider: DefaultProvider(SubstrateProvider(MultiChainServiceClient.fromProvider(
+          provider: provider.provider, netApi: netApi))),
+    );
+  }
+  factory SubstrateNetworkClient.fromService(
+      {required SubstrateNetworkProvider provider,
+      required WalletSubstrateNetwork network,
+      required MultiChainServiceClient service}) {
+    assert(service.provider == provider.provider);
+    return SubstrateNetworkClient._(
+        network: network,
+        networkProvider: provider,
+        provider: DefaultProvider(SubstrateProvider(service)));
+  }
+
+  Future<bool> validateNetworkGenesis() async {
+    final genesis = await _loadGenesis();
+    return StringUtils.hexEqual(genesis.toHex(), network.genesisBlock);
+  }
+
+  @override
+  List<MultiChainServiceClient> services() {
+    return [provider.service];
+  }
+
+  @override
+  Future<bool> verifyService(DefaultAPIProvider provider) async {
+    if (provider == this.provider.service.provider) {
+      if (_metadata != null) return true;
+      final api = await loadApi();
+      if (api == null) return false;
+      final metadata = api;
+      if (!StringUtils.hexEqual(metadata.genesis, network.genesisBlock)) {
+        return false;
+      }
+      _metadata = metadata;
+      return true;
+    }
+
+    return false;
+  }
+}
+
+class SubstrateClient with SubstrateClientMethods {
+  SubstrateClient({required this.provider});
+
+  @override
+  final DefaultProvider<SubstrateProvider<MultiChainServiceClient>,
+      SubstrateRequestDetails> provider;
+
+  factory SubstrateClient.fromProviders({
+    required DefaultAPIProvider provider,
+    required INetApi netApi,
+  }) {
+    return SubstrateClient(
+      provider: DefaultProvider(SubstrateProvider(
+          MultiChainServiceClient.fromProvider(provider: provider, netApi: netApi))),
+    );
+  }
+
+  void dispose() {
+    provider.service.dispose();
   }
 }

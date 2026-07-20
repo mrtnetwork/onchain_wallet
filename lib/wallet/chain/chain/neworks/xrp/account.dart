@@ -1,185 +1,243 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-class XRPChainConfig extends DefaultNetworkConfig {
-  XRPChainConfig(
-      {super.supportToken = true,
-      super.supportNft = true,
-      super.supportWeb3 = true,
-      super.enableProvider = true});
-  factory XRPChainConfig.deserialize(
-      {List<int>? cborBytes, String? cborHex, CborObject? cborObject}) {
-    final values = CborSerializable.cborTagValue(
-        cborBytes: cborBytes,
-        hex: cborHex,
-        object: cborObject,
-        tags: CborTagsConst.defaultNetworkConfig);
-    return XRPChainConfig(
-      supportToken:
-          values.indexMaybeAs<bool, CborBoleanValue>(0, (e) => e.value) ?? true,
-      supportNft:
-          values.indexMaybeAs<bool, CborBoleanValue>(1, (e) => e.value) ?? true,
-      supportWeb3:
-          values.indexMaybeAs<bool, CborBoleanValue>(2, (e) => e.value) ?? true,
-      enableProvider:
-          values.indexMaybeAs<bool, CborBoleanValue>(3, (e) => e.value) ?? true,
-    );
-  }
-  @override
-  XRPChainConfig copyWith(
-      {bool? supportToken,
-      bool? supportNft,
-      bool? supportWeb3,
-      bool? enableProvider}) {
-    return XRPChainConfig(
-        supportToken: supportToken ?? this.supportToken,
-        supportNft: supportNft ?? this.supportNft,
-        supportWeb3: supportWeb3 ?? this.supportWeb3,
-        enableProvider: enableProvider ?? this.enableProvider);
-  }
+class XRPNetworkStorageId extends DefaultNetworkStorageId {
+  static const TronNetworkStorageId addressLedgerIndex = TronNetworkStorageId(51);
+  const XRPNetworkStorageId(super.storageId);
+
+  static const List<DefaultNetworkStorageId> values = [
+    ...DefaultNetworkStorageId.values,
+    addressLedgerIndex
+  ];
 }
 
 final class XRPChain extends Chain<
-    RippleAPIProvider,
-    RippleNetworkParams,
-    XRPAddress,
+    XRPBaseAddress,
     RippleIssueToken,
     RippleNFToken,
-    IXRPAddress,
     WalletXRPNetwork,
-    XRPClient,
-    XRPChainConfig,
     XRPWalletTransaction,
-    RippleContact,
-    RippleNewAddressParams> with XRPChainController {
-  XRPChain._({
-    required super.network,
-    required super.addressIndex,
-    required super.id,
-    required super.config,
-    required super.service,
-    required super.addresses,
-    super.totalBalance,
-  }) : super._();
-  @override
-  XRPChain copyWith({
-    WalletXRPNetwork? network,
-    List<ChainAccount>? addresses,
-    List<ContactCore<XRPAddress>>? contacts,
-    int? addressIndex,
-    ProviderIdentifier? service,
-    String? id,
-    XRPChainConfig? config,
-    BigInt? totalBalance,
-  }) {
-    return XRPChain._(
-        network: network ?? this.network,
-        addressIndex: addressIndex ?? _addressIndex,
-        addresses: addresses?.cast<IXRPAddress>() ?? _addresses,
-        service: service ?? _serviceIdentifier,
-        id: id ?? this.id,
-        config: config ?? this.config,
-        totalBalance: totalBalance ?? this.totalBalance.value.balance);
-  }
+    IXRPAddress,
+    XRPNetworkClient,
+    XRPNetworkProvider,
+    IXRPChainContext> {
+  XRPChain._(
+      {required WalletXRPNetwork network,
+      required String id,
+      required InChainWalletController controller})
+      : super._(
+            context: switch (controller) {
+          ChainWalletControllerDefault() =>
+            XRPMainChainContext(network: network, controller: controller, id: id),
+          ChainWalletControllerExternal() => throw UnimplementedError(),
+        });
 
   factory XRPChain.setup(
       {required WalletXRPNetwork network,
       required String id,
-      ProviderIdentifier? service}) {
-    return XRPChain._(
-        network: network,
-        id: id,
-        addressIndex: 0,
-        service: service,
-        addresses: [],
-        config: XRPChainConfig());
+      required InChainWalletController controller}) {
+    return XRPChain._(network: network, id: id, controller: controller);
   }
 
   factory XRPChain.deserialize(
-      {required WalletXRPNetwork network, required CborListValue cbor}) {
-    final int networkId = cbor.elementAs(0);
+      {required WalletXRPNetwork network,
+      required CborListValue cbor,
+      required InChainWalletController controller}) {
+    final int networkId = cbor.rawValueAt(0);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String id = cbor.elementAs<String>(2);
-    final List<IXRPAddress> accounts = cbor
-        .elementAsListOf<CborTagValue>(3)
-        .map((e) => IXRPAddress.deserialize(network, obj: e))
-        .toList();
-    final int addressIndex = cbor.elementAs(4);
-    XRPChainConfig config =
-        XRPChainConfig.deserialize(cborObject: cbor.indexAs(5));
-    final ProviderIdentifier? service = MethodUtils.nullOnException(() {
-      final CborTagValue? identifier = cbor.elementAs(6);
-
-      if (identifier == null) return null;
-      return ProviderIdentifier.deserialize(cbor: identifier);
-    });
-
-    final BigInt? totalBalance = cbor.elementAs<BigInt?>(7);
-    return XRPChain._(
-        network: network,
-        addresses: accounts,
-        config: config,
-        addressIndex: addressIndex < 0 ? 0 : addressIndex,
-        service: service,
-        id: id,
-        totalBalance: totalBalance);
+    final String id = cbor.rawValueAt<String>(2);
+    return XRPChain._(network: network, id: id, controller: controller);
   }
+}
+
+abstract final class IXRPChainContext
+    implements
+        IChainContext<XRPBaseAddress, RippleIssueToken, RippleNFToken, WalletXRPNetwork,
+            XRPWalletTransaction, IXRPAddress, XRPNetworkClient, XRPNetworkProvider> {
+  Future<IResult<void>> getAccountTxes(IXRPAddress address,
+      {bool isAccountAddress = false});
+}
+
+final class XRPMainChainContext extends DefaultMainChainContext<
+    XRPBaseAddress,
+    RippleIssueToken,
+    RippleNFToken,
+    WalletXRPNetwork,
+    XRPWalletTransaction,
+    IXRPAddress,
+    XRPNetworkClient,
+    XRPNetworkProvider> implements IXRPChainContext {
+  XRPMainChainContext(
+      {required super.id, required super.controller, required super.network});
 
   @override
-  IXRPAddress? getAddress(String address) {
-    return super.getAddress(address) ??
-        _addresses
-            .firstWhereOrNull((element) => element.baseAddress == address);
-  }
-
-  @override
-  Future<void> _updateAddressBalanceInternal(IXRPAddress address,
+  Future<IResult<bool>> updateAddressBalanceInternal(IXRPAddress address,
       {bool tokens = true}) async {
-    bool balanceChanged = false;
-    await onClient(onConnect: (client) async {
-      final balance = await client.getAccountBalance(address.networkAddress);
-      balanceChanged |= await address._updateAddressBalance(balance);
-      if (tokens) {
-        final tokens = address.tokens;
-        if (tokens.isEmpty) return;
+    final accountAddress = await isAccountAddress(address);
+
+    final balanceChanged = await accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
+        final balance = await client.getAccountBalance(address.networkAddress);
+        final updateBalance = await address._updateAccountBalance(balance);
+        if (updateBalance.isErr) return updateBalance;
+        bool balanceChanged = updateBalance.unwrap();
+        if (tokens) {
+          final tokens = await address.getAccountTokens();
+          return tokens.andThenAsync((tokens) async {
+            final balances = await client.getAccountTokens(address.networkAddress);
+            for (final i in tokens) {
+              final currentUpdate = balances.firstWhereOrNull((element) =>
+                  element.issuer.classicAddress == i.issuer &&
+                  element.currency == i.assetCode);
+              final result = await address._updateAccountTokenBalance(
+                  i,
+                  () => i._updateBalance(
+                      BigRational.parseDecimal(currentUpdate?.balance ?? "0")));
+              if (result.isErr) return result;
+              balanceChanged |= result.unwrap();
+            }
+            return ResultOk(balanceChanged);
+          });
+        }
+        return ResultOk(balanceChanged);
+      });
+    });
+    return balanceChanged.map((balanceChanged) {
+      getAccountTxes(address, isAccountAddress: true);
+      return balanceChanged;
+    });
+  }
+
+  @override
+  Future<IResult<void>> updateTokenBalance(
+      {required IXRPAddress address,
+      required List<RippleIssueToken> tokens,
+      bool isAccountAddress = false}) async {
+    final accountAddress =
+        await this.isAccountAddress(address, validate: !isAccountAddress);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
         final balances = await client.getAccountTokens(address.networkAddress);
         for (final i in tokens) {
           final currentUpdate = balances.firstWhereOrNull((element) =>
-              element.issuer.address == i.issuer &&
+              element.issuer.classicAddress == i.issuer &&
               element.currency == i.assetCode);
-          balanceChanged |= await address._updateTokenBalance(
+          final result = await address._updateAccountTokenBalance(
               i,
               () => i._updateBalance(
                   BigRational.parseDecimal(currentUpdate?.balance ?? "0")));
+          if (result.isErr) return result;
         }
-      }
-    });
-    if (balanceChanged || true) _getAccountTxes(address);
-  }
-
-  @override
-  Future<void> updateTokenBalance(
-      {required IXRPAddress address,
-      required List<RippleIssueToken> tokens}) async {
-    _isAccountAddress(address);
-    await onClient(onConnect: (client) async {
-      if (tokens.isEmpty) return;
-      final balances = await client.getAccountTokens(address.networkAddress);
-      for (final i in tokens) {
-        final currentUpdate = balances.firstWhereOrNull((element) =>
-            element.issuer.address == i.issuer &&
-            element.currency == i.assetCode);
-        address._updateTokenBalance(
-            i,
-            () => i._updateBalance(
-                BigRational.parseDecimal(currentUpdate?.balance ?? "0")));
-      }
+        return ResultOk.okVoid;
+      });
     });
   }
 
   @override
-  IXRPAddress _deserializeAddress(List<int> adressBytes) {
-    return IXRPAddress.deserialize(network, bytes: adressBytes);
+  Future<IResult<void>> getAccountTxes(IXRPAddress address,
+      {bool isAccountAddress = false}) async {
+    final accountAddress =
+        await this.isAccountAddress(address, validate: !isAccountAddress);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync(
+        (client) async {
+          final ledgerIndex = await address._stoageGetAccountLedgerIndex();
+          return ledgerIndex.map((e) => e ?? -1).andThenAsync(
+            (ledgerIndex) async {
+              final txes = await client.getAccountTxes(
+                  address: address.networkAddress, ledger: ledgerIndex);
+              final result =
+                  await address._storageSaveAccountLedgeIndex(txes.latestLedger);
+              return result.andThenAsync((_) async {
+                final receivedTxes = txes.txes
+                    .where((e) =>
+                        e.transaction.transaction.account !=
+                        address.networkAddress.classicAddress)
+                    .toList();
+                final tokens = await address.getAccountTokens();
+                return tokens.andThenAsync((tokens) async {
+                  for (final i in receivedTxes) {
+                    WalletTransactionAmount? amount;
+                    final tx = i.transaction.transaction;
+                    if (tx.transactionType == SubmittableTransactionType.payment) {
+                      final payment = tx.cast<Payment>();
+                      if (payment.amount.type == AmountType.native) {
+                        amount = WalletTransactionIntegerAmount(
+                            amount: (payment.amount as XRPAmount).value,
+                            network: network);
+                      } else if (payment.amount.type == AmountType.issue) {
+                        final currencyAmount = (payment.amount as IssuedCurrencyAmount);
+
+                        NonDecimalToken? token = tokens
+                            .firstWhereNullable((e) =>
+                                e.issuer == currencyAmount.issuer &&
+                                e.assetCode == currencyAmount.currency)
+                            ?.token;
+                        token ??= NonDecimalToken(
+                            name: currencyAmount.currency,
+                            symbol: currencyAmount.currency);
+                        amount = WalletTransactionDecimalsAmount(
+                            amount: currencyAmount.value, token: token);
+                      }
+                    }
+                    XRPBaseAddress sender = XRPBaseAddress(tx.account);
+                    if (tx.sourceTag != null) {
+                      sender = sender.toXAddress(
+                          tag: tx.sourceTag, chainType: network.coinParam.chainType);
+                    }
+                    final xrpTx = XRPWalletTransaction(
+                        txId: i.txId,
+                        totalOutput: amount,
+                        time: i.ledgerTime,
+                        type: WalletTransactionType.receive,
+                        status: i.ledgerTime == null
+                            ? WalletTransactionStatus.pending
+                            : WalletTransactionStatus.block,
+                        network: network,
+                        inputs: [
+                          XRPWalletTransactionOperationInput(
+                              address: sender, operation: tx.transactionType.value)
+                        ]);
+                    final result =
+                        await saveTransaction(address: address, transaction: xrpTx);
+                    if (result.isErr) return result;
+                  }
+
+                  return ResultOk.okVoid;
+                });
+              });
+            },
+          );
+        },
+        logging: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            trace: trace.toString(),
+            function: "getAccountTxes",
+            err: exception),
+      );
+    });
   }
+
+  @override
+  IResult<XRPNetworkProvider?> buildProviderNetworkIdentifier(
+      {required List<DefaultAPIProvider> providers,
+      List<XRPNetworkProvider> exclude = const []}) {
+    for (final p in providers) {
+      if (!clientRequiredServices.allowServices.contains(p.service)) {
+        continue;
+      }
+      final identifier = XRPNetworkProvider(p);
+      if (exclude.contains(identifier)) continue;
+      return ResultOk(identifier);
+    }
+    return ResultOk(null);
+  }
+
+  @override
+  final clientRequiredServices =
+      NetworkClientRequirment.oneOf({APIProviderServices.ripple});
 }

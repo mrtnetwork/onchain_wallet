@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/update_network_provider.dart';
+import 'package:on_chain_wallet/future/wallet/global/provider/update_network_provider.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:ton_dart/ton_dart.dart';
 
@@ -11,11 +11,10 @@ class UpdateTonProvider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<TonClient?, ITonAddress?, TonChain>(
+    return NetworkAccountControllerView<TonNetworkClient?, ITonAddress?, TonChain>(
         addressRequired: false,
         clientRequired: false,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
-            _UpdateTonProvider(account));
+        childBulder: (wallet, account, client, address) => _UpdateTonProvider(account));
   }
 }
 
@@ -30,44 +29,26 @@ class _UpdateTonProvider extends StatefulWidget {
 class _UpdateSolanaProviderState extends State<_UpdateTonProvider>
     with
         SafeState<_UpdateTonProvider>,
-        UpdateNetworkProviderState<_UpdateTonProvider, TonAPIProvider,
-            TonAddress, ITonAddress, TonClient, TokenCore, NFTCore, TonChain> {
+        UpdateNetworkProviderState<_UpdateTonProvider, TonAddress, ITonAddress,
+            TonNetworkClient, TokenCore, NFTCore, TonChain> {
   @override
   TonChain get chain => widget.account;
 
   @override
-  TonAPIProvider createProvider(
-      {required String url,
-      required APIProviderServiceInfo service,
-      ProviderAuthenticated? auth}) {
-    return TonAPIProvider(
-        serviceName: url,
-        websiteUri: url,
-        uri: url,
-        auth: auth,
-        apiType: TonApiType.fromValue(service.name),
-        identifier: APIUtils.getProviderIdentifier());
-  }
-
-  @override
-  late final List<ServiceProtocol> supportedProtocol;
-
-  void init() {
-    supportedProtocol = [ServiceProtocol.http];
-    protocol = supportedProtocol.first;
-  }
-
-  @override
-  void onInitOnce() {
-    MethodUtils.after(() async => init());
-    super.onInitOnce();
-  }
-
-  @override
-  Future<TonAPIProvider> validate(TonAPIProvider provider) async {
-    final client = APIUtils.buildTonApiProvider(
-        provider: provider, network: network.toNetwork());
-    await client.getWorkChainId();
-    return provider;
+  Future<DefaultAPIProvider> validate(DefaultAPIProvider provider) async {
+    final client = TonNetworkClient.fromProvider(
+      provider: TonNetworkProvider(provider),
+      network: network.cast(),
+      netApi: context.appContext.netApi,
+    );
+    try {
+      final result = await client.validateGlobalId();
+      if (!result) {
+        throw AppException("provider_validation_failed_desc");
+      }
+      return provider;
+    } finally {
+      client.dispose();
+    }
   }
 }

@@ -1,23 +1,20 @@
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/web3/global/core/controller.dart';
-import 'package:on_chain_wallet/future/wallet/web3/pages/page_progress.dart';
 import 'package:on_chain_wallet/future/wallet/web3/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
 class Web3GlobalRequestConnectStateController
-    extends Web3StateContoller<Web3GlobalRequest>
-    with Web3GlobalRequestControllerState {
+    extends Web3GlobalRequestStateContoller<Web3GlobalRequest> {
   final WalletProvider wallet;
   late Web3UpdatePermissionRequest _authenticated;
   Web3UpdatePermissionRequest get authenticated => _authenticated;
   @override
   final Web3GlobalRequest request;
-  Web3GlobalRequestConnectStateController(
-      {required this.request, required this.wallet});
+  Web3GlobalRequestConnectStateController({required this.request, required this.wallet});
 
   Future<bool> onUpdateApplication(Web3PermissionUpdateResponse update) async {
-    progressKey.response(text: "client_permission_have_been_updated".tr);
+    controller.response(text: "client_permission_have_been_updated".tr);
     request.completeResponse(update.chains);
     return true;
   }
@@ -38,8 +35,11 @@ class Web3GlobalRequestConnectStateController
               .getChains()
               .where((e) => networkIds.contains(e.network.value))
               .toList());
+    } else {
+      _authenticated = Web3UpdatePermissionRequest(
+          authentication: request.authenticated, client: request.info.client);
     }
 
-    progressKey.idle();
+    controller.idle();
   }
 }

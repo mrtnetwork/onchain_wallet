@@ -1,42 +1,33 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class TronNewAddressParams extends NewAccountParams<ITronAddress> {
+final class TronNewAddressParams extends NewDerivableAccountParams<ITronAddress> {
   @override
-  bool get isMultiSig => false;
-
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
   @override
   final CryptoCoins coin;
-  TronNewAddressParams._({required this.deriveIndex, required this.coin})
-      : super._();
+  TronNewAddressParams._({required this.deriveIndex, required this.coin});
   factory TronNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
-      required CryptoCoins coin}) {
+      {required DerivableIndex deriveIndex, required CryptoCoins coin}) {
     return TronNewAddressParams._(deriveIndex: deriveIndex, coin: coin);
   }
-  factory TronNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory TronNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.tronNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.tronNewAddressParams.tag);
     return TronNewAddressParams(
-      deriveIndex:
-          AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(1)),
+      deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(1)),
     );
   }
   @override
-  ITronAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  ITronAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletTronNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "TronNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("TronNewAddressParams.toAccount");
     }
     final keyBytes = publicKey.keyBytes(immutable: true);
     final address = TronAddress.fromPublicKey(keyBytes);
@@ -44,90 +35,75 @@ final class TronNewAddressParams extends NewAccountParams<ITronAddress> {
         publicKey: keyBytes,
         network: network,
         address: address,
-        keyIndex: deriveIndex,
+        database: database,
+        derivationIndex: deriveIndex,
         coin: coin,
-        identifier: NewAccountParams.toIdentifier(address.toAddress()));
+        identifier: NewAccountParams.toIdentifier(address.toAddress()),
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([deriveIndex.toCbor(), coin.toCbor()]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems =>
+      [deriveIndex.toCbor(), coin.identifier.toCbor()];
   @override
   NewAccountParamsType get type => NewAccountParamsType.tronNewAddressParams;
 }
 
-final class TronMultisigNewAddressParams implements TronNewAddressParams {
+final class TronMultisigNewAddressParams extends NewAccountParams<ITronAddress> {
   TronMultisigNewAddressParams._(
-      {required this.multiSigAccount,
-      required this.masterAddress,
-      required this.coin});
+      {required this.multiSigAccount, required this.masterAddress, required this.coin});
   factory TronMultisigNewAddressParams(
       {required TronMultiSignatureAddress multiSigAccount,
       required TronAddress masterAddress,
       required CryptoCoins coin}) {
     return TronMultisigNewAddressParams._(
-        multiSigAccount: multiSigAccount,
-        masterAddress: masterAddress,
-        coin: coin);
+        multiSigAccount: multiSigAccount, masterAddress: masterAddress, coin: coin);
   }
-  @override
-  bool get isMultiSig => true;
 
   final TronAddress masterAddress;
-
-  @override
-  final AddressDerivationIndex deriveIndex = MultiSigAddressIndex();
 
   final TronMultiSignatureAddress multiSigAccount;
   @override
   final CryptoCoins coin;
 
   factory TronMultisigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.tronMultisigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.tronMultisigNewAddressParams.tag);
     return TronMultisigNewAddressParams(
-      masterAddress: TronAddress(values.elementAs(0)),
-      multiSigAccount: TronMultiSignatureAddress.deserialize(
-          obj: values.elementAs<CborTagValue>(1)),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
+      masterAddress: TronAddress(values.rawValueAt(0)),
+      multiSigAccount:
+          TronMultiSignatureAddress.deserialize(object: values.objectAt<CborTagValue>(1)),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
     );
-  }
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          masterAddress.toAddress(),
-          multiSigAccount.toCbor(),
-          coin.toCbor()
-        ]),
-        type.tag);
   }
 
   @override
-  ITronMultisigAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  List<CborObject?> get serializationItems => [
+        masterAddress.toAddress().toCbor(),
+        multiSigAccount.toCbor(),
+        coin.identifier.toCbor()
+      ];
+  @override
+  ITronMultisigAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (network is! WalletTronNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "TronMultisigNewAddressParams.toAccount");
     }
     return ITronMultisigAddress._newAccount(
         address: masterAddress,
         coin: coin,
+        database: database,
         identifier: NewAccountParams.toIdentifier(masterAddress.toAddress(),
             multisigAddress: multiSigAccount.toCbor().encode()),
         multiSigAccount: multiSigAccount,
-        network: network);
+        network: network,
+        id: id);
   }
 
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.tronMultisigNewAddressParams;
+  NewAccountParamsType get type => NewAccountParamsType.tronMultisigNewAddressParams;
 }

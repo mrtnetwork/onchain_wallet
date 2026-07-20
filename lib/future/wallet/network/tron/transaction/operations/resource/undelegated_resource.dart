@@ -13,24 +13,19 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class TronTransactionUnDelegateResourceContractOperation
     extends TronTransactionStateController2<UnDelegateResourceContract> {
-  List<TransactionResourceRequirementTronDelegatedResource> _resourceAddresses =
-      [];
-  List<TransactionResourceRequirementTronDelegatedResource>
-      get resourceAddresses => _resourceAddresses;
+  List<TransactionResourceRequirementTronDelegatedResource> _resourceAddresses = [];
+  List<TransactionResourceRequirementTronDelegatedResource> get resourceAddresses =>
+      _resourceAddresses;
   final LiveFormField<TransactionResourceRequirementTronDelegatedResource?,
           TransactionResourceRequirementTronDelegatedResource> resourceInf0 =
-      LiveFormField(
-          title: "resource_receiver_address".tr, value: null, optional: false);
+      LiveFormField(title: "resource_receiver_address".tr, value: null, optional: false);
 
   DelegateResourceDetailsCore? _selectedResource;
   DelegateResourceDetailsCore? get selectedResource => _selectedResource;
   TronTransactionUnDelegateResourceContractOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> balance =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> balance = LiveFormField(
     title: "balance".tr,
     subtitle: "undelegated_balance_desc".tr,
     value: IntegerBalance.zero(network.token, allowNegative: false),
@@ -54,8 +49,7 @@ class TronTransactionUnDelegateResourceContractOperation
     resourceInf0.notify();
   }
 
-  void onUpdateResource(
-      TransactionResourceRequirementTronDelegatedResource? resource) {
+  void onUpdateResource(TransactionResourceRequirementTronDelegatedResource? resource) {
     if (resource == null || resource == resourceInf0.value) return;
     _selectedResource = null;
     balance.value.updateBalance(BigInt.zero);
@@ -70,15 +64,15 @@ class TronTransactionUnDelegateResourceContractOperation
     await to.lock.run(() async {
       if (!to.status.canRetry || to.closed) return;
       to.setPendig();
-      final result = await MethodUtils.call(() async {
+      final result = await IResult.call(() async {
         return await getDelegatedResourceInfo(
             address.networkAddress, to.address.networkAddress);
       });
       if (to.closed) return;
-      if (result.hasError) {
-        to.setError(error: result.localizationError);
+      if (result.isErr) {
+        to.setError(error: result.unwrapErr().localizationError);
       } else {
-        to.setResource(result.result);
+        to.setResource(result.unwrap());
       }
     });
   }
@@ -100,7 +94,7 @@ class TronTransactionUnDelegateResourceContractOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
     return TronTransactionUnDelegateResourceContractOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -121,15 +115,12 @@ class TronTransactionUnDelegateResourceContractOperation
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     // walletProvider.wallet.currentChain
     final delegated = await client.getDelegatedResourceAddresses(address);
     _resourceAddresses = delegated
         .map((e) => TransactionResourceRequirementTronDelegatedResource(
-            account.getReceiptAddress(e) ??
-                ReceiptAddress<TronAddress>(
-                    view: e, type: null, networkAddress: TronAddress(e))))
+            account.getOrCreateReceiptFromNetworkAddressSync(address: TronAddress(e))))
         .toList();
     if (_resourceAddresses.isEmpty) {
       throw AppException("no_delegated_resources_found");

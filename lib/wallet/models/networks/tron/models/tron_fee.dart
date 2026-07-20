@@ -1,4 +1,4 @@
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain/on_chain.dart';
@@ -66,10 +66,9 @@ class TronFee {
       bool hasMemo = false}) {
     final tr = Transaction(
         rawData: raw,
-        signature: List.generate(signature,
-            (index) => List<int>.filled(TronUtils.signatureLength, 1)));
-    final BigInt transactionFee =
-        BigInt.from(chainParameters.getTransactionFee!);
+        signature: List.generate(
+            signature, (index) => List<int>.filled(TronUtils.signatureLength, 1)));
+    final BigInt transactionFee = BigInt.from(chainParameters.getTransactionFee!);
     final size = tr.length + TronUtils.tronFeeRequiredSize;
     BigInt totalBurn = BigInt.zero;
     BigInt energy = BigInt.from(consumedEnergy);
@@ -77,8 +76,7 @@ class TronFee {
     BigInt burnedForResource = BigInt.zero;
     if (isNewAccount) {
       burnedForResource += BigInt.from(chainParameters.getCreateAccountFee!);
-      totalBurn +=
-          BigInt.from(chainParameters.getCreateNewAccountFeeInSystemContract!);
+      totalBurn += BigInt.from(chainParameters.getCreateNewAccountFeeInSystemContract!);
     }
     if (hasMemo) {
       totalBurn += BigInt.from(chainParameters.getMemoFee!);

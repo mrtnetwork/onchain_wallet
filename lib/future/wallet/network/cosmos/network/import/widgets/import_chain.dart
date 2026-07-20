@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:blockchain_utils/bip/bip/bip.dart';
+import 'package:blockchain_utils/service/models/params.dart';
 import 'package:cosmos_sdk/cosmos_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
@@ -9,7 +10,9 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/network/import/controller/form.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/network/update_native_token.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
 enum _Page { selectChain, search, review }
 
@@ -18,8 +21,7 @@ class CosmosImportNetworkView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       appbar: AppBar(title: Text("import_network".tr)),
       onAccsess: (_) {
@@ -33,13 +35,14 @@ class _CosmosImportNetworkView extends StatefulWidget {
   const _CosmosImportNetworkView();
 
   @override
-  State<_CosmosImportNetworkView> createState() =>
-      __CosmosImportNetworkViewState();
+  State<_CosmosImportNetworkView> createState() => __CosmosImportNetworkViewState();
 }
 
 class __CosmosImportNetworkViewState extends State<_CosmosImportNetworkView>
-    with HttpImpl, CosmosCustomRequest, SafeState {
-  final form = CosmosAddNewChainFrom();
+    with CosmosCustomRequest, SafeState {
+  late final CosmosAddNewChainFrom form;
+  @override
+  INetApi get netApi => form.netApi;
   final StreamPageProgressController progressKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
   late final List<CosmosChain> existChains;
@@ -104,8 +107,8 @@ class __CosmosImportNetworkViewState extends State<_CosmosImportNetworkView>
   StreamSubscription<void>? _listener;
 
   Future<void> init() async {
-    await MethodUtils.call(() => form.initForm());
-    _listener = form.stream.listen((void _) => updateState);
+    await IResult.call(() => form.initForm());
+    _listener = form.stream.listen((void _) => updateState());
     chainTypeWidgets = buildChainType();
     wallet = context.wallet;
     existChains = wallet.wallet.getChains<CosmosChain>();
@@ -118,30 +121,37 @@ class __CosmosImportNetworkViewState extends State<_CosmosImportNetworkView>
     if (rpcUrl == null) return;
     progressKey.progressText("checking_rpc_network_info".tr);
 
-    final params = await MethodUtils.call(() {
-      return form.createNetwork(chainType: chaintype);
+    final params = await IResult.call(() {
+      return form.createNetwork(
+        chainType: chaintype,
+        onUnknownAlgAlert: () {
+          return context.openSliverDialog<bool>(
+              widget: (p0) => DialogTextView(
+                    text: "cosmos_unknown_key_algorithm_desc".tr,
+                    buttonWidget: const DialogDoubleButtonView(),
+                  ),
+              label: "verify_key_algorithm".tr);
+        },
+      );
     });
-    if (params.hasError) {
-      progressKey.errorText(params.localizationError,
+    if (params.isErr) {
+      progressKey.errorText(params.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
       return;
     }
-    final network = params.result;
+    final network = params.unwrap();
     if (network == null) {
-      progressKey.errorText("some_required_field_not_filled".tr);
+      progressKey.backToIdle();
       return;
     }
     final newNetwork = WalletCosmosNetwork(-1, network.$1);
-    final result = await MethodUtils.call(() async {
-      return wallet.wallet
-          .importNewNetwork(network: newNetwork, providers: [network.$2]);
-    });
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError,
+    final result = await wallet.wallet.doAction(
+        WalletActionImportNewNetwork(network: newNetwork, providers: [network.$2]));
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
-      progressKey.successText("network_imported_to_your_wallet".tr,
-          backToIdle: false);
+      progressKey.successText("network_imported_to_your_wallet".tr, backToIdle: false);
     }
     updateState();
   }
@@ -149,7 +159,8 @@ class __CosmosImportNetworkViewState extends State<_CosmosImportNetworkView>
   @override
   void onInitOnce() {
     super.onInitOnce();
-    MethodUtils.after(() async => init());
+    form = CosmosAddNewChainFrom(context.appContext);
+    MethodUtils.executeAfterDelay(() async => init());
   }
 
   Future<void> onBackButton() async {
@@ -309,8 +320,7 @@ class _SelectNetwork extends StatelessWidget {
 }
 
 class CosmosImportNetworkFieldsView extends StatelessWidget {
-  const CosmosImportNetworkFieldsView(
-      {super.key, required this.form, this.onImport});
+  const CosmosImportNetworkFieldsView({super.key, required this.form, this.onImport});
   final CosmosAddNewChainFrom form;
   final DynamicVoid? onImport;
 
@@ -332,9 +342,7 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                 WidgetConstant.height8,
                 FormField(
                   validator: (value) {
-                    return form.nativeToken == null
-                        ? "network_token_required".tr
-                        : null;
+                    return form.nativeToken == null ? "network_token_required".tr : null;
                   },
                   builder: (f) => _CosmosTokenView(
                       validate: f.isValid,
@@ -343,9 +351,7 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                         form.onUpdateNativeToken(
                           (token) {
                             return context.openSliverBottomSheet(
-                              token == null
-                                  ? "setup_token".tr
-                                  : "update_token".tr,
+                              token == null ? "setup_token".tr : "update_token".tr,
                               child: UpdateCosmosTokenView(token: token),
                             );
                           },
@@ -362,8 +368,8 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                   return _CosmosTokenView(
                       enableTap: false,
                       isFeeToken: true,
-                      onRemoveIcon: Icon(Icons.remove_circle,
-                          color: context.onPrimaryContainer),
+                      onRemoveIcon:
+                          Icon(Icons.remove_circle, color: context.onPrimaryContainer),
                       onTap: () {
                         form.onRemoveFeeToken(
                           token,
@@ -406,21 +412,19 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                 _ShowKeyAlgs(form),
                 WidgetConstant.height20,
                 Text("coin_type".tr, style: context.textTheme.titleMedium),
-                LargeTextView(["slip_44_desc".tr, "coin_type_desc2".tr],
-                    maxLine: 1),
+                LargeTextView(["slip_44_desc".tr, "coin_type_desc2".tr], maxLine: 1),
                 WidgetConstant.height8,
                 NumberTextField(
                     label: "coin_type".tr,
                     defaultValue: form.slip44,
-                    onChange: form.onChangeCoinType,
+                    onChangeValue: form.onChangeCoinType,
                     validator: form.validateCoinType,
                     max: Bip32KeyDataConst.keyIndexMaxVal,
                     min: 0),
                 WidgetConstant.height20,
                 //
                 WidgetConstant.height20,
-                Text("address_prefix_hrp".tr,
-                    style: context.textTheme.titleMedium),
+                Text("address_prefix_hrp".tr, style: context.textTheme.titleMedium),
                 Text("cosmos_enter_hrp_desc".tr),
                 WidgetConstant.height8,
                 AppTextField(
@@ -434,8 +438,7 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                 //
                 Text("network_explorer_address_link".tr,
                     style: context.textTheme.titleMedium),
-                LargeTextView(["network_evm_explorer_address_desc".tr],
-                    maxLine: 1),
+                LargeTextView(["network_evm_explorer_address_desc".tr], maxLine: 1),
                 WidgetConstant.height8,
                 AppTextField(
                   key: form.explorerFieldKey,
@@ -448,8 +451,7 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                 WidgetConstant.height20,
                 Text("network_explorer_transaction_link".tr,
                     style: context.textTheme.titleMedium),
-                LargeTextView(["network_evm_explorer_transaction_desc".tr],
-                    maxLine: 1),
+                LargeTextView(["network_evm_explorer_transaction_desc".tr], maxLine: 1),
                 WidgetConstant.height8,
                 AppTextField(
                   key: form.transactionFieldKey,
@@ -459,6 +461,20 @@ class CosmosImportNetworkFieldsView extends StatelessWidget {
                   label: "network_explorer_transaction_link".tr,
                   pasteIcon: true,
                 ),
+                WidgetConstant.height20,
+                Text("service_provider".tr, style: context.textTheme.titleMedium),
+                WidgetConstant.height8,
+                AppDropDownBottomWithBorder(
+                    label: "service_provider".tr,
+                    isExpanded: true,
+                    items: {
+                      for (final i in form.services)
+                        i: Text(i.name, style: context.onPrimaryTextTheme.bodyMedium)
+                    },
+                    selectedItemBuilder: {for (final i in form.services) i: Text(i.name)},
+                    labelStyle: context.onPrimaryTextTheme.labelLarge,
+                    value: form.service,
+                    onChanged: form.onChangeService),
                 WidgetConstant.height20,
                 Text("rpc_url".tr, style: context.textTheme.titleMedium),
                 Text("enter_tendermint_rpc_desc".tr),
@@ -516,8 +532,7 @@ class _CosmosTokenView extends StatelessWidget {
       validateText: validateError,
       enableTap: enableTap,
       onRemoveIcon: onRemoveIcon ?? AddOrEditIconWidget(token != null),
-      iconAlginment:
-          token == null ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      iconAlginment: token == null ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       onRemove: onTap,
       child: APPAnimatedSwitcher(
           width: context.mediaQuery.size.width,
@@ -533,8 +548,7 @@ class _CosmosTokenView extends StatelessWidget {
             true: (context) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("token_info".tr,
-                        style: context.onPrimaryTextTheme.titleMedium),
+                    Text("token_info".tr, style: context.onPrimaryTextTheme.titleMedium),
                     WidgetConstant.height8,
                     ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
@@ -544,8 +558,7 @@ class _CosmosTokenView extends StatelessWidget {
                           radius: APPConst.circleRadius25),
                     ),
                     WidgetConstant.height20,
-                    Text("decimals".tr,
-                        style: context.onPrimaryTextTheme.titleMedium),
+                    Text("decimals".tr, style: context.onPrimaryTextTheme.titleMedium),
                     WidgetConstant.height8,
                     ContainerWithBorder(
                         backgroundColor: context.onPrimaryContainer,
@@ -559,7 +572,7 @@ class _CosmosTokenView extends StatelessWidget {
                       ContainerWithBorder(
                           backgroundColor: context.onPrimaryContainer,
                           child: CoinAndMarketPriceView(
-                            balance: token!.averageGasPrice,
+                            balance: token!.getAverageGasPrice(),
                             symbolColor: context.primaryContainer,
                             style: context.primaryTextTheme.titleMedium,
                           )),
@@ -612,13 +625,12 @@ class _ShowKeyAlgs extends StatelessWidget {
                             : 'unsupported_by_application'.tr,
                         child: ConditionalWidget(
                             enable: key.supported,
-                            onDeactive: (context) => Icon(Icons.close,
-                                color: context.onPrimaryContainer),
+                            onDeactive: (context) =>
+                                Icon(Icons.close, color: context.onPrimaryContainer),
                             onActive: (context) => Icon(Icons.check_circle,
                                 color: context.onPrimaryContainer)),
                       )),
-                      child: Text(key.alg,
-                          style: context.onPrimaryTextTheme.bodyMedium),
+                      child: Text(key.alg, style: context.onPrimaryTextTheme.bodyMedium),
                     );
                   },
                   itemCount: form.supportedAlgs.length,

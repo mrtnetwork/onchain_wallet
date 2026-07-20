@@ -1,91 +1,78 @@
 import 'dart:async';
-
-import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
 import 'package:on_chain_bridge/web/api/chrome/api/core.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/impl/worker_impl.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+import 'package:on_chain_wallet/future/wallet/controller/extension/impl/extension_wallet_login.dart';
 import 'package:on_chain_wallet/future/wallet/controller/extension/impl/extention_wallet.dart';
 import 'package:on_chain_wallet/future/wallet/controller/wallet/ui_wallet.dart';
 import 'package:on_chain_wallet/future/wallet/web3/controller/web3_request_controller.dart';
-import 'package:on_chain_wallet/wallet/models/access/wallet_access.dart';
-import 'package:on_chain_wallet/wallet/provider/wallet_provider.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'native.dart';
 
-import 'io.dart';
-
-UIWallet uiWallet(GlobalKey<NavigatorState> navigatorKey, int storageVersion) {
-  if (PlatformInterface.isWeb && isExtension) {
-    return ExtentionWallet(
-        navigatorKey: navigatorKey, storageVersion: storageVersion);
+UIWallet uiWallet(GlobalKey<NavigatorState> navigatorKey, MainAppContext context) {
+  if (context.platform.isWeb && isExtension) {
+    return ExtentionWallet(navigatorKey: navigatorKey, context: context);
   }
-  return Wallet(navigatorKey: navigatorKey, storageVersion: storageVersion);
+  return Wallet(navigatorKey: navigatorKey, context: context);
 }
 
 class ExtentionWallet extends UIWallet
-    with CryptoWokerImpl, Web3RequestControllerImpl, ExtentionWalletHandler {
-  ExtentionWallet({required super.navigatorKey, required super.storageVersion});
-  final _lock = SafeAtomicLock();
+    with Web3RequestControllerImpl, ExtentionWalletHandler {
+  ExtentionWallet({required super.navigatorKey, required super.context});
 
-  // @override
-  // Future<MethodResult<WalletLockTime>> login_(String password) async {
-  // final bool isReadOnly = this.isReadOnly || isLock;
-  // final result = await super.login_(password);
-  // if (isReadOnly && isUnlock) {
-  //   await _lock.run(() async {
-  //     await saveLoginHistory(password);
-  //   });
-  // }
-  //   return result;
-  // }
+  final ExtensionWalletLoginController _loginController =
+      ExtensionWalletLoginController();
 
   @override
-  Future<MethodResult<RESPONSE>>
-      login_<RESPONSE extends WalletCredentialResponse>(
-          WalletCredentialRequest<RESPONSE> request) async {
-    final password = request.password;
-    final bool isReadOnly = this.isReadOnly || isLock;
-    final result = await super.login_(request);
-    if (isReadOnly && isUnlock && password != null) {
-      await _lock.run(() async {
-        await saveLoginHistory(password);
+  void onWalletIntraction() {
+    super.onWalletIntraction();
+    _loginController.onWalletIntraction();
+  }
+
+  @override
+  Future<IResult<void>> init() async {
+    final context = await initContext();
+    return context.andThenAsync((_) async {
+      final wallet = await super.init();
+      return wallet.andThenAsync((_) async {
+        await initExtension();
+        return ResultOk.okVoid;
       });
-    }
-    return result;
-  }
-
-  @override
-  Future<void> lock() async {
-    await _lock.run(() async {
-      await clearLoginHistory();
     });
-    await super.lock();
   }
 
   @override
-  Future<void> initWallet(
-      {bool useIsolate = true,
-      String? initialPassword,
-      DateTime? locktime}) async {
-    crypto.init(true);
-    final loginHistory = await _lock.run(() async {
-      return await getLoginHistory();
-    });
-    await super.initWallet(initialPassword: loginHistory);
-    if (loginHistory != null && isUnlock) {
-      _lock.run(() async {
-        return await saveLoginHistory(loginHistory);
-      });
+  Future<IResult<T>> doAction<T>(WalletAction<T> action,
+      {Duration? delay = APPConst.animationDuraion}) async {
+    switch (action) {
+      case WalletActionLock _:
+        await _loginController.clearLoginHistory();
+        break;
+      case WalletActionInit request:
+        if (isUnlock || request.initialPassword != null) break;
+        final loginHistory = await _loginController.getLoginHistory();
+
+        if (loginHistory != null) {
+          action = WalletActionInit(initialPassword: loginHistory) as WalletAction<T>;
+        }
+        final result = await super.doAction(action, delay: delay);
+        if (!isUnlock) _loginController.clearLoginHistory();
+        return result;
+      case WalletActionAccess request:
+        final password = request.request.password;
+        final bool isReadOnly = this.isReadOnly || isLock;
+        final result = await super.doAction(action, delay: delay);
+        if (isReadOnly && isUnlock && password != null) {
+          await _loginController.saveLoginHistory(password);
+        }
+        return result;
+      default:
+        break;
     }
+    return super.doAction(action, delay: delay);
   }
 
   @override
-  Future<void> init() async {
-    await initContext();
-    await super.init();
-    await initExtension();
-  }
-
-  @override
-  WalletCore get walletCore => this;
+  AppWalletController get walletCore => this;
 }

@@ -111,7 +111,8 @@ class SolanaTransactionInitializeMintOperation
   }
 
   @override
-  TransactionStateController cloneController(ISolanaAddress address) {
+  Future<TransactionStateController> cloneController(
+      ISolanaAddress address) async {
     return SolanaTransactionInitializeMintOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

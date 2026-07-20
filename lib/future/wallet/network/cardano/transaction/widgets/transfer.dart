@@ -34,15 +34,14 @@ class ADATransactionTransferWidget extends StatelessWidget {
               onDeactive: (context) => Text("tap_to_choose_utxos".tr,
                   style: context.onPrimaryTextTheme.bodyMedium),
               enable: form.hasUtxos,
-              onActive: (context) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CoinAndMarketPriceView(
-                        balance: form.totalUtxos.value,
-                        symbolColor: context.onPrimaryContainer,
-                        showTokenImage: true,
-                        style: context.onPrimaryTextTheme.titleMedium)
-                  ]),
+              onActive: (context) =>
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                CoinAndMarketPriceView(
+                    balance: form.totalUtxos.value,
+                    symbolColor: context.onPrimaryContainer,
+                    showTokenImage: true,
+                    style: context.onPrimaryTextTheme.titleMedium)
+              ]),
             ),
           );
         },
@@ -50,13 +49,12 @@ class ADATransactionTransferWidget extends StatelessWidget {
       WidgetConstant.height20,
       LiveFormWidgetList(
         field: form.recipients,
-        onCreate: (context, field) =>
-            LiveWidgetAddNewTransferDetails<ADAAddress>(
-                onUpdateAddresses: form.onUpdateRecipients,
-                account: form.account,
-                isReady: field.hasValue,
-                onFilterAccount: form.filterAccount,
-                multipleSelect: true),
+        onCreate: (context, field) => LiveWidgetAddNewTransferDetails<ADAAddress>(
+            onUpdateAddresses: form.onUpdateRecipients,
+            account: form.account,
+            isReady: field.hasValue,
+            onFilterAccount: form.filterAccount,
+            multipleSelect: true),
         builder: (context, field, value) {
           return APPStreamBuilder(
             value: value.notifier,
@@ -72,24 +70,20 @@ class ADATransactionTransferWidget extends StatelessWidget {
                     ContainerWithBorder(
                         backgroundColor: context.onPrimaryContainer,
                         child: ReceiptAddressDetailsView(
-                            address: value.recipient,
-                            color: context.primaryContainer)),
+                            address: value.recipient, color: context.primaryContainer)),
                     ContainerWithBorder(
                         onRemove: () {
                           final max = form.getMaxInput(value);
                           final min = value.getMinAmount();
                           context
-                              .setupAmount(
-                                  token: value.amount.token, max: max, min: min)
+                              .setupAmount(token: value.amount.token, max: max, min: min)
                               .then((amount) {
                             if (amount == null) return;
-                            form.onUpdateRecipientAmount(
-                                value, amount, amount == max);
+                            form.onUpdateRecipientAmount(value, amount, amount == max);
                           });
                         },
                         validate: value.hasAmount,
-                        onRemoveIcon:
-                            Icon(Icons.edit, color: context.primaryContainer),
+                        onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                         backgroundColor: context.onPrimaryContainer,
                         child: CoinAndMarketPriceView(
                           balance: value.amount,
@@ -146,25 +140,20 @@ class ADATransactionTransferWidget extends StatelessWidget {
                                   onRemoveIcon: Icon(Icons.add_box,
                                       color: context.primaryContainer),
                                   child: Text("select_token_for_transfer".tr,
-                                      style:
-                                          context.primaryTextTheme.bodyMedium),
+                                      style: context.primaryTextTheme.bodyMedium),
                                   onRemove: () {
                                     context
-                                        .openSliverDialog<
-                                                ADATransferAssetDetails>(
-                                            sliver: (context) =>
-                                                _SelectADAAssetsView(
-                                                    token: token,
-                                                    transfer: value),
+                                        .openSliverDialog<ADATransferAssetDetails>(
+                                            sliver: (context) => _SelectADAAssetsView(
+                                                token: token, transfer: value),
                                             label: 'choose_token'.tr)
-                                        .then((v) => form.onUpdateTransferAsset(
-                                            value, v));
+                                        .then(
+                                            (v) => form.onUpdateTransferAsset(value, v));
                                   },
                                 ));
                       },
                     ),
-                    AlertTextContainer(
-                        message: value.status.warning, enableTap: false)
+                    AlertTextContainer(message: value.status.warning, enableTap: false)
                   ],
                 ),
               );
@@ -193,8 +182,7 @@ class ADATransactionTransferWidget extends StatelessWidget {
         builder: (context, field, value) {
           return ContainerWithBorder(
               iconAlginment: CrossAxisAlignment.start,
-              onRemoveIcon:
-                  Icon(Icons.remove_circle, color: context.onPrimaryContainer),
+              onRemoveIcon: Icon(Icons.remove_circle, color: context.onPrimaryContainer),
               onRemove: () {
                 form.onRemoveCertificate(value);
               },
@@ -207,8 +195,7 @@ class ADATransactionTransferWidget extends StatelessWidget {
                   ContainerWithBorder(
                     backgroundColor: context.onPrimaryContainer,
                     child: ReceiptAddressDetailsView(
-                        address: value.rewardAccount,
-                        color: context.primaryContainer),
+                        address: value.rewardAccount, color: context.primaryContainer),
                   )
                 ],
               ));
@@ -241,20 +228,19 @@ class ADATransactionTransferWidget extends StatelessWidget {
                                       filter: form.onRemainingAccountFilter)
                                   .then(form.onUpdateRemainingAccount);
                             },
-                            onRemoveIcon: Icon(Icons.edit,
-                                color: context.primaryContainer),
+                            onRemoveIcon:
+                                Icon(Icons.edit, color: context.primaryContainer),
                             backgroundColor: context.onPrimaryContainer,
                             child: APPAnimated(
                                 isActive: true,
-                                onActive: (context) =>
-                                    ReceiptAddressDetailsView(
-                                        key: ValueKey(value.recipient),
-                                        address: value.recipient,
-                                        color: context.primaryContainer))),
+                                onActive: (context) => ReceiptAddressDetailsView(
+                                    key: ValueKey(value.recipient),
+                                    address: value.recipient,
+                                    color: context.primaryContainer))),
                         ContainerWithBorder(
                             validate: !value.amount.isNegative,
-                            onRemoveIcon: Icon(Icons.edit,
-                                color: context.primaryContainer),
+                            onRemoveIcon:
+                                Icon(Icons.edit, color: context.primaryContainer),
                             backgroundColor: context.onPrimaryContainer,
                             child: CoinAndMarketPriceView(
                                 balance: value.amount,
@@ -270,10 +256,9 @@ class ADATransactionTransferWidget extends StatelessWidget {
                               return WidgetConstant.sizedBox;
                             }
                             return ContainerWithBorder(
-                              backgroundColor:
-                                  context.colors.onPrimaryContainer,
-                              child: ADATokenDetailsView(token.token,
-                                  balance: token.amount),
+                              backgroundColor: context.colors.onPrimaryContainer,
+                              child:
+                                  ADATokenDetailsView(token.token, balance: token.amount),
                             );
                           },
                         ),
@@ -291,12 +276,10 @@ class ADATransactionTransferWidget extends StatelessWidget {
         field: form.memos,
         onCreate: (context, field) {
           return ContainerWithBorder(
-              onRemoveIcon:
-                  Icon(Icons.add_box, color: context.onPrimaryContainer),
+              onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
               onRemove: () {
                 context
-                    .openSliverBottomSheet<ADATransactionMemo>(
-                        "transaction_memo".tr,
+                    .openSliverBottomSheet<ADATransactionMemo>("transaction_memo".tr,
                         child: CardanoTransactionMemoWriteView(
                           labeles: field.value.map((e) => e.tag).toList(),
                           title: PageTitleSubtitle(
@@ -319,8 +302,7 @@ class ADATransactionTransferWidget extends StatelessWidget {
               onRemove: () {
                 form.onRemoveMemo(value);
               },
-              onRemoveIcon:
-                  Icon(Icons.remove_circle, color: context.onPrimaryContainer),
+              onRemoveIcon: Icon(Icons.remove_circle, color: context.onPrimaryContainer),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -330,16 +312,14 @@ class ADATransactionTransferWidget extends StatelessWidget {
                           style: context.primaryTextTheme.labelLarge)),
                   ContainerWithBorder(
                     backgroundColor: context.onPrimaryContainer,
-                    child: Text(value.text,
-                        style: context.primaryTextTheme.bodyMedium),
+                    child: Text(value.text, style: context.primaryTextTheme.bodyMedium),
                   )
                 ],
               ));
         },
       ),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }
@@ -349,8 +329,7 @@ class ADATokenDetailsView extends StatelessWidget {
   final ADAAssetToken token;
   final IntegerBalance? balance;
   final Color? color;
-  const ADATokenDetailsView(this.token,
-      {required this.balance, this.color, super.key});
+  const ADATokenDetailsView(this.token, {required this.balance, this.color, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -390,8 +369,7 @@ class _SelectADAAssetsViewState extends State<_SelectADAAssetsView>
       sliver: MultiSliver(
         children: [
           AlertTextContainer(
-              message: "assets_balance_not_supported_desc".tr,
-              enableTap: false),
+              message: "assets_balance_not_supported_desc".tr, enableTap: false),
           EmptyItemSliverWidgetView(
             isEmpty: tokens.isEmpty,
             itemBuilder: (context) {

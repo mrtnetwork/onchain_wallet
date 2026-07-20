@@ -1,18 +1,22 @@
 import 'package:blockchain_utils/bip/bip/bip.dart';
+import 'package:blockchain_utils/bip/ecc/curve/elliptic_curve_types.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/restore_backup.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 enum _PrivateKeyTypes {
-  extendKey("Extended key"),
-  privateKey("Private key"),
+  extendKey("extended_key"),
+  privateKey("private_key"),
+  orchardSpendKey("orchard_spend_key"),
+  saplingExtendedSpandingKey("sapling_extended_spend_key"),
+  saplingSpendKey("sapling_spend_key"),
   wif("Wif");
 
   WalletBackupTypes? get backupType {
@@ -23,6 +27,12 @@ enum _PrivateKeyTypes {
         return WalletBackupTypes.privatekey;
       case _PrivateKeyTypes.wif:
         return WalletBackupTypes.wif;
+      case _PrivateKeyTypes.orchardSpendKey:
+        return WalletBackupTypes.orchardSpendKey;
+      case _PrivateKeyTypes.saplingExtendedSpandingKey:
+        return WalletBackupTypes.saplingExtendedSpandingKey;
+      case _PrivateKeyTypes.saplingSpendKey:
+        return WalletBackupTypes.saplingSpendKey;
     }
   }
 
@@ -31,8 +41,20 @@ enum _PrivateKeyTypes {
   bool get isExtendedKey => this == _PrivateKeyTypes.extendKey;
   bool get supportedBackup => this != _PrivateKeyTypes.wif;
   CustomKeyType toCustomKeyType() {
-    if (this == _PrivateKeyTypes.extendKey) return CustomKeyType.extendedKey;
-    return CustomKeyType.privateKey;
+    switch (this) {
+      case _PrivateKeyTypes.extendKey:
+        return CustomKeyType.extendedKey;
+      case _PrivateKeyTypes.privateKey:
+        return CustomKeyType.privateKey;
+      case _PrivateKeyTypes.wif:
+        return CustomKeyType.wif;
+      case _PrivateKeyTypes.orchardSpendKey:
+        return CustomKeyType.orchardSpendKey;
+      case _PrivateKeyTypes.saplingExtendedSpandingKey:
+        return CustomKeyType.saplingExtendedSpandingKey;
+      case _PrivateKeyTypes.saplingSpendKey:
+        return CustomKeyType.saplingSpendKey;
+    }
   }
 
   String toKey(Bip32Base key) {
@@ -43,11 +65,12 @@ enum _PrivateKeyTypes {
   String get helper {
     switch (this) {
       case _PrivateKeyTypes.extendKey:
-        return "enter_extended_key_desc";
       case _PrivateKeyTypes.wif:
-        return "enter_wif_key_desc";
+        return "enter_key_base58_desc";
+      case _PrivateKeyTypes.saplingExtendedSpandingKey:
+        return "enter_key_bech32_desc";
       default:
-        return "enter_private_key_desc";
+        return "enter_key_hex_desc";
     }
   }
 }
@@ -58,8 +81,7 @@ class ImportAccountView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ImportCustomKeys? importKey = context.getNullArgruments();
-    return AccessWalletView<WalletCredentialResponseVerify,
-            WalletCredentialVerify>(
+    return AccessWalletView<WalletCredentialResponseVerify, WalletCredentialVerify>(
         request: WalletCredentialVerify(),
         onAccsess: (credential) {
           return _ImportAccount(credential: credential, customKey: importKey);
@@ -78,45 +100,67 @@ class _ImportAccount extends StatefulWidget {
   State<_ImportAccount> createState() => _ImportAccountState();
 }
 
-class _ImportAccountState extends State<_ImportAccount>
-    with SafeState<_ImportAccount> {
+class _ImportAccountState extends State<_ImportAccount> with SafeState<_ImportAccount> {
   late final WalletNetwork network;
   final GlobalKey<AppTextFieldState> textFieldState =
       GlobalKey<AppTextFieldState>(debugLabel: "_ImportAccountState");
   final StreamPageProgressController controller =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
-
-  final GlobalKey<FormState> form =
-      GlobalKey(debugLabel: "_ImportAccountState_2");
-
+  final GlobalKey<FormState> form = GlobalKey(debugLabel: "_ImportAccountState_2");
   Map<_PrivateKeyTypes, Widget> keyTypes = {};
-  bool get inRipple => network.type == NetworkType.xrpl;
   List<CryptoCoins> get coins => network.coins;
   CryptoCoins? coin;
   bool get needSelectCoins => coins.length > 1;
-
+  String? _error;
   _PrivateKeyTypes selected = _PrivateKeyTypes.privateKey;
-  String? keyName;
+  String keyName = "";
   String _key = "";
+  final int maxNameLength = 20;
+  final int minNameLength = 3;
+
+  String? validateKeyName(String? name) {
+    final length = name?.trim().length ?? 0;
+    if (length > maxNameLength || length < minNameLength) {
+      return "import_key_name_validator".tr;
+    }
+    return null;
+  }
+
+  void onChangeKeyName(String name) {
+    keyName = name;
+  }
 
   Map<CryptoCoins, Widget> coinItems = {};
 
-  void setKeyName(String? name) {
-    setState(() {
-      keyName = name;
-    });
-  }
-
   Map<_PrivateKeyTypes, Widget> _buildKeyTypes() {
     final Map<_PrivateKeyTypes, Widget> types = {};
+    final coin = this.coin;
+
+    if (coin == null) return {};
+    final conf = coin.conf;
     for (final i in _PrivateKeyTypes.values) {
-      if (i == _PrivateKeyTypes.wif && coin!.conf.hasWif) {
-        types[i] = OneLineTextWidget(i.value);
-      } else if (i == _PrivateKeyTypes.extendKey &&
-          coin!.conf.hasExtendedKeys) {
-        types[i] = OneLineTextWidget(i.value);
-      } else if (i == _PrivateKeyTypes.privateKey) {
-        types[i] = OneLineTextWidget(i.value);
+      switch (i) {
+        case _PrivateKeyTypes.extendKey when coin.proposal.isBip && conf.hasExtendedKeys:
+          types[i] = OneLineTextWidget(i.value.tr);
+          break;
+        case _PrivateKeyTypes.privateKey when !coin.proposal.isZip:
+          types[i] = OneLineTextWidget(i.value.tr);
+          break;
+        case _PrivateKeyTypes.orchardSpendKey
+            when coin.proposal.isZip && conf.type == EllipticCurveTypes.redPallas:
+          types[i] = OneLineTextWidget(i.value.tr);
+          break;
+        case _PrivateKeyTypes.saplingSpendKey:
+        case _PrivateKeyTypes.saplingExtendedSpandingKey:
+          if (coin.proposal.isZip && conf.type == EllipticCurveTypes.redJubJub) {
+            types[i] = OneLineTextWidget(i.value.tr);
+          }
+          break;
+        case _PrivateKeyTypes.wif when conf.hasWif:
+          types[i] = OneLineTextWidget(i.value.tr);
+          break;
+        default:
+          break;
       }
     }
     return types;
@@ -125,7 +169,7 @@ class _ImportAccountState extends State<_ImportAccount>
   void onSelectKeyType(_PrivateKeyTypes? s) {
     selected = s ?? selected;
     _error = null;
-    setState(() {});
+    updateState(() {});
   }
 
   void onChangeKeyAlogrithm(CryptoCoins? mewCoin) {
@@ -135,40 +179,46 @@ class _ImportAccountState extends State<_ImportAccount>
     if (!keyTypes.containsKey(selected)) {
       selected = keyTypes.keys.first;
     }
-    setState(() {});
+    updateState(() {});
   }
 
   void onPaste(String v) {
     textFieldState.currentState?.updateText(v);
   }
 
-  String? _error;
-
   String? validate(String? v) {
     if (v == null || v.length < BlockchainConst.minimumKeysLength) {
-      return "invalid_key".tr;
+      return "invalid_key_length".tr;
     }
-    return null;
+    final bool isValid = switch (selected) {
+      _PrivateKeyTypes.privateKey ||
+      _PrivateKeyTypes.saplingSpendKey ||
+      _PrivateKeyTypes.orchardSpendKey =>
+        StringUtils.isHexBytes(v),
+      _PrivateKeyTypes.wif || _PrivateKeyTypes.extendKey => StringUtils.isBase58(v),
+      _PrivateKeyTypes.saplingExtendedSpandingKey => true,
+    };
+    if (isValid) return null;
+    return "invalid_key_encoding_format".tr;
   }
 
   void onChangeKey(String key) {
     _key = key;
     if (_error != null) {
       _error = null;
-      setState(() {});
+      updateState(() {});
     }
   }
 
   void _init() {
-    network = context.watch<WalletProvider>(StateConst.main).wallet.network;
+    network = context.wallet.wallet.network;
     coinItems = {
       for (final i in coins)
         i: RichText(
             text: TextSpan(style: context.textTheme.bodyMedium, children: [
           TextSpan(text: i.coinName.camelCase),
           TextSpan(
-              text:
-                  " (${i.conf.type.name.camelCase}/${i.proposal.specName.camelCase}) ",
+              text: " (${i.conf.type.name.camelCase}/${i.proposal.name.camelCase}) ",
               style: context.textTheme.labelSmall)
         ]))
     };
@@ -176,11 +226,10 @@ class _ImportAccountState extends State<_ImportAccount>
       coin = coins.first;
       keyTypes = _buildKeyTypes();
     }
-    if (widget.customKey != null) {
-      final ImportCustomKeys customKey = widget.customKey!;
+    final ImportCustomKeys? customKey = widget.customKey;
+    if (customKey != null) {
       if (!coins.contains(customKey.coin)) {
-        controller.errorText(
-            "wrong_network_key_error".tr.replaceOne(network.token.name),
+        controller.errorText("wrong_network_key_error".tr.replaceOne(network.token.name),
             backToIdle: false);
         return;
       }
@@ -197,40 +246,35 @@ class _ImportAccountState extends State<_ImportAccount>
     textFieldState.currentState?.updateText(v);
   }
 
-  void onSetup({bool custumKey = false}) async {
+  Future<void> onSetup({bool custumKey = false}) async {
     if (!custumKey) {
       if (!form.ready()) return;
     }
+    final coin = this.coin;
+    final keyStr = _key;
+    final keyName = this.keyName;
+    final keyType = selected.toCustomKeyType();
+    if (coin == null) return;
 
     controller.progressText("importing_key_pls_wait".tr);
-    final model = context.watch<WalletProvider>(StateConst.main);
+    final model = context.wallet;
 
-    final createKey = await MethodUtils.call(() async {
-      switch (selected) {
-        case _PrivateKeyTypes.extendKey:
-          return CryptoKeyUtils.extendeKeyToStorage(
-              extendedKey: _key, coin: coin!, keyName: keyName);
-        case _PrivateKeyTypes.privateKey:
-          return CryptoKeyUtils.privateKeyToStorage(
-              privateKey: _key, coin: coin!, keyName: keyName);
-        case _PrivateKeyTypes.wif:
-          return CryptoKeyUtils.wifToStorage(
-              keyName: keyName, coin: coin!, wifKey: _key);
-      }
-    });
+    final createKey = await context.wallet.wallet.doAction(WalletActionCryptoRequest(
+        request: CryptoRequestGenerateImportedKey(
+            key: keyStr, coin: coin, keyType: keyType, keyName: keyName)));
 
-    if (createKey.hasError) {
-      _error = createKey.localizationError;
-      controller.errorText(createKey.localizationError,
+    if (createKey.isErr) {
+      _error = createKey.unwrapErr().localizationError;
+      controller.errorText(createKey.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
       return;
     }
-    final result =
-        await model.wallet.importAccount(createKey.result, widget.credential);
-    if (result.hasError) {
-      _error = result.localizationError;
-      controller.errorText(result.localizationError,
-          backToIdle: false, showBackButton: true);
+    final params = WalletActionImportSecretKey(
+        secretKey: createKey.unwrap(), credential: widget.credential);
+    final result = await model.wallet.doAction(params);
+    if (result.isErr) {
+      _error = result.unwrapErr().localizationError;
+      controller.errorText(_error ?? '', backToIdle: false, showBackButton: true);
     } else {
       controller.successText("address_imported_desc1".tr, backToIdle: false);
     }
@@ -280,8 +324,7 @@ class _ImportAccountState extends State<_ImportAccount>
                                 ],
                               )),
                           if (needSelectCoins) ...[
-                            Text("coin_type".tr,
-                                style: context.textTheme.titleMedium),
+                            Text("coin_type".tr, style: context.textTheme.titleMedium),
                             Text("choose_key_coin_desc".tr),
                             WidgetConstant.height8,
                             AppDropDownBottom(
@@ -339,12 +382,12 @@ class _ImportAccountStateKey extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(state.selected.value, style: context.textTheme.titleMedium),
+        Text(state.selected.value.tr, style: context.textTheme.titleMedium),
         Text(state.selected.helper.tr),
         WidgetConstant.height8,
         AppTextField(
             key: state.textFieldState,
-            label: state.selected.value,
+            label: state.selected.value.tr,
             onChanged: state.onChangeKey,
             initialValue: state._key,
             validator: state.validate,
@@ -357,8 +400,8 @@ class _ImportAccountStateKey extends StatelessWidget {
                     onPressed: () {
                       context
                           .openSliverBottomSheet<String>("restore_backup".tr,
-                              child: RestoreBackupView(
-                                  accepted: state.selected.backupType))
+                              child:
+                                  RestoreBackupView(accepted: state.selected.backupType))
                           .then(state.onRestoreBackup);
                     },
                     icon: Icon(Icons.settings_backup_restore_outlined))
@@ -370,26 +413,12 @@ class _ImportAccountStateKey extends StatelessWidget {
         Text("key_name".tr, style: context.textTheme.titleMedium),
         Text("import_private_key_key_name_desc".tr),
         WidgetConstant.height8,
-        ContainerWithBorder(
-          onRemove: () {
-            context
-                .openSliverBottomSheet<String>(
-                  "import_account".tr,
-                  child: StringWriterView(
-                    defaultValue: state.keyName,
-                    regExp: APPConst.keyNameRegex,
-                    title: PageTitleSubtitle(
-                        title: "key_name".tr,
-                        body: Text("import_private_key_key_name_desc".tr)),
-                    buttonText: "setup_input".tr,
-                    label: "key_name".tr,
-                  ),
-                )
-                .then(state.setKeyName);
-          },
-          onRemoveIcon: AddOrEditIconWidget(state.keyName != null),
-          child: Text(state.keyName?.orEmpty ?? "tap_to_input_value".tr,
-              maxLines: 3, style: context.onPrimaryTextTheme.bodyMedium),
+        AppTextField(
+          label: "key_name".tr,
+          validator: state.validateKeyName,
+          onChanged: state.onChangeKeyName,
+          initialValue: state.keyName,
+          maxLines: 1,
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,

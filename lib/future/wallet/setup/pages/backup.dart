@@ -24,8 +24,8 @@ class _MnemonicViewState extends State<RestoreWalletBackupView>
   void onInitOnce() {
     super.onInitOnce();
     final password = context.getArgruments<String>();
-    controller = WalletBackupStateController(
-        walletProvider: context.wallet, password: password);
+    controller =
+        WalletBackupStateController(walletProvider: context.wallet, password: password);
     listener = controller.stream.listen((v) => updateState());
   }
 
@@ -50,14 +50,11 @@ class _MnemonicViewState extends State<RestoreWalletBackupView>
             slivers: [
               SliverConstraintsBoxView(
                   padding: WidgetConstant.padding20,
-                  sliver: APPSliverAnimatedSwitcher(
-                      enable: controller.page,
-                      widgets: {
-                        WalletBackupPage.backup: (context) =>
-                            _SetupBackupView(controller),
-                        WalletBackupPage.review: (context) =>
-                            _BackupVerifyReview(controller.backupData!),
-                      }))
+                  sliver: APPSliverAnimatedSwitcher(enable: controller.page, widgets: {
+                    WalletBackupPage.backup: (context) => _SetupBackupView(controller),
+                    WalletBackupPage.review: (context) =>
+                        _BackupVerifyReview(controller.backupData!),
+                  }))
             ],
           ),
         ),
@@ -81,8 +78,7 @@ class _SetupBackupView extends StatelessWidget {
             Text("backup".tr, style: context.textTheme.titleMedium),
             WidgetConstant.height8,
             BackupDataPickerView(
-                encoding: PickFileContentEncoding.hex,
-                key: controller.backupKey),
+                encoding: PickFileContentEncoding.hex, key: controller.backupKey),
             WidgetConstant.height20,
             Text("password".tr, style: context.textTheme.titleMedium),
             Text("input_backup_password".tr),
@@ -104,28 +100,19 @@ class _SetupBackupView extends StatelessWidget {
                 onChanged: controller.onChangeUsePassphrase),
             APPAnimated(
                 isActive: controller.usePassphrase,
-                onActive: (context) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          WidgetConstant.height20,
-                          AppTextField(
-                            label: "mn_password".tr,
-                            obscureText: true,
-                            nextFocus: controller.nextFocus,
-                            disableContextMenu: true,
-                            initialValue: controller.passhrase,
-                            onChanged: controller.onChangePassphrase,
-                            validator: controller.onValidatePassphrase,
-                          ),
-                          AppTextField(
-                              label: "c_password".tr,
-                              obscureText: true,
-                              disableContextMenu: true,
-                              initialValue: controller.confirmPassphrase,
-                              onChanged: controller.onChangeConfrimPassphrase,
-                              focusNode: controller.nextFocus,
-                              validator: controller.onValidatePassphrase),
-                        ])),
+                onActive: (context) =>
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      WidgetConstant.height20,
+                      AppTextField(
+                        label: "mn_password".tr,
+                        obscureText: true,
+                        nextFocus: controller.nextFocus,
+                        disableContextMenu: true,
+                        initialValue: controller.passphrase,
+                        onChanged: controller.onChangePassphrase,
+                        validator: controller.onValidatePassphrase,
+                      ),
+                    ])),
             WidgetConstant.height20,
             AppCheckListTile(
                 contentPadding: EdgeInsets.zero,
@@ -149,7 +136,7 @@ class _SetupBackupView extends StatelessWidget {
 class _BackupVerifyReview extends StatelessWidget {
   const _BackupVerifyReview(this.backup);
   // final _EnterMnemonicBackupViewState state;
-  final WalletRestoreV2 backup;
+  final VerifiedMainWalletBackup backup;
   @override
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
@@ -178,21 +165,22 @@ class _BackupVerifyReview extends StatelessWidget {
             ),
             if (backup.hasFailedAccount) ...[
               WidgetConstant.height20,
-              Text("unverified_account".tr,
-                  style: context.textTheme.titleMedium),
+              Text("unverified_account".tr, style: context.textTheme.titleMedium),
               Text("unverified_account_desc".tr),
               WidgetConstant.height8,
               ContainerWithBorder(
                 child: Column(
-                  children: List.generate(
-                      backup.invalidAddresses.length,
-                      (i) => ContainerWithBorder(
-                          backgroundColor: context.onPrimaryContainer,
-                          child: AddressDetailsView(
-                            address: backup.invalidAddresses[i],
-                            color: context.primaryContainer,
-                            showBalance: false,
-                          ))),
+                  children: List.generate(backup.invalidAddresses.length, (i) {
+                    final addr = backup.invalidAddresses[i];
+                    return ContainerWithBorder(
+                        backgroundColor: context.onPrimaryContainer,
+                        child: AddressDetailsView(
+                          title: addr.network.networkName,
+                          address: backup.invalidAddresses[i],
+                          color: context.primaryContainer,
+                          showBalance: false,
+                        ));
+                  }),
                 ),
               )
             ],

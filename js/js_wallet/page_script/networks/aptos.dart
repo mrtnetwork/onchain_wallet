@@ -10,15 +10,13 @@ class AptosPageController extends WalletStandardPageController {
   JSPromise<JSAptosWalletStandardUserResponse> _changeNetwork(
       JSAptosNetworkInfo message) {
     return waitForSuccessResponsePromise<JSAptosWalletStandardUserResponse>(
-        method: AptosJSConstant.changeNetworkRequestName,
-        params: [message].toJS);
+        method: AptosJSConstant.changeNetworkRequestName, params: [message].toJS);
   }
 
   JSPromise<JSAptosWalletStandardUserResponse> _signMessage(
       JSAptosSignMessageParams message) {
     return waitForSuccessResponse<JSAptosWalletStandardUserResponse>(
-            method: AptosJSConstant.signMessageRequestName,
-            params: [message].toJS)
+            method: AptosJSConstant.signMessageRequestName, params: [message].toJS)
         .then((e) {
       if (e.type.isRejected) return e;
       final signingResponse = e.args as JSAptosSignMessageResponse;
@@ -40,10 +38,8 @@ class AptosPageController extends WalletStandardPageController {
     }).toPromise;
   }
 
-  JSPromise<JSAptosWalletStandardUserResponse> _requestAccount(
-      [JSString? chainId]) {
-    final network =
-        chainId.isDefinedAndNotNull ? JsUtils.asJSString(chainId) : null;
+  JSPromise<JSAptosWalletStandardUserResponse> _requestAccount([JSString? chainId]) {
+    final network = chainId.isDefinedAndNotNull ? JsUtils.asJSString(chainId) : null;
     return waitForSuccessResponse<JSAptosWalletStandardUserResponse>(
       method: AptosJSConstant.requestAccountRequestName,
       params: [if (network != null) network].toJS,
@@ -105,30 +101,24 @@ class AptosPageController extends WalletStandardPageController {
 
   @override
   void _initNetworkFeatures(JSWalletStandardFeature feature) {
-    feature.aptosConnect = AptosWalletAdapterStandardConnectFeature.setup(
-        connect: _requestAccount.toJS);
-    feature.aptosSignTransaction =
-        AptosWalletAdapterStandardSignTransactionFeature.setup(
-            signTransaction: _signTransaction.toJS);
-    feature.aptosSignMessage =
-        AptosWalletAdapterStandardSignMessageFeature.setup(
-            signMessage: _signMessage.toJS);
-    feature.aptosAccount = AptosWalletAdapterStandardAccountFeature.setup(
-        account: _requestAccount.toJS);
-    feature.aptosOnNetworkChange =
-        AptosWalletAdapterStandardOnNetworkChangeFeature.setup(
-            onNetworkChange: _onNetworkChange.toJS);
-    feature.aptosNetwork = AptosWalletAdapterStandardGetNetworkFeature.setup(
-        network: _network.toJS);
-    feature.aptosOnAccountChange =
-        AptosWalletAdapterStandardOnAccountChangeFeature.setup(
-            onAccountChange: _onAccountChange.toJS);
+    feature.aptosConnect =
+        AptosWalletAdapterStandardConnectFeature.setup(connect: _requestAccount.toJS);
+    feature.aptosSignTransaction = AptosWalletAdapterStandardSignTransactionFeature.setup(
+        signTransaction: _signTransaction.toJS);
+    feature.aptosSignMessage = AptosWalletAdapterStandardSignMessageFeature.setup(
+        signMessage: _signMessage.toJS);
+    feature.aptosAccount =
+        AptosWalletAdapterStandardAccountFeature.setup(account: _requestAccount.toJS);
+    feature.aptosOnNetworkChange = AptosWalletAdapterStandardOnNetworkChangeFeature.setup(
+        onNetworkChange: _onNetworkChange.toJS);
+    feature.aptosNetwork =
+        AptosWalletAdapterStandardGetNetworkFeature.setup(network: _network.toJS);
+    feature.aptosOnAccountChange = AptosWalletAdapterStandardOnAccountChangeFeature.setup(
+        onAccountChange: _onAccountChange.toJS);
     feature.aptosDisconnect = AptosWalletAdapterStandardDisconnectFeature.setup(
         disconnect: _disconnectChain.toJS);
-    feature.aptosChangeNetwork =
-        AptosWalletAdapterStandardChangeNetworkFeature.setup(
-            changeNetwork: _changeNetwork.toJS);
-    feature.aptosEvents =
-        JSWalletStandardEventsFeature.setup(on: _onEvents.toJS);
+    feature.aptosChangeNetwork = AptosWalletAdapterStandardChangeNetworkFeature.setup(
+        changeNetwork: _changeNetwork.toJS);
+    feature.aptosEvents = JSWalletStandardEventsFeature.setup(on: _onEvents.toJS);
   }
 }

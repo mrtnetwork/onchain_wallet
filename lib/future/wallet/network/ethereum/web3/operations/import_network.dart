@@ -7,12 +7,12 @@ import 'package:on_chain_wallet/future/wallet/web3/core/state.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ethereum/params/models/add_eth_chain.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ethereum/params/models/add_eth_chain.dart';
 
-class Web3EthereumImportNetworkStateController
-    extends Web3EthereumStateController<String, EthereumClient?,
-        Web3EthereumAddNewChain> {
-  final form = EthereumAddNewChainFrom();
+class Web3EthereumImportNetworkStateController extends Web3EthereumStateController<String,
+    EthereumNetworkClient?, Web3EthereumAddNewChain> {
+  late final form = EthereumAddNewChainFrom(walletProvider.wallet.config.netApi);
   Web3EthereumImportNetworkStateController(
       {required super.walletProvider, required super.request});
 
@@ -24,22 +24,23 @@ class Web3EthereumImportNetworkStateController
 
   @override
   Future<Web3RequestResponseData<String>> getResponse() async {
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       final params = await form.buildNetwork();
       final newNetwork = WalletEthereumNetwork(-1, params!.$1);
-      await walletProvider.wallet
-          .importNewNetwork(network: newNetwork, providers: [params.$2]);
+      (await walletProvider.wallet.doAction(
+              WalletActionImportNewNetwork(network: newNetwork, providers: [params.$2])))
+          .unwrap();
       return Web3RequestResponseData<String>(
           response: newNetwork.coinParam.chainId.toRadix16);
     });
-    if (result.hasError) {
-      throw AppException(result.message!);
+    if (result.isErr) {
+      throw AppException(result.unwrapErr().localizationError);
     }
-    return result.result;
+    return result.unwrap();
   }
 
   @override
-  Future<void> initForm(EthereumClient? client) async {
+  Future<void> initForm(EthereumNetworkClient? client) async {
     await super.initForm(client);
     final ethChains = walletProvider.wallet.getChains<EthereumChain>();
     final existsChainIds = ethChains.map((e) => e.chainId).toList();

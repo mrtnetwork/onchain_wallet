@@ -1,5 +1,5 @@
 import 'dart:js_interop';
-import '../../models.dart';
+import 'package:on_chain_bridge/web/api/types/types.dart';
 import 'wallet_standard.dart';
 
 class BitcoinCashJSConstant {
@@ -16,8 +16,7 @@ class BitcoinCashJSConstant {
   static const String signTransactionRequestName = "bch_signTransaction";
   static const String sendTransactionRequestName = "bch_sendTransaction";
   static const String getAccountAddresses = "bch_getAccountAddresses";
-  static const String signPersonalMessageRequestName =
-      "bch_signPersonalMessage";
+  static const String signPersonalMessageRequestName = "bch_signPersonalMessage";
 }
 
 extension type JSBitcoinCashWalletAccount._(JSObject _)
@@ -69,8 +68,7 @@ extension type JSBitcoinCashSendTransactionParams(JSAny _) implements JSAny {
 extension type JSBitcoinCashGetAccountAddressParams(JSAny _) implements JSAny {
   external JSAny get account;
 }
-extension type JSBitcoinCashGetAccountAddressResponse(JSAny _)
-    implements JSAny {
+extension type JSBitcoinCashGetAccountAddressResponse(JSAny _) implements JSAny {
   external String get address;
   external String get script;
   external String get type;

@@ -9,12 +9,9 @@ import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/widgets
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-class CosmosTransactionIbcTransferOperation
-    extends CosmosTransactionStateController2 {
+class CosmosTransactionIbcTransferOperation extends CosmosTransactionStateController2 {
   CosmosTransactionIbcTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   List<CosmosChain> _ibcDestinationChains = [];
   List<CosmosChain> get ibcDestinationChains => _ibcDestinationChains;
 
@@ -74,8 +71,7 @@ class CosmosTransactionIbcTransferOperation
   }
 
   @override
-  Future<ICosmosTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ICosmosTransactionData> buildTransactionData({bool simulate = false}) async {
     final messages = transfers.value
         .map((e) => CosmosTransactionMessage(
             message: e.transfer.toMessage(address.networkAddress, network),
@@ -91,14 +87,14 @@ class CosmosTransactionIbcTransferOperation
         fee: txFee.fee,
         memo: memo.value,
         messages: messages,
-        sequence: transactionRequirment.account!.sequence,
-        accountNumber: transactionRequirment.account!.accountNumber,
+        sequence: transactionRequirment.account!.sequence ?? BigInt.zero,
+        accountNumber: transactionRequirment.account!.accountNumber ?? BigInt.zero,
         feeDenom: txFee.denom,
         payments: payments);
   }
 
   @override
-  TransactionStateController cloneController(ICosmosAddress address) {
+  Future<TransactionStateController> cloneController(ICosmosAddress address) async {
     return CosmosTransactionIbcTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -109,18 +105,16 @@ class CosmosTransactionIbcTransferOperation
   }
 
   @override
-  TransactionOperations get operation =>
-      CosmosTransactionOperations.ibcTransfer;
+  TransactionOperations get operation => CosmosTransactionOperations.ibcTransfer;
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required CosmosClient client,
+    required CosmosNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     _ibcDestinationChains = walletProvider.wallet
         .getChains<CosmosChain>()
         .where((e) =>

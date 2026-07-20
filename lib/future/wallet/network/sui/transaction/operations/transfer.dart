@@ -22,7 +22,7 @@ class SuiTransactionTransferOperation
   BigInt getMaxInput(SuiTransferDetails recipient) {
     final total = recipients.value
         .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    final max = address.address.currencyBalance -
+    final max = address.addressData.currencyBalance -
         total +
         recipient.amount.balance -
         txFee.fee.requiredFee;
@@ -61,7 +61,8 @@ class SuiTransactionTransferOperation
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
     final total = recipients.value
         .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    final r = address.address.currencyBalance - total - txFee.fee.requiredFee;
+    final r =
+        address.addressData.currencyBalance - total - txFee.fee.requiredFee;
     if (r.isNegative) {
       return TransactionStateStatus.insufficient(
           IntegerBalance.token(r, network.token),
@@ -135,7 +136,8 @@ class SuiTransactionTransferOperation
   }
 
   @override
-  TransactionStateController cloneController(ISuiAddress address) {
+  Future<TransactionStateController> cloneController(
+      ISuiAddress address) async {
     return SuiTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

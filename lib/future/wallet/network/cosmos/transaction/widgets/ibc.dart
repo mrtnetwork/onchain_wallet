@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-// import 'package:on_chain_wallet/future/future.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/operations/ibc.dart';
@@ -12,8 +11,7 @@ import 'package:on_chain_wallet/future/wallet/transaction/pages/fee.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/pages/live_form_widget.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/pages/send_transaction.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
-
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/cw20.dart';
 import 'transfer.dart';
 
 class CosmosTransactionIbcTransferWidget extends StatelessWidget {
@@ -28,8 +26,7 @@ class CosmosTransactionIbcTransferWidget extends StatelessWidget {
         return ConditionalWidget(
             enable: value == null,
             onActive: (context) => _CosmosIbcTransactionFieldsView(form: form),
-            onDeactive: (context) =>
-                _CosmosCreateIbcTransferView(form: value!));
+            onDeactive: (context) => _CosmosCreateIbcTransferView(form: value!));
       },
     );
   }
@@ -49,8 +46,7 @@ class _CosmosIbcTransactionFieldsView extends StatelessWidget {
             onRemove: () {
               form.onCreateNewOperation();
             },
-            onRemoveIcon:
-                Icon(Icons.add_box, color: context.onPrimaryContainer),
+            onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
             child: Text("tap_to_add_new_transfer".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
           );
@@ -64,8 +60,7 @@ class _CosmosIbcTransactionFieldsView extends StatelessWidget {
             child: ContainerWithBorder(
                 enableTap: false,
                 iconAlginment: CrossAxisAlignment.start,
-                onRemoveIcon:
-                    Icon(Icons.edit, color: context.onPrimaryContainer),
+                onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                 onRemove: () {
                   form.onEditOperation(value);
                 },
@@ -98,8 +93,7 @@ class _CosmosIbcTransactionFieldsView extends StatelessWidget {
           controller: form,
           onTapManual: () {
             context
-                .openSliverBottomSheet<CosmosTransactionFee>(
-                    "setup_custom_fee".tr,
+                .openSliverBottomSheet<CosmosTransactionFee>("setup_custom_fee".tr,
                     child: CosmosSetTransferFeeView(
                         currentFee: form.txFee.fee,
                         max: form.getMaxFeeInput(),
@@ -169,143 +163,128 @@ class _CosmosCreateIbcTransferView extends StatelessWidget {
               WidgetConstant.height20,
               APPAnimated(
                   isActive: chain != null,
-                  onActive: (context) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            LiveFormWidget(
-                              field: form.token,
-                              builder: (context, field, value) {
-                                return ContainerWithBorder(
-                                  onRemove: () {
-                                    context
-                                        .openMaxExtendSliverBottomSheet<
-                                            CW20Token>(
-                                          "transfer".tr,
-                                          centerContent: false,
-                                          bodyBuilder: (sc) =>
-                                              CosmosTransactionPickTokenView(
-                                                  controller: sc,
-                                                  tokens:
-                                                      form.controller.tokens),
-                                        )
-                                        .then(form.onUpdateTransferToken);
-                                  },
-                                  onRemoveIcon: Icon(Icons.edit,
-                                      color: context.onPrimaryContainer),
-                                  child: AccountTokenDetailsWidget(
-                                      token: value.token,
-                                      liveBalance: value.streamBalance,
-                                      color: context.onPrimaryContainer,
-                                      radius: APPConst.circleRadius25),
-                                );
+                  onActive: (context) =>
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        LiveFormWidget(
+                          field: form.token,
+                          builder: (context, field, value) {
+                            return ContainerWithBorder(
+                              onRemove: () {
+                                context
+                                    .openMaxExtendSliverBottomSheet<CW20Token>(
+                                      "transfer".tr,
+                                      centerContent: false,
+                                      bodyBuilder: (sc) => CosmosTransactionPickTokenView(
+                                          controller: sc, tokens: form.controller.tokens),
+                                    )
+                                    .then(form.onUpdateTransferToken);
                               },
-                            ),
-                            WidgetConstant.height20,
-                            LiveFormWidget(
-                              field: form.channelId,
-                              builder: (context, field, value) {
-                                return ContainerWithBorder(
-                                  validate: field.hasValue,
-                                  onRemove: () {
-                                    context.openSliverBottomSheet("".tr,
-                                        bodyBuilder: (scrollController) =>
-                                            CosmosPickChannelIdView(
-                                              controller: scrollController,
-                                              sourceChain:
-                                                  form.controller.account,
-                                              destinationChain: chain!,
-                                              onSelectChannelId: (p0, p1) {
-                                                form.onUpdateChannelId(p1);
-                                                context.pop();
-                                              },
-                                            ));
-                                  },
-                                  onRemoveIcon: AddOrEditIconWidget(
-                                      field.hasValue,
-                                      color: context.onPrimaryContainer),
-                                  child: Text(value ?? "tap_to_input_value".tr,
-                                      style: context
-                                          .onPrimaryTextTheme.bodyMedium),
-                                );
+                              onRemoveIcon:
+                                  Icon(Icons.edit, color: context.onPrimaryContainer),
+                              child: AccountTokenDetailsWidget(
+                                  token: value.token,
+                                  liveBalance: value.streamBalance,
+                                  color: context.onPrimaryContainer,
+                                  radius: APPConst.circleRadius25),
+                            );
+                          },
+                        ),
+                        WidgetConstant.height20,
+                        LiveFormWidget(
+                          field: form.channelId,
+                          builder: (context, field, value) {
+                            return ContainerWithBorder(
+                              validate: field.hasValue,
+                              onRemove: () {
+                                context.openMaxExtendSliverBottomSheet("".tr,
+                                    bodyBuilder: (scrollController) =>
+                                        CosmosPickChannelIdView(
+                                          controller: scrollController,
+                                          sourceChain: form.controller.account,
+                                          destinationChain: chain!,
+                                          onSelectChannelId: (p0, p1) {
+                                            form.onUpdateChannelId(p1);
+                                            context.pop();
+                                          },
+                                        ));
                               },
-                            ),
-                            WidgetConstant.height20,
-                            LiveFormWidgetReceiverAddress(
-                              field: form.recipient,
-                              account: form.destinationChain.value!,
-                              onUpdateAddress: form.onUpdateRecipient,
-                            ),
-                            WidgetConstant.height20,
-                            LiveFormWidgetAmount(
-                                onUpdateAmountMax: form.getMaxInput,
-                                onUpdateAmount: (amount, max) =>
-                                    form.onUpdateAmount(amount),
-                                field: form.amount),
-                            WidgetConstant.height20,
-                            LiveFormWidget(
-                              field: form.timeout,
-                              builder: (context, field, value) {
-                                return ContainerWithBorder(
-                                  onRemoveIcon: Icon(Icons.edit,
-                                      color: context.onPrimaryContainer),
-                                  onRemove: () async {
-                                    final time = await showTimePicker(
-                                        context: context,
-                                        initialTime:
-                                            form.timeout.value.timeOfDay());
-                                    form.onUpdateTimeOut(time);
-                                  },
-                                  child: Text(
-                                      form.timeout.value
-                                          .toDateAndTimeWithSecound(),
-                                      style: context
-                                          .onPrimaryTextTheme.bodyMedium),
-                                );
+                              onRemoveIcon: AddOrEditIconWidget(field.hasValue,
+                                  color: context.onPrimaryContainer),
+                              child: Text(value ?? "tap_to_input_value".tr,
+                                  style: context.onPrimaryTextTheme.bodyMedium),
+                            );
+                          },
+                        ),
+                        WidgetConstant.height20,
+                        LiveFormWidgetReceiverAddress(
+                          field: form.recipient,
+                          account: form.destinationChain.value!,
+                          onUpdateAddress: form.onUpdateRecipient,
+                        ),
+                        WidgetConstant.height20,
+                        LiveFormWidgetAmount(
+                            onUpdateAmountMax: form.getMaxInput,
+                            onUpdateAmount: (amount, max) => form.onUpdateAmount(amount),
+                            field: form.amount),
+                        WidgetConstant.height20,
+                        LiveFormWidget(
+                          field: form.timeout,
+                          builder: (context, field, value) {
+                            return ContainerWithBorder(
+                              onRemoveIcon:
+                                  Icon(Icons.edit, color: context.onPrimaryContainer),
+                              onRemove: () async {
+                                final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: form.timeout.value.timeOfDay());
+                                form.onUpdateTimeOut(time);
                               },
-                            ),
-                            WidgetConstant.height20,
-                            LiveFormWidget(
-                              field: form.memo,
-                              builder: (context, field, value) {
-                                return ContainerWithBorder(
-                                  onRemove: () {
-                                    context
-                                        .openSliverBottomSheet<String>(
-                                          "transaction_memo".tr,
-                                          child: StringWriterView(
-                                            defaultValue: value,
-                                            title: PageTitleSubtitle(
-                                                title: "setup_memo".tr,
-                                                body: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text("memo_desc1".tr),
-                                                    WidgetConstant.height8,
-                                                    Text("empty_desc".tr),
-                                                  ],
-                                                )),
-                                            buttonText: "setup_memo".tr,
-                                            label: "memo".tr,
-                                          ),
-                                        )
-                                        .then(form.onUpdateMemo);
-                                  },
-                                  onRemoveIcon: ConditionalWidget(
-                                    enable: !field.hasValue,
-                                    onDeactive: (context) => Icon(
-                                        Icons.remove_circle,
-                                        color: context.onPrimaryContainer),
-                                    onActive: (context) => Icon(Icons.add_box,
-                                        color: context.onPrimaryContainer),
-                                  ),
-                                  child: Text(value ?? "tap_to_add_memo".tr,
-                                      style: context
-                                          .onPrimaryTextTheme.bodyMedium),
-                                );
+                              child: Text(form.timeout.value.toDateAndTimeWithSecound(),
+                                  style: context.onPrimaryTextTheme.bodyMedium),
+                            );
+                          },
+                        ),
+                        WidgetConstant.height20,
+                        LiveFormWidget(
+                          field: form.memo,
+                          builder: (context, field, value) {
+                            return ContainerWithBorder(
+                              onRemove: () {
+                                context
+                                    .openSliverBottomSheet<String>(
+                                      "transaction_memo".tr,
+                                      child: StringWriterView(
+                                        defaultValue: value,
+                                        title: PageTitleSubtitle(
+                                            title: "setup_memo".tr,
+                                            body: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text("memo_desc1".tr),
+                                                WidgetConstant.height8,
+                                                Text("empty_desc".tr),
+                                              ],
+                                            )),
+                                        buttonText: "setup_memo".tr,
+                                        label: "memo".tr,
+                                      ),
+                                    )
+                                    .then(form.onUpdateMemo);
                               },
-                            )
-                          ]))
+                              onRemoveIcon: ConditionalWidget(
+                                enable: !field.hasValue,
+                                onDeactive: (context) => Icon(Icons.remove_circle,
+                                    color: context.onPrimaryContainer),
+                                onActive: (context) => Icon(Icons.add_box,
+                                    color: context.onPrimaryContainer),
+                              ),
+                              child: Text(value ?? "tap_to_add_memo".tr,
+                                  style: context.onPrimaryTextTheme.bodyMedium),
+                            );
+                          },
+                        )
+                      ]))
             ],
           );
         },
@@ -313,23 +292,19 @@ class _CosmosCreateIbcTransferView extends StatelessWidget {
       APPStreamBuilder(
           value: form.stateStatus,
           builder: (context, value) {
-            return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ErrorTextContainer(error: value.error),
-                  AlertTextContainer(message: value.warning),
-                  Padding(
-                    padding: WidgetConstant.paddingVertical40,
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          FixedElevatedButton(
-                              onPressed: form.controller.onUpdateOperations,
-                              activePress: value.isReady,
-                              child: Text("setup_transfer".tr))
-                        ]),
-                  )
-                ]);
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ErrorTextContainer(error: value.error),
+              AlertTextContainer(message: value.warning),
+              Padding(
+                padding: WidgetConstant.paddingVertical40,
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  FixedElevatedButton(
+                      onPressed: form.controller.onUpdateOperations,
+                      activePress: value.isReady,
+                      child: Text("setup_transfer".tr))
+                ]),
+              )
+            ]);
           })
     ]);
   }
@@ -354,8 +329,7 @@ class _CosmosIbcTransferFieldsView extends StatelessWidget {
       Text("ibc_channel_desc".tr, style: context.textTheme.bodyMedium),
       WidgetConstant.height8,
       ContainerWithBorder(
-        child: Text(transfer.channelId,
-            style: context.onPrimaryTextTheme.bodyMedium),
+        child: Text(transfer.channelId, style: context.onPrimaryTextTheme.bodyMedium),
       ),
       WidgetConstant.height20,
       Text("transfer_token".tr, style: context.textTheme.titleMedium),
@@ -391,8 +365,7 @@ class _CosmosIbcTransferFieldsView extends StatelessWidget {
                 Text("setup_memo".tr, style: context.textTheme.titleMedium),
                 WidgetConstant.height8,
                 ContainerWithBorder(
-                  onRemoveIcon:
-                      Icon(Icons.edit, color: context.onPrimaryContainer),
+                  onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                   child: Text(transfer.memo ?? "tap_to_add_memo".tr,
                       style: context.onPrimaryTextTheme.bodyMedium),
                 ),

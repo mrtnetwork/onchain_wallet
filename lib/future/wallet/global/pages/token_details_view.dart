@@ -129,21 +129,18 @@ class AccountTokenDetailsWidget extends StatelessWidget {
                 onDeactive: (context) => sameNameSymbol
                     ? WidgetConstant.sizedBox
                     : Text(token.symbolView,
-                        style: context.textTheme.labelSmall
-                            ?.copyWith(color: color)),
+                        style: context.textTheme.labelSmall?.copyWith(color: color)),
                 onActive: (context) {
                   return ConditionalWidget(
                       enable: liveBalance != null,
                       onActive: (context) => CoinAndMarketLivePriceView(
                             liveBalance: liveBalance!,
-                            style: context.textTheme.titleMedium
-                                ?.copyWith(color: color),
+                            style: context.textTheme.titleMedium?.copyWith(color: color),
                             symbolColor: color,
                           ),
                       onDeactive: (context) => CoinAndMarketPriceView(
                             balance: balance!,
-                            style: context.textTheme.titleMedium
-                                ?.copyWith(color: color),
+                            style: context.textTheme.titleMedium?.copyWith(color: color),
                             symbolColor: color,
                           ));
                 },

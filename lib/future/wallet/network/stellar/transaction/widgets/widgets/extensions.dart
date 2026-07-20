@@ -3,7 +3,7 @@ import 'package:on_chain_wallet/future/widgets/widgets/progress_bar/widgets/stre
 import 'package:stellar_dart/stellar_dart.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/types.dart';
 
-extension AccountReceivementStatusExtension on AccountReceivementStatus {
+extension ExtAccountReceivementStatusExtension on AccountReceivementStatus {
   StreamWidgetStatus get toProgressStatus {
     switch (this) {
       case AccountReceivementStatus.idle:
@@ -33,7 +33,7 @@ extension AccountReceivementStatusExtension on AccountReceivementStatus {
   }
 }
 
-extension OperationTypeDesc on OperationType {
+extension ExtOperationTypeDesc on OperationType {
   String get description {
     switch (this) {
       case OperationType.changeTrust:
@@ -117,7 +117,7 @@ extension OperationTypeDesc on OperationType {
   }
 }
 
-extension TransactiomTimeBoundTypeHelperText on TransactiomTimeBoundType {
+extension ExtTransactiomTimeBoundTypeHelperText on TransactiomTimeBoundType {
   String get helperText {
     switch (this) {
       case TransactiomTimeBoundType.auto:

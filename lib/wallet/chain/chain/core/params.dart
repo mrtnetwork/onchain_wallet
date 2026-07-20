@@ -1,63 +1,66 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 enum NewAccountParamsType {
-  bitcoinCashNewAddressParams(CborTagsConst.bitcoinCashNewAddressParams),
+  bitcoinCashNewAddressParams(AppSerializationIdentifier.bitcoinCashNewAddressParams),
   bitcoinCashMultiSigNewAddressParams(
-      CborTagsConst.bitcoinCashMultiSigNewAddressParams),
-  bitcoinNewAddressParams(CborTagsConst.bitcoinNewAddressParams),
+      AppSerializationIdentifier.bitcoinCashMultiSigNewAddressParams),
+  bitcoinNewAddressParams(AppSerializationIdentifier.bitcoinNewAddressParams),
   bitcoinMultiSigNewAddressParams(
-      CborTagsConst.bitcoinMultiSigNewAddressParams),
-  cardanoNewAddressParams(CborTagsConst.cardanoNewAddressParams),
+      AppSerializationIdentifier.bitcoinMultiSigNewAddressParams),
+  cardanoNewAddressParams(AppSerializationIdentifier.cardanoNewAddressParams),
   cardanoMultisigNewAddressParams(
-      CborTagsConst.cardanoNewMultisigAddressParams),
-  cosmosNewAddressParams(CborTagsConst.cosmosNewAddressParams),
-  ethereumNewAddressParamss(CborTagsConst.ethereumNewAddressParamss),
-  solanaNewAddressParams(CborTagsConst.solanaNewAddressParams),
-  substrateNewAddressParams(CborTagsConst.substrateNewAddressParams),
+      AppSerializationIdentifier.cardanoNewMultisigAddressParams),
+  cosmosNewAddressParams(AppSerializationIdentifier.cosmosNewAddressParams),
+  ethereumNewAddressParamss(AppSerializationIdentifier.ethereumNewAddressParamss),
+  solanaNewAddressParams(AppSerializationIdentifier.solanaNewAddressParams),
+  substrateNewAddressParams(AppSerializationIdentifier.substrateNewAddressParams),
   substrateMultisigNewAddressParams(
-      CborTagsConst.substrateMultisigNewAddressParams),
-  tronNewAddressParams(CborTagsConst.tronNewAddressParams),
-  tronMultisigNewAddressParams(CborTagsConst.tronMultisigNewAddressParams),
-  tonNewAddressParams(CborTagsConst.tonNewAddressParams),
-  rippleNewAddressParams(CborTagsConst.rippleNewAddressParams),
-  rippleMultiSigNewAddressParams(CborTagsConst.rippleMultiSigNewAddressParams),
-  stellarNewAddressParams(CborTagsConst.stellarNewAddressParams),
-  moneroNewAddressParams(CborTagsConst.moneroNewAddressParams),
+      AppSerializationIdentifier.substrateMultisigNewAddressParams),
+  tronNewAddressParams(AppSerializationIdentifier.tronNewAddressParams),
+  tronMultisigNewAddressParams(AppSerializationIdentifier.tronMultisigNewAddressParams),
+  tonNewAddressParams(AppSerializationIdentifier.tonNewAddressParams),
+  rippleNewAddressParams(AppSerializationIdentifier.rippleNewAddressParams),
+  rippleMultiSigNewAddressParams(
+      AppSerializationIdentifier.rippleMultiSigNewAddressParams),
+  stellarNewAddressParams(AppSerializationIdentifier.stellarNewAddressParams),
+  moneroNewAddressParams(AppSerializationIdentifier.moneroNewAddressParams),
 
-  suiNewAddressParams(CborTagsConst.suiNewAddressParams),
-  suiMultisigNewAddressParams(CborTagsConst.suiMultisigNewAddressParams),
-  aptosNewAddressParams(CborTagsConst.aptosNewAddressParams),
-  aptosMultisigNewAddressParams(CborTagsConst.aptosMultisigNewAddressParams);
+  suiNewAddressParams(AppSerializationIdentifier.suiNewAddressParams),
+  suiMultisigNewAddressParams(AppSerializationIdentifier.suiMultisigNewAddressParams),
+  aptosNewAddressParams(AppSerializationIdentifier.aptosNewAddressParams),
+  aptosMultisigNewAddressParams(AppSerializationIdentifier.aptosMultisigNewAddressParams),
+  zcashNewAddressParams(AppSerializationIdentifier.zcashAddressParams),
+  ;
 
-  final List<int> tag;
+  final AppSerializationIdentifier tag;
   const NewAccountParamsType(this.tag);
-  static NewAccountParamsType fromTag(List<int>? tag) {
-    return values.firstWhere((e) => BytesUtils.bytesEqual(e.tag, tag),
-        orElse: () => throw AppSerializationException(
-            objectName: "NewAccountParamsType"));
+  static NewAccountParamsType fromTag(List<int>? tags) {
+    return values.firstWhere((e) => e.tag.isValidTags(tags),
+        orElse: () => throw AppInternalError.internalError("NewAccountParamsType"));
   }
 }
 
-abstract final class NewAccountParams<ACCOUNT extends ChainAccount>
-    with CborSerializable {
-  const NewAccountParams._();
+sealed class NewAccountParams<ACCOUNT extends ChainAccount> with AppSerialization {
+  const NewAccountParams();
   abstract final CryptoCoins coin;
-  abstract final AddressDerivationIndex deriveIndex;
   abstract final NewAccountParamsType type;
-  bool get isMultiSig;
-  ACCOUNT toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey);
+  CryptoProcessLevel get level => CryptoProcessLevel.normal;
 
-  static String toIdentifier(String address,
-      {List<int> multisigAddress = const []}) {
-    final hash = QuickCrypto.sha256Hash(
-        [...StringUtils.encode(address), ...multisigAddress]);
-    return StringUtils.decode(hash, type: StringEncoding.base64UrlSafe);
+  bool get isDerivable => false;
+  ACCOUNT toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey, String? id,
+      IAppDatabaseApi? database);
+
+  static String toIdentifier(String address, {List<int> multisigAddress = const []}) {
+    final hash =
+        QuickCrypto.sha256Hash([...StringUtils.encode(address), ...multisigAddress]);
+    return StringUtils.decode(hash, encoding: StringEncoding.base64UrlSafe);
   }
 
-  factory NewAccountParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborTagValue decode =
-        CborSerializable.decode(cborBytes: bytes, object: object, hex: hex);
+  factory NewAccountParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborTagValue decode = AppSerialization.decode(
+      cborBytes: bytes,
+      cborObject: object,
+    );
     final type = NewAccountParamsType.fromTag(decode.tags);
     final NewAccountParams params;
     switch (type) {
@@ -65,8 +68,7 @@ abstract final class NewAccountParams<ACCOUNT extends ChainAccount>
         params = BitcoinCashNewAddressParams.deserialize(object: decode);
         break;
       case NewAccountParamsType.bitcoinCashMultiSigNewAddressParams:
-        params =
-            BitcoinCashMultiSigNewAddressParams.deserialize(object: decode);
+        params = BitcoinCashMultiSigNewAddressParams.deserialize(object: decode);
         break;
       case NewAccountParamsType.bitcoinNewAddressParams:
         params = BitcoinNewAddressParams.deserialize(object: decode);
@@ -128,10 +130,33 @@ abstract final class NewAccountParams<ACCOUNT extends ChainAccount>
       case NewAccountParamsType.aptosMultisigNewAddressParams:
         params = AptosMultiSigNewAddressParams.deserialize(object: decode);
         break;
+      case NewAccountParamsType.zcashNewAddressParams:
+        params = ZcashNewAddressParams.deserialize(object: decode);
+        break;
+      // case NewAccountParamsType.zcashMultisignatureNewAddressParams:
+      //   params =
+      //       ZcashNewAddressParamsTransparentMultisignature.deserialize(object: decode);
+      //   break;
     }
     if (params is! NewAccountParams<ACCOUNT>) {
-      throw WalletExceptionConst.internalError("NewAccountParams.deserialize");
+      throw AppInternalError.internalError("NewAccountParams.deserialize");
     }
     return params;
   }
+  T cast<T extends NewAccountParams>() {
+    final v = this;
+    if (v is T) return v as T;
+    throw AppInternalError.internalError("NewDerivableAccountParams");
+  }
+
+  @override
+  SerializationIdentifier get serializationIdentifier => type.tag;
+}
+
+sealed class NewDerivableAccountParams<ACCOUNT extends ChainAccount>
+    extends NewAccountParams<ACCOUNT> {
+  const NewDerivableAccountParams();
+  abstract final DerivableIndex deriveIndex;
+  @override
+  bool get isDerivable => true;
 }

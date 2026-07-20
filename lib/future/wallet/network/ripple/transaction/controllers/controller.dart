@@ -12,8 +12,7 @@ import 'memo.dart';
 import 'provider.dart';
 import 'signer.dart';
 
-abstract class RippleTransactionStateController<
-        TX extends SubmittableTransaction>
+abstract class RippleTransactionStateController<TX extends SubmittableTransaction>
     extends BaseRippleTransactionController<IXRPTransactionData<TX>>
     with
         XRPTransactionApiController,
@@ -21,14 +20,11 @@ abstract class RippleTransactionStateController<
         RippleTransactionMemoController<IXRPTransactionData<TX>>,
         RippleTransactionSignerController {
   RippleTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   TX buildTransactionInternal();
   @override
-  Future<IXRPTransactionData<TX>> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IXRPTransactionData<TX>> buildTransactionData({bool simulate = false}) async {
     return IXRPTransactionData(
         fee: txFee.fee, submittableTransaction: buildTransactionInternal());
   }
@@ -50,10 +46,9 @@ abstract class RippleTransactionStateController<
 
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    final r = address.address.currencyBalance - txFee.fee.fee.balance;
+    final r = address.addressData.currencyBalance - txFee.fee.fee.balance;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, network.token),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token),
           warning: simulateError);
     }
     final error = (buildTransactionInternal()).validate;
@@ -82,8 +77,8 @@ abstract class RippleTransactionStateController<
       IXRPTransaction<IXRPTransactionData<TX>> transaction,
       {bool fakeSignature = false}) async {
     final xrpTransaction = transaction.transactionData.submittableTransaction;
-    final signature = await signTransactionInternalFull(
-        transaction: xrpTransaction, address: address);
+    final signature =
+        await signTransactionInternalFull(transaction: xrpTransaction, address: address);
     return IXRPSignedTransaction(
         signature: signature.signature,
         transaction: transaction,
@@ -100,46 +95,38 @@ abstract class RippleTransactionStateController<
     final transaction = XRPWalletTransaction(
         txId: txId.txId,
         network: network,
-        outputs: [
-          XRPWalletTransactionOperationOutput(name: transactionType.value)
-        ]);
+        outputs: [XRPWalletTransactionOperationOutput(name: transactionType.value)]);
     return [IWalletTransaction(transaction: transaction, account: address)];
   }
 
   @override
   Future<SubmitTransactionResult> submitTransaction(
-      {required IXRPSignedTransaction<IXRPTransactionData<TX>>
-          signedTransaction}) async {
-    final txResult =
-        await broadcastTransaction(signedTransaction.finalTransactionData);
+      {required IXRPSignedTransaction<IXRPTransactionData<TX>> signedTransaction}) async {
+    final txResult = await broadcastTransaction(signedTransaction.finalTransactionData);
     if (!txResult.isSuccess) {
       return SubmitTransactionFailed(txResult.engineResult);
     }
-    final txId = txResult.txJson.hash ??
-        signedTransaction.finalTransactionData.getHash();
-    return SubmitTransactionSuccess(
-        signedTransaction: signedTransaction, txId: txId);
+    final txId = txResult.txJson.hash ?? signedTransaction.finalTransactionData.getHash();
+    return SubmitTransactionSuccess(signedTransaction: signedTransaction, txId: txId);
   }
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required XRPClient client,
+    required XRPNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
     await checkAccountPermission(address);
     int multiSigner = 0;
     if (address.multiSigAccount) {
-      final IXRPMultisigAddress multiSigAddress =
-          address as IXRPMultisigAddress;
+      final IXRPMultisigAddress multiSigAddress = address as IXRPMultisigAddress;
       if (!multiSigAddress.multiSignatureAccount.isRegular) {
         multiSigner = multiSigAddress.multiSignatureAccount.signers.length;
       }
     }
     await initFee(multiSigner: multiSigner, type: transactionType);
-    await super.initForm(
-        client: client, context: context, updateAccount: updateAccount);
+    await super.initForm(client: client, context: context, updateAccount: updateAccount);
     return this;
   }
 }

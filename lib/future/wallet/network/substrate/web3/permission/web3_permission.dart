@@ -4,7 +4,7 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
 class SubstrateWeb3PermissionView extends StatefulWidget {
@@ -12,12 +12,10 @@ class SubstrateWeb3PermissionView extends StatefulWidget {
   final Web3ApplicationAuthentication application;
 
   @override
-  State<SubstrateWeb3PermissionView> createState() =>
-      _SubstrateWeb3PermissionViewState();
+  State<SubstrateWeb3PermissionView> createState() => _SubstrateWeb3PermissionViewState();
 }
 
-class _SubstrateWeb3PermissionViewState
-    extends State<SubstrateWeb3PermissionView>
+class _SubstrateWeb3PermissionViewState extends State<SubstrateWeb3PermissionView>
     with
         SafeState,
         Web3PermissionState<

@@ -2,13 +2,14 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/chain_config.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/account/state.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
@@ -19,16 +20,15 @@ class SetupSubstrateMultisigAddress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "setup_multisig_address".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<SubstrateClient, ISubstrateAddress?,
+        return NetworkAccountControllerView<SubstrateNetworkClient, ISubstrateAddress?,
             SubstrateChain>(
           addressRequired: false,
           clientRequired: true,
-          childBulder: (wallet, account, client, address, onAccountChanged) {
+          childBulder: (wallet, account, client, address) {
             return _SetupSubstrateMultisigAddress(
                 account: account, wallet: wallet, client: client);
           },
@@ -43,7 +43,7 @@ class _SetupSubstrateMultisigAddress extends StatefulWidget {
       {required this.account, required this.wallet, required this.client});
   final SubstrateChain account;
   final WalletProvider wallet;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
 
   @override
   State<_SetupSubstrateMultisigAddress> createState() =>
@@ -71,9 +71,7 @@ class __SetupSubstrateMultisigAddressState
   List<_SubstrateSigner> signers = [];
   String? onValidateThreshold(String? v) {
     final threshold = IntUtils.tryParse(v);
-    if (threshold == null ||
-        threshold < minSignatories ||
-        threshold > maxSignatories) {
+    if (threshold == null || threshold < minSignatories || threshold > maxSignatories) {
       return "threshold_validator"
           .tr
           .replaceOne(minSignatories.toString())
@@ -103,8 +101,8 @@ class __SetupSubstrateMultisigAddressState
     allowAddAccount = signers.length < maxSignatories;
   }
 
-  void onChangeThreshold(int threshold) {
-    this.threshold = threshold;
+  void onChangeThreshold(int? threshold) {
+    this.threshold = threshold ?? minSignatories;
     updateState();
   }
 
@@ -116,12 +114,11 @@ class __SetupSubstrateMultisigAddressState
   }
 
   String? filterAccount(BaseSubstrateAddress address) {
-    final accountAddress = account.fromNetworkAddress(address);
+    final accountAddress = account.getAddressSync(networkAddress: address);
     if (accountAddress != null && accountAddress.multiSigAccount) {
       return "unavailable_multi_sig_public_key".tr;
     }
-    if (signers.any(
-        (e) => e.address.networkAddress.rawAddress == address.rawAddress)) {
+    if (signers.any((e) => e.address.networkAddress.rawAddress == address.rawAddress)) {
       return "address_already_exist".tr;
     }
     return null;
@@ -134,8 +131,7 @@ class __SetupSubstrateMultisigAddressState
     signers = {
       ...signers,
       ...addresses.map((e) => _SubstrateSigner(
-          account.getReceiptAddress(e.view) ??
-              ReceiptAddress(view: e.view, networkAddress: e.networkAddress)))
+          account.getOrCreateReceiptFromNetworkAddressSync(address: e.networkAddress)))
     }.toList();
     checkError();
     updateState();
@@ -183,8 +179,7 @@ class __SetupSubstrateMultisigAddressState
   }
 
   bool get canBack {
-    return (page == _Pages.review && progressKey.isSuccess) ||
-        page == _Pages.threshold;
+    return (page == _Pages.review && progressKey.isSuccess) || page == _Pages.threshold;
   }
 
   CryptoCoins findCoin() {
@@ -195,7 +190,7 @@ class __SetupSubstrateMultisigAddressState
 
   Future<void> generateAddress() async {
     progressKey.progressText("setup_address".tr);
-    final r = await MethodUtils.call(() async {
+    final r = await IResult.call(() async {
       final multisig = SubstrateMultisigAccountInfo.create(
           signers: signers.map((e) => e.address.networkAddress).toList(),
           threshold: threshold,
@@ -206,15 +201,15 @@ class __SetupSubstrateMultisigAddressState
       return SubstrateMultiSigNewAddressParams(
           multiSignatureAddress: multisig, coin: coin, address: address);
     }, delay: APPConst.oneSecoundDuration);
-    if (r.hasError) {
-      progressKey.errorText(r.localizationError,
+    if (r.isErr) {
+      progressKey.errorText(r.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
-    final import = await widget.wallet.wallet
-        .deriveNewAccount(newAccountParams: r.result, chain: account);
-    if (import.hasError) {
-      progressKey.errorText(import.localizationError,
+    final import = await widget.wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: r.unwrap(), chain: account));
+    if (import.isErr) {
+      progressKey.errorText(import.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
@@ -223,7 +218,7 @@ class __SetupSubstrateMultisigAddressState
         progressWidget: SuccessWithButtonView(
           buttonWidget: ContainerWithBorder(
               margin: WidgetConstant.paddingVertical8,
-              child: AddressDetailsView(address: import.result)),
+              child: AddressDetailsView(address: import.unwrap())),
           buttonText: "generate_new_address".tr,
           onPressed: () {
             clearState();
@@ -235,8 +230,7 @@ class __SetupSubstrateMultisigAddressState
 
   Future<void> init() async {
     if (!widget.client.metadata.supportMultisig) {
-      progressKey.errorText("unsupported_current_network_feature".tr,
-          backToIdle: false);
+      progressKey.errorText("unsupported_current_network_feature".tr, backToIdle: false);
       return;
     }
     progressKey.backToIdle();
@@ -246,20 +240,19 @@ class __SetupSubstrateMultisigAddressState
         onCreate: () => SubstrateChainConfig());
 
     if (!config.acceptMultisigTerm) {
-      final success =
-          await context.openDialogPage<bool>("setup_multisig_address".tr,
-              widget: (context) => DialogTitleAndMultiTextView(
-                    title: "before_you_continue".tr,
-                    buttonWidget: DialogSingleButtonView(
-                      buttonLabel: "got_it_dont_show_again".tr,
-                    ),
-                    content: [
-                      "substrate_multisig_same_network_desc".tr,
-                      "substrate_multisig_eth_incompatible_desc".tr,
-                      "substrate_multisig_cannot_validate_all_desc".tr,
-                      "substrate_multisig_network_uncertainty_desc".tr,
-                    ],
-                  ));
+      final success = await context.openDialogPage<bool>("setup_multisig_address".tr,
+          widget: (context) => DialogTitleAndMultiTextView(
+                title: "before_you_continue".tr,
+                buttonWidget: DialogSingleButtonView(
+                  buttonLabel: "got_it_dont_show_again".tr,
+                ),
+                content: [
+                  "substrate_multisig_same_network_desc".tr,
+                  "substrate_multisig_eth_incompatible_desc".tr,
+                  "substrate_multisig_cannot_validate_all_desc".tr,
+                  "substrate_multisig_network_uncertainty_desc".tr,
+                ],
+              ));
       if (success == true) {
         await updateChainConfig(
             walletProvider: context.wallet,
@@ -295,8 +288,7 @@ class __SetupSubstrateMultisigAddressState
                     body: Column(children: [
                       Text("multisig_address_desc".tr),
                       AlertTextContainer(
-                          message: "mutlisig_address_alert".tr,
-                          enableTap: false)
+                          message: "mutlisig_address_alert".tr, enableTap: false)
                     ])),
               ),
               APPSliverAnimatedSwitcher<_Pages>(enable: page, widgets: {
@@ -385,9 +377,7 @@ class _PickAddress extends StatelessWidget {
                     // final keys = state.selectedAccounts.keys.toList();
                     final account = state.signers[index];
                     return _ShowAddressView(
-                        signer: account,
-                        state: state,
-                        onRemove: state.removeAddress);
+                        signer: account, state: state, onRemove: state.removeAddress);
                   },
                   itemCount: state.signers.length,
                   separatorBuilder: (context, index) => WidgetConstant.divider,
@@ -399,8 +389,7 @@ class _PickAddress extends StatelessWidget {
                   validate: state.signers.isNotEmpty,
                   onRemove: state.addAddress,
                   enableTap: true,
-                  onRemoveIcon:
-                      Icon(Icons.add_box, color: context.onPrimaryContainer),
+                  onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
                   child: Text("tap_to_choose_address".tr),
                 ),
             onDeactive: (context) => WidgetConstant.sizedBox),
@@ -438,7 +427,7 @@ class _SetupTreshold extends StatelessWidget {
                 child: NumberTextField(
                     label: "threshold".tr,
                     readOnly: false,
-                    onChange: state.onChangeThreshold,
+                    onChangeValue: state.onChangeThreshold,
                     validator: state.onValidateThreshold,
                     max: state.maxSignatories,
                     min: state.minSignatories,
@@ -467,8 +456,7 @@ class _ShowAddressView extends StatelessWidget {
   final _SubstrateSigner signer;
   final __SetupSubstrateMultisigAddressState state;
   final _ONSELECTSUBSTRATESIGNER? onRemove;
-  const _ShowAddressView(
-      {required this.signer, required this.state, this.onRemove});
+  const _ShowAddressView({required this.signer, required this.state, this.onRemove});
   @override
   Widget build(BuildContext context) {
     return CustomizedContainer(
@@ -486,5 +474,5 @@ class _SubstrateSigner with Equality {
   _SubstrateSigner(this.address);
 
   @override
-  List get variabels => [address.networkAddress.rawAddress];
+  List get variables => [address.networkAddress.rawAddress];
 }

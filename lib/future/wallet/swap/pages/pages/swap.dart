@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/bip/bip/conf/core/coin_conf.dart';
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/swap/controller/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
@@ -18,8 +18,7 @@ import 'select_asset.dart';
 class SwapView extends StatelessWidget {
   final SwapStateController swapController;
   final Chain account;
-  const SwapView(
-      {required this.swapController, required this.account, super.key});
+  const SwapView({required this.swapController, required this.account, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +29,7 @@ class SwapView extends StatelessWidget {
             onActive: (enable, context) {
               return IgnorePointer(
                   ignoring: swapController.page == SwapPage.review,
-                  child:
-                      _SwapView(account: account, controller: swapController));
+                  child: _SwapView(account: account, controller: swapController));
             },
             enable: swapController.status != SwapRouteStatus.init);
       },
@@ -61,8 +59,7 @@ class _SwapView extends StatelessWidget {
                   Material(
                     shape: CircleBorder(),
                     elevation: APPConst.elevation,
-                    child: CircleAPPImageView(
-                        controller.sourceAsset?.token.assetLogo,
+                    child: CircleAPPImageView(controller.sourceAsset?.token.assetLogo,
                         radius: APPConst.largeCircleRadius120),
                   ),
                   Padding(
@@ -112,8 +109,7 @@ class _SwapView extends StatelessWidget {
                               onChangeAsset: () {
                                 context.openDialogPage('',
                                     child: (context) => SwapSelectAssetView(
-                                        controller: controller,
-                                        isSource: false));
+                                        controller: controller, isSource: false));
                               },
                             ),
                             ...List.generate(controller.errors.length, (index) {
@@ -123,17 +119,14 @@ class _SwapView extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     if (error.provider != null) ...[
-                                      CircleServiceProviderImageView(
-                                          error.provider!,
+                                      CircleServiceProviderImageView(error.provider!,
                                           radius: APPConst.circleRadius25),
                                       WidgetConstant.width8
                                     ],
                                     Expanded(
                                         child: Text(error.error.tr,
-                                            style: context.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                    color: context.colors
-                                                        .onErrorContainer)))
+                                            style: context.textTheme.bodyMedium?.copyWith(
+                                                color: context.colors.onErrorContainer)))
                                   ],
                                 ),
                               );
@@ -141,20 +134,17 @@ class _SwapView extends StatelessWidget {
                             ConditionalWidget(
                                 enable: controller.hasRoute,
                                 onActive: (context) => Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         RouteConfigView(
                                           routes: controller.currentRoute!,
                                           controller: controller,
                                         ),
                                         WidgetConstant.height20,
-                                        SwapAddressesView(
-                                            controller: controller)
+                                        SwapAddressesView(controller: controller)
                                       ],
                                     ),
-                                onDeactive: (context) =>
-                                    WidgetConstant.sizedBox),
+                                onDeactive: (context) => WidgetConstant.sizedBox),
                           ],
                         ),
                       ),
@@ -176,8 +166,7 @@ class SelectSwapProvidersView extends StatefulWidget {
   const SelectSwapProvidersView(this.controller, {super.key});
 
   @override
-  State<SelectSwapProvidersView> createState() =>
-      _SelectSwapProvidersViewState();
+  State<SelectSwapProvidersView> createState() => _SelectSwapProvidersViewState();
 }
 
 class _SelectSwapProvidersViewState extends State<SelectSwapProvidersView>
@@ -222,8 +211,8 @@ class _SelectSwapProvidersViewState extends State<SelectSwapProvidersView>
 
   void updateSettings() {
     final providers = activeProviders.clone();
-    providers.sort((a, b) =>
-        supportProviders.indexOf(a).compareTo(supportProviders.indexOf(b)));
+    providers.sort(
+        (a, b) => supportProviders.indexOf(a).compareTo(supportProviders.indexOf(b)));
     final setting = settings.copyWith(
         tolerance: tolerance, chainType: chainType, swapProviders: providers);
     context.pop(setting);

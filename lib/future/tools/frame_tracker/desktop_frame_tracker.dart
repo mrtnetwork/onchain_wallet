@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:on_chain_bridge/interface/interface.dart';
+import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
+import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 
 class _WindowsFrameTracker with WindowListener {
   final DynamicVoid onChange;
@@ -22,26 +25,30 @@ class _WindowsFrameTracker with WindowListener {
 }
 
 mixin DesktopFrameTracker on StateController {
+  MainAppContext get context;
+  APPStatus get appStatus;
   late _WindowsFrameTracker _tracker;
-  Future<void> onUpdateFrame(WidgetRect rect);
+
   GlobalKey<NavigatorState>? get navigatorKey;
+  IDesktopPlatformInterface? _windowsPlatform;
   Timer? _onUpdateFrame;
+
   Future<void> _updateFrame() async {
-    final pixelRatio =
-        navigatorKey?.currentContext?.mediaQuery.devicePixelRatio;
+    final pixelRatio = navigatorKey?.currentContext?.mediaQuery.devicePixelRatio;
     if (pixelRatio == null) return;
-    WidgetRect rect =
-        await PlatformInterface.instance.desktop.getBounds(pixelRatio);
+    WidgetRect? rect = await _windowsPlatform?.getBounds(pixelRatio);
+    if (rect == null) return;
     rect = rect.copyWith(devicePixelRatio: pixelRatio);
-    await onUpdateFrame(rect);
+    context.setting.updateAppSetting(context.setting.setting.copyWith(size: rect));
   }
 
   void _start() {
-    final platform = AppNativeMethods.platform.platform;
-    if (platform == AppPlatform.windows || platform == AppPlatform.linux) {
+    if (appStatus.status.isError) return;
+    context.platformInterface().andThen((e) => e.desktop.toResult()).map((wPlatform) {
+      _windowsPlatform = wPlatform;
       _tracker = _WindowsFrameTracker(_detectFrame);
-      PlatformInterface.instance.desktop.addListener(_tracker);
-    }
+      wPlatform.addListener(_tracker);
+    });
   }
 
   void _detectFrame() {

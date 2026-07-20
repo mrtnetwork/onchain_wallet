@@ -8,15 +8,14 @@ import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/text_widget.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/widget_constant.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 
 class CardanoWeb3PermissionView extends StatefulWidget {
   const CardanoWeb3PermissionView({required this.application, super.key});
   final Web3ApplicationAuthentication application;
 
   @override
-  State<CardanoWeb3PermissionView> createState() =>
-      _CardanoWeb3PermissionViewState();
+  State<CardanoWeb3PermissionView> createState() => _CardanoWeb3PermissionViewState();
 }
 
 class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
@@ -43,28 +42,23 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
     if (address.isRewardAddress) return null;
     assert(!address.isRewardAddress);
     return Web3InternalADANetworkAccount(
-        keyIndex: address.keyIndex,
+        derivationIndex: address.derivationIndex,
         identifier: address.identifier,
         type: Web3InternalADANetworkAccountType.payment);
   }
 
   @override
-  Web3InternalADANetwork createWeb3Network(
-      List<Web3InternalADANetworkAccount> address,
-      Web3InternalADANetworkAccount? defaultAccount,
-      int networkId) {
+  Web3InternalADANetwork createWeb3Network(List<Web3InternalADANetworkAccount> address,
+      Web3InternalADANetworkAccount? defaultAccount, int networkId) {
     final allAccounts = [...accounts, ...rewardAccounts];
     return Web3InternalADANetwork(
-        accounts: allAccounts,
-        networkId: networkId,
-        defaultAccount: defaultAccount);
+        accounts: allAccounts, networkId: networkId, defaultAccount: defaultAccount);
   }
 
   @override
   Web3InternalADAChain createWeb3Chain(
       List<Web3InternalADANetwork> networks, int defaultNetworkId) {
-    return Web3InternalADAChain(
-        networks: networks, defaultChain: defaultNetworkId);
+    return Web3InternalADAChain(networks: networks, defaultChain: defaultNetworkId);
   }
 
   @override
@@ -72,13 +66,11 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
     if (updateChain == null) return;
     super.onChangeChain(updateChain, notify: false);
     accounts = permission.accounts.where((e) => e.type.isPayment).toList();
-    defaultAddress =
-        accounts.firstWhereOrNull((e) => e == permission.defaultAccount) ??
-            accounts.firstOrNull;
+    defaultAddress = accounts.firstWhereOrNull((e) => e == permission.defaultAccount) ??
+        accounts.firstOrNull;
     addresses = chain.addresses.where((e) => !e.isRewardAddress).toList();
-    rewardAddresses = chain.addresses
-        .where((e) => e.isRewardAddress || e.isBaseAddress)
-        .toList();
+    rewardAddresses =
+        chain.addresses.where((e) => e.isRewardAddress || e.isBaseAddress).toList();
     updateState();
   }
 
@@ -87,9 +79,8 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
     if (event.type == DefaultChainNotify.address &&
         event.status == ChainNotifyStatus.complete) {
       addresses = chain.addresses.where((e) => !e.isRewardAddress).toList();
-      rewardAddresses = chain.addresses
-          .where((e) => e.isRewardAddress || e.isBaseAddress)
-          .toList();
+      rewardAddresses =
+          chain.addresses.where((e) => e.isRewardAddress || e.isBaseAddress).toList();
       updateState();
     }
   }
@@ -99,19 +90,17 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
     super.onInitOnce();
     rewardAccounts = permission.accounts.where((e) => e.type.isReward).toList();
     accounts = permission.accounts.where((e) => e.type.isPayment).toList();
-    defaultAddress =
-        accounts.firstWhereOrNull((e) => e == permission.defaultAccount) ??
-            accounts.firstOrNull;
+    defaultAddress = accounts.firstWhereOrNull((e) => e == permission.defaultAccount) ??
+        accounts.firstOrNull;
     addresses = chain.addresses.where((e) => !e.isRewardAddress).toList();
-    rewardAddresses = chain.addresses
-        .where((e) => e.isRewardAddress || e.isBaseAddress)
-        .toList();
+    rewardAddresses =
+        chain.addresses.where((e) => e.isRewardAddress || e.isBaseAddress).toList();
   }
 
   bool hasRewardPermission(ICardanoAddress address) {
     final web3Account = rewardAccounts.firstWhereOrNull((e) =>
         e.identifier == address.identifier &&
-        e.keyIndex == (address.rewardKeyIndex ?? address.keyIndex));
+        e.derivationIndex == (address.rewardKeyIndex ?? address.derivationIndex));
     return web3Account != null;
   }
 
@@ -122,10 +111,10 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
     }
     final web3Account = rewardAccounts.firstWhereOrNull((e) =>
         e.identifier == address.identifier &&
-        e.keyIndex == (address.rewardKeyIndex ?? address.keyIndex));
+        e.derivationIndex == (address.rewardKeyIndex ?? address.derivationIndex));
     if (!rewardAccounts.remove(web3Account)) {
       final newAccount = Web3InternalADANetworkAccount(
-          keyIndex: address.rewardKeyIndex ?? address.keyIndex,
+          derivationIndex: address.rewardKeyIndex ?? address.derivationIndex,
           identifier: address.identifier,
           type: Web3InternalADANetworkAccountType.reward);
       rewardAccounts.add(newAccount);
@@ -148,8 +137,8 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
       addresses: addresses,
       menuItems: menuItems,
       extraPages: {
-        "reward_address".tr: (context) => SelectWeb3PermissionAccountView<
-                ADAAddress, ICardanoAddress, ADAChain>(
+        "reward_address".tr: (context) =>
+            SelectWeb3PermissionAccountView<ADAAddress, ICardanoAddress, ADAChain>(
               chain: chain,
               addresses: rewardAddresses,
               hasPermission: hasRewardPermission,
@@ -174,9 +163,7 @@ class _CardanoWeb3PermissionViewState extends State<CardanoWeb3PermissionView>
                             ? WidgetConstant.sizedBox
                             : Text(address.type!.tr,
                                 style: context.onPrimaryTextTheme.labelLarge),
-                  OneLineTextWidget(
-                      address.rewardAddress?.address ??
-                          address.address.toAddress,
+                  OneLineTextWidget(address.rewardAddress?.address ?? address.address,
                       style: context.onPrimaryTextTheme.bodyMedium),
                 ],
               ),

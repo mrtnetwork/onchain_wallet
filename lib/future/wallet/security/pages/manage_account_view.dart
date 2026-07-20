@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class ManageImportedKeysView extends StatelessWidget {
@@ -11,16 +12,14 @@ class ManageImportedKeysView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseVerify,
-            WalletCredentialVerify>(
+    return AccessWalletView<WalletCredentialResponseVerify, WalletCredentialVerify>(
         request: WalletCredentialVerify(),
         onAccsess: (credential) {
           return _ImportAccount(credential: credential);
         },
         title: "imported_key".tr,
         subtitle: PageTitleSubtitle(
-            title: "manage_imported_key".tr,
-            body: Text("manage_key_desc1".tr)));
+            title: "manage_imported_key".tr, body: Text("manage_key_desc1".tr)));
   }
 }
 
@@ -31,42 +30,40 @@ class _ImportAccount extends StatefulWidget {
   State<_ImportAccount> createState() => _ImportAccountState();
 }
 
-class _ImportAccountState extends State<_ImportAccount>
-    with SafeState<_ImportAccount> {
+class _ImportAccountState extends State<_ImportAccount> with SafeState<_ImportAccount> {
   final GlobalKey<AppTextFieldState> textFieldState =
       GlobalKey<AppTextFieldState>(debugLabel: "_ImportAccountState");
 
   final StreamPageProgressController progressKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
-  final GlobalKey<FormState> form =
-      GlobalKey(debugLabel: "_ImportAccountState_2");
-  final Set<EncryptedCustomKey> importedKeys = {};
+  final GlobalKey<FormState> form = GlobalKey(debugLabel: "_ImportAccountState_2");
+  final Set<ViewImportedSecretKey> importedKeys = {};
   Future<void> getAccounts() async {
     final wallet = context.wallet;
-    final result = await wallet.wallet.getImportedAccounts();
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError, backToIdle: false);
+    final result = await wallet.wallet.doAction(WalletActionViewImportedAccounts());
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError, backToIdle: false);
     } else {
-      if (result.result.isEmpty) {
+      if (result.unwrap().isEmpty) {
         progressKey.success(
           backToIdle: false,
           progressWidget: SuccessWithTextView(
               text: "no_imported_key_found".tr, icon: Icons.hourglass_empty),
         );
       } else {
-        importedKeys.addAll(result.result);
+        importedKeys.addAll(result.unwrap());
         progressKey.success();
       }
     }
   }
 
-  Future<void> removeKey(EncryptedCustomKey key) async {
+  Future<void> removeKey(ViewImportedSecretKey key) async {
     progressKey.progressText("deleting_key".tr);
     final wallet = context.wallet;
-    final result =
-        await wallet.wallet.removeImportedKey(key, widget.credential);
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
+    final result = await wallet.wallet.doAction(
+        WalletActionRemoveImportedKey(secretKey: key, credential: widget.credential));
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError);
       return;
     }
     importedKeys.clear();
@@ -94,8 +91,7 @@ class _ImportAccountState extends State<_ImportAccount>
   Widget build(BuildContext context) {
     return StreamPageProgress(
       controller: progressKey,
-      initialWidget:
-          ProgressWithTextView(text: "retrieving_imported_keys_wait".tr),
+      initialWidget: ProgressWithTextView(text: "retrieving_imported_keys_wait".tr),
       builder: (c) => UnfocusableChild(
         child: CustomScrollView(
           slivers: [
@@ -129,14 +125,12 @@ class _ImportAccountState extends State<_ImportAccount>
                       ])),
                       WidgetConstant.height8,
                       ...List.generate(importedKeys.length, (index) {
-                        final EncryptedCustomKey key =
-                            importedKeys.elementAt(index);
+                        final ViewImportedSecretKey key = importedKeys.elementAt(index);
                         final time = key.created.toDateAndTime();
                         return ContainerWithBorder(
                           onRemove: () {},
                           enableTap: false,
-                          onRemoveWidget:
-                              Row(mainAxisSize: MainAxisSize.min, children: [
+                          onRemoveWidget: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(
                                 onPressed: () {
                                   context
@@ -171,8 +165,7 @@ class _ImportAccountState extends State<_ImportAccount>
                                     color: context.onPrimaryContainer)),
                             IconButton(
                               onPressed: () {
-                                context.to(PageRouter.exportPrivateKey,
-                                    argruments: key);
+                                context.to(PageRouter.exportPrivateKey, argruments: key);
                               },
                               icon: Icon(Icons.open_in_new,
                                   color: context.onPrimaryContainer),
@@ -184,18 +177,13 @@ class _ImportAccountState extends State<_ImportAccount>
                               Row(
                                 children: [
                                   Expanded(
-                                    child: Text(key.name ?? "",
-                                        style: context
-                                            .onPrimaryTextTheme.labelLarge),
+                                    child: Text(key.name,
+                                        style: context.onPrimaryTextTheme.labelLarge),
                                   ),
-                                  Text(time,
-                                      style:
-                                          context.onPrimaryTextTheme.bodySmall)
+                                  Text(time, style: context.onPrimaryTextTheme.bodySmall)
                                 ],
                               ),
-                              OneLineTextWidget(key.publicKey,
-                                  style: context.onPrimaryTextTheme.bodyMedium),
-                              Text(key.id,
+                              Text(key.id.toString(),
                                   style: context.onPrimaryTextTheme.bodySmall),
                             ],
                           ),

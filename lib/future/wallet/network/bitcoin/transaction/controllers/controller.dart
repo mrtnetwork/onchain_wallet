@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/controllers/utxos.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
@@ -13,8 +12,7 @@ import 'memo.dart';
 import 'provider.dart';
 import 'signer.dart';
 
-abstract class BitcoinTransactionStateController
-    extends BaseBitcoinTransactionController
+abstract class BitcoinTransactionStateController extends BaseBitcoinTransactionController
     with
         BitcoinTransactionUtxosController,
         BtocinTransactionApiController,
@@ -24,9 +22,7 @@ abstract class BitcoinTransactionStateController
   late final bool supportCashToken = network.coinParam.isBCH;
 
   BitcoinTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   Future<IBitcoinTransaction> buildTransaction({bool simulate = false}) async {
@@ -35,7 +31,7 @@ abstract class BitcoinTransactionStateController
       true => ForkedTransactionBuilder(
           utxos: transactionData.utxos,
           enableRBF: transactionData.enableRBF,
-          outPuts: transactionData.outputs,
+          outPuts: transactionData.outputs.map((e) => e.output).toList(),
           network: network.coinParam.transacationNetwork,
           fee: transactionData.fee.fee.balance,
           inputOrdering: transactionData.ordering,
@@ -44,7 +40,7 @@ abstract class BitcoinTransactionStateController
       false => BitcoinTransactionBuilder(
           utxos: transactionData.utxos,
           enableRBF: transactionData.enableRBF,
-          outPuts: transactionData.outputs,
+          outPuts: transactionData.outputs.map((e) => e.output).toList(),
           network: network.coinParam.transacationNetwork,
           fee: transactionData.fee.fee.balance,
           inputOrdering: transactionData.ordering,
@@ -53,10 +49,9 @@ abstract class BitcoinTransactionStateController
     };
     final List<IBitcoinAddress> signers = [];
     for (final i in transactionData.utxos) {
-      final IBitcoinAddress utxosAcount = account.addresses.firstWhere(
-          (element) =>
-              element.networkAddress.addressProgram ==
-              i.ownerDetails.address.addressProgram);
+      final IBitcoinAddress utxosAcount = account.addresses.firstWhere((element) =>
+          element.networkAddress.baseAddress.addressProgram ==
+          i.ownerDetails.address.addressProgram);
       signers.add(utxosAcount);
     }
     return IBitcoinTransaction(
@@ -67,8 +62,7 @@ abstract class BitcoinTransactionStateController
   }
 
   @override
-  Future<IBitcoinSignedTransaction> signTransaction(
-      IBitcoinTransaction transaction,
+  Future<IBitcoinSignedTransaction> signTransaction(IBitcoinTransaction transaction,
       {bool fakeSignature = false}) async {
     final List<IBitcoinAddress> signers = transaction.accounts;
     final signedTx = await signTransactionInternal(
@@ -84,39 +78,26 @@ abstract class BitcoinTransactionStateController
   @override
   Future<BtcTransaction> buildSimulateTransaction() async {
     final transaction = await buildTransaction(simulate: true);
-    final signedTransaction =
-        await signTransaction(transaction, fakeSignature: true);
+    final signedTransaction = await signTransaction(transaction, fakeSignature: true);
     return signedTransaction.finalTransactionData;
   }
 
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IBitcoinSignedTransaction signedTransaction}) async {
-    final txBytes = signedTransaction.finalTransactionData.serialize();
-    final txId = await client.sendTransaction(txBytes);
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    final txId = await client.sendTransaction(signedTransaction.finalTransactionData);
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required BitcoinClient<IBitcoinAddress> client,
+    required BitcoinNetworkClient<IBitcoinAddress> client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super
-        .initForm(context: context, client: client, updateAccount: false);
+    await super.initForm(context: context, client: client, updateAccount: false);
     await initAccountUtxos(addresses: account.addresses);
     return this;
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    appLogger.debug(
-        functionName: "dispose",
-        runtime: runtimeType,
-        msg: "BitcoinTransactionStateController");
   }
 }

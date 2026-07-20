@@ -5,16 +5,17 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 
 class TonTransactionSelectTokenList extends StatefulWidget {
-  const TonTransactionSelectTokenList({required this.account, super.key});
+  const TonTransactionSelectTokenList(
+      {required this.account, required this.tokens, super.key});
   final ITonAddress account;
+  final List<TonJettonToken> tokens;
 
   @override
   State<TonTransactionSelectTokenList> createState() =>
       _TonTransactionSelectTokenListState();
 }
 
-class _TonTransactionSelectTokenListState
-    extends State<TonTransactionSelectTokenList> {
+class _TonTransactionSelectTokenListState extends State<TonTransactionSelectTokenList> {
   void onTapToken(TokenCore? token) {
     if (token == null) return;
     if (token is! TonJettonToken) return;
@@ -23,12 +24,11 @@ class _TonTransactionSelectTokenListState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.account.tokens.isEmpty) {
+    if (widget.tokens.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(Icons.token,
-              size: APPConst.double80, color: context.colors.onSurface),
+          Icon(Icons.token, size: APPConst.double80, color: context.colors.onSurface),
           WidgetConstant.height8,
           Text("no_jettons_found".tr),
         ],
@@ -50,7 +50,7 @@ class _TonTransactionSelectTokenListState
           ),
         ),
         AccountTokenListView(
-            tokens: widget.account.tokens,
+            tokens: widget.tokens,
             onTapToken: onTapToken,
             onRemoveWidget: WidgetConstant.sizedBox),
       ],

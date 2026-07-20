@@ -17,7 +17,7 @@ class RippleTransactionOperations
   final String value;
   const RippleTransactionOperations._(this.value);
   @override
-  List get variabels => [value];
+  List get variables => [value];
 }
 
 class RippleTransactionFee extends TransactionFee {
@@ -61,9 +61,9 @@ class RippleTransactionFeeData
 abstract class BaseRippleTransactionController<T extends IXRPTransactionData>
     extends TransactionStateController<
         RippleIssueToken,
-        IXRPAddress,
-        XRPClient,
         WalletXRPNetwork,
+        IXRPAddress,
+        XRPNetworkClient,
         XRPChain,
         T,
         IXRPTransaction<T>,
@@ -93,7 +93,7 @@ class IXRPTransactionData<T extends SubmittableTransaction>
 }
 
 class IXRPTransactionDataTokenTransfer {
-  final XRPAddress recipient;
+  final XRPBaseAddress recipient;
   final dynamic amount;
   final RipplePickedAsset token;
   IXRPTransactionDataTokenTransfer(
@@ -150,7 +150,7 @@ class RipplePickedAsset {
 class XRPSignerEntries {
   const XRPSignerEntries(
       {required this.address, required this.weight, this.walletLocator});
-  final ReceiptAddress<XRPAddress> address;
+  final ReceiptAddress<XRPBaseAddress> address;
   final BigRational weight;
   final String? walletLocator;
 }
@@ -171,9 +171,9 @@ class XRPSignedTransaction {
 }
 
 class XRPAccountInfo {
-  final ReceiptAddress<XRPAddress> owner;
+  final ReceiptAddress<XRPBaseAddress> owner;
   final bool enableMasterKey;
-  final XRPAddress? regularKey;
+  final XRPBaseAddress? regularKey;
   final XRPAccountObjectEntry? accountSigners;
   const XRPAccountInfo(
       {required this.enableMasterKey,

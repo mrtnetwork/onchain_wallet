@@ -1,6 +1,4 @@
 import 'dart:async';
-
-import 'package:blockchain_utils/exception/exceptions.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain/solidity/address/core.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
@@ -8,24 +6,16 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/api/client/core/client.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/ethereum/methods/methods.dart';
-import 'package:on_chain_wallet/wallet/api/provider/networks/ethereum.dart';
-import 'package:on_chain_wallet/wallet/api/services/service.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/services/default.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/network_providers.dart';
 import 'package:on_chain_wallet/wallet/models/models.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
-class EthereumClient extends NetworkClient<
-    EthWalletTransaction,
-    EthereumAPIProvider,
-    EthereumNetworkToken,
-    ETHAddress> implements BaseSwapEthereumClient {
-  EthereumClient({required this.provider, required this.network});
-  @override
-  final EthereumProvider provider;
-  @override
-  final WalletNetwork? network;
-  @override
-  NetworkServiceProtocol<EthereumAPIProvider> get service =>
-      provider.rpc as NetworkServiceProtocol<EthereumAPIProvider>;
+abstract mixin class EthereumClientMethods {
+  DefaultProvider<EthereumProvider<MultiChainServiceClient>, EthereumRequestDetails>
+      get provider;
 
   Future<FeeHistorical> getHistoricalFee() async {
     final historical = await provider.request(EthereumRequestGetFeeHistory(
@@ -43,7 +33,7 @@ class EthereumClient extends NetworkClient<
           newestBlock: BlockTagOrNumber.pending,
           rewardPercentiles: [25, 50, 90]));
       return (chainId, eip != null);
-    } on RPCError {
+    } on APIError {
       return (chainId, false);
     }
   }
@@ -54,8 +44,8 @@ class EthereumClient extends NetworkClient<
   }
 
   Future<BigInt> estimateGasLimit(Map<String, dynamic> estimateDetails) async {
-    final estimate = await provider
-        .request(EthereumRequestEstimateGas(transaction: estimateDetails));
+    final estimate =
+        await provider.request(EthereumRequestEstimateGas(transaction: estimateDetails));
     return estimate;
   }
 
@@ -66,49 +56,41 @@ class EthereumClient extends NetworkClient<
   }
 
   Future<String> sendRawTransaction(String digest) async {
-    final txID = await provider
-        .request(EthereumRequestSendRawTransaction(transaction: digest));
+    final txID =
+        await provider.request(EthereumRequestSendRawTransaction(transaction: digest));
     return txID;
   }
 
   Future<bool> isContract(SolidityAddress address) async {
-    final code = await provider
-        .request(EthereumRequestGetCode(address: address.toHex()));
+    final code =
+        await provider.request(EthereumRequestGetCode(address: address.toSolidityHex()));
     return code != null;
   }
 
   Future<dynamic> dynamicCall({required String method, dynamic params}) async {
-    return await provider.requestDynamic(
-        EthereumRequestDynamic(methodName: method, params: params));
+    return await provider
+        .requestDynamic(EthereumRequestDynamic(methodName: method, params: params));
   }
 
   Future<Token?> getErc20Details(SolidityAddress contractAddress) async {
     try {
-      final decimal = await provider.request(RPCERC20Decimal(contractAddress,
-          blockNumber: BlockTagOrNumber.latest));
+      final decimal = await provider.request(
+          RPCERC20Decimal(contractAddress, blockNumber: BlockTagOrNumber.latest));
       if (decimal == null) return null;
       String? name;
       String? symbol;
 
-      final symbolQuery = await MethodUtils.call(() async =>
-          await provider.request(RPCERC20Symbol(contractAddress,
-              blockNumber: BlockTagOrNumber.latest)));
-      if (symbolQuery.hasResult) {
-        symbol = symbolQuery.result;
-      }
-      final nameQuery = await MethodUtils.call(() async =>
-          await provider.request(RPCERC20Name(contractAddress,
-              blockNumber: BlockTagOrNumber.latest)));
-      if (nameQuery.hasResult) {
-        name = nameQuery.result;
-      }
+      final symbolQuery = await IResult.call(() async => await provider.request(
+          RPCERC20Symbol(contractAddress, blockNumber: BlockTagOrNumber.latest)));
+      symbol = symbolQuery.ok();
+      final nameQuery = await IResult.call(() async => await provider
+          .request(RPCERC20Name(contractAddress, blockNumber: BlockTagOrNumber.latest)));
+      name = nameQuery.ok();
       name ??= symbol;
       symbol ??= name;
       return Token(
-          name: name ?? "Unknown",
-          symbol: symbol ?? "Unknown",
-          decimal: decimal);
-    } on RPCError {
+          name: name ?? "Unknown", symbol: symbol ?? "Unknown", decimal: decimal);
+    } on APIError {
       return null;
     }
   }
@@ -118,62 +100,43 @@ class EthereumClient extends NetworkClient<
     final token = await getErc20Details(contractAddress);
     if (token == null) return null;
     final balance = await provider
-        .request(RPCERC20TokenBalance(contractAddress.toHex(), account));
+        .request(RPCERC20TokenBalance(contractAddress.toSolidityHex(), account));
     if (contractAddress is TronAddress) {
       return TronTRC20Token.create(
           balance: balance, token: token, contractAddress: contractAddress);
     }
     return ETHERC20Token.create(
-        balance: balance,
-        token: token,
-        contractAddress: contractAddress as ETHAddress);
+        balance: balance, token: token, contractAddress: contractAddress as ETHAddress);
   }
 
-  @override
   Future<BigInt> getChainId() async {
     return await provider.request(EthereumRequestGetChainId());
   }
 
-  Future<bool> checkNetworkChainId() async {
-    if (network?.type != NetworkType.ethereum) return false;
-    final networkChainId =
-        network!.toNetwork<WalletEthereumNetwork>().coinParam.chainId;
-    final chainId = await getChainId();
-    return chainId == networkChainId;
-  }
-
-  @override
   Future<BigInt> getAllowance(
       {required ETHAddress contract,
       required ETHAddress owner,
       required ETHAddress spender}) async {
     final function = EthereumAbiCons.getAllowance;
     final result = await provider.request(EthereumRequestFunctionCall(
-        contractAddress: contract.address,
-        function: function,
-        params: [owner, spender]));
+        contractAddress: contract.address, function: function, params: [owner, spender]));
     return result[0];
   }
 
-  @override
   Future<BigInt> getBalance(ETHAddress address) async {
-    return await provider
-        .request(EthereumRequestGetBalance(address: address.address));
+    return await provider.request(EthereumRequestGetBalance(address: address.address));
   }
 
-  @override
   Future<BigInt> getTokenBalance(
-      {required SolidityAddress address,
-      required SolidityAddress contract}) async {
+      {required SolidityAddress address, required SolidityAddress contract}) async {
     return await provider
-        .request(RPCERC20TokenBalance(contract.toHex(), address));
+        .request(RPCERC20TokenBalance(contract.toSolidityHex(), address));
   }
 
-  @override
   Future<WalletTransactionStatus> transactionStatus(
-      {required String txId}) async {
+      EthWalletTransaction transaction) async {
     final receipt = await provider
-        .request(EthereumRequestGetTransactionReceipt(transactionHash: txId));
+        .request(EthereumRequestGetTransactionReceipt(transactionHash: transaction.txId));
     if (receipt == null) return WalletTransactionStatus.unknown;
     final status = receipt.status;
     if (status != null && !status) {
@@ -182,19 +145,16 @@ class EthereumClient extends NetworkClient<
     return WalletTransactionStatus.block;
   }
 
-  @override
   Future<TransactionReceipt> trackTransaction(
       {required String transactionId,
       Duration timeout = const Duration(minutes: 5),
       Duration periodicTimeOut = const Duration(seconds: 3)}) async {
     Timer? timer;
     try {
-      final Completer<TransactionReceipt> completer =
-          Completer<TransactionReceipt>();
+      final Completer<TransactionReceipt> completer = Completer<TransactionReceipt>();
       timer = Timer.periodic(periodicTimeOut, (t) async {
         final receipt = await provider
-            .request(EthereumRequestGetTransactionReceipt(
-                transactionHash: transactionId))
+            .request(EthereumRequestGetTransactionReceipt(transactionHash: transactionId))
             .catchError((e, s) {
           return null;
         });
@@ -205,73 +165,126 @@ class EthereumClient extends NetworkClient<
       final receipt = await completer.future.timeout(timeout);
       return receipt;
     } on TimeoutException {
-      throw ApiProviderException.message("transaction_confirmation_failed");
+      throw AppException("transaction_confirmation_failed");
     } finally {
       timer?.cancel();
       timer = null;
     }
   }
 
-  @override
   Future<SwapEthereumAccountAssetBalance> getAccountsAssetBalance(
       ETHSwapAsset asset, ETHAddress account) async {
     if (asset.isContract && asset.contractAddress == null) {
-      throw ApiProviderExceptionConst.unexpectedRequestData;
+      throw APIErrorConst.unexpectedRequestData;
     }
 
     return SwapEthereumAccountAssetBalance(
         address: account,
         balance: asset.isNative
             ? await getBalance(account)
-            : await getTokenBalance(
-                address: account, contract: asset.contractAddress!),
+            : await getTokenBalance(address: account, contract: asset.contractAddress!),
         asset: asset);
   }
 
-  @override
-  Stream<List<EthereumNetworkToken>> getAccountTokensStream(
-      ETHAddress address) {
-    final controller = StreamController<List<EthereumNetworkToken>>();
+  Stream<List<EthereumNetworkToken>> getAccountTokensStream(ETHAddress address) {
+    final controller = SafeStreamController<List<EthereumNetworkToken>>(
+        name: "EthereumClientMethods.getAccountTokensStream");
 
     void close() {
       if (!controller.isClosed) controller.close();
     }
 
-    controller.onListen = () => close();
-    controller.onCancel = close;
-    return controller.stream;
+    controller.onListenListener(close);
+    controller.onCancelListener(close);
+    return controller.stream();
   }
 
-  @override
   Future<BigInt?> getBlockHeight() async {
     final block = await provider.request(EthereumRequestGetBlockNumber());
     return BigInt.from(block);
   }
+}
 
+class EthereumNetworkClient extends NetworkClient<
+    EthWalletTransaction,
+    EthereumNetworkToken,
+    ETHAddress,
+    WalletEthereumNetwork> with EthereumClientMethods implements BaseSwapEthereumClient {
   @override
-  Future<bool> initSwapClient() async {
-    final init = await this.init();
-    if (!init) {
-      throw ApiProviderExceptionConst.initializeClientFailed;
-    }
-    return true;
+  final EthereumNetworkProvider networkProvider;
+  EthereumNetworkClient._(
+      {required this.provider, required super.network, required this.networkProvider});
+
+  factory EthereumNetworkClient.fromProvider({
+    required EthereumNetworkProvider provider,
+    required WalletEthereumNetwork network,
+    required INetApi netApi,
+  }) {
+    return EthereumNetworkClient._(
+      network: network,
+      networkProvider: provider,
+      provider: DefaultProvider(EthereumProvider(MultiChainServiceClient.fromProvider(
+          provider: provider.provider, netApi: netApi))),
+    );
+  }
+  factory EthereumNetworkClient.fromService({
+    required EthereumNetworkProvider provider,
+    required WalletEthereumNetwork network,
+    required MultiChainServiceClient service,
+  }) {
+    assert(service.provider == provider.provider);
+    return EthereumNetworkClient._(
+        network: network,
+        networkProvider: provider,
+        provider: DefaultProvider(EthereumProvider(service)));
+  }
+  @override
+  final DefaultProvider<EthereumProvider<MultiChainServiceClient>, EthereumRequestDetails>
+      provider;
+
+  Future<bool> checkNetworkChainId() async {
+    if (network.type != NetworkType.ethereum) return false;
+    final networkChainId = network.cast<WalletEthereumNetwork>().coinParam.chainId;
+    final chainId = await getChainId();
+    return chainId == networkChainId;
   }
 
   @override
-  Future<bool> onInit() async {
-    if (network?.type == NetworkType.ethereum) {
-      final result = await MethodUtils.call(() async {
-        final BigInt chainId =
-            await provider.request(EthereumRequestGetChainId());
-        return chainId;
-      });
-      return result.hasResult &&
-          result.result ==
-              network?.toNetwork<WalletEthereumNetwork>().coinParam.chainId;
+  Future<bool> verifyService(DefaultAPIProvider provider) async {
+    if (provider == this.provider.service.provider) {
+      final BigInt chainId = await this.provider.request(EthereumRequestGetChainId());
+      return chainId == network.coinParam.chainId;
     }
     return false;
   }
 
   @override
-  NetworkType get networkType => NetworkType.ethereum;
+  List<MultiChainServiceClient> services() {
+    return [provider.service];
+  }
+}
+
+class EthereumClient with EthereumClientMethods {
+  EthereumClient({required this.provider});
+  factory EthereumClient.fromService(MultiChainServiceClient service) {
+    return EthereumClient(provider: DefaultProvider(EthereumProvider(service)));
+  }
+
+  factory EthereumClient.fromProviders({
+    required DefaultAPIProvider provider,
+    required INetApi netApi,
+  }) {
+    return EthereumClient(
+      provider: DefaultProvider(EthereumProvider(
+          MultiChainServiceClient.fromProvider(provider: provider, netApi: netApi))),
+    );
+  }
+
+  @override
+  final DefaultProvider<EthereumProvider<MultiChainServiceClient>, EthereumRequestDetails>
+      provider;
+
+  void dispose() {
+    provider.service.dispose();
+  }
 }

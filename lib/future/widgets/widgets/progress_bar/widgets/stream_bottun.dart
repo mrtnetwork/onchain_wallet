@@ -36,14 +36,12 @@ class ButtonProgress extends StatefulWidget {
   State<ButtonProgress> createState() => StreamWidgetState();
 }
 
-class StreamWidgetState extends State<ButtonProgress>
-    with SafeState<ButtonProgress> {
+class StreamWidgetState extends State<ButtonProgress> with SafeState<ButtonProgress> {
   late StreamWidgetStatus _status = widget.initialStatus;
   String? error;
 
   void _listen(StreamWidgetStatus status) async {
-    if (status == StreamWidgetStatus.progress ||
-        status == StreamWidgetStatus.idle) {
+    if (status == StreamWidgetStatus.progress || status == StreamWidgetStatus.idle) {
       return;
     }
     if (widget.backToIdle == null) return;
@@ -106,8 +104,7 @@ class StreamWidgetState extends State<ButtonProgress>
                 color: widget.color,
                 child: widget.child,
                 onError: (context) =>
-                    widget.onError?.call(context, error) ??
-                    WidgetConstant.errorIcon),
+                    widget.onError?.call(context, error) ?? WidgetConstant.errorIcon),
           ),
         ),
       ),
@@ -121,11 +118,7 @@ class _ProgressWidget extends StatelessWidget {
   final WidgetContext child;
   final WidgetContext? onError;
   const _ProgressWidget(
-      {required this.status,
-      required this.child,
-      this.onError,
-      this.color,
-      super.key});
+      {required this.status, required this.child, this.onError, this.color, super.key});
 
   @override
   Widget build(BuildContext context) {

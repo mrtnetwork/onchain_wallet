@@ -4,50 +4,52 @@
     "version": "2.0",
     "description": "OnChain browser extension.",
     "action": {
-      "default_popup": "index.html?context=action",
-      "default_icon": {
+        "default_popup": "index.html?context=action",
+        "default_icon": {
+            "16": "icons/16.png",
+            "48": "icons/48.png",
+            "128": "icons/128.png"
+        }
+    },
+    "icons": {
         "16": "icons/16.png",
         "48": "icons/48.png",
         "128": "icons/128.png"
-      }
-    },
-    "icons": {
-      "16": "icons/16.png",
-      "48": "icons/48.png",
-      "128": "icons/128.png"
     },
     "permissions": [
-      "activeTab",
-      "storage",
-      "tabs",
-      "sidePanel"
+        "activeTab",
+        "storage",
+        "tabs",
+        "sidePanel"
     ],
     "sidebar_action": {
-      "default_panel": "side_panel.html?context=sidebarAction"
+        "default_panel": "side_panel.html?context=sidebarAction"
     },
     "content_security_policy": {
-      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
     },
-    "web_accessible_resources": [{
-      "resources": ["canvaskit/canvaskit.wasm","canvaskit/skwasm.wasm","canvaskit/chromium/canvaskit.wasm","assets/assets/wasm/crypto.wasm","page.js","assets/assets/wasm/stream_crypto.wasm"],
-      "matches": ["<all_urls>"]
-    }],
-
-    
     "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": ["content.js"],
-        "world":"ISOLATED"
-      },
-      {
-        "world": "MAIN",
-        "matches": ["<all_urls>"],
-        "js": ["tron_web.js","page.js"]
-      }
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "world": "ISOLATED"
+        },
+        {
+            "world": "MAIN",
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "tron_web.js",
+                "page.js"
+            ]
+        }
     ],
     "background": {
-      "service_worker": "background.js"
+        "service_worker": "background.js"
     }
-  }
-  
+}

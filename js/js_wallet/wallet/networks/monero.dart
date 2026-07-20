@@ -1,9 +1,10 @@
 import 'package:monero_dart/monero_dart.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/monero/monero.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/monero/monero.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import '../../models/models/networks/monero.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../../models/models/requests.dart';
@@ -32,11 +33,9 @@ class MoneroWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory MoneroWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return MoneroWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return MoneroWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
-  factory MoneroWeb3JSStateAccount(
-      Web3MoneroChainAuthenticated? authenticated) {
+  factory MoneroWeb3JSStateAccount(Web3MoneroChainAuthenticated? authenticated) {
     if (authenticated == null) {
       return MoneroWeb3JSStateAccount.init(state: Web3NetworkState.block);
     }
@@ -47,9 +46,7 @@ class MoneroWeb3JSStateAccount extends Web3JSStateAccount<
       return MoneroWeb3JSStateAddress(
           chainaccount: e,
           jsAccount: JSMoneroWalletAccount.setup(
-              address: e.addressStr,
-              publicKey: e.publicKey,
-              chain: network.wsIdentifier),
+              address: e.addressStr, publicKey: e.publicKey, chain: network.wsIdentifier),
           networkIdentifier: network);
     }).toList();
 
@@ -80,10 +77,16 @@ class MoneroWeb3JSStateHandler extends Web3JSStateHandler<
         Web3MoneroChainAccount,
         JSMoneroWalletAccount,
         Web3MoneroChainIdnetifier,
+        MoneroWeb3JSStateAddress,
         MoneroWeb3JSStateAccount>
     with
-        MoneroWeb3StateHandler<JSMoneroWalletAccount, MoneroWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        MoneroWeb3StateHandler<
+            JSMoneroWalletAccount,
+            MoneroWeb3JSStateAddress,
+            MoneroWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   MoneroWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
 
@@ -96,11 +99,9 @@ class MoneroWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3MoneroRequestMethods.requestAccounts:
         return onConnect_(params);
       case Web3MoneroRequestMethods.signMessage:
-        return toSignMessageRequest(
-            params: params, state: state, method: method!);
+        return toSignMessageRequest(params: params, state: state, method: method!);
       case Web3MoneroRequestMethods.sendTransaction:
-        return toSignTransactionRequest(
-            params: params, state: state, method: method!);
+        return toSignTransactionRequest(params: params, state: state, method: method!);
       default:
         throw Web3RequestExceptionConst.methodDoesNotSupport;
     }
@@ -134,12 +135,12 @@ class MoneroWeb3JSStateHandler extends Web3JSStateHandler<
       default:
         break;
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  MoneroWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  MoneroWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return MoneroWeb3JSStateAccount.init();
     return MoneroWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

@@ -1,49 +1,41 @@
 import 'package:blockchain_utils/bip/bip/bip.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
-import 'package:on_chain_wallet/app/http/models/auth.dart';
-import 'package:on_chain_wallet/wallet/api/provider/core/provider.dart';
-import 'package:on_chain_wallet/wallet/api/provider/networks/cosmos.dart';
-import 'package:on_chain_wallet/wallet/api/provider/networks/custom.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/provider.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
 class APPSwapConstants {
-  static final Map<SwapServiceType, Map<ChainType, List<APIProvider>>>
+  static const Map<SwapServiceType, Map<ChainType, List<DefaultAPIProvider>>>
       _swapProviders = {
     SwapServiceType.chainFlip: {
       ChainType.testnet: [
-        const CustomAPIProvider(
-            url: 'https://chainflip-swap-perseverance.chainflip.io/',
-            identifier: '')
+        DefaultAPIProvider.chainFlipDefault(
+            url: 'https://chainflip-swap-perseverance.chainflip.io/')
       ],
       ChainType.mainnet: [
-        const CustomAPIProvider(
-            url: 'https://chainflip-swap.chainflip.io/', identifier: '')
+        DefaultAPIProvider.chainFlipDefault(url: 'https://chainflip-swap.chainflip.io/')
       ]
     },
     SwapServiceType.thor: {
       ChainType.mainnet: [
-        CosmosAPIProvider(
-            identifier: '', uri: "https://thornode.ninerealms.com/thorchain"),
+        DefaultAPIProvider.thorDefault(url: "https://thornode.ninerealms.com/thorchain"),
       ]
     },
     SwapServiceType.maya: {
       ChainType.mainnet: [
-        CosmosAPIProvider(
-          uri: "https://mayanode.mayachain.info/mayachain",
-          identifier: 'identifier',
-        ),
+        DefaultAPIProvider.mayaDefault(url: "https://mayanode.mayachain.info/mayachain"),
       ]
     },
     SwapServiceType.skipGo: {
       ChainType.mainnet: [
-        CustomAPIProvider(url: "https://api.skip.build", identifier: ''),
+        DefaultAPIProvider.skipGoDefault(url: "https://api.skip.build"),
       ]
     },
     SwapServiceType.swapKit: {
       ChainType.mainnet: [
-        CustomAPIProvider(
-            identifier: '',
+        DefaultAPIProvider.swapKitDefault(
             url: "https://api.swapkit.dev",
-            auth: BasicProviderAuthenticated(
+            auth: BasicProviderAuthenticated.unsafe(
                 type: ProviderAuthType.header,
                 key: "x-api-key",
                 value: "9e1a8dce-8e2d-4cad-9d09-9430df70743c")),
@@ -51,8 +43,8 @@ class APPSwapConstants {
     },
   };
 
-  static T? getProvider<T extends APIProvider>(SwapServiceType service,
+  static DefaultAPIProvider? getProvider(SwapServiceType service,
       {ChainType chainType = ChainType.mainnet}) {
-    return _swapProviders[service]?[chainType]?.firstOrNull?.cast<T>();
+    return _swapProviders[service]?[chainType]?.firstOrNull;
   }
 }

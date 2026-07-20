@@ -5,7 +5,7 @@ abstract class BalanceCore<T, TOKEN extends APPToken> {
   abstract final String viewPrice;
   abstract final TOKEN token;
   bool updateBalance();
-  bool _internalUpdateBalance(T updateBalance);
+  bool _internalUpdateBalance(T? updateBalance);
   bool get isZero;
   bool get isNegative;
   bool get largerThanZero;

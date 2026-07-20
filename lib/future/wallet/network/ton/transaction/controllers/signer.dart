@@ -1,10 +1,11 @@
 import 'package:blockchain_utils/signer/const/constants.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/signing/signing.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:ton_dart/ton_dart.dart';
 
 mixin TonTransactionSignerController on DisposableMixin {
@@ -20,17 +21,18 @@ mixin TonTransactionSignerController on DisposableMixin {
 
     if (!fakeSignature) {
       final signature = await walletProvider.wallet.signTransaction(
-          request: WalletSigningRequest(
+          params: WalletActionSign(
+              request: WalletSigningRequest(
         addresses: [signer],
         network: network,
         sign: (generateSignature) async {
           final signRequest = GlobalSignRequest.ton(
-              digest: transaction.hash(), index: signer.keyIndex.cast());
+              digest: transaction.hash(), index: signer.derivationIndex.cast());
           final response = await generateSignature(signRequest);
           return response.signature;
         },
-      ));
-      sig = signature.result;
+      )));
+      sig = signature.unwrap();
     }
     final message = signer.context.toExternalMessage(
         message: transaction,

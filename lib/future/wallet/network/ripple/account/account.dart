@@ -19,12 +19,12 @@ class RippleAccountPageView extends StatelessWidget {
           return RippleTransactionPaymentOperation(
               walletProvider: context.wallet,
               account: account,
-              address: account.address,
+              address: account.addressSync,
               token: p0);
         },
       ),
-      AccountTransactionActivityView<IXRPAddress, XRPWalletTransaction>(
-          account: account, address: account.address)
+      AccountTransactionActivityView<XRPWalletTransaction, IXRPAddress>(
+          account: account, address: account.addressSync)
     ]);
   }
 }
@@ -36,7 +36,6 @@ class _RippleServicesView extends StatelessWidget {
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(
       slivers: [
-        AccountManageProviderIcon(service: account.service),
         SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +46,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionTrustSetOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet,
                   );
@@ -61,7 +60,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionAccountSetOperation(
-                      address: account.address,
+                      address: account.addressSync,
                       account: account,
                       walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);
@@ -81,7 +80,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionNFTokenMintOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet,
                   );
@@ -94,7 +93,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionNFTokenBurnOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet,
                   );
@@ -106,11 +105,10 @@ class _RippleServicesView extends StatelessWidget {
                 subtitle: Text("ripple_create_nftoken_offer_desc".tr),
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
-                  final operation =
-                      RippleTransactionNFTokenCreateOfferOperation(
-                          address: account.address,
-                          account: account,
-                          walletProvider: context.wallet);
+                  final operation = RippleTransactionNFTokenCreateOfferOperation(
+                      address: account.addressSync,
+                      account: account,
+                      walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);
                 },
               ),
@@ -119,11 +117,10 @@ class _RippleServicesView extends StatelessWidget {
                 subtitle: Text("ripple_nftoken_cancel_offer_desc".tr),
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
-                  final operation =
-                      RippleTransactionNFTokenCancelOfferOperation(
-                          address: account.address,
-                          account: account,
-                          walletProvider: context.wallet);
+                  final operation = RippleTransactionNFTokenCancelOfferOperation(
+                      address: account.addressSync,
+                      account: account,
+                      walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);
                 },
               ),
@@ -133,7 +130,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionNFTAcceptOfferOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet,
                   );
@@ -147,7 +144,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionEscrowCreateOperation(
-                      address: account.address,
+                      address: account.addressSync,
                       account: account,
                       walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);
@@ -159,7 +156,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionEscrowFinishOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet,
                   );
@@ -172,7 +169,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionEscrowCancelOperation(
-                      address: account.address,
+                      address: account.addressSync,
                       account: account,
                       walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);
@@ -185,7 +182,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionSetRegularKeyOperation(
-                      address: account.address,
+                      address: account.addressSync,
                       account: account,
                       walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);
@@ -198,7 +195,7 @@ class _RippleServicesView extends StatelessWidget {
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
                   final operation = RippleTransactionSignerListSetOperation(
-                      address: account.address,
+                      address: account.addressSync,
                       account: account,
                       walletProvider: context.wallet);
                   context.to(PageRouter.transaction, argruments: operation);

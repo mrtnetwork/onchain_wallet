@@ -1,6 +1,5 @@
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:blockchain_utils/utils/utils.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/operations.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/web3/operations/send_transaction.dart';
@@ -13,7 +12,7 @@ import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/stellar.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import 'package:stellar_dart/stellar_dart.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/types.dart';
 
@@ -51,25 +50,19 @@ class StellarSorobanTransactionDetais {
   final String contentStr;
   final IntegerBalance feeSource;
   const StellarSorobanTransactionDetais._(
-      {required this.content,
-      required this.contentStr,
-      required this.feeSource});
+      {required this.content, required this.contentStr, required this.feeSource});
   factory StellarSorobanTransactionDetais(
       {required SorobanTransactionData sorobanData,
       required WalletStellarNetwork network}) {
     final content = sorobanData.resources.toJson();
     return StellarSorobanTransactionDetais._(
         content: content,
-        contentStr: StringUtils.fromJson(content,
-            indent: '  ', toStringEncodable: true),
-        feeSource:
-            IntegerBalance.token(sorobanData.resourceFee, network.token));
+        contentStr: StringUtils.fromJson(content, indent: '  ', toStringEncodable: true),
+        feeSource: IntegerBalance.token(sorobanData.resourceFee, network.token));
   }
 }
 
-abstract class Web3StellarStateController<
-        RESPONSE,
-        CLIENT extends StellarClient?,
+abstract class Web3StellarStateController<RESPONSE, CLIENT extends StellarClient?,
         T extends Web3StellarRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
@@ -84,19 +77,10 @@ abstract class Web3StellarStateController<
         Web3StellarRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         StellarWalletTransaction> {
-  Web3StellarStateController(
-      {required super.walletProvider, required super.request});
+  Web3StellarStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3StellarRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3StellarStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3StellarRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3StellarRequestMethods.signMessage:
         return Web3StellarSignMessageStateController(
@@ -118,10 +102,10 @@ abstract class BaseWeb3StellarTransactionStateController<
     extends Web3TransactionStateController<
         RESPONSE,
         StellarAddress,
+        WalletStellarNetwork,
         IStellarAddress,
         StellarClient,
         StellarClient,
-        WalletStellarNetwork,
         StellarChain,
         Web3StellarChainAccount,
         T,
@@ -149,13 +133,11 @@ class IWeb3StellarTransactionRawData extends IWeb3StellarTransactionData {
 
 class IWeb3StellarTransaction<TXDATA extends IWeb3StellarTransactionData>
     extends ITransaction<TXDATA, IStellarAddress> {
-  const IWeb3StellarTransaction(
-      {required super.account, required super.transactionData});
+  const IWeb3StellarTransaction({required super.account, required super.transactionData});
 }
 
 class IWeb3StellarSignedTransaction<TXDATA extends IWeb3StellarTransactionData>
-    extends ISignedTransaction<IWeb3StellarTransaction<TXDATA>,
-        TransactionV1Envelope> {
+    extends ISignedTransaction<IWeb3StellarTransaction<TXDATA>, TransactionV1Envelope> {
   IWeb3StellarSignedTransaction(
       {required super.transaction,
       required super.signatures,

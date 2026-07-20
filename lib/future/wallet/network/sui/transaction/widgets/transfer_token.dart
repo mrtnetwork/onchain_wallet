@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain/sui/sui.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/future/wallet/wallet.dart';
@@ -24,23 +24,20 @@ class SuiTransactionTransferTokenWidget extends StatelessWidget {
       WidgetConstant.height20,
       LiveFormWidgetList(
         field: form.recipients,
-        onCreate: (context, field) =>
-            LiveWidgetAddNewTransferDetails<SuiAddress>(
-                onUpdateAddresses: form.onUpdateRecipients,
-                account: form.account,
-                onFilterAccount: form.filterAccount,
-                isReady: field.hasValue,
-                multipleSelect: true),
-        builder: (context, field, value) =>
-            LiveWidgetTransferDetails<SuiTransferDetails>(
-                transfer: value,
-                onRemove: form.onRemoveRecipient,
-                onUpdateAmount: form.onUpdateAmount,
-                onUpdateAmountMax: form.getMaxInput),
+        onCreate: (context, field) => LiveWidgetAddNewTransferDetails<SuiAddress>(
+            onUpdateAddresses: form.onUpdateRecipients,
+            account: form.account,
+            onFilterAccount: form.filterAccount,
+            isReady: field.hasValue,
+            multipleSelect: true),
+        builder: (context, field, value) => LiveWidgetTransferDetails<SuiTransferDetails>(
+            transfer: value,
+            onRemove: form.onRemoveRecipient,
+            onUpdateAmount: form.onUpdateAmount,
+            onUpdateAmountMax: form.getMaxInput),
       ),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }

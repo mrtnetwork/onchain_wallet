@@ -1,6 +1,5 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/aptos/web3/operations/send_transaction.dart';
 import 'package:on_chain_wallet/future/wallet/network/aptos/web3/operations/sign_message.dart';
@@ -12,15 +11,15 @@ import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/aptos.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
-abstract class Web3AptosStateController<RESPONSE, CLIENT extends AptosClient?,
+abstract class Web3AptosStateController<RESPONSE, CLIENT extends AptosNetworkClient?,
         T extends Web3AptosRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         AptosAddress,
         WalletAptosNetwork,
-        AptosClient,
+        AptosNetworkClient,
         CLIENT,
         IAptosAddress,
         AptosChain,
@@ -29,19 +28,10 @@ abstract class Web3AptosStateController<RESPONSE, CLIENT extends AptosClient?,
         Web3AptosRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         AptosWalletTransaction> {
-  Web3AptosStateController(
-      {required super.walletProvider, required super.request});
+  Web3AptosStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3AptosRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3AptosStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3AptosRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3AptosRequestMethods.signMessage:
         return Web3AptosSignInMessageStateController(
@@ -55,17 +45,15 @@ abstract class Web3AptosStateController<RESPONSE, CLIENT extends AptosClient?,
   }
 }
 
-abstract class BaseWeb3AptosTransactionStateController<
-        RESPONSE,
-        T extends Web3AptosRequestParam<RESPONSE>,
-        E extends IWeb3AptosTransactionData>
+abstract class BaseWeb3AptosTransactionStateController<RESPONSE,
+        T extends Web3AptosRequestParam<RESPONSE>, E extends IWeb3AptosTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
         AptosAddress,
-        IAptosAddress,
-        AptosClient,
-        AptosClient,
         WalletAptosNetwork,
+        IAptosAddress,
+        AptosNetworkClient,
+        AptosNetworkClient,
         AptosChain,
         Web3AptosChainAccount,
         T,
@@ -104,13 +92,11 @@ class IWeb3AptosTransactionRawData extends IWeb3AptosTransactionData {
 
 class IWeb3AptosTransaction<TXDATA extends IWeb3AptosTransactionData>
     extends ITransaction<TXDATA, IAptosAddress> {
-  const IWeb3AptosTransaction(
-      {required super.account, required super.transactionData});
+  const IWeb3AptosTransaction({required super.account, required super.transactionData});
 }
 
 class IWeb3AptosSignedTransaction<TXDATA extends IWeb3AptosTransactionData>
-    extends ISignedTransaction<IWeb3AptosTransaction<TXDATA>,
-        AptosSignedTransaction> {
+    extends ISignedTransaction<IWeb3AptosTransaction<TXDATA>, AptosSignedTransaction> {
   final AptosAccountAuthenticator accountAuthenticator;
   IWeb3AptosSignedTransaction(
       {required super.transaction,

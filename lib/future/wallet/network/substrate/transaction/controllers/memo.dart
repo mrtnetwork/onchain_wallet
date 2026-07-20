@@ -1,4 +1,4 @@
-import 'package:on_chain_wallet/app/live_listener/live.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 

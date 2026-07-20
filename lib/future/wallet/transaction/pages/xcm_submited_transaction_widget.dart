@@ -30,10 +30,8 @@ class SuccessXCMTransactionTextView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        CircleTokenImageView(account.network.coinParam.token,
-            radius: APPConst.double80),
-        Text(account.network.coinParam.token.name,
-            style: context.textTheme.labelLarge),
+        CircleTokenImageView(account.network.coinParam.token, radius: APPConst.double80),
+        Text(account.network.coinParam.token.name, style: context.textTheme.labelLarge),
         ConditionalWidget(
           onActive: (context) =>
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -41,7 +39,10 @@ class SuccessXCMTransactionTextView extends StatelessWidget {
             ContainerWithBorder(
               onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
               child: AddressDetailsView(
-                  address: address!, color: context.onPrimaryContainer),
+                address: address!,
+                color: context.onPrimaryContainer,
+                chain: account,
+              ),
             ),
           ]),
           enable: address != null,
@@ -52,71 +53,64 @@ class SuccessXCMTransactionTextView extends StatelessWidget {
           txId: txId,
           transaction: transaction,
           onTxSuccess: (context) {
-            return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  WidgetConstant.height20,
-                  APPStreamBuilder(
-                    value: destinationTracker.notifier,
-                    builder: (context, value) {
-                      return Shimmer(
-                          onActive: (enable, context) {
-                            return ContainerWithBorder(
-                              onRemoveIcon: Icon(Icons.open_in_full,
-                                  color: context.onPrimaryContainer),
-                              onRemove: destinationTracker.hasContent
-                                  ? () {
-                                      context.openDialogPage('',
-                                          child: (context) => JsonView(
-                                              text:
-                                                  destinationTracker.content ??
-                                                      {},
-                                              title: 'content'.tr));
-                                    }
-                                  : null,
-                              child: Row(children: [
-                                CircleTokenImageView(
-                                  destinationTracker.destination.network.token,
-                                  radius: APPConst.circleRadius25,
-                                  backgroundColor: context.onPrimaryContainer,
-                                  reverseColor: context.primaryContainer,
-                                ),
-                                WidgetConstant.width8,
-                                Expanded(
-                                    child: ConditionalWidgets<
-                                            SubstrateXCMTransctionTrackerStatus>(
-                                        enable: destinationTracker.status,
-                                        widgets: {
-                                      null: (context) => Text(
-                                          "tracking_transaction_on_destination_network_please_wait"
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              WidgetConstant.height20,
+              APPStreamBuilder(
+                value: destinationTracker.notifier,
+                builder: (context, value) {
+                  return Shimmer(
+                      onActive: (enable, context) {
+                        return ContainerWithBorder(
+                          onRemoveIcon:
+                              Icon(Icons.open_in_full, color: context.onPrimaryContainer),
+                          onRemove: destinationTracker.hasContent
+                              ? () {
+                                  context.openDialogPage('',
+                                      child: (context) => JsonView(
+                                          text: destinationTracker.content ?? {},
+                                          title: 'content'.tr));
+                                }
+                              : null,
+                          child: Row(children: [
+                            CircleTokenImageView(
+                              destinationTracker.destination.network.token,
+                              radius: APPConst.circleRadius25,
+                              backgroundColor: context.onPrimaryContainer,
+                              reverseColor: context.primaryContainer,
+                            ),
+                            WidgetConstant.width8,
+                            Expanded(
+                                child: ConditionalWidgets<
+                                        SubstrateXCMTransctionTrackerStatus>(
+                                    enable: destinationTracker.status,
+                                    widgets: {
+                                  null: (context) => Text(
+                                      "tracking_transaction_on_destination_network_please_wait"
+                                          .tr),
+                                  SubstrateXCMTransctionTrackerStatus.error: (context) =>
+                                      Text(
+                                          "transaction_tracking_failed_on_destination_network"
                                               .tr),
-                                      SubstrateXCMTransctionTrackerStatus.error:
-                                          (context) => Text(
-                                              "transaction_tracking_failed_on_destination_network"
-                                                  .tr),
-                                      SubstrateXCMTransctionTrackerStatus
-                                              .success:
-                                          (context) => Text(
-                                              "transaction_execution_successfully_on_destination_network"
-                                                  .tr),
-                                      SubstrateXCMTransctionTrackerStatus
-                                              .failed:
-                                          (context) => Text(
-                                              "Transaction_execution_failed_on_destination_network"
-                                                  .tr),
-                                      SubstrateXCMTransctionTrackerStatus
-                                              .notFound:
-                                          (context) => Text(
-                                              "transaction_not_detected_on_the_destination_blockchain_desc"
-                                                  .tr),
-                                    })),
-                              ]),
-                            );
-                          },
-                          enable: !destinationTracker.inProgress);
-                    },
-                  ),
-                ]);
+                                  SubstrateXCMTransctionTrackerStatus.success:
+                                      (context) => Text(
+                                          "transaction_execution_successfully_on_destination_network"
+                                              .tr),
+                                  SubstrateXCMTransctionTrackerStatus.failed: (context) =>
+                                      Text(
+                                          "transaction_execution_failed_on_destination_network"
+                                              .tr),
+                                  SubstrateXCMTransctionTrackerStatus.notFound:
+                                      (context) => Text(
+                                          "transaction_not_detected_on_the_destination_blockchain_desc"
+                                              .tr),
+                                })),
+                          ]),
+                        );
+                      },
+                      enable: !destinationTracker.inProgress);
+                },
+              ),
+            ]);
           },
         ),
         WidgetConstant.height20,

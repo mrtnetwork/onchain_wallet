@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:on_chain/sui/src/transaction/const/constant.dart';
 import 'package:on_chain/sui/src/transaction/types/types.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 
@@ -20,14 +20,14 @@ mixin SuiTransactionFeeController on SuiTransactionApiController {
       {required BigInt gasPrice, required BigInt budget});
 
   void setDefaultFee({String? error}) {
-    txFee.setFee(SuiTransactionFee(
-        gasPrice: BigInt.zero, feeToken: network.token, error: error));
+    txFee.setFee(
+        SuiTransactionFee(gasPrice: BigInt.zero, feeToken: network.token, error: error));
   }
 
   Future<SuiTransactionFee> simulateFee() async {
     final gasPrice = await getGasPrice();
-    final transaction = await simulateTransaction(
-        gasPrice: gasPrice, budget: SuiTransactionConst.maxGas);
+    final transaction =
+        await simulateTransaction(gasPrice: gasPrice, budget: SuiTransactionConst.maxGas);
     final simulate = await client.simulateGasUsed(transaction);
 
     return SuiTransactionFee(
@@ -39,13 +39,13 @@ mixin SuiTransactionFeeController on SuiTransactionApiController {
     await _lock.run(() async {
       setDefaultFee();
       txFee.setPending();
-      final fee = await MethodUtils.call(() async => await simulateFee());
-      if (fee.isCancel) return;
-      if (fee.hasError) {
-        setDefaultFee(error: fee.localizationError);
+      final fee = await IResult.call(() async => await simulateFee());
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
+        setDefaultFee(error: fee.unwrapErr().localizationError);
         return;
       }
-      txFee.setFee(fee.result);
+      txFee.setFee(fee.unwrap());
     });
   }
 

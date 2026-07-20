@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/types/transfer.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/types/types.dart';
@@ -8,16 +8,14 @@ import 'package:on_chain_wallet/future/wallet/network/ton/transaction/widgets/tr
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:ton_dart/ton_dart.dart';
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
-import 'package:on_chain_wallet/crypto/utils/ton/ton.dart';
+import 'package:on_chain_wallet/crypto/networks/ton/ton.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 
 class TonTransactionTransferOperation extends TonTransactionStateController2 {
   TonTransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
-  bool get allowAddTransfer => recipients.value.isEmpty || walletVesion > 1;
+      {required super.walletProvider, required super.account, required super.address});
+  bool get allowAddTransfer => recipients.value.length < maxMessageLength;
 
   late final LiveFormFields<TonTransferDetails> recipients =
       LiveFormFields<TonTransferDetails>(
@@ -41,26 +39,22 @@ class TonTransactionTransferOperation extends TonTransactionStateController2 {
     if (!status.isReady) return status;
     final simulateError =
         txFee.fee.hasError ? "simulate_transaction_fee_failed".tr : null;
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    final r = address.address.currencyBalance - total - txFee.fee.fee.balance;
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final r = address.addressData.currencyBalance - total - txFee.fee.fee.balance;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, network.token),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token),
           warning: simulateError);
     }
-    final tokens = recipients.value
-        .map((e) => e.jetton)
-        .whereType<TonJettonToken>()
-        .toSet();
+    final tokens =
+        recipients.value.map((e) => e.jetton).whereType<TonJettonToken>().toSet();
     for (final i in tokens) {
       final total = recipients.value
           .where((e) => e.jetton == i)
           .fold<BigInt>(BigInt.zero, (p, c) => p + c.tokenBalance.balance);
       final remain = i.balance.balance - total;
       if (remain.isNegative) {
-        return TransactionStateStatus.insufficient(
-            IntegerBalance.token(r, i.token),
+        return TransactionStateStatus.insufficient(IntegerBalance.token(r, i.token),
             warning: simulateError);
       }
     }
@@ -96,12 +90,17 @@ class TonTransactionTransferOperation extends TonTransactionStateController2 {
     return null;
   }
 
-  void onUpdateRecipients(List<ReceiptAddress<TonAddress>>? addressess) {
+  void onUpdateRecipients(
+      List<ReceiptAddress<TonAddress>>? addressess, StringVoid onErr) {
     if (addressess == null) return;
-    final recipients = addressess
-        .map((e) => TonTransferDetails(recipient: e, token: network.token))
-        .toList();
-    this.recipients.addValues(recipients);
+    for (final i in addressess) {
+      if (!allowAddTransfer) {
+        onErr("outgoing_message_limit_exceeded".tr);
+        break;
+      }
+      final transfer = TonTransferDetails(recipient: i, token: network.token);
+      recipients.addValue(transfer);
+    }
     onStateUpdated();
     estimateFee();
   }
@@ -134,8 +133,8 @@ class TonTransactionTransferOperation extends TonTransactionStateController2 {
     estimateFee();
   }
 
-  void onUpdateMessageBody(TonTransferDetails address, TonMessageBodyType type,
-      String? messageBody) {
+  void onUpdateMessageBody(
+      TonTransferDetails address, TonMessageBodyType type, String? messageBody) {
     address.onUpdateMessageBody(type, messageBody);
     onStateUpdated();
     estimateFee();
@@ -148,9 +147,9 @@ class TonTransactionTransferOperation extends TonTransactionStateController2 {
   }
 
   BigInt getMaxInput(TonTransferDetails address) {
-    final total = recipients.value.fold<BigInt>(BigInt.zero,
-        (previousValue, element) => previousValue + element.amount.balance);
-    final amount = this.address.address.currencyBalance -
+    final total = recipients.value.fold<BigInt>(
+        BigInt.zero, (previousValue, element) => previousValue + element.amount.balance);
+    final amount = this.address.addressData.currencyBalance -
         total -
         txFee.fee.fee.balance +
         address.amount.balance;
@@ -195,12 +194,10 @@ class TonTransactionTransferOperation extends TonTransactionStateController2 {
   }
 
   @override
-  Future<ITonTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ITonTransactionData> buildTransactionData({bool simulate = false}) async {
     final seqno = await getAccountSeqno(walletContract);
-    final messages = recipients.value
-        .map((e) => e.toMessage(address.networkAddress))
-        .toList();
+    final messages =
+        recipients.value.map((e) => e.toMessage(address.networkAddress)).toList();
     if (walletVesion == 1 && messages.length > 1) {
       throw AppException("ton_wallet_validator_desc");
     }
@@ -210,7 +207,7 @@ class TonTransactionTransferOperation extends TonTransactionStateController2 {
   }
 
   @override
-  TransactionStateController cloneController(ITonAddress address) {
+  Future<TransactionStateController> cloneController(ITonAddress address) async {
     return TonTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

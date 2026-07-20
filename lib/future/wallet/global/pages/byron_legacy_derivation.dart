@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/worker.dart' show Bip32AddressIndex;
+import 'package:on_chain_wallet/crypto/crypto.dart' show Bip32DerivationIndex;
 
 class ByronLegacyKeyDerivationView extends StatefulWidget {
   const ByronLegacyKeyDerivationView(
@@ -17,16 +17,15 @@ class ByronLegacyKeyDerivationView extends StatefulWidget {
       _ByronLegacyKeyDerivationViewState();
 }
 
-class _ByronLegacyKeyDerivationViewState
-    extends State<ByronLegacyKeyDerivationView>
+class _ByronLegacyKeyDerivationViewState extends State<ByronLegacyKeyDerivationView>
     with SafeState<ByronLegacyKeyDerivationView> {
   final GlobalKey<FormState> form =
-      GlobalKey<FormState>(debugLabel: "_AddressTypePathSetupState");
+      GlobalKey<FormState>(debugLabel: "_ByronLegacyKeyDerivationViewState");
   final Map<Bip44Levels, GlobalKey<NumberTextFieldState>> levelStateKeys = {
     Bip44Levels.change: GlobalKey<NumberTextFieldState>(
-        debugLabel: "_AddressTypePathSetupState_4"),
+        debugLabel: "_ByronLegacyKeyDerivationViewState_1"),
     Bip44Levels.addressIndex: GlobalKey<NumberTextFieldState>(
-        debugLabel: "_AddressTypePathSetupState_5"),
+        debugLabel: "_ByronLegacyKeyDerivationViewState_2"),
   };
 
   late final bool isSupportNoneHardend;
@@ -45,32 +44,31 @@ class _ByronLegacyKeyDerivationViewState
   }
 
   void onChangedValue(int? v, Bip44Levels level) {
-    if (v == null) return;
     try {
-      final index = Bip44LevelsDetails.fromIntIndex(v, level);
-      if (!index.isHardened && !isSupportNoneHardend) return;
-      levels[level] = Bip44LevelsDetails.fromIntIndex(v, level);
+      if (v == null) {
+        levels[level] = null;
+      } else {
+        final index = Bip44LevelsDetails.fromIntIndex(v, level);
+        if (!index.isHardened && !isSupportNoneHardend) return;
+        levels[level] = Bip44LevelsDetails.fromIntIndex(v, level);
+      }
     } catch (_) {
       levels[level] = null;
     } finally {
       path = calculatePath();
-      setState(() {});
+      updateState(() {});
     }
   }
 
   String? helperText(Bip44Levels level) {
     if (levels[level]?.isHardened ?? false) {
-      return "hardened_index"
-          .tr
-          .replaceOne(levels[level]!.unHardendValue.toString());
+      return "hardened_index".tr.replaceOne(levels[level]!.unHardendValue.toString());
     }
     return null;
   }
 
   Color? hardenedColor(Bip44Levels level) {
-    return (levels[level]?.isHardened ?? false)
-        ? context.theme.iconTheme.color
-        : null;
+    return (levels[level]?.isHardened ?? false) ? context.theme.iconTheme.color : null;
   }
 
   bool isHardened(Bip44Levels level) {
@@ -79,7 +77,7 @@ class _ByronLegacyKeyDerivationViewState
 
   void onSubmit() {
     if (!form.ready()) return;
-    final keyIndex = Bip32AddressIndex.byronLegacy(
+    final keyIndex = Bip32DerivationIndex.byronLegacy(
       firstIndex: levels[Bip44Levels.change]!.index,
       secoundIndex: levels[Bip44Levels.addressIndex]!.index,
       currencyCoin: widget.coin,
@@ -114,8 +112,7 @@ class _ByronLegacyKeyDerivationViewState
   void onInitOnce() {
     super.onInitOnce();
     isSupportNoneHardend = widget.curve != EllipticCurveTypes.ed25519;
-    minIndex =
-        isSupportNoneHardend ? 0 : Bip32KeyDataConst.hardenKeyIndexMinValue;
+    minIndex = isSupportNoneHardend ? 0 : Bip32KeyDataConst.hardenKeyIndexMinValue;
   }
 
   @override
@@ -139,7 +136,7 @@ class _ByronLegacyKeyDerivationViewState
             helperText: helperText(Bip44Levels.change),
             key: stateKey(Bip44Levels.change),
             min: minIndex,
-            onChange: (v) {
+            onChangeValue: (v) {
               onChangedValue(v, Bip44Levels.change);
             },
             validator: (v) => validate(v, Bip44Levels.change),
@@ -150,7 +147,7 @@ class _ByronLegacyKeyDerivationViewState
             helperText: helperText(Bip44Levels.addressIndex),
             key: stateKey(Bip44Levels.addressIndex),
             min: minIndex,
-            onChange: (v) {
+            onChangeValue: (v) {
               onChangedValue(v, Bip44Levels.addressIndex);
             },
             validator: (v) => validate(v, Bip44Levels.addressIndex),

@@ -1,12 +1,10 @@
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ton/params/core/request.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ton/params/core/request.dart';
 
-abstract class Web3TonTransactionStateController<
-        RESPONSE,
-        T extends Web3TonRequestParam<RESPONSE>,
-        E extends IWeb3TonTransactionData>
+abstract class Web3TonTransactionStateController<RESPONSE,
+        T extends Web3TonRequestParam<RESPONSE>, E extends IWeb3TonTransactionData>
     extends BaseWeb3TonTransactionStateController<RESPONSE, T, E> {
   Web3TonTransactionStateController(
       {required super.walletProvider, required super.request});

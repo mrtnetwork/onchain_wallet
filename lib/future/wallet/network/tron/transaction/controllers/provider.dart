@@ -1,8 +1,8 @@
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:on_chain/tron/tron.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/solidity/solidity.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/crypto/networks/solidity/solidity.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/tron/client/tron.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
@@ -22,15 +22,13 @@ mixin TronTransactionApiController on DisposableMixin {
   }
 
   Future<TronChainParameters> getChainParameters() async {
-    return _chainParamets.get(
-        onFetch: () async => await client.getChainParameters());
+    return _chainParamets.get(onFetch: () async => await client.getChainParameters());
   }
 
   Future<ITronTransactionDataRequirment> transactionBlockRequirment(
       {bool simulate = false}) async {
     if (simulate) {
-      final BigInt timestamp =
-          BigInt.from(DateTime.now().millisecondsSinceEpoch);
+      final BigInt timestamp = BigInt.from(DateTime.now().millisecondsSinceEpoch);
       return ITronTransactionDataRequirment(
           refBlockBytes: List<int>.filled(2, 0),
           refBlockHash: List<int>.filled(8, 0),
@@ -67,8 +65,8 @@ mixin TronTransactionApiController on DisposableMixin {
 
   bool checkAccountPermission(
       {required ITronAddress address,
-      required TransactionContractType transactionType}) {
-    final account = address.accountInfo;
+      required TransactionContractType transactionType,
+      required TronAccountInfo? account}) {
     if (account == null) return false;
     final List<AccountPermission> permissions = [
       account.ownerPermission,
@@ -78,11 +76,9 @@ mixin TronTransactionApiController on DisposableMixin {
       final msigAccount = address as ITronMultisigAddress;
       final int? permissionId = msigAccount.multiSignatureAccount.permissionID;
       BigInt sumOfThereshHold = BigInt.zero;
-      final List<PermissionKeys> signers = msigAccount
-          .multiSignatureAccount.signers
+      final List<PermissionKeys> signers = msigAccount.multiSignatureAccount.signers
           .map((e) => PermissionKeys(
-              address: TronAddress.fromPublicKey(
-                  BytesUtils.fromHexString(e.publicKey)),
+              address: TronAddress.fromPublicKey(BytesUtils.fromHexString(e.publicKey)),
               weight: e.weight))
           .toList();
       final findPermission =
@@ -108,12 +104,11 @@ mixin TronTransactionApiController on DisposableMixin {
       }
       return false;
     }
-    final accountAccess = permissions.where((element) => element.keys
-        .map((e) => e.address.toAddress())
-        .contains(account.address));
+    final accountAccess = permissions.where((element) =>
+        element.keys.map((e) => e.address.toAddress()).contains(account.address));
     for (final i in accountAccess) {
-      final accKey = MethodUtils.nullOnException(() => i.keys.firstWhere(
-          (element) => element.address.toAddress() == account.address));
+      final accKey = i.keys
+          .firstWhereOrNull((element) => element.address.toAddress() == account.address);
       if (accKey == null) return false;
       if (accKey.weight == i.threshold) {
         if (i.type == PermissionType.owner) {

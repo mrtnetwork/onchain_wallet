@@ -29,14 +29,13 @@ class Web3StellarSignTransactionStateView extends StatelessWidget {
               onPressed: () {
                 context.openDialogPage(
                   "transaction".tr,
-                  child: (context) => APPTextView(
-                      text: info.contentStr, title: "transaction".tr),
+                  child: (context) =>
+                      APPTextView(text: info.contentStr, title: "transaction".tr),
                 );
               },
-              icon: Icon(Icons.data_object,
-                  color: context.colors.onPrimaryContainer)),
-          child: Text(info.type.translate.tr,
-              style: context.colors.onPrimaryContainer.bodyMedium(context))),
+              icon: Icon(Icons.data_object, color: context.colors.onPrimaryContainer)),
+          child:
+              Text(info.type.translate.tr, style: context.onPrimaryTextTheme.bodyMedium)),
       WidgetConstant.height20,
       ReceiptAddressView(
         title: "source_account".tr,
@@ -49,8 +48,7 @@ class Web3StellarSignTransactionStateView extends StatelessWidget {
       SliverList.separated(
           itemBuilder: (context, index) {
             final operation = info.operations.elementAt(index);
-            final String name =
-                operation.operation.body.operationType.translate.tr;
+            final String name = operation.operation.body.operationType.translate.tr;
 
             return Theme(
               data: context.theme.copyWith(
@@ -64,25 +62,23 @@ class Web3StellarSignTransactionStateView extends StatelessWidget {
                     title: Row(
                       children: [
                         Expanded(
-                            child: Text(name,
-                                style: context.onPrimaryTextTheme.bodyMedium)),
+                            child:
+                                Text(name, style: context.onPrimaryTextTheme.bodyMedium)),
                         if (operation.level == OperationLevel.high)
                           TappedTooltipView(
                               tooltipWidget: ToolTipView(
                                   message: "stellar_high_operation_desc2".tr,
-                                  textStyle: context.colors.onErrorContainer
-                                      .bodyMedium(context),
+                                  textStyle: context.textTheme.bodyMedium
+                                      ?.copyWith(color: context.colors.onErrorContainer),
                                   duration: Duration.zero,
-                                  backgroundColor:
-                                      context.colors.errorContainer,
-                                  child: Icon(Icons.warning,
-                                      color: context.colors.error))),
+                                  backgroundColor: context.colors.errorContainer,
+                                  child:
+                                      Icon(Icons.warning, color: context.colors.error))),
                         IconButton(
                             onPressed: () {
                               context.openDialogPage(name,
                                   child: (context) => APPTextView(
-                                      text: operation.operationContentStr,
-                                      title: name));
+                                      text: operation.operationContentStr, title: name));
                             },
                             icon: Icon(Icons.data_object,
                                 color: context.onPrimaryContainer))
@@ -117,7 +113,7 @@ class Web3StellarSignTransactionStateView extends StatelessWidget {
             if (info.memo.val != null)
               Text(
                 info.memo.val ?? '',
-                style: context.colors.onPrimaryContainer.bodyMedium(context),
+                style: context.onPrimaryTextTheme.bodyMedium,
               )
           ],
         ),
@@ -159,8 +155,7 @@ class Web3StellarSignTransactionStateView extends StatelessWidget {
                                 color: context.colors.surface,
                                 borderRadius: WidgetConstant.border8),
                             child: _SorobanTransactionData(
-                                soroban: info.soroban!,
-                                network: controller.network))
+                                soroban: info.soroban!, network: controller.network))
                       ],
                     )),
               ])),
@@ -175,9 +170,7 @@ class Web3StellarSignTransactionStateView extends StatelessWidget {
       ),
       Web3StateAcceptRequestView(
           controller: controller,
-          title: controller.isExcute
-              ? "send_transaction".tr
-              : "sign_transaction".tr),
+          title: controller.isExcute ? "send_transaction".tr : "sign_transaction".tr),
     ]);
   }
 }

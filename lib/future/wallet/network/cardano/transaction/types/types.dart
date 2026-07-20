@@ -10,11 +10,9 @@ class CardanoUtxo {
   final IntegerBalance utxoBalance;
   const CardanoUtxo._({required this.utxo, required this.utxoBalance});
   factory CardanoUtxo(
-      {required ADAAccountUTXOResponse utxo,
-      required WalletCardanoNetwork network}) {
+      {required ADAAccountUTXOResponse utxo, required WalletCardanoNetwork network}) {
     return CardanoUtxo._(
-        utxo: utxo,
-        utxoBalance: IntegerBalance.token(utxo.sumOflovelace, network.token));
+        utxo: utxo, utxoBalance: IntegerBalance.token(utxo.sumOflovelace, network.token));
   }
 }
 
@@ -25,14 +23,12 @@ class ADAAssetToken with Equality {
   factory ADAAssetToken({required PolicyID id, required AssetName name}) {
     final assetName = name.name ?? name.toHex();
     return ADAAssetToken._(
-        id: id,
-        name: name,
-        token: Token(name: assetName, symbol: assetName, decimal: 0));
+        id: id, name: name, token: Token(name: assetName, symbol: assetName, decimal: 0));
   }
   ADAAssetToken._({required this.id, required this.name, required this.token});
 
   @override
-  List get variabels => [id, name];
+  List get variables => [id, name];
 }
 
 enum ADATransactionCertificateType {
@@ -49,9 +45,7 @@ class ADATransactionCertificate {
   final ADATransactionCertificateType type;
   final ReceiptAddress<ADAAddress> rewardAccount;
   const ADATransactionCertificate(
-      {required this.certificate,
-      required this.type,
-      required this.rewardAccount});
+      {required this.certificate, required this.type, required this.rewardAccount});
 }
 
 enum ADACustomFeeTypes {
@@ -74,8 +68,7 @@ class ADATransactionDeposit {
       required BigInt fee,
       required WalletCardanoNetwork network}) {
     return ADATransactionDeposit(
-        type: type,
-        fee: IntegerBalance.token(fee, network.token, immutable: true));
+        type: type, fee: IntegerBalance.token(fee, network.token, immutable: true));
   }
 }
 
@@ -91,8 +84,7 @@ class ADATransactionFee extends TransactionFee {
   ADATransactionFee({required super.type, required super.fee, super.error});
 }
 
-class ADATransactionFeeData
-    extends TransactionDynamicFeeData<ADATransactionFee> {
+class ADATransactionFeeData extends TransactionDynamicFeeData<ADATransactionFee> {
   ADATransactionFeeData({required super.select, required super.feeToken});
 
   @override
@@ -129,23 +121,22 @@ class CardanoAccountUtxo with Equality {
         utxo: TransactionUnspentOutput(input: utxo.input, output: utxo.output),
         address: address,
         multiAsset: asset,
-        utxoBalance: IntegerBalance.token(
-            utxo.output.amount.coin, network.token,
-            immutable: true),
+        utxoBalance:
+            IntegerBalance.token(utxo.output.amount.coin, network.token, immutable: true),
         haveAssets: asset != MultiAsset.empty,
         hasScript: utxo.output.plutusData != null,
         hasReferenceScript: utxo.output.scriptRef != null);
   }
 
   @override
-  List get variabels => [utxo, utxoBalance.balance, address];
+  List get variables => [utxo, utxoBalance.balance, address];
 }
 
 abstract class BaseADATransactionController extends TransactionStateController<
     TokenCore,
-    ICardanoAddress,
-    ADAClient,
     WalletCardanoNetwork,
+    ICardanoAddress,
+    ADANetworkClient,
     ADAChain,
     IADATransactionData,
     IADATransaction,
@@ -154,15 +145,12 @@ abstract class BaseADATransactionController extends TransactionStateController<
     SubmitTransactionSuccess<IADASignedTransaction>,
     ADATransactionFeeData> {
   BaseADATransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 enum ADAAccountUtxosStatus { failed, success, pending }
 
-class ADAAccountFetchedUtxos
-    with DisposableMixin, Equality, StreamStateController {
+class ADAAccountFetchedUtxos with DisposableMixin, Equality, StreamStateController {
   final lock = SafeAtomicLock();
   final ICardanoAddress address;
   ADAAccountFetchedUtxos({required this.address});
@@ -188,8 +176,8 @@ class ADAAccountFetchedUtxos
   void _update() {
     _totalSelected = _selectedUtxos.length;
     _allSelected = _selectedUtxos.length == _utxos?.length;
-    _totalUtxo = _selectedUtxos.fold<BigInt>(
-        BigInt.zero, (p, c) => p + c.utxoBalance.balance);
+    _totalUtxo =
+        _selectedUtxos.fold<BigInt>(BigInt.zero, (p, c) => p + c.utxoBalance.balance);
 
     notify();
   }
@@ -251,7 +239,7 @@ class ADAAccountFetchedUtxos
   }
 
   @override
-  List get variabels => [address];
+  List get variables => [address];
 }
 
 class ADATransferAssetDetails {
@@ -301,8 +289,7 @@ class ADATransferDetails with DisposableMixin, StreamStateController, Equality {
     if (amount.balance < minNative.balance) {
       return TransactionStateStatus.error(
           error: "amount_must_exceed".tr.replaceOne(
-              PriceUtils.priceWithCoinName(
-                  minNative.price, minNative.token.symbol)));
+              PriceUtils.priceWithCoinName(minNative.price, minNative.token.symbol)));
     }
     return TransactionStateStatus.ready();
   }
@@ -381,23 +368,21 @@ class ADATransferDetails with DisposableMixin, StreamStateController, Equality {
         transfers.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.toAsset());
     return TransactionOutput(
         address: recipient.networkAddress,
-        amount: Value(
-            coin: amount.balance, multiAsset: assets.hasAsset ? assets : null));
+        amount: Value(coin: amount.balance, multiAsset: assets.hasAsset ? assets : null));
   }
 
   BigInt get minValue {
     final out = toOutput();
     return out
-        .copyWith(amount: out.amount.copyWith(coin: maxU64))
+        .copyWith(amount: out.amount.copyWith(coin: BinaryOps.maxU64))
         .minAda(protocolParams.coinsPerUtxoSize);
   }
 
   @override
-  List get variabels => [recipient];
+  List get variables => [recipient];
 }
 
-class ADARemainTransferDetails
-    with DisposableMixin, StreamStateController, Equality {
+class ADARemainTransferDetails with DisposableMixin, StreamStateController, Equality {
   final IntegerBalance minNative;
   ADAEpochParametersResponse? _protocolParams;
   ReceiptAddress<ADAAddress> _recipient;
@@ -431,8 +416,7 @@ class ADARemainTransferDetails
     if (amount.balance < minNative.balance) {
       return TransactionStateStatus.error(
           error: "amount_must_exceed".tr.replaceOne(
-              PriceUtils.priceWithCoinName(
-                  minNative.price, minNative.token.symbol)));
+              PriceUtils.priceWithCoinName(minNative.price, minNative.token.symbol)));
     }
     return TransactionStateStatus.ready();
   }
@@ -475,8 +459,8 @@ class ADARemainTransferDetails
       final pAssets = policy.value.assets;
       remains[policy.key] ??= {};
       for (final pAsset in pAssets.entries) {
-        remains[policy.key]![pAsset.key] ??= ADATransferAssetDetails(
-            ADAAssetToken(id: policy.key, name: pAsset.key));
+        remains[policy.key]![pAsset.key] ??=
+            ADATransferAssetDetails(ADAAssetToken(id: policy.key, name: pAsset.key));
         final a = remains[policy.key]![pAsset.key]!;
         a.onUpdateAmount(pAsset.value + a.amount.balance);
       }
@@ -493,17 +477,14 @@ class ADARemainTransferDetails
     assert(remain != null);
     final totalAmount = _asset.getAssetNameBalance(token.id, token.name);
     assert(totalAmount > BigInt.zero);
-    final totalTransfers = _transfers
-        .where((e) => e.token == token)
-        .map((c) => c.amount.balance)
-        .sum;
+    final totalTransfers =
+        _transfers.where((e) => e.token == token).map((c) => c.amount.balance).sum;
     remain?.onUpdateAmount(totalAmount - totalTransfers);
     _tokenRemains = _tokens.where((e) => e.hasAmount).toList();
     _onUpdateMinAmount();
   }
 
-  void onUpdateTransferAsset(
-      ADATransferDetails transfer, ADATransferAssetDetails asset) {
+  void onUpdateTransferAsset(ADATransferDetails transfer, ADATransferAssetDetails asset) {
     assert(_tokens.contains(asset));
     if (!_tokens.contains(asset)) return;
     final transferAsset = ADATransferAssetDetails(asset.token);
@@ -512,8 +493,8 @@ class ADARemainTransferDetails
     _onUpdateMinAmount();
   }
 
-  void onUpdateTransferAssetAmount(ADATransferDetails recipient,
-      ADATransferAssetDetails asset, BigInt amount) {
+  void onUpdateTransferAssetAmount(
+      ADATransferDetails recipient, ADATransferAssetDetails asset, BigInt amount) {
     assert(_transfers.contains(asset));
     if (!_transfers.contains(asset)) return;
     asset.onUpdateAmount(amount);
@@ -534,25 +515,23 @@ class ADARemainTransferDetails
   }
 
   TransactionOutput? toOutput() {
-    final assets =
-        _tokens.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.toAsset());
+    final assets = _tokens.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.toAsset());
     if (assets == MultiAsset.empty && amount.isZero) return null;
     return TransactionOutput(
         address: recipient.networkAddress,
-        amount: Value(
-            coin: amount.balance, multiAsset: assets.hasAsset ? assets : null));
+        amount: Value(coin: amount.balance, multiAsset: assets.hasAsset ? assets : null));
   }
 
   BigInt get minValue {
     final out = toOutput();
     return out
-            ?.copyWith(amount: out.amount.copyWith(coin: maxU64))
+            ?.copyWith(amount: out.amount.copyWith(coin: BinaryOps.maxU64))
             .minAda(_protocolParams?.coinsPerUtxoSize ?? 0) ??
         BigInt.zero;
   }
 
   @override
-  List get variabels => [recipient];
+  List get variables => [recipient];
 }
 
 class IADATransactionData extends ITransactionData {
@@ -584,8 +563,7 @@ class IADATransactionData extends ITransactionData {
         refundDeposits = refundDeposits.immutable;
 }
 
-class IADATransaction
-    extends ITransaction<IADATransactionData, ICardanoAddress> {
+class IADATransaction extends ITransaction<IADATransactionData, ICardanoAddress> {
   final ADATransactionBuilder transaction;
   const IADATransaction(
       {required super.account,
@@ -593,8 +571,7 @@ class IADATransaction
       required this.transaction});
 }
 
-class IADASignedTransaction
-    extends ISignedTransaction<IADATransaction, ADATransaction> {
+class IADASignedTransaction extends ISignedTransaction<IADATransaction, ADATransaction> {
   IADASignedTransaction(
       {required super.transaction,
       required super.signatures,

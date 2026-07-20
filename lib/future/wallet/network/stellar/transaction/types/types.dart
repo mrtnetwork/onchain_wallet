@@ -53,10 +53,8 @@ class StellarPickedIssueAsset {
         final poolId = BytesUtils.toHexString(pool.poolID);
         return StellarPickedIssueAsset._(
             asset: asset,
-            token: Token(
-                name: poolId,
-                symbol: poolId,
-                decimal: network.coinParam.decimal),
+            token:
+                Token(name: poolId, symbol: poolId, decimal: network.coinParam.decimal),
             issuer: poolId,
             issueToken: issueToken,
             tokenBalance: tokenBalance);
@@ -101,8 +99,7 @@ class StellarReceiptWithActivityStatus {
     _error = err;
   }
 
-  void setStatus(AccountReceivementStatus status,
-      {StellarAccountResponse? accountInfo}) {
+  void setStatus(AccountReceivementStatus status, {StellarAccountResponse? accountInfo}) {
     if (!this.status.canUpdateStatus) return;
     assert(
         (!status.isActive && accountInfo == null) ||
@@ -131,8 +128,7 @@ class StellarMemoDetils {
         val = (memo.cast<StellarMemoText>()).text;
         break;
       case MemoType.hash:
-        val = BytesUtils.toHexString((memo.cast<StellarMemoHash>()).hash,
-            prefix: "0x");
+        val = BytesUtils.toHexString((memo.cast<StellarMemoHash>()).hash, prefix: "0x");
         break;
       case MemoType.returnHash:
         val = BytesUtils.toHexString((memo.cast<StellarMemoReturnHash>()).hash,
@@ -162,13 +158,12 @@ class TransactionTimeBound {
   const TransactionTimeBound.auto()
       : type = TransactiomTimeBoundType.auto,
         time = null;
-  factory TransactionTimeBound(
-      {required TransactiomTimeBoundType type, DateTime? time}) {
+  factory TransactionTimeBound({required TransactiomTimeBoundType type, DateTime? time}) {
     if (type.isManual && time == null) {
-      throw AppExceptionConst.internalError("TransactionTimeBound");
+      throw AppInternalError.internalError("TransactionTimeBound");
     }
     if (!type.isManual && time != null) {
-      throw AppExceptionConst.internalError("TransactionTimeBound");
+      throw AppInternalError.internalError("TransactionTimeBound");
     }
     return TransactionTimeBound._(type: type, time: time);
   }
@@ -179,20 +174,18 @@ class TransactionTimeBound {
   }
 
   Preconditions condition() {
-    final DateTime time = this.time?.toUtc() ??
-        DateTime.now().toUtc().add(StellarConst.defaultTimeBound);
+    final DateTime time =
+        this.time?.toUtc() ?? DateTime.now().toUtc().add(StellarConst.defaultTimeBound);
     final secondsEpoch = DateTimeUtils.secondsSinceEpoch(time);
     return switch (type) {
       TransactiomTimeBoundType.none => const PrecondNone(),
-      _ => PrecondTime(
-          TimeBounds(minTime: BigInt.zero, maxTime: BigInt.from(secondsEpoch))),
+      _ =>
+        PrecondTime(TimeBounds(minTime: BigInt.zero, maxTime: BigInt.from(secondsEpoch))),
     };
   }
 }
 
-class StellarTransactionOperations
-    with Equality
-    implements TransactionOperations {
+class StellarTransactionOperations with Equality implements TransactionOperations {
   static const StellarTransactionOperations transfer =
       StellarTransactionOperations._("transfer");
 
@@ -201,20 +194,18 @@ class StellarTransactionOperations
   const StellarTransactionOperations._(this.value);
 
   @override
-  List get variabels => [value];
+  List get variables => [value];
 }
 
 class StellarTransactionFee extends TransactionFee {
   StellarTransactionFee({required super.fee, required super.type, super.error});
-  StellarTransactionFee copyWith(
-      {IntegerBalance? fee, TxFeeTypes? type, String? error}) {
+  StellarTransactionFee copyWith({IntegerBalance? fee, TxFeeTypes? type, String? error}) {
     return StellarTransactionFee(
         fee: fee ?? this.fee, type: type ?? this.type, error: error);
   }
 }
 
-class StellarTransactionFeeData
-    extends TransactionDynamicFeeData<StellarTransactionFee> {
+class StellarTransactionFeeData extends TransactionDynamicFeeData<StellarTransactionFee> {
   StellarTransactionFeeData({required super.select, required super.feeToken});
 
   @override
@@ -224,23 +215,20 @@ class StellarTransactionFeeData
   }
 }
 
-abstract class BaseStellarTransactionController
-    extends TransactionStateController<
-        StellarIssueToken,
-        IStellarAddress,
-        StellarClient,
-        WalletStellarNetwork,
-        StellarChain,
-        IStellarTransactionData,
-        IStellarTransaction,
-        IStellarSignedTransaction,
-        StellarWalletTransaction,
-        SubmitTransactionSuccess<IStellarSignedTransaction>,
-        StellarTransactionFeeData> {
+abstract class BaseStellarTransactionController extends TransactionStateController<
+    StellarIssueToken,
+    WalletStellarNetwork,
+    IStellarAddress,
+    StellarClient,
+    StellarChain,
+    IStellarTransactionData,
+    IStellarTransaction,
+    IStellarSignedTransaction,
+    StellarWalletTransaction,
+    SubmitTransactionSuccess<IStellarSignedTransaction>,
+    StellarTransactionFeeData> {
   BaseStellarTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class IStellarTransactionData extends ITransactionData {
@@ -249,6 +237,24 @@ class IStellarTransactionData extends ITransactionData {
   final StellarMemo memo;
   final Preconditions timeboundCondition;
   final BigInt sequence;
+
+  WalletTransactionMemo? getWalletTxMemo() {
+    return switch (memo) {
+      StellarMemoReturnHash(:final hash) ||
+      StellarMemoReturnHash(:final hash) =>
+        WalletTransactionMemo.binary(hash),
+      StellarMemoID(:final id) =>
+        WalletTransactionMemo.from("$id", WalletTransactionMemoType.string),
+      StellarMemoText(:final text) => WalletTransactionMemo.from(
+          text,
+          switch (StringUtils.isHexBytes(text)) {
+            true => WalletTransactionMemoType.binary,
+            false => WalletTransactionMemoType.string,
+          }),
+      _ => null
+    };
+  }
+
   IStellarTransactionData(
       {required this.fee,
       required List<StellarTransactionOperation> operations,
@@ -258,8 +264,7 @@ class IStellarTransactionData extends ITransactionData {
       : operations = operations.immutable;
 }
 
-class IStellarTransaction
-    extends ITransaction<IStellarTransactionData, IStellarAddress> {
+class IStellarTransaction extends ITransaction<IStellarTransactionData, IStellarAddress> {
   final StellarTransactionV1 transaction;
   const IStellarTransaction(
       {required super.account,
@@ -284,6 +289,5 @@ class StellarFetchedFeeStats {
 class StellarTransactionOperationData {
   final StellarTransactionOperation operation;
   final StellarTransactionOperationForm form;
-  const StellarTransactionOperationData(
-      {required this.operation, required this.form});
+  const StellarTransactionOperationData({required this.operation, required this.form});
 }

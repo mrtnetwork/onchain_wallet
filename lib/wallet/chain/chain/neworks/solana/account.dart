@@ -1,139 +1,152 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 final class SolanaChain extends Chain<
-    SolanaAPIProvider,
-    SolanaNetworkParams,
     SolAddress,
     SolanaSPLToken,
     NFTCore,
-    ISolanaAddress,
     WalletSolanaNetwork,
-    SolanaClient,
-    DefaultNetworkConfig,
     SolanaWalletTransaction,
-    SolanaContact,
-    SolanaNewAddressParams> {
+    ISolanaAddress,
+    SolanaNetworkClient,
+    SolanaNetworkProvider,
+    ISolanaChainContext> {
   SolanaChain._(
-      {required super.network,
-      required super.addressIndex,
-      required super.id,
-      required super.config,
-      required super.service,
-      required super.addresses,
-      super.totalBalance})
-      : super._();
-  @override
-  SolanaChain copyWith(
-      {WalletSolanaNetwork? network,
-      List<ChainAccount>? addresses,
-      int? addressIndex,
-      ProviderIdentifier? service,
-      String? id,
-      DefaultNetworkConfig? config,
-      BigInt? totalBalance}) {
-    return SolanaChain._(
-        network: network ?? this.network,
-        addressIndex: addressIndex ?? _addressIndex,
-        addresses: addresses?.cast<ISolanaAddress>() ?? _addresses,
-        service: service ?? _serviceIdentifier,
-        id: id ?? this.id,
-        config: config ?? this.config,
-        totalBalance: totalBalance ?? this.totalBalance._value.balance);
-  }
+      {required WalletSolanaNetwork network,
+      required String id,
+      required InChainWalletController controller})
+      : super._(
+            context: switch (controller) {
+          ChainWalletControllerDefault() =>
+            SolanaMainChainContext(network: network, controller: controller, id: id),
+          ChainWalletControllerExternal() => throw UnimplementedError(),
+        });
 
   factory SolanaChain.setup(
       {required WalletSolanaNetwork network,
       required String id,
-      ProviderIdentifier? service}) {
-    return SolanaChain._(
-        network: network,
-        id: id,
-        addressIndex: 0,
-        service: service,
-        addresses: [],
-        config: DefaultNetworkConfig.defaultConfig);
+      required InChainWalletController controller}) {
+    return SolanaChain._(network: network, id: id, controller: controller);
   }
 
   factory SolanaChain.deserialize(
-      {required WalletSolanaNetwork network, required CborListValue cbor}) {
-    final int networkId = cbor.elementAs(0);
+      {required WalletSolanaNetwork network,
+      required CborListValue cbor,
+      required InChainWalletController controller}) {
+    final int networkId = cbor.rawValueAt(0);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String id = cbor.elementAs<String>(2);
-    final List<ISolanaAddress> accounts = cbor
-        .elementAsListOf<CborTagValue>(3)
-        .map((e) => ISolanaAddress.deserialize(network, obj: e))
-        .toList();
-    final int addressIndex = cbor.elementAs(4);
-    final DefaultNetworkConfig config =
-        DefaultNetworkConfig.deserialize(cborObject: cbor.indexAs(5));
-    final ProviderIdentifier? service = MethodUtils.nullOnException(() {
-      final CborTagValue? identifier = cbor.elementAs(6);
-      if (identifier == null) return null;
-      return ProviderIdentifier.deserialize(cbor: identifier);
+    final String id = cbor.rawValueAt<String>(2);
+    return SolanaChain._(network: network, id: id, controller: controller);
+  }
+}
+
+abstract final class ISolanaChainContext
+    implements
+        IChainContext<
+            SolAddress,
+            SolanaSPLToken,
+            NFTCore,
+            WalletSolanaNetwork,
+            SolanaWalletTransaction,
+            ISolanaAddress,
+            SolanaNetworkClient,
+            SolanaNetworkProvider> {}
+
+final class SolanaMainChainContext extends DefaultMainChainContext<
+    SolAddress,
+    SolanaSPLToken,
+    NFTCore,
+    WalletSolanaNetwork,
+    SolanaWalletTransaction,
+    ISolanaAddress,
+    SolanaNetworkClient,
+    SolanaNetworkProvider> implements ISolanaChainContext {
+  SolanaMainChainContext(
+      {required super.id, required super.controller, required super.network});
+
+  @override
+  Future<IResult<bool>> updateAddressBalanceInternal(ISolanaAddress address,
+      {bool tokens = true}) async {
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
+        final balance = await client.getBalance(address.networkAddress);
+        final updateBalance = await address._updateAccountBalance(balance);
+        if (updateBalance.isErr) return updateBalance;
+        if (tokens) {
+          final tokens = await address.getAccountTokens();
+          return tokens.andThenAsync((tokens) async {
+            final balances = await Future.wait(tokens.map((e) async {
+              return IResult.call(
+                  () async => await client.getTokenAddressBalance(e.tokenAccount));
+            }));
+            for (int i = 0; i < tokens.length; i++) {
+              final token = tokens[i];
+              final balance = balances[i];
+              if (balance.isErr) continue;
+              final result = await address._updateAccountTokenBalance(
+                  token, () => token._updateBalance(balance.unwrap()));
+              if (result.isErr) return result;
+            }
+            return balances
+                .firstWhere((e) => e.isErr, orElse: () => ResultOk(BigInt.zero))
+                .map((_) {
+              return updateBalance.unwrap();
+            });
+          });
+        }
+        return updateBalance;
+      });
     });
-    final BigInt? totalBalance = cbor.elementAs<BigInt?>(7);
-    return SolanaChain._(
-        network: network,
-        addresses: accounts,
-        addressIndex: addressIndex,
-        service: service,
-        id: id,
-        totalBalance: totalBalance,
-        config: config);
   }
 
   @override
-  Future<void> _updateAddressBalanceInternal(ISolanaAddress address,
-      {bool tokens = true}) async {
-    await onClient(onConnect: (client) async {
-      final balance = await client.getAccountBalance(address.networkAddress);
-      address._updateAddressBalance(balance);
-      if (tokens) {
-        final tokens = address.tokens;
+  Future<IResult<void>> updateTokenBalance(
+      {required ISolanaAddress address,
+      required List<SolanaSPLToken> tokens,
+      bool isAccountAddress = false}) async {
+    final accountAddress =
+        await this.isAccountAddress(address, validate: !isAccountAddress);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
         final balances = await Future.wait(tokens.map((e) async {
-          try {
-            return await client.getTokenAddressBalance(e.tokenAccount);
-          } catch (_) {
-            return null;
-          }
+          return IResult.call(
+              () async => await client.getTokenAddressBalance(e.tokenAccount));
         }));
         for (int i = 0; i < tokens.length; i++) {
           final token = tokens[i];
           final balance = balances[i];
-          if (balance == null) continue;
-          address._updateTokenBalance(
-              token, () => token._updateBalance(balance));
+          if (balance.isErr) continue;
+          final result = await address._updateAccountTokenBalance(
+              token, () => token._updateBalance(balance.unwrap()));
+          if (result.isErr) return result;
         }
-      }
+        return balances
+            .firstWhere((e) => e.isErr, orElse: () => ResultOk(BigInt.zero))
+            .map((_) {});
+      });
     });
   }
 
   @override
-  Future<void> updateTokenBalance(
-      {required ISolanaAddress address,
-      required List<SolanaSPLToken> tokens}) async {
-    _isAccountAddress(address);
-    await onClient(onConnect: (client) async {
-      final balances = await Future.wait(tokens.map((e) async {
-        try {
-          return await client.getTokenAddressBalance(e.tokenAccount);
-        } catch (_) {
-          return null;
-        }
-      }));
-      for (int i = 0; i < tokens.length; i++) {
-        final token = tokens[i];
-        final balance = balances[i];
-        if (balance == null) continue;
-        address._updateTokenBalance(token, () => token._updateBalance(balance));
+  IResult<SolanaNetworkProvider?> buildProviderNetworkIdentifier(
+      {required List<DefaultAPIProvider> providers,
+      List<SolanaNetworkProvider> exclude = const []}) {
+    for (final p in providers) {
+      if (!clientRequiredServices.allowServices.contains(p.service)) {
+        continue;
       }
-    });
+      final identifier = SolanaNetworkProvider(p);
+      if (exclude.contains(identifier)) continue;
+      return ResultOk(identifier);
+    }
+    return ResultOk(null);
   }
 
   @override
-  ISolanaAddress _deserializeAddress(List<int> adressBytes) {
-    return ISolanaAddress.deserialize(network, bytes: adressBytes);
-  }
+  final clientRequiredServices =
+      NetworkClientRequirment.oneOf({APIProviderServices.solanaJsonRpc});
 }

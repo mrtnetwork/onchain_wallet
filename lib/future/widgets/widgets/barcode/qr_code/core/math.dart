@@ -29,7 +29,8 @@ List<int> _createExpTable() {
     list[i] = 1 << i;
   }
   for (var i = 8; i < 256; i++) {
-    list[i] = (list[i - 4] ^ list[i - 5] ^ list[i - 6] ^ list[i - 8]) & mask8;
+    list[i] = (list[i - 4] ^ list[i - 5] ^ list[i - 6] ^ list[i - 8]) &
+        BinaryOps.mask8;
   }
   return list;
 }

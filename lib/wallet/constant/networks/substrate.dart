@@ -2,7 +2,7 @@ import 'package:blockchain_utils/utils/utils.dart';
 
 class APPSubstrateConst {
   static const List<int> supportedVersion = [14, 15, 16];
-  static final BigRational feeRate = BigRational.parseDecimal("1.1");
+  static BigRational get feeRate => BigRational.parseDecimal("1.1");
   static const String utilityBatchVariantName = "batch";
 
   static const String extrinsicFailedMethodName = "ExtrinsicFailed";

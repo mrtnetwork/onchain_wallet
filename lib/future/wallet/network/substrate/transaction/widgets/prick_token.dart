@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/token_details_view.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/transaction/types/types.dart';
@@ -9,10 +9,7 @@ typedef SUBSTRATEPICKTOKENFILTER = String? Function(SubstrateTokenDetails);
 
 class SubstrateTransactionPickTokenView extends StatefulWidget {
   const SubstrateTransactionPickTokenView(
-      {required this.tokens,
-      required this.controller,
-      this.onFilter,
-      super.key});
+      {required this.tokens, required this.controller, this.onFilter, super.key});
   final List<SubstrateTokenDetails> tokens;
   final SUBSTRATEPICKTOKENFILTER? onFilter;
   final ScrollController controller;
@@ -84,8 +81,7 @@ class _SubstrateTransactionPickTokenViewState
                               ),
                             );
                           },
-                          separatorBuilder: (context, index) =>
-                              WidgetConstant.divider,
+                          separatorBuilder: (context, index) => WidgetConstant.divider,
                         ))
               ])),
         ],
@@ -97,6 +93,5 @@ class _SubstrateTransactionPickTokenViewState
 class _SubstrateTokenDetailsWithError {
   final SubstrateTokenDetails token;
   final String? error;
-  const _SubstrateTokenDetailsWithError(
-      {required this.token, required this.error});
+  const _SubstrateTokenDetailsWithError({required this.token, required this.error});
 }

@@ -1,13 +1,13 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain/ada/src/models/models.dart';
 import 'package:on_chain/ada/src/provider/blockfrost/models/models/utxo.dart';
-import 'package:on_chain_wallet/app/core.dart';
 
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
-import 'package:on_chain_wallet/crypto/keys/keys.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys.dart';
 import 'package:on_chain/ada/src/address/address.dart';
 
-abstract class BaseCardanoAddressDetails with Equality, CborSerializable {
+abstract class BaseCardanoAddressDetails with Equality, AppSerialization {
   final ADAAddressType addressType;
   abstract final List<int>? publicKey;
   abstract final List<int>? stakePubkey;
@@ -46,18 +46,18 @@ final class CardanoAddrDetails extends BaseCardanoAddressDetails {
   bool get isLegacy => hdPath != null;
   final String? hdPath;
   late final String? hdPathKeyHex = BytesUtils.tryToHexString(hdPathKey);
-  factory CardanoAddrDetails.deserialize({List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory CardanoAddrDetails.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.cardanoAccountDetails);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cardanoAccountDetails);
     return CardanoAddrDetails._(
-        publicKey: cbor.elementAs(0),
-        addressType: ADAAddressType.fromHeader(cbor.elementAs(1)),
-        stakePubkey: cbor.elementAs(2),
-        chainCode: cbor.elementAs(3),
-        hdPathKey: cbor.elementAs(4),
-        hdPath: cbor.elementAs(5));
+        publicKey: cbor.rawValueAt(0),
+        addressType: ADAAddressType.fromHeader(cbor.rawValueAt(1)),
+        stakePubkey: cbor.rawValueAt(2),
+        chainCode: cbor.rawValueAt(3),
+        hdPathKey: cbor.rawValueAt(4),
+        hdPath: cbor.rawValueAt(5));
   }
   CardanoAddrDetails._({
     required List<int> publicKey,
@@ -75,23 +75,17 @@ final class CardanoAddrDetails extends BaseCardanoAddressDetails {
       required ADAAddressType addressType,
       required SeedTypes seedGeneration,
       List<int>? stakePubkey}) {
-    if (addressType == ADAAddressType.byron ||
-        addressType == ADAAddressType.pointer) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CardanoAddrDetails.shelley");
+    if (addressType == ADAAddressType.byron || addressType == ADAAddressType.pointer) {
+      throw WalletExceptionConst.invalidAccountData("CardanoAddrDetails.shelley");
     }
     if (addressType == ADAAddressType.base && stakePubkey == null) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CardanoAddrDetails.shelley");
+      throw WalletExceptionConst.invalidAccountData("CardanoAddrDetails.shelley");
     }
     if (addressType != ADAAddressType.base && stakePubkey != null) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CardanoAddrDetails.shelley");
+      throw WalletExceptionConst.invalidAccountData("CardanoAddrDetails.shelley");
     }
     return CardanoAddrDetails._(
-        publicKey: publicKey,
-        addressType: addressType,
-        stakePubkey: stakePubkey);
+        publicKey: publicKey, addressType: addressType, stakePubkey: stakePubkey);
   }
   factory CardanoAddrDetails.byron(
       {required List<int> publicKey,
@@ -99,9 +93,8 @@ final class CardanoAddrDetails extends BaseCardanoAddressDetails {
       required SeedTypes seedGeneration,
       List<int>? hdPathKey,
       String? hdPath}) {
-    if (hdPath != null && hdPathKey == null ||
-        hdPath == null && hdPathKey != null) {
-      throw WalletExceptionConst.invalidAccountDeta("CardanoAddrDetails.byron");
+    if (hdPath != null && hdPathKey == null || hdPath == null && hdPathKey != null) {
+      throw WalletExceptionConst.invalidAccountData("CardanoAddrDetails.byron");
     }
     return CardanoAddrDetails._(
         publicKey: publicKey,
@@ -116,15 +109,12 @@ final class CardanoAddrDetails extends BaseCardanoAddressDetails {
     switch (addressType) {
       case ADAAddressType.base:
         return ADABaseAddress.fromPublicKey(
-            basePubkeyBytes: publicKey,
-            stakePubkeyBytes: stakePubkey!,
-            network: network);
+            basePubkeyBytes: publicKey, stakePubkeyBytes: stakePubkey!, network: network);
       case ADAAddressType.enterprise:
         return ADAEnterpriseAddress.fromPublicKey(
             pubkeyBytes: publicKey, network: network);
       case ADAAddressType.reward:
-        return ADARewardAddress.fromPublicKey(
-            pubkeyBytes: publicKey, network: network);
+        return ADARewardAddress.fromPublicKey(pubkeyBytes: publicKey, network: network);
       case ADAAddressType.byron:
         return ADAByronAddress.fromPublicKey(
             publicKey: publicKey,
@@ -133,75 +123,68 @@ final class CardanoAddrDetails extends BaseCardanoAddressDetails {
             hdPathKey: hdPathKey,
             network: network);
       default:
-        throw WalletExceptionConst.invalidAccountDeta(
-            "CardanoAddrDetails.toAddress");
+        throw WalletExceptionConst.invalidAccountData("CardanoAddrDetails.toAddress");
     }
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          CborBytesValue(publicKey),
-          CborIntValue(addressType.header),
-          stakePubkey == null
-              ? const CborNullValue()
-              : CborBytesValue(stakePubkey!),
-          chainCode == null
-              ? const CborNullValue()
-              : CborBytesValue(chainCode!),
-          hdPathKey == null
-              ? const CborNullValue()
-              : CborBytesValue(hdPathKey!),
-          hdPath == null ? const CborNullValue() : CborStringValue(hdPath!),
-        ]),
-        CborTagsConst.cardanoAccountDetails);
-  }
+  List get variables => [publicKey, hdPath, hdPathKeyHex, chainCode, addressType];
 
   @override
-  List get variabels =>
-      [publicKey, hdPath, hdPathKeyHex, chainCode, addressType];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cardanoAccountDetails;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        CborBytesValue(publicKey),
+        CborIntValue(addressType.header),
+        AppSerialization.bytesToCbor(stakePubkey),
+        AppSerialization.bytesToCbor(chainCode),
+        AppSerialization.bytesToCbor(hdPathKey),
+        hdPath?.toCbor(),
+      ];
 }
 
-class ADAAddressUtxo with CborSerializable, Equality {
+class ADAAddressUtxo with AppSerialization, Equality {
   final TransactionInput input;
   final TransactionOutput output;
   MultiAsset get asset => output.amount.multiAsset ?? MultiAsset.empty;
   final BigInt lovelace;
   const ADAAddressUtxo(
       {required this.input, required this.lovelace, required this.output});
-  factory ADAAddressUtxo.fromUtxo(
-      ADAAccountUTXOResponse utxo, TransactionOutput output) {
+  factory ADAAddressUtxo.fromUtxo(ADAAccountUTXOResponse utxo, TransactionOutput output) {
     return ADAAddressUtxo(
         input: utxo.toInput, lovelace: utxo.sumOflovelace, output: output);
   }
 
-  factory ADAAddressUtxo.deserialize({List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.cardanoAddressUtxo);
+  factory ADAAddressUtxo.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cardanoAddressUtxo);
     return ADAAddressUtxo(
-      input: TransactionInput.deserialize(values.indexAs(0)),
-      lovelace: values.valueAs(1),
-      output: TransactionOutput.deserialize(values.indexAs(2)),
+      input: TransactionInput.deserialize(values.objectAt(0)),
+      lovelace: values.rawValueAt(1),
+      output: TransactionOutput.deserialize(values.objectAt(2)),
     );
   }
 
   @override
-  CborTagValue<CborObject> toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite(
-            [input.toCbor(), CborBigIntValue(lovelace), output.toCbor()]),
-        CborTagsConst.cardanoAddressUtxo);
-  }
-
-  @override
-  List get variabels => [input];
+  List get variables => [input];
 
   TransactionUnspentOutput get transactionUnspentOutput =>
       TransactionUnspentOutput(output: output, input: input);
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cardanoAddressUtxo;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [input.toCbor(), CborBigIntValue(lovelace), output.toCbor()];
 }
 
-class ADAAddressUtxos with CborSerializable {
+class ADAAddressUtxos with AppSerialization {
   Set<ADAAddressUtxo> _utxos = {};
   Set<ADAAddressUtxo> get utxos => _utxos;
   BigInt _totalLovelace = BigInt.zero;
@@ -215,10 +198,8 @@ class ADAAddressUtxos with CborSerializable {
       _utxos.map((e) => e.transactionUnspentOutput).toList();
   ADAAddressUtxos._({List<ADAAddressUtxo> utxos = const []})
       : _utxos = utxos.toImutableSet,
-        _totalLovelace =
-            utxos.fold<BigInt>(BigInt.zero, (p, c) => p + c.lovelace),
-        _totalAssets =
-            utxos.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.asset);
+        _totalLovelace = utxos.fold<BigInt>(BigInt.zero, (p, c) => p + c.lovelace),
+        _totalAssets = utxos.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.asset);
   factory ADAAddressUtxos({List<ADAAddressUtxo> utxos = const []}) {
     final sort = utxos.clone()
       ..sort((a, b) => "${a.input.txIdHex}_${a.input.index}"
@@ -228,8 +209,7 @@ class ADAAddressUtxos with CborSerializable {
 
   void _updateTotal() {
     _totalLovelace = _utxos.fold<BigInt>(BigInt.zero, (p, c) => p + c.lovelace);
-    _totalAssets =
-        _utxos.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.asset);
+    _totalAssets = _utxos.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.asset);
   }
 
   bool updateUtxos(Iterable<ADAAddressUtxo> utxos) {
@@ -244,23 +224,25 @@ class ADAAddressUtxos with CborSerializable {
     return true;
   }
 
-  factory ADAAddressUtxos.deserialize({List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.cardanoAddressUtxos);
+  factory ADAAddressUtxos.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cardanoAddressUtxos);
     return ADAAddressUtxos(
         utxos: values
-            .elementAsListOf<CborTagValue>(0)
-            .map((e) => ADAAddressUtxo.deserialize(obj: e))
+            .listAt<CborTagValue>(0)
+            .map((e) => ADAAddressUtxo.deserialize(object: e))
             .toList());
   }
 
   @override
-  CborTagValue<CborObject> toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite(
-            [CborListValue.definite(_utxos.map((e) => e.toCbor()).toList())]),
-        CborTagsConst.cardanoAddressUtxos);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cardanoAddressUtxos;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [CborListValue.definite(_utxos.map((e) => e.toCbor()).toList())];
 }
 
 class ADAAddressUtxoWithOutput {

@@ -1,22 +1,25 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:cosmos_sdk/cosmos_sdk.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/base/v1beta1/models.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/tx/v1beta1/models.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/cosmos.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
+import 'package:on_chain_wallet/wallet/models/networks/cosmos/extension/extension.dart';
 import 'package:on_chain_wallet/wallet/models/networks/cosmos/models/network_types.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/cw20.dart';
 
 class CosmosWeb3SimulateMessageResponse {
   final String typeUrl;
   final String response;
-  final String? content;
+  // final String? content;
   const CosmosWeb3SimulateMessageResponse(
-      {required this.typeUrl, required this.response, required this.content});
+      {required this.typeUrl, required this.response});
 }
 
 class CosmosWeb3SimulateEvent {
@@ -43,50 +46,45 @@ class CosmosWeb3SimulateInfos {
     required this.log,
   })  : messageResponse = messageResponse.immutable,
         events = events.immutable;
-  factory CosmosWeb3SimulateInfos({
-    required SimulateResponse simulate,
-    required List<CosmosMessage> txMessages,
-  }) {
+  factory CosmosWeb3SimulateInfos(SimulateResponse simulate) {
     final List<CosmosWeb3SimulateEvent> events = [];
-    for (final i in simulate.result.events) {
+    final simulateEvent = simulate.result?.events ?? [];
+    for (final i in simulateEvent) {
+      final type = i.type;
+      if (type == null) continue;
       for (final e in i.attributes) {
-        if (e.key == null || e.value == null) continue;
-        events.add(CosmosWeb3SimulateEvent(
-            key: e.key!, value: e.value!, type: i.type));
+        final key = e.key;
+        final value = e.value;
+        if (key == null || value == null) continue;
+        events.add(CosmosWeb3SimulateEvent(key: key, value: value, type: type));
       }
     }
     final List<CosmosWeb3SimulateMessageResponse> msgResult = [];
-    bool canDecodeResult =
-        txMessages.length == simulate.result.msgResponses.length;
-
-    for (int i = 0; i < simulate.result.msgResponses.length; i++) {
-      final response = simulate.result.msgResponses[i];
-      final String type = response.typeUrl.typeUrl;
-      final String value = response.toBase64;
-      String? content;
-      if (canDecodeResult) {
-        final msg = txMessages[i];
-        if (msg is ServiceMessage) {
-          content = MethodUtils.nullOnException(() {
-            final responseMesssage =
-                msg.onResponse((response as AnyBytesMessage).value).toJson();
-            if (responseMesssage.isEmpty) return null;
-            return StringUtils.fromJson(responseMesssage,
-                indent: '', toStringEncodable: true);
-          });
-        }
+    final msgResponses = simulate.result?.msgResponses ?? [];
+    for (int i = 0; i < msgResponses.length; i++) {
+      final response = msgResponses[i];
+      final String? type = response.typeUrl;
+      if (type == null) continue;
+      String value;
+      switch (response) {
+        case AnyBinary():
+          value = response.toBase64();
+          break;
+        case AnyJson():
+          value =
+              StringUtils.fromJson(response.value, indent: '', toStringEncodable: true);
+          break;
       }
-      msgResult.add(CosmosWeb3SimulateMessageResponse(
-          typeUrl: type, response: value, content: content));
+      msgResult.add(CosmosWeb3SimulateMessageResponse(typeUrl: type, response: value));
     }
-    String log = simulate.result.log ?? '';
+    String log = simulate.result?.log ?? '';
     return CosmosWeb3SimulateInfos._(
-        gasUsed: simulate.gasInfo.gasUsed,
-        gasWanted: simulate.gasInfo.gasWanted,
+        gasUsed: simulate.gasInfo?.gasUsed ?? BigInt.zero,
+        gasWanted: simulate.gasInfo?.gasWanted,
         messageResponse: msgResult,
         events: events,
         log: log.isEmpty ? null : log,
-        content: MethodUtils.nullOnException(() => StringUtils.fromJson(
+        content: MethodUtils.fallbackOnException(() => StringUtils.fromJson(
             simulate.toJson(),
             indent: '',
             toStringEncodable: true)));
@@ -97,8 +95,7 @@ class CosmosWeb3TransactionSimulate {
   final CosmosWeb3SimulateInfos? simulate;
   final String? simulateError;
   const CosmosWeb3TransactionSimulate._(this.simulate, this.simulateError);
-  factory CosmosWeb3TransactionSimulate.simulate(
-      CosmosWeb3SimulateInfos simulate) {
+  factory CosmosWeb3TransactionSimulate.simulate(CosmosWeb3SimulateInfos simulate) {
     return CosmosWeb3TransactionSimulate._(simulate, null);
   }
   factory CosmosWeb3TransactionSimulate.fail(String error) {
@@ -122,11 +119,10 @@ class CosmosWeb3TransactionFeeToken {
   final CW20Token token;
   final IntegerBalance feeAmount;
   bool get hasAmount => feeAmount.largerThanZero;
-  CosmosWeb3TransactionFeeToken(
-      {required this.token, required BigInt feeAmount})
+  CosmosWeb3TransactionFeeToken({required this.token, required BigInt feeAmount})
       : feeAmount = IntegerBalance.token(feeAmount, token.token);
   Coin toCosmosCoin() {
-    return Coin(denom: token.denom, amount: feeAmount.balance);
+    return Coin(denom: token.denom, amount: "${feeAmount.balance}");
   }
 }
 
@@ -148,15 +144,14 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
   bool get isDefaultFee => _isDefaultFee;
   BigInt _gasLimit = BigInt.zero;
 
-  final CosmosBaseAddress? payer;
+  final String? payer;
   final WalletCosmosNetwork network;
-  final CosmosBaseAddress? granter;
+  final String? granter;
   final bool allowSimulate;
   CosmosWeb3TransactionSimulate? _simulate;
   CosmosWeb3TransactionSimulate? get simulate => _simulate;
 
-  CosmosWeb3TransactionFeeStatus _simulateStatus =
-      CosmosWeb3TransactionFeeStatus.idle;
+  CosmosWeb3TransactionFeeStatus _simulateStatus = CosmosWeb3TransactionFeeStatus.idle;
   CosmosWeb3TransactionFeeStatus get simulateStatus => _simulateStatus;
 
   TransactionStateStatus _status = TransactionStateStatus.error();
@@ -171,14 +166,13 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
       required Fee fee}) {
     final fees = fee.amount.map((e) {
       final feeToken =
-          transactionRequirment.feeTokens.firstWhere((i) => i.denom == e.denom);
-      return CosmosWeb3TransactionFeeToken(
-          token: feeToken, feeAmount: e.amount);
+          transactionRequirment.feeTokens.firstWhere((i) => i.denom == e.getDenom());
+      return CosmosWeb3TransactionFeeToken(token: feeToken, feeAmount: e.getAmount());
     }).toList();
     if (fees.isEmpty && fee.gasLimit != null && fee.gasLimit != BigInt.zero) {
       final feeDenom = network.coinParam.getFeeToken();
-      final feeToken = transactionRequirment.feeTokens
-          .firstWhere((e) => e.denom == feeDenom.denom);
+      final feeToken =
+          transactionRequirment.feeTokens.firstWhere((e) => e.denom == feeDenom.denom);
       final feeData = _buildDefaultFee(
           feeToken: feeToken,
           gasLimit: fee.gasLimit!,
@@ -232,17 +226,15 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
       return CosmosWeb3TransactionFeeToken(token: feeToken, feeAmount: fee);
     }
     BigRational gasPrice = CosmosConst.avarageGasPrice;
-    if (network.coinParam.networkType.isEthermint) {
+    if (network.coinParam.networkType.isEthreum) {
       gasPrice = transactionRequirment.ethermintTxFee!;
     } else {
-      final avarageFee =
-          network.coinParam.getFeeToken(denom: feeToken.denom).getFee();
+      final avarageFee = network.coinParam.getFeeToken(denom: feeToken.denom).getFee();
       gasPrice = BigRational.parseDecimal(avarageFee.price);
     }
 
     final fee = BigRational(gasLimit) * gasPrice;
-    return CosmosWeb3TransactionFeeToken(
-        token: feeToken, feeAmount: fee.toBigInt());
+    return CosmosWeb3TransactionFeeToken(token: feeToken, feeAmount: fee.toBigInt());
   }
 
   void setSimulate(CosmosWeb3TransactionSimulate simulate) {
@@ -251,14 +243,13 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
     if (simulateData == null) return;
     _simulate = simulate;
     if (_gasLimit == BigInt.zero) {
-      _gasLimit =
-          (BigRational(simulate.simulate!.gasUsed) * CosmosConst.feeMultiplier)
-              .toBigInt();
+      _gasLimit = (BigRational(simulate.simulate!.gasUsed) * CosmosConst.feeMultiplier)
+          .toBigInt();
     }
     if (fees.isEmpty) {
       final feeDenom = network.coinParam.getFeeToken();
-      final feeToken = transactionRequirment.feeTokens
-          .firstWhere((e) => e.denom == feeDenom.denom);
+      final feeToken =
+          transactionRequirment.feeTokens.firstWhere((e) => e.denom == feeDenom.denom);
       final fee = _buildDefaultFee(
           feeToken: feeToken,
           gasLimit: gasLimit,
@@ -290,8 +281,7 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
   void onAddFeeToken(CW20Token? token) {
     if (token == null) return;
     if (_fees.any((e) => e.token == token)) return;
-    final fee =
-        CosmosWeb3TransactionFeeToken(token: token, feeAmount: BigInt.zero);
+    final fee = CosmosWeb3TransactionFeeToken(token: token, feeAmount: BigInt.zero);
     _fees.add(fee);
     onStateUpdated();
   }
@@ -318,8 +308,7 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
       return TransactionStateStatus.error(error: "gas_limit_validator".tr);
     }
     if (!isThorChain && fees.isEmpty) {
-      return TransactionStateStatus.error(
-          error: "at_least_one_fee_token_required".tr);
+      return TransactionStateStatus.error(error: "at_least_one_fee_token_required".tr);
     }
     return TransactionStateStatus.ready();
   }
@@ -340,6 +329,14 @@ class CosmosWeb3TransactionFeeInfo with DisposableMixin, StreamStateController {
     return Fee(
         amount: fees.map((e) => e.toCosmosCoin()).toList(),
         gasLimit: _gasLimit,
+        granter: granter,
+        payer: payer);
+  }
+
+  AminoFee toAminoFee() {
+    return AminoFee(
+        amount: fees.map((e) => e.toCosmosCoin()).toList(),
+        gas: _gasLimit,
         granter: granter,
         payer: payer);
   }

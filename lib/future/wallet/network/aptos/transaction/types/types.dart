@@ -6,7 +6,7 @@ import 'package:on_chain/aptos/src/helper/helper.dart';
 import 'package:on_chain/aptos/src/provider/models/fullnode/types.dart';
 import 'package:on_chain/aptos/src/transaction/constants/const.dart';
 import 'package:on_chain/aptos/src/transaction/types/types.dart';
-import 'package:on_chain/bcs/move/types/types.dart';
+import 'package:on_chain/serialization/bcs/move/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -36,16 +36,15 @@ class AptosTransactionFee extends DefaultTransactionFee {
       super.error});
 
   factory AptosTransactionFee(
-      {BigInt? maxGasAmount,
+      {BigInt? gasUsed,
       required BigInt gasUnitPrice,
       required WalletAptosNetwork network,
       String? error,
       IAptosTransactionSimulateInfo? simulateInfo}) {
     final hasFee = gasUnitPrice != BigInt.zero;
-    BigInt gasAmount = AptosConstants.defaultMinGasAmount;
-    if (maxGasAmount != null) {
-      gasAmount = (BigRational(maxGasAmount) * BigRational.parseDecimal("1.5"))
-          .toBigInt();
+    BigInt gasAmount = AptosConstants.defaultMaxGasAmount;
+    if (gasUsed != null) {
+      gasAmount = (BigRational(gasUsed) * BigRational.parseDecimal("1.5")).toBigInt();
     }
     final totalFee = IntegerBalance.token(
         hasFee ? gasAmount * gasUnitPrice : gasAmount, network.token,
@@ -55,26 +54,24 @@ class AptosTransactionFee extends DefaultTransactionFee {
         maxGasAmount: gasAmount,
         fee: totalFee,
         simulateInfo: simulateInfo,
-        requiredFee: maxGasAmount != null ? totalFee.balance : gasUnitPrice,
+        requiredFee: totalFee.balance,
         error: error);
   }
 
   @override
-  List get variabels =>
-      [...super.variabels, maxGasAmount, gasUnitPrice, requiredFee];
+  List get variables => [...super.variables, maxGasAmount, gasUnitPrice, requiredFee];
 }
 
-class AptosTransactionFeeData
-    extends TransactionDefaultFeeData<AptosTransactionFee> {
+class AptosTransactionFeeData extends TransactionDefaultFeeData<AptosTransactionFee> {
   AptosTransactionFeeData({required super.select, required super.feeToken});
 }
 
 abstract class BaseAptosTransactionController<T extends IAptosTransactionData>
     extends TransactionStateController<
         AptosFATokens,
-        IAptosAddress,
-        AptosClient,
         WalletAptosNetwork,
+        IAptosAddress,
+        AptosNetworkClient,
         AptosChain,
         T,
         IAptosTransaction<T>,
@@ -83,9 +80,7 @@ abstract class BaseAptosTransactionController<T extends IAptosTransactionData>
         SubmitTransactionSuccess<IAptosSignedTransaction<T>>,
         AptosTransactionFeeData> {
   BaseAptosTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 abstract class IAptosTransactionData extends ITransactionData {
@@ -106,11 +101,9 @@ class IAptosTransactionDataTransfer extends IAptosTransactionData {
   @override
   AptosTransactionPayloadEntryFunction toTransactionPayload() {
     final transfers = recipients
-        .map((e) =>
-            AptosTransferParams.apt(apt: e.amount, destination: e.recipient))
+        .map((e) => AptosTransferParams.apt(apt: e.amount, destination: e.recipient))
         .toList();
-    final entryFunction =
-        AptosHelper.createBatchTransferTransferEntry(transfers);
+    final entryFunction = AptosHelper.createBatchTransferTransferEntry(transfers);
     return AptosTransactionPayloadEntryFunction(entryFunction: entryFunction);
   }
 }
@@ -119,10 +112,8 @@ class IAptosTransactionDataTokenTransfer extends IAptosTransactionData {
   @override
   final AptosTransactionFee fee;
 
-  final ITransactionDataTransferTokenRecipient<AptosAddress, AptosFATokens>
-      recipient;
-  IAptosTransactionDataTokenTransfer(
-      {required this.recipient, required this.fee});
+  final ITransactionDataTransferTokenRecipient<AptosAddress, AptosFATokens> recipient;
+  IAptosTransactionDataTokenTransfer({required this.recipient, required this.fee});
 
   @override
   AptosTransactionPayloadEntryFunction toTransactionPayload() {
@@ -151,8 +142,7 @@ class IAptosTransaction<TXDATA extends IAptosTransactionData>
 }
 
 class IAptosSignedTransaction<TXDATA extends IAptosTransactionData>
-    extends ISignedTransaction<IAptosTransaction<TXDATA>,
-        AptosSignedTransaction> {
+    extends ISignedTransaction<IAptosTransaction<TXDATA>, AptosSignedTransaction> {
   IAptosSignedTransaction(
       {required super.transaction,
       required super.signatures,
@@ -163,9 +153,8 @@ class IAptosTransactionSimulateInfo {
   final AptosApiUserTransaction simulateTx;
   bool get isSuccess => simulateTx.success;
   final String vmStatus;
-  late final String simulateContent = StringUtils.fromJson(simulateTx.toJson(),
-      indent: ' ', toStringEncodable: true);
+  late final String simulateContent =
+      StringUtils.fromJson(simulateTx.toJson(), indent: ' ', toStringEncodable: true);
 
-  IAptosTransactionSimulateInfo(
-      {required this.vmStatus, required this.simulateTx});
+  IAptosTransactionSimulateInfo({required this.vmStatus, required this.simulateTx});
 }

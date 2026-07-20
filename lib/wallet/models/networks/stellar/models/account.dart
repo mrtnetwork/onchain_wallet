@@ -1,10 +1,9 @@
-import 'package:on_chain_wallet/app/utils/utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/stellar.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/token/token.dart';
 import 'package:stellar_dart/stellar_dart.dart';
 
-extension StellarAccountResponseUtils on StellarAccountResponse {
+extension ExtStellarAccountResponseUtils on StellarAccountResponse {
   List<StellarAssetBalanceResponse> get issueAssetBalances =>
       balances.whereType<StellarAssetBalanceResponse>().toList();
   List<StellarNativeBalanceResponse> get nativeAssetBalancess =>
@@ -17,15 +16,13 @@ extension StellarAccountResponseUtils on StellarAccountResponse {
         asset.type == AssetType.creditAlphanum12);
     if (asset.type == AssetType.creditAlphanum4) {
       final assetCode4 = asset.cast<StellarAssetCreditAlphanum4>();
-      return issueAssetBalances.firstWhereOrNull((e) =>
-          e.assetType.assetType == asset.type &&
-          e.assetCode == assetCode4.code);
+      return issueAssetBalances.firstWhereOrNull(
+          (e) => e.assetType.assetType == asset.type && e.assetCode == assetCode4.code);
     }
     if (asset.type == AssetType.creditAlphanum12) {
       final assetCode4 = asset.cast<StellarAssetCreditAlphanum12>();
-      return issueAssetBalances.firstWhereOrNull((e) =>
-          e.assetType.assetType == asset.type &&
-          e.assetCode == assetCode4.code);
+      return issueAssetBalances.firstWhereOrNull(
+          (e) => e.assetType.assetType == asset.type && e.assetCode == assetCode4.code);
     }
     return null;
   }
@@ -38,15 +35,14 @@ extension StellarAccountResponseUtils on StellarAccountResponse {
   }
 }
 
-extension StellarAssetBalanceResponseUtils on StellarAssetBalanceResponse {
+extension ExtStellarAssetBalanceResponseUtils on StellarAssetBalanceResponse {
   StellarIssueToken toIssueToken() {
     return StellarIssueToken.create(
       issuer: assetIssuer,
       balance: unlockedBalance,
       assetType: assetType.assetType,
       assetCode: assetCode,
-      token: Token(
-          name: assetCode, symbol: assetCode, decimal: StellarConst.decimal),
+      token: Token(name: assetCode, symbol: assetCode, decimal: StellarConst.decimal),
     );
   }
 

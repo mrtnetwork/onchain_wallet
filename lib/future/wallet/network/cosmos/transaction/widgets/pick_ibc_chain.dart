@@ -1,11 +1,8 @@
 import 'package:cosmos_sdk/cosmos_sdk.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/constant.dart';
-import 'package:on_chain_wallet/app/http/impl/impl.dart';
-import 'package:on_chain_wallet/app/utils/utils.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-
+import 'package:on_chain_wallet/network/net_api/api.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 typedef ONIBCSELECTDESTINATIONCHAIN = void Function(
@@ -31,8 +28,9 @@ class _CosmosTransactionPickTokenViewState
     with
         SafeState<CosmosIbcTransactionPickDestinationChainView>,
         ProgressMixin,
-        HttpImpl,
         CosmosCustomRequest {
+  @override
+  late final INetApi netApi;
   List<CosmosChain> chains = [];
   List<CW20Token> tokens = [];
 
@@ -40,15 +38,11 @@ class _CosmosTransactionPickTokenViewState
     progressKey.progressText("ibc_retrieval_requirements".tr);
     final chain = chains[tokens.indexOf(token)];
     final String? chainRegistery = chain.network.coinParam.chainRegisteryName;
-    final ccr = await MethodUtils.call(
-        () => getChainData(chainRegistery!,
-            chainType: chain.network.coinParam.chainType),
-        delay: chainRegistery == null ? APPConst.oneSecoundDuration : null);
-    final ccrChain = ccr.resultOrNull;
-    final currentChainName =
-        widget.currentChain.network.coinParam.chainRegisteryName;
+    final ccr =
+        await getChainData(chainRegistery!, chainType: chain.network.coinParam.chainType);
     List<CCRIbcTransition> ibcs = [];
-
+    final ccrChain = ccr.ok();
+    final currentChainName = widget.currentChain.network.coinParam.chainRegisteryName;
     if (ccrChain != null && currentChainName != null) {
       for (final i in ccrChain.$1.assetList.assets) {
         ibcs.addAll(i.traces
@@ -70,7 +64,8 @@ class _CosmosTransactionPickTokenViewState
   @override
   void onInitOnce() {
     super.onInitOnce();
-    final provider = context.watch<WalletProvider>(StateConst.main);
+    netApi = context.appContext.netApi;
+    final provider = context.wallet;
     chains = provider.wallet
         .getChains<CosmosChain>()
         .where((e) =>

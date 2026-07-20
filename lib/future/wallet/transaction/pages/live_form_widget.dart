@@ -1,9 +1,10 @@
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
+import 'package:on_chain_wallet/future/wallet/global/pages/select_or_write_address.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
@@ -13,16 +14,17 @@ import 'package:on_chain_wallet/wallet/models/transaction/types/types.dart';
 typedef STREAMBUILERWITHFIELD<T, E> = Widget Function(
     BuildContext context, LiveFormField<T, E> field, T value);
 
-class LiveFormWidget<T extends Object?, E extends Object?>
-    extends StatelessWidget {
+class LiveFormWidget<T extends Object?, E extends Object?> extends StatelessWidget {
   final String? title;
   final String? subtitle;
   final LiveFormField<T, E> field;
   final STREAMBUILERWITHFIELD<T, E> builder;
   final Color? color;
+  final bool showFieldTitle;
   const LiveFormWidget(
       {required this.field,
       required this.builder,
+      this.showFieldTitle = true,
       this.title,
       this.subtitle,
       this.color,
@@ -31,16 +33,23 @@ class LiveFormWidget<T extends Object?, E extends Object?>
   @override
   Widget build(BuildContext context) {
     final s = subtitle ?? field.subtitle;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title ?? field.title,
-          style: context.textTheme.titleMedium?.copyWith(color: color)),
-      if (s != null)
-        Text(s, style: context.textTheme.bodyMedium?.copyWith(color: color)),
-      WidgetConstant.height8,
-      APPStreamBuilder(
-          value: field.live,
-          builder: (context, value) => builder(context, field, value))
-    ]);
+    return ConditionalWidget(
+        enable: showFieldTitle,
+        onDeactive: (context) => FullWidthWrapper(
+            child: APPStreamBuilder(
+                value: field.live,
+                builder: (context, value) => builder(context, field, value))),
+        onActive: (context) =>
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title ?? field.title,
+                  style: context.textTheme.titleMedium?.copyWith(color: color)),
+              if (s != null)
+                Text(s, style: context.textTheme.bodyMedium?.copyWith(color: color)),
+              WidgetConstant.height8,
+              APPStreamBuilder(
+                  value: field.live,
+                  builder: (context, value) => builder(context, field, value))
+            ]));
   }
 }
 
@@ -72,11 +81,9 @@ class LiveFormWidgetAmount extends StatelessWidget {
   Widget build(BuildContext context) {
     final subtitle = field.subtitle;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(field.title,
-          style: context.textTheme.titleMedium?.copyWith(color: color)),
+      Text(field.title, style: context.textTheme.titleMedium?.copyWith(color: color)),
       if (subtitle != null)
-        Text(subtitle,
-            style: context.textTheme.bodyMedium?.copyWith(color: color)),
+        Text(subtitle, style: context.textTheme.bodyMedium?.copyWith(color: color)),
       WidgetConstant.height8,
       APPStreamBuilder(
         value: field.live,
@@ -98,8 +105,7 @@ class LiveFormWidgetAmount extends StatelessWidget {
                       final max = onUpdateAmountMax?.call();
                       final min = onUpdateAmountMin?.call();
                       context
-                          .setupAmount(
-                              token: field.value.token, max: max, min: min)
+                          .setupAmount(token: field.value.token, max: max, min: min)
                           .then((v) {
                         if (v == null) return;
                         onUpdateAmount(v, v == max);
@@ -133,8 +139,7 @@ typedef ONUPDATEDECIMALAMOUNTMAX<T> = T? Function();
 typedef ONUPDATEDECIMALAMOUNT<T> = void Function(T amount, bool max);
 
 class LiveFormWidgetBalanceCore<T> extends StatelessWidget {
-  final LiveFormField<BalanceCore<T, APPToken>?, BalanceCore<T, APPToken>?>
-      field;
+  final LiveFormField<BalanceCore<T, APPToken>?, BalanceCore<T, APPToken>?> field;
   final ONUPDATEDECIMALAMOUNT<T> onUpdateAmount;
   final ONUPDATEDECIMALAMOUNTMAX<T>? onUpdateAmountMax;
   final ONUPDATEDECIMALAMOUNTMAX<T>? onUpdateAmountMin;
@@ -219,19 +224,20 @@ class LiveFormWidgetBalanceCore<T> extends StatelessWidget {
   }
 }
 
-typedef ONUPDATEADDRESS<NETWORKADDRESS> = void Function(
+typedef ONUPDATEADDRESS<NETWORKADDRESS extends IAddress> = void Function(
     ReceiptAddress<NETWORKADDRESS>? address);
-typedef ONUPDATEADDRESSES<NETWORKADDRESS> = void Function(
+typedef ONUPDATEADDRESSES<NETWORKADDRESS extends IAddress> = void Function(
     List<ReceiptAddress<NETWORKADDRESS>> addresses);
 
-class LiveFormWidgetReceiverAddress<NETWORKADDRESS> extends StatelessWidget {
+class LiveFormWidgetReceiverAddress<NETWORKADDRESS extends IAddress>
+    extends StatelessWidget {
   final bool visibleOnNull;
   final bool removable;
-  final LiveFormField<ReceiptAddress<NETWORKADDRESS>?,
-      ReceiptAddress<NETWORKADDRESS>> field;
-  final APPCHAINNETWORK<NETWORKADDRESS> account;
+  final LiveFormField<ReceiptAddress<NETWORKADDRESS>?, ReceiptAddress<NETWORKADDRESS>>
+      field;
+  final APPCHAINADDRESS<NETWORKADDRESS> account;
   final ONUPDATEADDRESS<NETWORKADDRESS>? onUpdateAddress;
-  final RecipientFilter<NETWORKADDRESS>? onFilterAccount;
+  final RECIPIENTFILTER<NETWORKADDRESS>? onFilterAccount;
   const LiveFormWidgetReceiverAddress({
     this.onUpdateAddress,
     required this.field,
@@ -266,7 +272,7 @@ class LiveFormWidgetReceiverAddress<NETWORKADDRESS> extends StatelessWidget {
                       return;
                     }
                     context
-                        .selectAccount<NETWORKADDRESS>(
+                        .selectAccountNew<NETWORKADDRESS>(
                             account: account, onFilterAccount: onFilterAccount)
                         .then(
                       (value) {
@@ -389,8 +395,7 @@ typedef FORMLISTENTRYBUILDER<T extends Object> = Widget Function(
     BuildContext context, T value);
 typedef ONCREATENEWLIVEFIELDWIDGET<T extends Object> = Widget? Function(
     BuildContext context, LiveFormFields<T> field);
-typedef ONCREATENEWFIELDWIDGET<T extends Object> = Widget? Function(
-    BuildContext context);
+typedef ONCREATENEWFIELDWIDGET<T extends Object> = Widget? Function(BuildContext context);
 
 class LiveFormWidgetList<T extends Object> extends StatelessWidget {
   final LiveFormFields<T> field;
@@ -471,16 +476,15 @@ class FormWidgetList<T extends Object> extends StatelessWidget {
   }
 }
 
-typedef ONUPDATETRANSFERDETAILSAMOUNT<T extends TransferOutputDetails> = void
-    Function(T output, BigInt amount, bool max);
-typedef ONUPDATETETRANSFERDETAILSAMOUNTMAX<T extends TransferOutputDetails>
-    = BigInt? Function(T output);
-typedef ONREMOVETRANSFERDETAILS<T extends TransferOutputDetails> = void
+typedef ONUPDATETRANSFERDETAILSAMOUNT<T extends TransferOutputDetails> = void Function(
+    T output, BigInt amount, bool max);
+typedef ONUPDATETETRANSFERDETAILSAMOUNTMAX<T extends TransferOutputDetails> = BigInt?
     Function(T output);
+typedef ONREMOVETRANSFERDETAILS<T extends TransferOutputDetails> = void Function(
+    T output);
 typedef ONVALIDATETRANSFER<T> = bool Function(T);
 
-class LiveWidgetTransferDetails<T extends TransferOutputDetails>
-    extends StatelessWidget {
+class LiveWidgetTransferDetails<T extends TransferOutputDetails> extends StatelessWidget {
   final T transfer;
   final ONUPDATETRANSFERDETAILSAMOUNT<T> onUpdateAmount;
   final ONUPDATETETRANSFERDETAILSAMOUNTMAX<T>? onUpdateAmountMax;
@@ -501,8 +505,7 @@ class LiveWidgetTransferDetails<T extends TransferOutputDetails>
       builder: (context, value) {
         final isValid = onValidateTransfer?.call(transfer) ?? true;
         return CustomizedContainer(
-          onTapStackIcon:
-              onRemove == null ? null : () => onRemove?.call(transfer),
+          onTapStackIcon: onRemove == null ? null : () => onRemove?.call(transfer),
           onStackIcon: Icons.remove_circle,
           reverseColor: context.colors.onPrimaryContainer,
           validate: transfer.isReady && isValid,
@@ -513,8 +516,7 @@ class LiveWidgetTransferDetails<T extends TransferOutputDetails>
               ContainerWithBorder(
                   backgroundColor: context.onPrimaryContainer,
                   child: ReceiptAddressDetailsView(
-                      address: transfer.recipient,
-                      color: context.primaryContainer)),
+                      address: transfer.recipient, color: context.primaryContainer)),
               ContainerWithBorder(
                   onRemove: () {
                     final max = onUpdateAmountMax?.call(transfer);
@@ -526,8 +528,7 @@ class LiveWidgetTransferDetails<T extends TransferOutputDetails>
                     });
                   },
                   validate: transfer.hasAmount,
-                  onRemoveIcon:
-                      Icon(Icons.edit, color: context.primaryContainer),
+                  onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                   backgroundColor: context.onPrimaryContainer,
                   child: CoinAndMarketPriceView(
                       balance: transfer.amount,
@@ -542,10 +543,11 @@ class LiveWidgetTransferDetails<T extends TransferOutputDetails>
   }
 }
 
-class LiveWidgetAddNewTransferDetails<NETWORKADDRESS> extends StatelessWidget {
+class LiveWidgetAddNewTransferDetails<NETWORKADDRESS extends IAddress>
+    extends StatelessWidget {
   final ONUPDATEADDRESSES<NETWORKADDRESS> onUpdateAddresses;
-  final RecipientFilter<NETWORKADDRESS>? onFilterAccount;
-  final APPCHAINNETWORK<NETWORKADDRESS> account;
+  final RECIPIENTFILTER<NETWORKADDRESS>? onFilterAccount;
+  final APPCHAINADDRESS<NETWORKADDRESS> account;
   final bool multipleSelect;
   final bool isReady;
 
@@ -651,19 +653,16 @@ class LiveFormWidgetString extends StatelessWidget {
               onActive: (context) => FullWidthWrapper(
                   key: ValueKey(value?.length),
                   child: Text(field.value ?? "tap_to_input_value".tr,
-                      maxLines: 3,
-                      style: context.onPrimaryTextTheme.bodyMedium))),
+                      maxLines: 3, style: context.onPrimaryTextTheme.bodyMedium))),
         );
       },
     );
   }
 }
 
-typedef ONUPDATEACCOUNT<ACCOUNT extends ChainAccount> = void Function(
-    ACCOUNT? address);
+typedef ONUPDATEACCOUNT<ACCOUNT extends ChainAccount> = void Function(ACCOUNT? address);
 
-class LiveFormWidgetAccount<ACCOUNT extends ChainAccount>
-    extends StatelessWidget {
+class LiveFormWidgetAccount<ACCOUNT extends ChainAccount> extends StatelessWidget {
   final bool visibleOnNull;
   final bool removable;
   final bool showMultisigAccount;
@@ -733,6 +732,7 @@ class LiveFormWidgetAccount<ACCOUNT extends ChainAccount>
                         child: AddressDetailsView(
                           address: address!,
                           color: context.onPrimaryContainer,
+                          chain: account,
                         ),
                       )),
             ),

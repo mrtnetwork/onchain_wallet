@@ -19,11 +19,11 @@ class TonAccountPageView extends StatelessWidget {
           return TonTransactionTransferOperation(
               walletProvider: context.wallet,
               account: account,
-              address: account.address);
+              address: account.addressSync);
         },
       ),
-      AccountTransactionActivityView<ITonAddress, TonWalletTransaction>(
-          account: account, address: account.address)
+      AccountTransactionActivityView<TonWalletTransaction, ITonAddress>(
+          account: account, address: account.addressSync)
     ]);
   }
 }
@@ -35,18 +35,9 @@ class _TonServices extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverToBoxAdapter(
         child: Column(
           children: [
-            AppListTile(
-              trailing: const Icon(Icons.arrow_forward),
-              title: Text("ton_mnemonic".tr),
-              subtitle: Text("generate_ton_private_key".tr),
-              onTap: () {
-                context.to(PageRouter.tonMnemonic);
-              },
-            ),
             AppListTile(
               trailing: const Icon(Icons.arrow_forward),
               title: Text("ton_mnemonic".tr),

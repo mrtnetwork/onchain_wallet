@@ -3,8 +3,7 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/image/memory_image.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/wallet/models/token/token/token.dart'
-    show APPToken;
+import 'package:on_chain_wallet/wallet/models/token/token/token.dart' show APPToken;
 
 class CircleAssetsImageView extends StatelessWidget {
   const CircleAssetsImageView(this.assetPath,
@@ -19,7 +18,8 @@ class CircleAssetsImageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CircleAvatar(
-      backgroundImage: CacheMemoryImageProvider(assetPath),
+      backgroundImage:
+          CacheMemoryImageProvider(image: assetPath, netApi: context.appContext.netApi),
       radius: radius,
       backgroundColor: backgroundColor,
       foregroundColor: foregroundColor,
@@ -77,7 +77,8 @@ class CircleAPPImageView extends StatelessWidget {
                   reverseColor: reverseColor,
                 );
               },
-              image: CacheMemoryImageProvider(image!),
+              image: CacheMemoryImageProvider(
+                  image: image!, netApi: context.appContext.netApi),
               errorBuilder: (context, error, stackTrace) {
                 return _CircleAPPImageView(
                   radius: radius,
@@ -193,13 +194,13 @@ class APPImageView extends StatelessWidget {
                 onDeactive: (context) => _CircleAPPImageView(
                     radius: radius,
                     onNull: name,
-                    child:
-                        onLoading[APPImageLoaderStatus.loading]?.call(context)),
-                onActive: (context) => _CircleAPPImageView(
-                    radius: radius, onNull: name, child: child),
+                    child: onLoading[APPImageLoaderStatus.loading]?.call(context)),
+                onActive: (context) =>
+                    _CircleAPPImageView(radius: radius, onNull: name, child: child),
               );
             },
-            image: CacheMemoryImageProvider(image!),
+            image: CacheMemoryImageProvider(
+                image: image!, netApi: context.appContext.netApi),
             errorBuilder: (context, error, stackTrace) {
               return _CircleAPPImageView(
                   radius: radius,

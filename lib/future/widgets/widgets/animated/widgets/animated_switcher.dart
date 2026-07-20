@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/typdef/typedef.dart';
-import 'package:on_chain_wallet/future/widgets/widgets/sliver/widgets/animated_switcher.dart';
-import 'package:on_chain_wallet/future/widgets/widgets/widget_constant.dart';
 
 class APPAnimatedSwitcher<T> extends StatelessWidget {
   const APPAnimatedSwitcher(
@@ -94,6 +93,7 @@ class _WrapSliver extends StatelessWidget {
 class APPAnimated extends StatelessWidget {
   const APPAnimated(
       {this.isActive = true,
+      this.isExpanded = false,
       required this.onActive,
       this.onDeactive,
       this.duration = APPConst.animationDuraion,
@@ -104,12 +104,57 @@ class APPAnimated extends StatelessWidget {
   final WidgetContextNullable? onDeactive;
   final Duration duration;
   final Alignment alignment;
+  final bool isExpanded;
+  @override
+  Widget build(BuildContext context) {
+    final widget = isActive ? onActive(context) : onDeactive?.call(context);
+    return AnimatedSwitcher(
+      duration: duration,
+      switchInCurve: Curves.easeOutQuad,
+      child: switch (isExpanded) {
+        true => FullWidthWrapper(
+            key: ValueKey<Key?>(widget?.key),
+            child: widget ?? WidgetConstant.sizedBox,
+          ),
+        false => widget
+      },
+    );
+  }
+}
+
+class APPAnimatedWithValue<T extends Object> extends StatelessWidget {
+  const APPAnimatedWithValue(
+      {required this.onValue,
+      this.onNull,
+      this.value,
+      this.duration = APPConst.animationDuraion,
+      this.alignment = Alignment.topCenter,
+      this.isExpanded = false,
+      super.key});
+
+  final WidgetContextWithItem<T> onValue;
+  final WidgetContext? onNull;
+  final T? value;
+  final Duration duration;
+  final Alignment alignment;
+  final bool isExpanded;
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: duration,
-      child: isActive ? onActive(context) : onDeactive?.call(context),
-    );
+        duration: duration,
+        switchInCurve: Curves.easeOutQuad,
+        child: switch (isExpanded) {
+          false => switch (value) {
+              final T obj => onValue(context, obj),
+              _ => onNull?.call(context) ?? WidgetConstant.sizedBox
+            },
+          true => FullWidthWrapper(
+              key: ValueKey(value),
+              child: switch (value) {
+                final T obj => onValue(context, obj),
+                _ => onNull?.call(context) ?? WidgetConstant.sizedBox
+              })
+        });
   }
 }
 

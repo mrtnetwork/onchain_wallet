@@ -1,11 +1,12 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 
-abstract class TransferOutputDetails<NETWORKADDRESS>
+abstract class TransferOutputDetails<NETWORKADDRESS extends IAddress>
     with DisposableMixin, StreamStateController, Equality {
   final IntegerBalance amount;
   final bool recipientUpdateble;
@@ -34,14 +35,12 @@ abstract class TransferOutputDetails<NETWORKADDRESS>
   }
 
   @override
-  List get variabels => [_recipient];
+  List get variables => [_recipient];
 }
 
-class TrackTransactionRequest<T extends ChainTransaction,
-    A extends ChainAccount> {
+class TrackTransactionRequest<T extends ChainTransaction, A extends ChainAccount> {
   final List<T> transactions;
   final A account;
-  TrackTransactionRequest(
-      {required List<T> transactions, required this.account})
+  TrackTransactionRequest({required List<T> transactions, required this.account})
       : transactions = transactions.immutable;
 }

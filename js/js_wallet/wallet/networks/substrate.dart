@@ -1,20 +1,18 @@
 import 'dart:js_interop';
-import 'package:on_chain_wallet/app/utils/list/extension.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/substrate/substrate.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/substrate/substrate.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import '../../js_wallet.dart';
 import '../../models/models/networks/substrate.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../core/network_handler.dart';
 
-class SubstrateWeb3JSStateAddress extends Web3JSStateAddress<
-    BaseSubstrateAddress,
-    Web3SubstrateChainAccount,
-    JSSubstrateWalletAccount,
-    Web3SubstrateChainIdnetifier> {
+class SubstrateWeb3JSStateAddress extends Web3JSStateAddress<BaseSubstrateAddress,
+    Web3SubstrateChainAccount, JSSubstrateWalletAccount, Web3SubstrateChainIdnetifier> {
   const SubstrateWeb3JSStateAddress(
       {required super.chainaccount,
       required super.jsAccount,
@@ -42,11 +40,9 @@ class SubstrateWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory SubstrateWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return SubstrateWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return SubstrateWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
-  factory SubstrateWeb3JSStateAccount(
-      Web3SubstrateChainAuthenticated? authenticated) {
+  factory SubstrateWeb3JSStateAccount(Web3SubstrateChainAuthenticated? authenticated) {
     if (authenticated == null) {
       return SubstrateWeb3JSStateAccount.init(state: Web3NetworkState.block);
     }
@@ -93,10 +89,12 @@ class SubstrateWeb3JSStateHandler extends Web3JSStateHandler<
         Web3SubstrateChainAccount,
         JSSubstrateWalletAccount,
         Web3SubstrateChainIdnetifier,
+        SubstrateWeb3JSStateAddress,
         SubstrateWeb3JSStateAccount>
     with
         SubstrateWeb3StateHandler<
             JSSubstrateWalletAccount,
+            SubstrateWeb3JSStateAddress,
             SubstrateWeb3JSStateAccount,
             WalletMessageResponse,
             Web3JsClientRequest,
@@ -115,14 +113,11 @@ class SubstrateWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3SubstrateRequestMethods.knownMetadata:
         return createResponse();
       case Web3SubstrateRequestMethods.signMessage:
-        return toSignMessageRequest(
-            params: params, state: state, method: method!);
+        return toSignMessageRequest(params: params, state: state, method: method!);
       case Web3SubstrateRequestMethods.signTransaction:
-        return toSignTransactionRequest(
-            params: params, state: state, method: method!);
+        return toSignTransactionRequest(params: params, state: state, method: method!);
       case Web3SubstrateRequestMethods.addSubstrateChain:
-        return toAddNewChainRequest(
-            params: params, state: state, method: method!);
+        return toAddNewChainRequest(params: params, state: state, method: method!);
       default:
         throw Web3RequestExceptionConst.methodDoesNotSupport;
     }
@@ -153,12 +148,13 @@ class SubstrateWeb3JSStateHandler extends Web3JSStateHandler<
       default:
         break;
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  SubstrateWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  SubstrateWeb3JSStateAccount createState(
+      Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return SubstrateWeb3JSStateAccount.init();
     return SubstrateWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

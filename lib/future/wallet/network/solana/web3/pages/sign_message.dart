@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain/ethereum/src/eip_4361/types/eip_4631.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/web3_request_page_builder.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/operations/sign_message.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/solana/params/models/sign_message.dart';
+import 'package:on_chain_wallet/web3/web3/networks/solana/params/models/sign_message.dart';
 
 class Web3SolanaSignMessageStateView extends StatelessWidget {
   final Web3SolanaSignMessageStateController controller;
@@ -31,7 +31,8 @@ class Web3SolanaSignMessageStateView extends StatelessWidget {
               WidgetConstant.width8,
               Expanded(
                 child: Text("sign_message_private_key_desc".tr,
-                    style: context.colors.onErrorContainer.bodyMedium(context)),
+                    style: context.textTheme.bodyMedium
+                        ?.copyWith(color: context.colors.onErrorContainer)),
               ),
             ],
           )),
@@ -72,8 +73,7 @@ class _SignMessageItemView extends StatelessWidget {
           onRemove: () {},
           enableTap: false,
           onRemoveWidget: WidgetConstant.sizedBox,
-          child: CopyableTextWidget(
-              text: message.params.data, isSensitive: false)),
+          child: CopyableTextWidget(text: message.params.data, isSensitive: false)),
       if (message.params.content != null) ...[
         WidgetConstant.height20,
         Text("content".tr, style: context.textTheme.titleMedium),
@@ -181,8 +181,7 @@ class _EIP4631ContentView extends StatelessWidget {
       ],
       if (message.hasExpirationTime) ...[
         WidgetConstant.height20,
-        Text('expiration_time'.tr,
-            style: context.onPrimaryTextTheme.titleMedium),
+        Text('expiration_time'.tr, style: context.onPrimaryTextTheme.titleMedium),
         WidgetConstant.height8,
         ContainerWithBorder(
             backgroundColor: context.onPrimaryContainer,

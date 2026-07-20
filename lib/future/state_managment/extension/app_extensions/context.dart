@@ -1,64 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/state_managment/core/observer.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/theme/theme.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
+import 'package:on_chain_wallet/future/wallet/controller/impls/action_controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 
-extension CustomColorsSchame on ColorScheme {
+extension ExtCustomColorsSchame on ColorScheme {
   Color get disable => onSurface.wOpacity(0.38);
   Color get orange => Colors.orange;
   Color get green => Colors.green;
   Color get onGreen => Colors.white;
   Color get transparent => Colors.transparent;
+  Color get blue => Colors.blue;
 }
 
-extension QuickColor on Color {
+extension ExtQuickColor on Color {
   Color wOpacity(double opacity) {
     assert(opacity >= 0.0 && opacity <= 1.0);
     return withAlpha((255.0 * opacity).round());
   }
 
-  TextStyle? titleLarge(BuildContext context) {
-    return context.textTheme.titleLarge?.copyWith(color: this);
-  }
-
-  TextStyle? titleMedium(BuildContext context) {
-    return context.textTheme.titleMedium?.copyWith(color: this);
-  }
-
-  TextStyle? bodyMedium(BuildContext context) {
-    return context.textTheme.bodyMedium?.copyWith(color: this);
-  }
-
-  TextStyle? bodySmall(BuildContext context) {
-    return context.textTheme.bodySmall?.copyWith(color: this);
-  }
-
-  Color get opacity5 {
-    return wOpacity(0.5);
-  }
-
-  Color get opacity1 {
-    return wOpacity(0.1);
-  }
+  Color get disabled => wOpacity(0.38);
 }
 
-extension QuickContextAccsess on BuildContext {
-  T watch<T extends StateController>(String stateId) {
-    return StateRepository.stateOf(this, stateId)!;
-  }
-
+extension ExtQuickContextAccsess on BuildContext {
   WalletProvider get wallet {
     return StateRepository.stateOf(this, StateConst.main)!;
   }
 
-  T watchOrCreate<T extends StateController>(
-      {required String stateId, required T Function() controller}) {
-    return StateRepository.stateOfCreate(this, stateId, controller)!;
-  }
-
+  MainAppContext get appContext => wallet.context;
+  MainAppContext? get appContextOrNull => mounted ? wallet.context : null;
   ThemeData get theme => Theme.of(this);
   TextTheme get textTheme => theme.textTheme;
   ColorScheme get colors => theme.colorScheme;
@@ -79,11 +53,6 @@ extension QuickContextAccsess on BuildContext {
     }
   }
 
-  ScaffoldFeatureController? showScaffoldMessage(MaterialBanner banner) {
-    final messengerKey = StateRepository.messengerKey(this);
-    return messengerKey.currentState?.showMaterialBanner(banner);
-  }
-
   Future<T?> to<T>(String? path, {dynamic argruments}) async {
     if (path == null) {
       showAlert('page_not_found'.tr);
@@ -94,6 +63,18 @@ extension QuickContextAccsess on BuildContext {
       return (push as T?);
     }
     return null;
+  }
+
+  Future<IResult<T?>> toNamed<T>(String? path, {dynamic argruments}) async {
+    if (path == null) {
+      showAlert('page_not_found'.tr);
+      return ResultErr.fromException(AppExceptionConst.walletContextNotAvailable);
+    }
+    if (mounted) {
+      final push = await Navigator.pushNamed<T>(this, path, arguments: argruments);
+      return ResultOk(push);
+    }
+    return ResultErr.fromException(AppExceptionConst.walletContextNotAvailable);
   }
 
   Future<T?> mybeTo<T>(String? path, {dynamic argruments}) async {
@@ -124,8 +105,7 @@ extension QuickContextAccsess on BuildContext {
 
   Future<T?> offTo<T>(String path, {dynamic argruments}) async {
     if (mounted) {
-      final push =
-          Navigator.popAndPushNamed<T, T>(this, path, arguments: argruments);
+      final push = Navigator.popAndPushNamed<T, T>(this, path, arguments: argruments);
       return push;
     }
     return null;
@@ -133,18 +113,11 @@ extension QuickContextAccsess on BuildContext {
 
   BuildContext? get muntedOrNull => mounted ? this : null;
   void showAlert(String message) {
-    if (mounted) {
-      final sc = ScaffoldMessenger.maybeOf(this);
-      SnackBar snackBar;
-      snackBar = createSnackAlert(
-        message: message,
-        theme: theme,
-        onTap: () {
-          sc?.clearSnackBars();
-        },
-      );
-      sc?.showSnackBar(snackBar);
-    }
+    wallet.showAlert(message);
+  }
+
+  void showSnackbar(SnackBar snackbar, {CbOnScaffoldFeatureController? onShow}) {
+    wallet.showSnackbar(snackbar, onShow ?? (_) {});
   }
 
   Future<T?> openSliverBottomSheet<T>(String label,
@@ -239,6 +212,7 @@ extension QuickContextAccsess on BuildContext {
       context: this,
       useRootNavigator: false,
       barrierDismissible: true,
+      useSafeArea: false,
       routeSettings: routeName == null ? null : RouteSettings(name: routeName),
       builder: (context) {
         return fullWidget?.call(context) ??
@@ -301,16 +275,42 @@ extension QuickContextAccsess on BuildContext {
     });
   }
 
-  BuildContext? get scaffoldContext =>
-      StateRepository.scaffoldKey(this).currentContext;
+  BuildContext? get scaffoldContext => StateRepository.scaffoldKey(this).currentContext;
 
-  // GlobalKey<ScaffoldState> get scaffoldKey => StateRepository.scaffoldKey(this);
-
-  GlobalKey<NavigatorState> get navigatorKey =>
-      StateRepository.navigatorKey(this);
+  GlobalKey<NavigatorState> get navigatorKey => StateRepository.navigatorKey(this);
   ModalRoute? route() {
     return ModalRoute.of(this);
   }
 
   WalletRouteObserver get observer => StateRepository.walletObserver(this);
+
+  ///
+  Future<IResult<T?>> openDialog<T>(
+      {List<Widget> Function(BuildContext)? content,
+      WidgetContext? widget,
+      WidgetContext? sliver,
+      String? label,
+      double? maxWidth,
+      bool dismissible = true,
+      String? routeName}) async {
+    if (!mounted) {
+      return ResultErr.fromException(AppExceptionConst.walletContextNotAvailable);
+    }
+    final result = await showAdaptiveDialog<T>(
+      context: this,
+      useRootNavigator: true,
+      barrierDismissible: dismissible,
+      routeSettings: routeName == null ? null : RouteSettings(name: routeName),
+      builder: (context) {
+        return DialogView(
+            title: label,
+            dismissible: dismissible,
+            content: content?.call(context) ?? const [],
+            widget: widget == null ? null : widget(context),
+            sliver: sliver == null ? null : sliver(context),
+            maxWidth: maxWidth);
+      },
+    );
+    return ResultOk(result);
+  }
 }

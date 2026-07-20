@@ -1,2 +1,4 @@
 export 'pages/delete_account.dart';
-export 'pages/account_controller.dart';
+export 'controller/account_controller.dart';
+export 'controller/controller.dart';
+export 'controller/actions.dart';

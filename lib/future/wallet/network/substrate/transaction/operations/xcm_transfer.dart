@@ -16,9 +16,7 @@ class SubstrateTransactionXCMTransferOperation
     extends SubstrateTransactionStateController<ISubstrateXCMTransactionData> {
   late SubstrateXCMTransferRequirement _requirement;
   SubstrateTransactionXCMTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   bool get allowAddTransfer => supportBatch;
   IntegerBalance? _existentialDeposit;
@@ -26,9 +24,8 @@ class SubstrateTransactionXCMTransferOperation
   List<SubstrateChain> get routes => _requirement.destinations;
   StreamSubscription? _trakcerSubscription;
   SubmitedXCMTransferDestinationTracker? _tracker;
-  late final LiveFormField<SubstrateXCMTransferDetails?,
-          SubstrateXCMTransferDetails> destination =
-      LiveFormField(
+  late final LiveFormField<SubstrateXCMTransferDetails?, SubstrateXCMTransferDetails>
+      destination = LiveFormField(
           optional: false,
           title: "destination_network".tr,
           subtitle: "choose_network_transfer_to_desc".tr,
@@ -58,20 +55,17 @@ class SubstrateTransactionXCMTransferOperation
     final transfer = SubstrateXCMTransferDetails(
         transferAssets: tokens,
         origin: _requirement.routes.firstWhere((e) => e.network == account),
-        destinationChain:
-            _requirement.routes.firstWhere((e) => e.network == network),
+        destinationChain: _requirement.routes.firstWhere((e) => e.network == network),
         address: address,
         relayNetworks: _requirement.routes);
-    _transferSubscription =
-        transfer.stream.listen((_) => _onTransferEvents(transfer));
+    _transferSubscription = transfer.stream.listen((_) => _onTransferEvents(transfer));
     destination.setValue(transfer);
     transfer.init();
     onStateUpdated();
     currentTransfer?.dispose();
   }
 
-  void onUpdateToken(
-      SubstrateXCMTransferDetails transfer, SubstrateTokenDetails? token) {
+  void onUpdateToken(SubstrateXCMTransferDetails transfer, SubstrateTokenDetails? token) {
     if (token == null) return;
     transfer.onUpdateToken(token);
     onStateUpdated();
@@ -120,8 +114,8 @@ class SubstrateTransactionXCMTransferOperation
   }
 
   /// 999999990000000000
-  void onRemoveTransfer(SubstrateXCMTransferDetails destination,
-      SubstrateXCMTransferToken transfer) {
+  void onRemoveTransfer(
+      SubstrateXCMTransferDetails destination, SubstrateXCMTransferToken transfer) {
     destination.onRemoveTransfer(transfer);
     onStateUpdated();
   }
@@ -158,21 +152,18 @@ class SubstrateTransactionXCMTransferOperation
     final feeToken = this.feeToken.value;
     // final internalAsset = token?.internalAsset;
     final bool isNativeAsset = token?.isNativeAsset ?? true;
-    final balance =
-        token?.balance.value.balance ?? address.address.currencyBalance;
+    final balance = token?.balance.value.balance ?? address.addressData.currencyBalance;
     final assetToken = token?.token ?? network.token;
     List<SubstrateXCMTransferToken> sameTransfers;
     final recipients = destination.value?.transfers ?? [];
     if (token != null) {
-      sameTransfers =
-          recipients.where((e) => e.token.tokenDetails == token).toList();
+      sameTransfers = recipients.where((e) => e.token.tokenDetails == token).toList();
     } else {
       sameTransfers = recipients.where((e) => e.token.isNativeAsset).toList();
     }
     BigInt total =
         sameTransfers.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    if (token == feeToken?.tokenDetails ||
-        (isNativeAsset && feeToken == null)) {
+    if (token == feeToken?.tokenDetails || (isNativeAsset && feeToken == null)) {
       total += txFee.fee.fee.balance;
     }
     if (token == null || isNativeAsset) {
@@ -211,8 +202,7 @@ class SubstrateTransactionXCMTransferOperation
     return TransactionStateStatus.ready(warning: simulateError);
   }
 
-  Future<SubstrateCallPallet> _toCalls(
-      SubstrateXCMTransferEncodedParams xcmParam) async {
+  Future<SubstrateCallPallet> _toCalls(SubstrateXCMTransferEncodedParams xcmParam) async {
     final memos = this.memos.value;
     final remarks =
         memos.map((e) => SystemCallPalletRemark(value: StringUtils.toBytes(e)));
@@ -235,8 +225,7 @@ class SubstrateTransactionXCMTransferOperation
     final blockInfo = await finalizeBlockWithEra();
     final List<int> genesis = metadata.genesisBytes();
     final call = await _toCalls(transactionData.xcmParams.xcmParams);
-    final messageBytes =
-        call.encodeCall(extrinsic: metadata.metadataWithExtrinsic());
+    final messageBytes = call.encodeCall(extrinsic: metadata.metadataWithExtrinsic());
     final extrinsic = DynamicExtrinsicBuilder(
         era: blockInfo.era,
         nonce: nonce,
@@ -247,17 +236,12 @@ class SubstrateTransactionXCMTransferOperation
         mortality: blockInfo.blockHashBytes,
         metadataFields: metadata.extrinsic);
     final extraFields = extrinsic.encodeExtrinsicPayload(metadata.metadata);
-    final List<int> encodeBytes =
-        [...messageBytes, ...extraFields].asImmutableBytes;
+    final List<int> encodeBytes = [...messageBytes, ...extraFields].asImmutableBytes;
     final extrinsicInfo = ExtrinsicPayloadInfo(
-        serializedExtrinsic: encodeBytes,
-        method: messageBytes,
-        extrinsic: extrinsic);
+        serializedExtrinsic: encodeBytes, method: messageBytes, extrinsic: extrinsic);
 
     return ISubstrateTransaction(
-        account: address,
-        transactionData: transactionData,
-        payload: extrinsicInfo);
+        account: address, transactionData: transactionData, payload: extrinsicInfo);
   }
 
   @override
@@ -279,13 +263,11 @@ class SubstrateTransactionXCMTransferOperation
         feeAssetConfig: feeToken.value?.feeConfig);
   }
 
-  Future<
-      List<
-          IWalletTransaction<SubstrateWalletTransaction,
-              ISubstrateAddress>>> _buildWalletTransaction(
-      {required ISubstrateSignedTransaction signedTx,
-      required String txId,
-      required int? block}) async {
+  Future<List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>>
+      _buildWalletTransaction(
+          {required ISubstrateSignedTransaction signedTx,
+          required String txId,
+          required int? block}) async {
     final destinations = signedTx.transaction.transactionData.payment ?? [];
     final outputs = destinations
         .map((e) => SubstrateWalletTransactionTransferOutput(
@@ -304,8 +286,8 @@ class SubstrateTransactionXCMTransferOperation
       final nativeAmount =
           destinations.where((e) => e.token == null).map((e) => e.amount).sum;
       if (nativeAmount > BigInt.zero) {
-        totalOutput = WalletTransactionIntegerAmount(
-            amount: nativeAmount, network: network);
+        totalOutput =
+            WalletTransactionIntegerAmount(amount: nativeAmount, network: network);
       }
     }
     final transaction = SubstrateWalletTransaction(
@@ -316,43 +298,38 @@ class SubstrateTransactionXCMTransferOperation
         totalOutput: totalOutput,
         extrinsics: signedTx.finalTransactionData.serializeHex());
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   @override
-  Future<
-      List<
-          IWalletTransaction<SubstrateWalletTransaction,
-              ISubstrateAddress>>> buildWalletTransaction(
-      {required ISubstrateSignedTransaction signedTx,
-      required SubmitSubstrateTransactionSuccess txId}) async {
+  Future<List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>>
+      buildWalletTransaction(
+          {required ISubstrateSignedTransaction signedTx,
+          required SubmitSubstrateTransactionSuccess txId}) async {
     return txId.txes;
   }
 
   @override
-  TransactionStateController cloneController(ISubstrateAddress address) {
+  Future<TransactionStateController> cloneController(ISubstrateAddress address) async {
     return SubstrateTransactionXCMTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
 
   @override
   Widget widgetBuilder(BuildContext context) {
-    return SubstrateTransactionXCMTransferWidget(
-        form: this, mainContext: context);
+    return SubstrateTransactionXCMTransferWidget(form: this, mainContext: context);
   }
 
   @override
   Widget onTxCompleteWidget(
       {required SubstrateWalletTransaction? transaction,
-      required SubmitSubstrateTransactionSuccess<ISubstrateXCMTransactionData>
-          txId,
+      required SubmitSubstrateTransactionSuccess<ISubstrateXCMTransactionData> txId,
       required SubstrateChain account}) {
     final tracker = txId.xcmTransferDestinationTracker;
     if (tracker == null) {
-      return super.onTxCompleteWidget(
-          transaction: transaction, txId: txId, account: account);
+      return super
+          .onTxCompleteWidget(transaction: transaction, txId: txId, account: account);
     }
     return SuccessXCMTransactionTextView(
         txId: txId.txId,
@@ -370,12 +347,12 @@ class SubstrateTransactionXCMTransferOperation
     _trakcerSubscription?.cancel();
     _trakcerSubscription = null;
     _tracker?.dispose();
+    _tracker = null;
     final Completer<SubstrateTxIdWithBlock> result = Completer();
     final txData = signedTransaction.transaction.transactionData;
     final xcm = txData.xcmParams;
-    List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>
-        txes = const [];
-    // SubmitedXCMTransferDestinationTracker? tracker;
+    List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>> txes =
+        const [];
     final stream = await xcm.origin.submitXCMTransaction(
         owner: signedTransaction.transaction.account.networkAddress,
         transaction: SubstrateSubmitableTransaction(
@@ -390,26 +367,21 @@ class SubstrateTransactionXCMTransferOperation
           final status = switch (event.status) {
             SubtrateTransactionSubmitionStatus.notFound =>
               WalletTransactionStatus.unknown,
-            SubtrateTransactionSubmitionStatus.success =>
-              WalletTransactionStatus.block,
-            SubtrateTransactionSubmitionStatus.failed =>
-              WalletTransactionStatus.failed
+            SubtrateTransactionSubmitionStatus.success => WalletTransactionStatus.block,
+            SubtrateTransactionSubmitionStatus.failed => WalletTransactionStatus.failed
           };
           for (final i in txes) {
             i.transaction.updateStatus(status);
           }
         },
         onTransactionSubmited: (txId, blockNumber) {
-          result
-              .complete(SubstrateTxIdWithBlock(txId: txId, block: blockNumber));
+          result.complete(SubstrateTxIdWithBlock(txId: txId, block: blockNumber));
         });
     final txId = await result.future;
     _tracker = SubmitedXCMTransferDestinationTracker(txData.destination);
     _trakcerSubscription = stream.listen(
       (event) {},
-      onError: (e) {
-        Logg.error("got error $e");
-      },
+      onError: (e) {},
       onDone: () {
         _tracker?.dispose();
       },
@@ -427,7 +399,7 @@ class SubstrateTransactionXCMTransferOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required SubstrateClient client,
+    required SubstrateNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
@@ -441,18 +413,15 @@ class SubstrateTransactionXCMTransferOperation
     }
     final existentialDeposit = metadata.existentialDeposit;
     if (existentialDeposit != null) {
-      _existentialDeposit =
-          IntegerBalance.token(existentialDeposit, network.token);
+      _existentialDeposit = IntegerBalance.token(existentialDeposit, network.token);
     }
     final internalNetwork = metadata.internalNetwork;
     final internalController = metadata.controller;
     if (internalNetwork == null || internalController == null) {
       throw AppExceptionConst.unsupportedNetworkFeature;
     }
-    List<BaseSubstrateNetwork> relatedChains =
-        internalNetwork.relaySystem.networks;
-    final routes =
-        relatedChains.map((e) => StringUtils.normalizeHex(e.genesis)).toList();
+    List<BaseSubstrateNetwork> relatedChains = internalNetwork.relaySystem.networks;
+    final routes = relatedChains.map((e) => StringUtils.normalizeHex(e.genesis)).toList();
     final assetHub = internalNetwork.assetHub;
     final relay = internalNetwork.relayChain;
     final chains = walletProvider.wallet.getChains<SubstrateChain>();
@@ -464,8 +433,8 @@ class SubstrateTransactionXCMTransferOperation
         orElse: () => throw AppExceptionConst.unsupportedNetworkFeature);
     List<SubstrateXCMTransferNetwork> supportedChains = [];
     for (final i in chains) {
-      final index = routes
-          .indexWhere((e) => StringUtils.hexEqual(e, i.network.genesisBlock));
+      final index =
+          routes.indexWhere((e) => StringUtils.hexEqual(e, i.network.genesisBlock));
       if (index.isNegative) continue;
       supportedChains.add(SubstrateXCMTransferNetwork(
           network: i, internalNetwork: relatedChains.elementAt(index)));
@@ -478,8 +447,7 @@ class SubstrateTransactionXCMTransferOperation
             .where((e) => e.network != account)
             .map((e) => e.network)
             .toList(),
-        relay: SubstrateXCMTransferNetwork(
-            network: relayChain, internalNetwork: relay),
+        relay: SubstrateXCMTransferNetwork(network: relayChain, internalNetwork: relay),
         systemAssetHub: SubstrateXCMTransferNetwork(
             network: assetHubChain, internalNetwork: assetHub),
         routes: supportedChains);
@@ -490,21 +458,20 @@ class SubstrateTransactionXCMTransferOperation
     );
 
     if (!config.acceptXcmTransferTerm) {
-      final success =
-          await context.openDialogPage<bool>("create_xcm_transaction".tr,
-              widget: (context) => DialogTitleAndMultiTextView(
-                    title: "before_you_continue".tr,
-                    buttonWidget: DialogSingleButtonView(
-                      buttonLabel: "got_it_dont_show_again".tr,
-                    ),
-                    content: [
-                      "xcm_condition_dryrun_required_desc".tr,
-                      "xcm_condition_no_dryrun_desc".tr,
-                      "xcm_condition_token_inactive_desc".tr,
-                      "xcm_condition_partial_validation_desc".tr,
-                      "xcm_condition_network_uncertainty_desc".tr,
-                    ],
-                  ));
+      final success = await context.openDialogPage<bool>("create_xcm_transaction".tr,
+          widget: (context) => DialogTitleAndMultiTextView(
+                title: "before_you_continue".tr,
+                buttonWidget: DialogSingleButtonView(
+                  buttonLabel: "got_it_dont_show_again".tr,
+                ),
+                content: [
+                  "xcm_condition_dryrun_required_desc".tr,
+                  "xcm_condition_no_dryrun_desc".tr,
+                  "xcm_condition_token_inactive_desc".tr,
+                  "xcm_condition_partial_validation_desc".tr,
+                  "xcm_condition_network_uncertainty_desc".tr,
+                ],
+              ));
       if (success == true) {
         await updateChainConfig(
             walletProvider: walletProvider,
@@ -516,8 +483,7 @@ class SubstrateTransactionXCMTransferOperation
   }
 
   @override
-  TransactionOperations get operation =>
-      SubstrateTransactionOperations.xcmTransfer;
+  TransactionOperations get operation => SubstrateTransactionOperations.xcmTransfer;
 
   @override
   List<LiveFormField<Object?, Object>> get fields => [destination];
@@ -531,5 +497,3 @@ class SubstrateTransactionXCMTransferOperation
     super.dispose();
   }
 }
-
-/// 50000262

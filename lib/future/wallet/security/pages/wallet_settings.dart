@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/update_wallet_infos.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class UpdateWalletSettingView extends StatelessWidget {
   const UpdateWalletSettingView({super.key});
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseVerify,
-            WalletCredentialVerify>(
+    return AccessWalletView<WalletCredentialResponseVerify, WalletCredentialVerify>(
         request: WalletCredentialVerify(),
         onAccsess: (credential) {
           return _UpdateWalletSettingView(credential: credential);
@@ -33,26 +31,22 @@ class _UpdateWalletSettingView extends StatefulWidget {
   final WalletCredentialResponseVerify credential;
 
   @override
-  State<_UpdateWalletSettingView> createState() =>
-      _UpdateWalletSettingViewState();
+  State<_UpdateWalletSettingView> createState() => _UpdateWalletSettingViewState();
 }
 
 class _UpdateWalletSettingViewState extends State<_UpdateWalletSettingView>
-    with
-        SafeState<_UpdateWalletSettingView>,
-        ProgressMixin<_UpdateWalletSettingView> {
-  late final MainWallet hdWallet;
+    with SafeState<_UpdateWalletSettingView>, ProgressMixin<_UpdateWalletSettingView> {
+  late final IMainWallet hdWallet;
   Future<void> setup(WalletUpdateInfosData walletInfos) async {
     progressKey.progressText("updating".tr);
-    final model = context.watch<WalletProvider>(StateConst.main).wallet;
+    final model = context.wallet.wallet;
 
-    final result = await model.updateWalletInfos(
-        credential: widget.credential, walletInfos: walletInfos);
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
+    final result = await model.doAction(WalletActionUpdateWallet(
+        walletInfos: walletInfos, credential: widget.credential));
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError);
     } else {
-      progressKey.successText("setting_update_successfully".tr,
-          backToIdle: false);
+      progressKey.successText("setting_update_successfully".tr, backToIdle: false);
     }
   }
 

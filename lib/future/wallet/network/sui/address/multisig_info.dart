@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
@@ -13,15 +13,14 @@ class SuiMultisigAccountInfoView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "multisig_address_infos".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<SuiClient?, ISuiAddress?, SuiChain>(
+        return NetworkAccountControllerView<SuiNetworkClient?, ISuiAddress?, SuiChain>(
           addressRequired: true,
           clientRequired: false,
-          childBulder: (wallet, account, client, address, onAccountChanged) {
+          childBulder: (wallet, account, client, address) {
             return _SuiMultisigAccountInfoView(account);
           },
         );
@@ -35,8 +34,7 @@ class _SuiMultisigAccountInfoView extends StatefulWidget {
   const _SuiMultisigAccountInfoView(this.account);
 
   @override
-  State<_SuiMultisigAccountInfoView> createState() =>
-      __SuiMultisigAccountInfoViewState();
+  State<_SuiMultisigAccountInfoView> createState() => __SuiMultisigAccountInfoViewState();
 }
 
 class __SuiMultisigAccountInfoViewState
@@ -51,19 +49,19 @@ class __SuiMultisigAccountInfoViewState
   late final int threshold;
 
   Future<void> _init() async {
-    if (!account.haveAddress || !account.address.multiSigAccount) {
+    if (!account.haveAddress || !account.addressSync.multiSigAccount) {
       progressKey.errorText("invalid_account".tr);
       return;
     }
-    address = account.address.cast();
+    address = account.addressSync.cast();
     threshold = address.multiSignatureAddress.threshold;
     keyInfos = address.multiSignatureAddress.publicKeys
         .map((e) => _SuiMultisigAccountInfo(
             weight: e.weight,
             address:
-                addresses.firstWhereOrNull((i) => i.keyIndex == e.keyIndex),
+                addresses.firstWhereOrNull((i) => i.derivationIndex == e.derivationIndex),
             publicKey: e.toHex(),
-            keyIndex: e.keyIndex))
+            keyIndex: e.derivationIndex))
         .toList();
     progressKey.backToIdle();
   }
@@ -71,7 +69,7 @@ class __SuiMultisigAccountInfoViewState
   @override
   void onInitOnce() {
     super.onInitOnce();
-    MethodUtils.after(() => _init());
+    MethodUtils.executeAfterDelay(() => _init());
   }
 
   @override
@@ -84,8 +82,7 @@ class __SuiMultisigAccountInfoViewState
   Widget build(BuildContext context) {
     return StreamPageProgress(
       controller: progressKey,
-      initialWidget:
-          ProgressWithTextView(text: "retrieve_account_informations".tr),
+      initialWidget: ProgressWithTextView(text: "retrieve_account_informations".tr),
       builder: (context) {
         return CustomScrollView(slivers: [
           SliverConstraintsBoxView(
@@ -96,19 +93,16 @@ class __SuiMultisigAccountInfoViewState
                 children: [
                   Text("address".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
-                  ContainerWithBorder(
-                      child: AddressDetailsView(address: address)),
+                  ContainerWithBorder(child: AddressDetailsView(address: address)),
                   WidgetConstant.height20,
                   Text("threshold".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
-                      onRemoveIcon:
-                          Icon(Icons.edit, color: context.onPrimaryContainer),
+                      onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                       child: Text(threshold.toString(),
                           style: context.onPrimaryTextTheme.titleMedium)),
                   WidgetConstant.height20,
-                  Text("list_of_public_keys".tr,
-                      style: context.textTheme.titleMedium),
+                  Text("list_of_public_keys".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   ListView.separated(
                       shrinkWrap: true,
@@ -116,8 +110,7 @@ class __SuiMultisigAccountInfoViewState
                       itemBuilder: (context, index) {
                         return _ShowAddressView(account: keyInfos[index]);
                       },
-                      separatorBuilder: (context, index) =>
-                          WidgetConstant.divider,
+                      separatorBuilder: (context, index) => WidgetConstant.divider,
                       itemCount: keyInfos.length)
                 ],
               )))
@@ -130,7 +123,7 @@ class __SuiMultisigAccountInfoViewState
 class _SuiMultisigAccountInfo {
   final ISuiAddress? address;
   final String publicKey;
-  final Bip32AddressIndex keyIndex;
+  final Bip32DerivationIndex keyIndex;
   final int weight;
   const _SuiMultisigAccountInfo(
       {required this.address,
@@ -153,8 +146,7 @@ class _ShowAddressView extends StatelessWidget {
           ContainerWithBorder(
             backgroundColor: context.onPrimaryContainer,
             child: AddressDetailsView(
-                address: account.address!,
-                color: context.colors.primaryContainer),
+                address: account.address!, color: context.colors.primaryContainer),
           ),
           WidgetConstant.height20,
         ],
@@ -168,8 +160,7 @@ class _ShowAddressView extends StatelessWidget {
               widget: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AddressDrivationInfo(account.keyIndex,
-                      color: context.primaryContainer),
+                  AddressDrivationInfo(account.keyIndex, color: context.primaryContainer),
                   OneLineTextWidget(account.publicKey,
                       style: context.primaryTextTheme.titleMedium)
                 ],

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 
 class LaunchBrowserIcon extends StatelessWidget {
-  const LaunchBrowserIcon(
-      {required this.url, this.color, super.key, this.size});
+  const LaunchBrowserIcon({required this.url, this.color, super.key, this.size});
   final String? url;
   final Color? color;
   final double? size;
@@ -16,7 +14,7 @@ class LaunchBrowserIcon extends StatelessWidget {
             context.showAlert("url_does_not_exists".tr);
             return;
           }
-          UriUtils.lunch(url);
+          context.appContextOrNull?.platformUtls.lunchUri(url);
         },
         icon: Icon(Icons.launch, size: size, color: color));
   }

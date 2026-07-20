@@ -12,8 +12,8 @@ class TonRquestGetBalance extends TonApiRequest<BigInt, dynamic> {
 
   @override
   TonRequestDetails buildRequest(int v) {
-    _request = _getRequest();
-    return _request!.buildRequest(v);
+    final request = _request = _getRequest();
+    return request.buildRequest(v);
   }
 
   @override

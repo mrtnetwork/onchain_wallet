@@ -11,8 +11,7 @@ import 'package:polkadot_dart/polkadot_dart.dart';
 class MetadataFormValidatorError {
   final String? fieldName;
   final String error;
-  const MetadataFormValidatorError(
-      {required this.fieldName, required this.error});
+  const MetadataFormValidatorError({required this.fieldName, required this.error});
   MetadataFormValidatorError copyWith({String? error, String? fieldName}) {
     return MetadataFormValidatorError(
         fieldName: fieldName ?? this.fieldName, error: error ?? this.error);
@@ -55,8 +54,7 @@ abstract class MetadataFormValidator<METADATA extends MetadataTypeInfo> {
         if (type.type.typeName == MetadataTypes.int &&
             type.type.cast<MetadataTypeInfoPromitive>().primitiveType ==
                 PrimitiveTypes.u8) {
-          validator = MetadataFormValidatorBytes(
-              info: type.cast(), type: parents.cast());
+          validator = MetadataFormValidatorBytes(info: type.cast(), type: parents.cast());
         } else {
           validator = MetadataFormValidatorSequence(info: type, type: parents);
         }
@@ -67,8 +65,7 @@ abstract class MetadataFormValidator<METADATA extends MetadataTypeInfo> {
         validator = MetadataFormValidatorComposit(
           info: type,
           types: type.types,
-          validators:
-              type.types.map((e) => MetadataFormValidator.fromType(e)).toList(),
+          validators: type.types.map((e) => MetadataFormValidator.fromType(e)).toList(),
         );
         break;
       case MetadataTypes.tuple:
@@ -76,8 +73,7 @@ abstract class MetadataFormValidator<METADATA extends MetadataTypeInfo> {
         validator = MetadataFormValidatorTuple(
           info: type,
           types: type.types,
-          validators:
-              type.types.map((e) => MetadataFormValidator.fromType(e)).toList(),
+          validators: type.types.map((e) => MetadataFormValidator.fromType(e)).toList(),
         );
         break;
       case MetadataTypes.variant:
@@ -86,14 +82,14 @@ abstract class MetadataFormValidator<METADATA extends MetadataTypeInfo> {
         break;
     }
     if (validator is! MetadataFormValidator<METADATA>) {
-      throw AppExceptionConst.internalError("MetadataFormValidator");
+      throw AppInternalError.internalError("MetadataFormValidator");
     }
     return validator;
   }
   MetadataFormValidatorError? get error => null;
   T cast<T>() {
     if (this is! T) {
-      throw AppExceptionConst.internalError("MetadataFormValidatorError");
+      throw AppInternalError.internalError("MetadataFormValidatorError");
     }
     return this as T;
   }
@@ -121,7 +117,8 @@ class MetadataFormValidatorBoolean
     extends MetadataFormValidatorPromitive<MetadataTypeInfoBoolean> {
   MetadataFormValidatorBoolean({required super.info});
 
-  final StreamValue<bool?> value = StreamValue<bool>(false);
+  final StreamValue<bool?> value =
+      StreamValue<bool>(false, name: "MetadataFormValidatorPromitive");
   void setValue(bool? value) {
     if (value == null) return;
     this.value.value = value;
@@ -159,7 +156,8 @@ class MetadataFormValidatorBoolean
 class MetadataFormValidatorString
     extends MetadataFormValidatorPromitive<MetadataTypeInfoString> {
   MetadataFormValidatorString({required super.info});
-  final StreamValue<String?> value = StreamValue<String?>(null);
+  final StreamValue<String?> value =
+      StreamValue<String?>(null, name: "MetadataFormValidatorString");
 
   void setValue(String? v) {
     if (v == null) return;
@@ -224,8 +222,7 @@ abstract class MetadataFormValidatorNumeric<T extends MetadataTypeInfoNumeric>
     PrimitiveTypes.u16: BigInt.parse("65535"),
     PrimitiveTypes.u32: BigInt.parse("4294967295"),
     PrimitiveTypes.u64: BigInt.parse("18446744073709551615"),
-    PrimitiveTypes.u128:
-        BigInt.parse("340282366920938463463374607431768211455"),
+    PrimitiveTypes.u128: BigInt.parse("340282366920938463463374607431768211455"),
     PrimitiveTypes.u256: BigInt.parse(
         "115792089237316195423570985008687907853269984665640564039457584007913129607129000"),
 
@@ -234,8 +231,7 @@ abstract class MetadataFormValidatorNumeric<T extends MetadataTypeInfoNumeric>
     PrimitiveTypes.i16: BigInt.from(32767),
     PrimitiveTypes.i32: BigInt.from(2147483647),
     PrimitiveTypes.i64: BigInt.parse("9223372036854775807"),
-    PrimitiveTypes.i128:
-        BigInt.parse("170141183460469231731687303715884105727"),
+    PrimitiveTypes.i128: BigInt.parse("170141183460469231731687303715884105727"),
     PrimitiveTypes.i256: BigInt.parse("57846076282404875318142949672953578751"),
   };
   static final Map<PrimitiveTypes, BigInt> minValues = {
@@ -249,12 +245,11 @@ abstract class MetadataFormValidatorNumeric<T extends MetadataTypeInfoNumeric>
     PrimitiveTypes.i16: BigInt.from(-32768),
     PrimitiveTypes.i32: BigInt.from(-2147483648),
     PrimitiveTypes.i64: BigInt.parse("-9223372036854775808"),
-    PrimitiveTypes.i128:
-        BigInt.parse("-170141183460469231731687303715884105728"),
-    PrimitiveTypes.i256:
-        BigInt.parse("-57846076282404875318142949672953578752"),
+    PrimitiveTypes.i128: BigInt.parse("-170141183460469231731687303715884105728"),
+    PrimitiveTypes.i256: BigInt.parse("-57846076282404875318142949672953578752"),
   };
-  final StreamValue<BigRational> value = StreamValue(BigRational.zero);
+  final StreamValue<BigRational> value =
+      StreamValue(BigRational.zero, name: "MetadataFormValidatorNumeric");
 
   @override
   bool get isValid => true;
@@ -295,9 +290,9 @@ abstract class MetadataFormValidatorNumeric<T extends MetadataTypeInfoNumeric>
     textFieldKey.currentState?.setValue(min);
   }
 
-  String? validate(String? v) {
-    final p = BigRational.tryParseDecimaal(v ?? '');
-    return _validate(p);
+  String? validate(BigRational v) {
+    // final p = BigRational.tryParse(v ?? '');
+    return _validate(v);
   }
 
   String? _validate(BigRational? p) {
@@ -346,8 +341,7 @@ class MetadataFormValidatorBigInt
 
 typedef ONSETVALUEERROR = void Function(String err);
 
-class MetadataFormValidatorInt
-    extends MetadataFormValidatorNumeric<MetadataTypeInfoInt> {
+class MetadataFormValidatorInt extends MetadataFormValidatorNumeric<MetadataTypeInfoInt> {
   MetadataFormValidatorInt({required super.info});
   @override
   int? getResult() {
@@ -359,8 +353,7 @@ class MetadataFormValidatorInt
   }
 }
 
-class MetadataFormValidatorNone
-    extends MetadataFormValidator<MetadataTypeInfoNone> {
+class MetadataFormValidatorNone extends MetadataFormValidator<MetadataTypeInfoNone> {
   MetadataFormValidatorNone({required super.info});
   @override
   bool get isValid => true;
@@ -410,10 +403,7 @@ class MetadataFormValidatorTuple<T extends MetadataTypeInfo>
 
   @override
   Object? toJson() {
-    return validators
-        .map((e) => e.getResult())
-        .where((e) => e != null)
-        .toList();
+    return validators.map((e) => e.getResult()).where((e) => e != null).toList();
   }
 
   @override
@@ -466,8 +456,7 @@ class MetadataFormValidatorComposit<T extends MetadataTypeInfo>
   @override
   Object? getResult() {
     return {
-      for (int i = 0; i < types.length; i++)
-        types[i].name: validators[i].getResult()
+      for (int i = 0; i < types.length; i++) types[i].name: validators[i].getResult()
     };
   }
 
@@ -496,10 +485,7 @@ class MetadataFormValidatorComposit<T extends MetadataTypeInfo>
         result[types[i].name] = value;
       }
     }
-    return validators
-        .map((e) => e.getResult())
-        .where((e) => e != null)
-        .toList();
+    return validators.map((e) => e.getResult()).where((e) => e != null).toList();
   }
 
   @override
@@ -566,7 +552,8 @@ class MetadataFormValidatorSequence<T extends MetadataTypeInfo>
     required super.info,
     required this.parentType,
     required List<MetadataFormValidator<T>> validators,
-  }) : streamValidators = StreamValue(validators.immutable);
+  }) : streamValidators =
+            StreamValue(validators.immutable, name: "MetadataFormValidatorSequence");
   factory MetadataFormValidatorSequence(
       {required T type, required MetadataTypeInfoSequence<T> info}) {
     final parentType = ArrayFieldType.findType(type);
@@ -585,8 +572,8 @@ class MetadataFormValidatorSequence<T extends MetadataTypeInfo>
     return MetadataFormValidatorSequence._(
       type: type,
       info: info,
-      validators: List.generate(
-          info.length!, (index) => MetadataFormValidator.fromType(type)),
+      validators:
+          List.generate(info.length!, (index) => MetadataFormValidator.fromType(type)),
       parentType: parentType,
     );
   }
@@ -632,10 +619,7 @@ class MetadataFormValidatorSequence<T extends MetadataTypeInfo>
 
   @override
   Object? toJson() {
-    return validators
-        .map((e) => e.getResult())
-        .where((e) => e != null)
-        .toList();
+    return validators.map((e) => e.getResult()).where((e) => e != null).toList();
   }
 
   @override
@@ -662,7 +646,8 @@ class MetadataFormValidatorBytes
       info.length == SubstrateConstant.accountId20LengthInBytes ||
       info.length == SubstrateConstant.accountIdLengthInBytes;
   MetadataFormValidator<MetadataTypeInfo> get validators => validator;
-  final StreamValue<String?> value = StreamValue(null);
+  final StreamValue<String?> value =
+      StreamValue(null, name: "MetadataFormValidatorBytes");
   bool get filled => value.value != null;
   @override
   bool get isValid => value.value != null;
@@ -767,7 +752,8 @@ class MetadataFormValidatorVariant
   Si1Variant? _variant;
   Si1Variant? get variant => _variant;
 
-  final StreamValue<MetadataFormValidator?> validator = StreamValue(null);
+  final StreamValue<MetadataFormValidator?> validator =
+      StreamValue(null, name: "MetadataFormValidatorVariant");
 
   bool get hasVariant => validator.value != null;
 
@@ -785,8 +771,7 @@ class MetadataFormValidatorVariant
     return error?.copyWith(fieldName: error.fieldName ?? info.viewName);
   }
 
-  void setVariant(
-      {required Si1Variant variant, required MetadataTypeInfo type}) {
+  void setVariant({required Si1Variant variant, required MetadataTypeInfo type}) {
     _variant = variant;
     final currentVariant = validator.value;
     validator.updateValue =
@@ -824,8 +809,7 @@ class MetadataFormValidatorVariant
     return validator.value?.findField<E>(name);
   }
 
-  void trySetVariant(
-      {required String? name, required SubstrateChainMetadata metadata}) {
+  void trySetVariant({required String? name, required SubstrateChainMetadata metadata}) {
     if (name == null) return;
     final variant = info.variants.firstWhereOrNull((e) => e.name == name);
     if (variant != null) {

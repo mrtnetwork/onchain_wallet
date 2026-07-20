@@ -16,7 +16,7 @@ class QrPolynomial {
         List<int>.filled(thing.length - offset + shift, 0, growable: false);
 
     for (var i = 0; i < thing.length - offset; i++) {
-      values[i] = thing[i + offset] & mask8;
+      values[i] = thing[i + offset] & BinaryOps.mask8;
     }
 
     return QrPolynomial._internal(values);

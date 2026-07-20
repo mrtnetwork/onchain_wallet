@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/update_network_provider.dart';
+import 'package:on_chain_wallet/future/wallet/global/provider/update_network_provider.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
 class UpdateSubstrateProvider extends StatelessWidget {
   const UpdateSubstrateProvider({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<SubstrateClient?, ISubstrateAddress?,
+    return NetworkAccountControllerView<SubstrateNetworkClient?, ISubstrateAddress?,
             SubstrateChain>(
         addressRequired: false,
         clientRequired: false,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
+        childBulder: (wallet, account, client, address) =>
             _UpdateSubstrateProvider(account));
   }
 }
@@ -33,10 +33,9 @@ class _UpdateSolanaProviderState extends State<_UpdateSubstrateProvider>
         SafeState<_UpdateSubstrateProvider>,
         UpdateNetworkProviderState<
             _UpdateSubstrateProvider,
-            SubstrateAPIProvider,
             BaseSubstrateAddress,
             ISubstrateAddress,
-            SubstrateClient,
+            SubstrateNetworkClient,
             TokenCore,
             NFTCore,
             SubstrateChain> {
@@ -44,36 +43,19 @@ class _UpdateSolanaProviderState extends State<_UpdateSubstrateProvider>
   SubstrateChain get chain => widget.account;
 
   @override
-  SubstrateAPIProvider createProvider(
-      {required String url,
-      required APIProviderServiceInfo service,
-      ProviderAuthenticated? auth}) {
-    return SubstrateAPIProvider(
-        uri: url, auth: auth, identifier: APIUtils.getProviderIdentifier());
-  }
-
-  @override
-  late final List<ServiceProtocol> supportedProtocol;
-
-  void init() {
-    supportedProtocol = [ServiceProtocol.http, ServiceProtocol.websocket];
-    protocol = supportedProtocol.first;
-  }
-
-  @override
-  void onInitOnce() {
-    MethodUtils.after(() async => init());
-    super.onInitOnce();
-  }
-
-  @override
-  Future<SubstrateAPIProvider> validate(SubstrateAPIProvider provider) async {
-    final client = APIUtils.buildsubstrateClient(
-        provider: provider, network: network.toNetwork());
-    final init = await client.validateNetworkGenesis();
-    if (!init) {
-      throw AppException("network_genesis_hash_validator");
+  Future<DefaultAPIProvider> validate(DefaultAPIProvider provider) async {
+    final client = SubstrateNetworkClient.fromProvider(
+        netApi: context.appContext.netApi,
+        provider: SubstrateNetworkProvider(provider),
+        network: network.cast());
+    try {
+      final init = await client.validateNetworkGenesis();
+      if (!init) {
+        throw AppException("network_genesis_hash_validator");
+      }
+      return provider;
+    } finally {
+      client.dispose();
     }
-    return provider;
   }
 }

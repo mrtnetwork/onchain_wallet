@@ -1,114 +1,138 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class MoneroNewAddressParams extends NewAccountParams<IMoneroAddress> {
+final class MoneroNewAddressParams extends NewDerivableAccountParams<IMoneroAddress> {
   @override
-  bool get isMultiSig => false;
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final Bip32DerivationIndex deriveIndex;
   @override
   final CryptoCoins coin;
   final int minor;
   final int major;
-  final MoneroViewAccountDetails? addrDetails;
+  final MoneroViewPrimaryAccountDetails? masterKey;
+  final MoneroAccountIndex? index;
   final MoneroNetwork network;
+  final int? activeHeight;
+  // final int currentHeight;
 
-  const MoneroNewAddressParams._(
-      {required this.deriveIndex,
-      required this.minor,
-      required this.major,
-      required this.coin,
-      this.addrDetails,
-      required this.network})
-      : super._();
-  factory MoneroNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
-      required int minor,
-      required int major,
-      required CryptoCoins coin,
-      MoneroViewAccountDetails? addrDetails,
-      required MoneroNetwork network}) {
+  const MoneroNewAddressParams._({
+    required this.deriveIndex,
+    required this.minor,
+    required this.major,
+    required this.coin,
+    this.masterKey,
+    this.index,
+    required this.network,
+    required this.activeHeight,
+    // required this.currentHeight,
+  });
+  factory MoneroNewAddressParams({
+    required Bip32DerivationIndex deriveIndex,
+    required int minor,
+    required int major,
+    required CryptoCoins coin,
+    MoneroViewPrimaryAccountDetails? masterKey,
+    MoneroAccountIndex? index,
+    required MoneroNetwork network,
+    required int? activeHeight,
+  }) {
     return MoneroNewAddressParams._(
         deriveIndex: deriveIndex,
         minor: minor,
         major: major,
         coin: coin,
         network: network,
-        addrDetails: addrDetails);
+        index: index,
+        masterKey: masterKey,
+        activeHeight: activeHeight);
   }
   MoneroNewAddressParams copyWith(
       {CryptoCoins? coin,
       int? minor,
       int? major,
-      AddressDerivationIndex? deriveIndex,
-      MoneroViewAccountDetails? addrDetails,
-      MoneroNetwork? network}) {
+      Bip32DerivationIndex? deriveIndex,
+      MoneroViewPrimaryAccountDetails? masterKey,
+      MoneroAccountIndex? index,
+      MoneroNetwork? network,
+      int? activationHeight}) {
     return MoneroNewAddressParams(
         deriveIndex: deriveIndex ?? this.deriveIndex,
         minor: minor ?? this.minor,
         major: major ?? this.major,
         coin: coin ?? this.coin,
-        addrDetails: addrDetails ?? this.addrDetails,
-        network: network ?? this.network);
+        masterKey: masterKey ?? this.masterKey,
+        index: index ?? this.index,
+        network: network ?? this.network,
+        activeHeight: activationHeight ?? activeHeight);
   }
 
-  factory MoneroNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory MoneroNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.moneroNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.moneroNewAddressParams.tag);
     return MoneroNewAddressParams(
-      deriveIndex:
-          AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-      major: values.elementAs(1),
-      minor: values.elementAs(2),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(3)),
-      addrDetails: values.elemetMybeAs<MoneroViewAccountDetails, CborTagValue>(
-          4, (e) => MoneroViewAccountDetails.deserialize(object: e)),
-      network: MoneroNetwork.fromName(values.elementAs(5)),
-    );
+        deriveIndex:
+            Bip32DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+        major: values.rawValueAt(1),
+        minor: values.rawValueAt(2),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(3)),
+        network: MoneroNetwork.fromName(values.rawValueAt(4)),
+        masterKey: values.maybeObjectAt<MoneroViewPrimaryAccountDetails, CborTagValue>(
+            5, (e) => MoneroViewPrimaryAccountDetails.deserialize(object: e)),
+        index: values.maybeObjectAt<MoneroAccountIndex, CborTagValue>(
+            6, (e) => MoneroAccountIndex.deserialize(object: e)),
+        activeHeight: values.rawValueAt(7));
+  }
+  MoneroAddress toAddress(
+      {required WalletMoneroNetwork network,
+      required MoneroViewPrimaryAccountDetails masterKey,
+      required MoneroAccountIndex index}) {
+    final keys =
+        masterKey.account.scubaddr.computeKeys(index.index.minor, index.index.major);
+    return MoneroAccountAddress.fromPubKeys(
+        pubSpendKey: keys.pubSKey.key,
+        pubViewKey: keys.pubVKey.key,
+        network: network.coinParam.network,
+        type: index.addrType);
   }
 
   @override
-  IMoneroAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IMoneroAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
-    final addrDetails = this.addrDetails;
-    if (addrDetails == null) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "MoneroNewAddressParams.toAccount");
+    final masterKey = this.masterKey;
+    final index = this.index;
+    if (masterKey == null || index == null) {
+      throw WalletExceptionConst.invalidAccountData("MoneroNewAddressParams.toAccount");
     }
     if (network is! WalletMoneroNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "MoneroNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("MoneroNewAddressParams.toAccount");
     }
-    final address = addrDetails.toAddress(network);
+    final address = toAddress(network: network, masterKey: masterKey, index: index);
     return IMoneroAddress._newAccount(
         network: network,
         address: address,
-        addressDetails: addrDetails,
+        addressDetails: index,
+        database: database,
         coin: coin,
         identifier: NewAccountParams.toIdentifier(address.address),
-        keyIndex: deriveIndex);
+        derivationIndex: deriveIndex,
+        id: id,
+        activationHeight: activeHeight);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          deriveIndex.toCbor(),
-          CborIntValue(major),
-          CborIntValue(minor),
-          coin.toCbor(),
-          addrDetails?.toCbor() ?? const CborNullValue(),
-          CborStringValue(network.name)
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        deriveIndex.toCbor(),
+        CborIntValue(major),
+        CborIntValue(minor),
+        coin.identifier.toCbor(),
+        CborStringValue(network.name),
+        masterKey?.toCbor(),
+        index?.toCbor(),
+        activeHeight?.toCbor()
+      ];
   @override
   NewAccountParamsType get type => NewAccountParamsType.moneroNewAddressParams;
 }

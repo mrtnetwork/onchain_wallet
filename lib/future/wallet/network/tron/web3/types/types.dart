@@ -1,5 +1,4 @@
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/web3/operations/send_transaction.dart';
@@ -12,8 +11,10 @@ import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/tron/models/tron_account_info.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/trc10.dart'
+    show TronTRC10Token;
 import 'package:on_chain_wallet/wallet/models/transaction/networks/tron.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
 abstract class Web3TronTransactionInfo {
   const Web3TronTransactionInfo();
@@ -25,12 +26,9 @@ abstract class Web3TronTransactionInfo {
 
   SolidityERC20TransferMethodInfo? get trc20Transfer => null;
 
-  bool get isTransferContract =>
-      type == TransactionContractType.transferContract;
-  bool get isSmartContract =>
-      type == TransactionContractType.triggerSmartContract;
-  bool get isCreateContract =>
-      type == TransactionContractType.createSmartContract;
+  bool get isTransferContract => type == TransactionContractType.transferContract;
+  bool get isSmartContract => type == TransactionContractType.triggerSmartContract;
+  bool get isCreateContract => type == TransactionContractType.createSmartContract;
 }
 
 class Web3TronTransferInfo extends Web3TronTransactionInfo {
@@ -61,9 +59,7 @@ class Web3TronTransferAssetInfo extends Web3TronTransactionInfo {
   final ReceiptAddress<TronAddress> receiptAddress;
   final IntegerBalance amount;
   const Web3TronTransferAssetInfo._(
-      {required this.amount,
-      required this.receiptAddress,
-      required this.token});
+      {required this.amount, required this.receiptAddress, required this.token});
   factory Web3TronTransferAssetInfo(
       {required TronTRC10Token token,
       required ReceiptAddress<TronAddress> receiptAddress,
@@ -75,8 +71,7 @@ class Web3TronTransferAssetInfo extends Web3TronTransactionInfo {
   }
 
   @override
-  TransactionContractType get type =>
-      TransactionContractType.transferAssetContract;
+  TransactionContractType get type => TransactionContractType.transferAssetContract;
 
   @override
   final IntegerBalance? totalTrxAmount = null;
@@ -111,8 +106,7 @@ class Web3TronTriggerSmartContract extends Web3TronTransactionInfo {
   }
 
   @override
-  TransactionContractType get type =>
-      TransactionContractType.triggerSmartContract;
+  TransactionContractType get type => TransactionContractType.triggerSmartContract;
 
   @override
   IntegerBalance? get totalTrxAmount => value?.totalTrxAmount;
@@ -131,20 +125,17 @@ class Web3TronTriggerSmartContract extends Web3TronTransactionInfo {
 class Web3TronFreezeBalanceInfo extends Web3TronTransactionInfo {
   final ResourceCode resource;
   final IntegerBalance amount;
-  const Web3TronFreezeBalanceInfo._(
-      {required this.amount, required this.resource});
+  const Web3TronFreezeBalanceInfo._({required this.amount, required this.resource});
   factory Web3TronFreezeBalanceInfo(
       {required ResourceCode resource,
       required BigInt amount,
       required WalletTronNetwork network}) {
     return Web3TronFreezeBalanceInfo._(
-        resource: resource,
-        amount: IntegerBalance.token(amount, network.token));
+        resource: resource, amount: IntegerBalance.token(amount, network.token));
   }
 
   @override
-  TransactionContractType get type =>
-      TransactionContractType.freezeBalanceV2Contract;
+  TransactionContractType get type => TransactionContractType.freezeBalanceV2Contract;
   @override
   IntegerBalance get totalTrxAmount => amount;
   @override
@@ -156,12 +147,9 @@ class Web3TronCreateContractInfo extends Web3TronTransactionInfo {
   final Web3TronTransferAssetInfo? callValue;
   final TronAddress contractAddress;
   const Web3TronCreateContractInfo(
-      {required this.value,
-      required this.callValue,
-      required this.contractAddress});
+      {required this.value, required this.callValue, required this.contractAddress});
   @override
-  TransactionContractType get type =>
-      TransactionContractType.createSmartContract;
+  TransactionContractType get type => TransactionContractType.createSmartContract;
   @override
   IntegerBalance? get totalTrxAmount => value?.amount;
   @override
@@ -173,9 +161,7 @@ class Web3TronCreateContractInfo extends Web3TronTransactionInfo {
 class Web3TronUnknowContractInfo extends Web3TronTransactionInfo {
   final Map<String, dynamic> contractFields;
   const Web3TronUnknowContractInfo(
-      {required this.contractFields,
-      required this.totalTrxAmount,
-      required this.type});
+      {required this.contractFields, required this.totalTrxAmount, required this.type});
 
   @override
   final TransactionContractType type;
@@ -200,19 +186,10 @@ abstract class Web3TronStateController<RESPONSE, CLIENT extends TronClient?,
         Web3TronRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         TronWalletTransaction> {
-  Web3TronStateController(
-      {required super.walletProvider, required super.request});
+  Web3TronStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3TronRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3TronStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3TronRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3TronRequestMethods.signMessageV2:
         return Web3TronSignMessageStateController(
@@ -226,17 +203,15 @@ abstract class Web3TronStateController<RESPONSE, CLIENT extends TronClient?,
   }
 }
 
-abstract class BaseWeb3TronTransactionStateController<
-        RESPONSE,
-        T extends Web3TronRequestParam<RESPONSE>,
-        E extends IWeb3TronTransactionData>
+abstract class BaseWeb3TronTransactionStateController<RESPONSE,
+        T extends Web3TronRequestParam<RESPONSE>, E extends IWeb3TronTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
         TronAddress,
+        WalletTronNetwork,
         ITronAddress,
         TronClient,
         TronClient,
-        WalletTronNetwork,
         TronChain,
         Web3TronChainAccount,
         T,
@@ -278,8 +253,7 @@ class IWeb3TronTransactionRawData extends IWeb3TronTransactionData {
 
 class IWeb3TronTransaction<TXDATA extends IWeb3TronTransactionData>
     extends ITransaction<TXDATA, ITronAddress> {
-  const IWeb3TronTransaction(
-      {required super.account, required super.transactionData});
+  const IWeb3TronTransaction({required super.account, required super.transactionData});
 }
 
 class IWeb3TronSignedTransaction<TXDATA extends IWeb3TronTransactionData>

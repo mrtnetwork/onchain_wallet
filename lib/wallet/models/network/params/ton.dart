@@ -1,59 +1,35 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
-import 'package:ton_dart/ton_dart.dart' as ton;
+import 'package:ton_dart/ton_dart.dart';
+// import 'package:ton_dart/ton_dart.dart' as ton;
 
 class TonNetworkParams extends NetworkCoinParams {
-  final int workchain;
-  ton.TonChainId get chain => ton.TonChainId.fromWorkchain(workchain);
-  String get tonChainIdentifier {
-    switch (chain) {
-      case ton.TonChainId.testnet:
-        return "ton:testnet";
-      case ton.TonChainId.mainnet:
-        return "ton:mainnet";
-      default:
-        throw UnimplementedError("Invalid ton network.");
-    }
-  }
+  TonChainId get chainId => switch (chainType) {
+        ChainType.testnet => TonChainId.testnet,
+        ChainType.mainnet => TonChainId.mainnet,
+      };
 
-  TonNetworkParams(
+  const TonNetworkParams(
       {required super.token,
-      required this.workchain,
       required super.chainType,
       super.addressExplorer,
       super.transactionExplorer});
 
-  factory TonNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.tonNetworkParam);
+  factory TonNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.ton.identifier);
     return TonNetworkParams(
-        workchain: values.elementAs(0),
-        chainType: ChainType.fromValue(values.elementAs(1)),
-        token: Token.deserialize(obj: values.elementAsCborTag(4)),
-        addressExplorer: values.elementAs(6),
-        transactionExplorer: values.elementAs(7));
-  }
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          workchain,
-          chainType.name,
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          addressExplorer,
-          transactionExplorer
-        ]),
-        CborTagsConst.tonNetworkParam);
+        chainType: ChainType.fromValue(values.rawValueAt(0)),
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(1)),
+        addressExplorer: values.rawValueAt(2),
+        transactionExplorer: values.rawValueAt(3));
   }
 
-  int get identifier => workchain;
+  // int get identifier => workchain;
 
   @override
   NetworkCoinParams updateParams(
@@ -62,11 +38,21 @@ class TonNetworkParams extends NetworkCoinParams {
       String? addressExplorer,
       int? bip32CoinType}) {
     return TonNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
-        workchain: workchain,
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         addressExplorer: addressExplorer,
         transactionExplorer: transactionExplorer);
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier => NetworkType.ton.identifier;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        chainType.value.toCbor(),
+        token.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor()
+      ];
 }

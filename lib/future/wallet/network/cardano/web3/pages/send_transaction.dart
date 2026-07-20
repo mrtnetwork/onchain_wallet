@@ -7,7 +7,7 @@ import 'package:on_chain_wallet/future/wallet/network/cardano/web3/types/types.d
 import 'package:on_chain_wallet/future/wallet/web3/pages/web3_request_page_builder.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/json/json/widgets.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/cardano/methods/methods.dart';
+import 'package:on_chain_wallet/web3/web3/networks/cardano/methods/methods.dart';
 
 class Web3CardanoSignTransactionStateView extends StatelessWidget {
   final WebCardanoSignTransactionStateController controller;
@@ -23,8 +23,7 @@ class Web3CardanoSignTransactionStateView extends StatelessWidget {
           onActive: (context) => AlertTextContainer(
               message: "multiple_transaction_desc".tr, enableTap: false)),
       SliverPadding(
-          padding:
-              isBatchTx ? WidgetConstant.paddingHorizontal10 : EdgeInsets.zero,
+          padding: isBatchTx ? WidgetConstant.paddingHorizontal10 : EdgeInsets.zero,
           sliver: SliverList.separated(
             itemCount: transactionData.transactions.length,
             itemBuilder: (context, index) {
@@ -39,8 +38,7 @@ class Web3CardanoSignTransactionStateView extends StatelessWidget {
           title: switch (controller.params.method) {
             Web3ADARequestMethods.signTx => "sign_transaction".tr,
             Web3ADARequestMethods.signTransaction => "sign_transaction".tr,
-            Web3ADARequestMethods.signAndSendTransaction =>
-              "send_transaction".tr,
+            Web3ADARequestMethods.signAndSendTransaction => "send_transaction".tr,
             Web3ADARequestMethods.submitTx => "send_transaction".tr,
             Web3ADARequestMethods.submitUnsignedTx => "send_transaction".tr,
             Web3ADARequestMethods.submitTxs => "send_transactions".tr,
@@ -79,8 +77,7 @@ class _TxDataView extends StatelessWidget {
           onActive: (context) =>
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 WidgetConstant.height20,
-                Text("your_account_inputs".tr,
-                    style: context.textTheme.titleMedium),
+                Text("your_account_inputs".tr, style: context.textTheme.titleMedium),
                 WidgetConstant.height8,
                 APPExpansionListTile(
                   title: Text(
@@ -90,8 +87,8 @@ class _TxDataView extends StatelessWidget {
                   children: [
                     ...List.generate(
                         transactionData.totalAccountsInputs.length,
-                        (index) => _AccountInputView(
-                            transactionData.totalAccountsInputs[index]))
+                        (index) =>
+                            _AccountInputView(transactionData.totalAccountsInputs[index]))
                   ],
                 ),
               ])),
@@ -119,8 +116,8 @@ class _TxDataView extends StatelessWidget {
                     children: [
                       ...List.generate(
                           transactionData.certificates!.length,
-                          (index) => _CertificateView(
-                              transactionData.certificates![index]))
+                          (index) =>
+                              _CertificateView(transactionData.certificates![index]))
                     ],
                   ),
                   WidgetConstant.height20,
@@ -137,10 +134,8 @@ class _TxDataView extends StatelessWidget {
                     title: Text("withdrawals".tr,
                         style: context.onPrimaryTextTheme.bodyMedium),
                     children: [
-                      ...List.generate(
-                          transactionData.withdrawals!.length,
-                          (index) => _WithdrawalView(
-                              transactionData.withdrawals![index]))
+                      ...List.generate(transactionData.withdrawals!.length,
+                          (index) => _WithdrawalView(transactionData.withdrawals![index]))
                     ],
                   ),
                   WidgetConstant.height20,
@@ -154,13 +149,10 @@ class _TxDataView extends StatelessWidget {
                   Text("mint".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   APPExpansionListTile(
-                    title: Text("mint".tr,
-                        style: context.onPrimaryTextTheme.bodyMedium),
+                    title: Text("mint".tr, style: context.onPrimaryTextTheme.bodyMedium),
                     children: [
-                      ...List.generate(
-                          transactionData.mintInfos!.length,
-                          (index) =>
-                              _MintView(transactionData.mintInfos![index]))
+                      ...List.generate(transactionData.mintInfos!.length,
+                          (index) => _MintView(transactionData.mintInfos![index]))
                     ],
                   ),
                   WidgetConstant.height20,
@@ -174,8 +166,7 @@ class _TxDataView extends StatelessWidget {
                   Text("votes".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   APPExpansionListTile(
-                    title: Text("votes".tr,
-                        style: context.onPrimaryTextTheme.bodyMedium),
+                    title: Text("votes".tr, style: context.onPrimaryTextTheme.bodyMedium),
                     children: [
                       ...List.generate(transactionData.votes!.length,
                           (index) => _VoteView(transactionData.votes![index]))
@@ -196,16 +187,15 @@ class _TxDataView extends StatelessWidget {
                       context.openDialogPage(
                         '',
                         child: (context) => JsonView(
-                            text: transactionData.plutusScripts!,
-                            title: 'plutus'.tr),
+                            text: transactionData.plutusScripts!, title: 'plutus'.tr),
                       );
                     },
                     onRemoveIcon: Icon(
                       Icons.open_in_full,
                       color: context.onPrimaryContainer,
                     ),
-                    child: Text("content".tr,
-                        style: context.onPrimaryTextTheme.bodyMedium),
+                    child:
+                        Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
                   ),
                   WidgetConstant.height20,
                 ],
@@ -215,8 +205,7 @@ class _TxDataView extends StatelessWidget {
           onActive: (context) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("native_scripts".tr,
-                      style: context.textTheme.titleMedium),
+                  Text("native_scripts".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
                     onRemove: () {
@@ -231,8 +220,8 @@ class _TxDataView extends StatelessWidget {
                       Icons.open_in_full,
                       color: context.onPrimaryContainer,
                     ),
-                    child: Text("content".tr,
-                        style: context.onPrimaryTextTheme.bodyMedium),
+                    child:
+                        Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
                   ),
                   WidgetConstant.height20,
                 ],
@@ -248,13 +237,12 @@ class _TxDataView extends StatelessWidget {
                     onRemove: () {
                       context.openDialogPage('',
                           child: (context) => JsonView(
-                              text: transactionData.metadata!,
-                              title: 'metadata'.tr));
+                              text: transactionData.metadata!, title: 'metadata'.tr));
                     },
-                    onRemoveIcon: Icon(Icons.open_in_full,
-                        color: context.onPrimaryContainer),
-                    child: Text("content".tr,
-                        style: context.onPrimaryTextTheme.bodyMedium),
+                    onRemoveIcon:
+                        Icon(Icons.open_in_full, color: context.onPrimaryContainer),
+                    child:
+                        Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
                   ),
                   WidgetConstant.height20,
                 ],
@@ -269,8 +257,7 @@ class _TxDataView extends StatelessWidget {
                     title: "transaction_content".tr,
                   ));
         },
-        onRemoveIcon:
-            Icon(Icons.open_in_full, color: context.onPrimaryContainer),
+        onRemoveIcon: Icon(Icons.open_in_full, color: context.onPrimaryContainer),
         child: Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
       ),
       WidgetConstant.height20,
@@ -321,8 +308,7 @@ class _InputView extends StatelessWidget {
                                   child: Icon(Icons.link,
                                       color: context.primaryContainer)))),
                       ConditionalWidget(
-                          enable:
-                              input.inputType == Web3ADAInputType.collateral,
+                          enable: input.inputType == Web3ADAInputType.collateral,
                           onActive: (context) => TappedTooltipView(
                               tooltipWidget: ToolTipView(
                                   message: "collateral_input".tr,
@@ -364,8 +350,7 @@ class _AccountInputView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       WidgetConstant.height20,
-                      Text("assets".tr,
-                          style: context.primaryTextTheme.titleMedium),
+                      Text("assets".tr, style: context.primaryTextTheme.titleMedium),
                       WidgetConstant.height8,
                       ListView.builder(
                         shrinkWrap: true,
@@ -409,8 +394,7 @@ class _OutputView extends StatelessWidget {
           child: IgnorePointer(
             child: IconButton(
                 onPressed: () {},
-                icon: Icon(Icons.change_circle,
-                    color: context.onPrimaryContainer)),
+                icon: Icon(Icons.change_circle, color: context.onPrimaryContainer)),
           ),
         ),
       ),
@@ -433,8 +417,7 @@ class _OutputView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       WidgetConstant.height20,
-                      Text("assets".tr,
-                          style: context.primaryTextTheme.titleMedium),
+                      Text("assets".tr, style: context.primaryTextTheme.titleMedium),
                       WidgetConstant.height8,
                       ListView.builder(
                         shrinkWrap: true,
@@ -477,16 +460,15 @@ class _CertificateView extends StatelessWidget {
             onRemove: () {
               context.openDialogPage(
                 '',
-                child: (context) => JsonView(
-                    text: certificate.content, title: 'certificate'.tr),
+                child: (context) =>
+                    JsonView(text: certificate.content, title: 'certificate'.tr),
               );
             },
             onRemoveIcon: Icon(
               Icons.open_in_full,
               color: context.onPrimaryContainer,
             ),
-            child: Text("content".tr,
-                style: context.onPrimaryTextTheme.bodyMedium),
+            child: Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
           ),
           ConditionalWidget(
               enable: certificate.signers.isNotEmpty,
@@ -494,8 +476,7 @@ class _CertificateView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       WidgetConstant.height20,
-                      Text("signers".tr,
-                          style: context.primaryTextTheme.titleMedium),
+                      Text("signers".tr, style: context.primaryTextTheme.titleMedium),
                       WidgetConstant.height8,
                       ListView.builder(
                         shrinkWrap: true,
@@ -532,20 +513,17 @@ class _MintView extends StatelessWidget {
             enable: mint.signer != null,
             onActive: (context) => ContainerWithBorder(
                 child: ReceiptAddressDetailsView(
-                    address: mint.signer!.signer,
-                    color: context.onPrimaryContainer)),
+                    address: mint.signer!.signer, color: context.onPrimaryContainer)),
           ),
           ContainerWithBorder(
-              child: Text(mint.policyId,
-                  style: context.onPrimaryTextTheme.bodyMedium)),
+              child: Text(mint.policyId, style: context.onPrimaryTextTheme.bodyMedium)),
           ConditionalWidget(
               enable: mint.assets.isNotEmpty,
               onActive: (context) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       WidgetConstant.height20,
-                      Text("assets".tr,
-                          style: context.primaryTextTheme.titleMedium),
+                      Text("assets".tr, style: context.primaryTextTheme.titleMedium),
                       WidgetConstant.height8,
                       ListView.builder(
                         shrinkWrap: true,
@@ -584,8 +562,7 @@ class _WithdrawalView extends StatelessWidget {
         children: [
           ContainerWithBorder(
               child: ReceiptAddressDetailsView(
-                  address: withdrawal.address,
-                  color: context.onPrimaryContainer)),
+                  address: withdrawal.address, color: context.onPrimaryContainer)),
           ContainerWithBorder(
             child: CoinAndMarketPriceView(
                 balance: withdrawal.amount,
@@ -610,25 +587,20 @@ class _VoteView extends StatelessWidget {
       child: Column(
         children: [
           ContainerWithBorder(
-              child: Text(vote.type.name,
-                  style: context.onPrimaryTextTheme.bodyMedium)),
+              child: Text(vote.type.name, style: context.onPrimaryTextTheme.bodyMedium)),
           ConditionalWidget(
               enable: vote.signer != null,
               onActive: (context) => ReceiptAddressDetailsView(
-                  address: vote.signer!.signer,
-                  color: context.onPrimaryContainer)),
+                  address: vote.signer!.signer, color: context.onPrimaryContainer)),
           ContainerWithBorder(
-            onRemoveIcon:
-                Icon(Icons.open_in_full, color: context.onPrimaryContainer),
+            onRemoveIcon: Icon(Icons.open_in_full, color: context.onPrimaryContainer),
             onRemove: () {
               context.openDialogPage(
                 '',
-                child: (context) =>
-                    JsonView(text: vote.content, title: 'vote'.tr),
+                child: (context) => JsonView(text: vote.content, title: 'vote'.tr),
               );
             },
-            child: Text("content".tr,
-                style: context.onPrimaryTextTheme.bodyMedium),
+            child: Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
           )
         ],
       ),

@@ -8,14 +8,14 @@ enum XrpAddressType {
   const XrpAddressType(this.value);
 }
 
-final class IXRPAddress extends ChainAccount<XRPAddress, RippleIssueToken,
-    RippleNFToken, XRPWalletTransaction> {
+final class IXRPAddress extends ChainAccount<XRPBaseAddress, RippleIssueToken,
+    RippleNFToken, XRPWalletTransaction, WalletXRPNetwork> {
   final XrpAddressType addressType;
   final int? tag;
-  int? _lastUpdateLedgerIndex;
 
   IXRPAddress._(
-      {required super.keyIndex,
+      {required super.derivationIndex,
+      required super.database,
       required super.coin,
       required List<int> publicKey,
       required super.address,
@@ -23,96 +23,101 @@ final class IXRPAddress extends ChainAccount<XRPAddress, RippleIssueToken,
       required super.networkAddress,
       required this.tag,
       required super.identifier,
-      super.accountName,
+      required super.id,
       int? lastUpdateLedgerIndex})
-      : publicKey = List.unmodifiable(publicKey),
-        addressType =
-            tag == null ? XrpAddressType.classic : XrpAddressType.xAddress,
-        _lastUpdateLedgerIndex = lastUpdateLedgerIndex;
-  factory IXRPAddress._newAccount(
-      {required CryptoCoins coin,
-      required int? tag,
-      required XRPAddress address,
-      required AddressDerivationIndex keyIndex,
-      required List<int> publicKey,
-      required WalletXRPNetwork network,
-      required String identifier}) {
-    final addressDetails =
-        ChainAccountBalance(address: address.toAddress(), network: network);
+      : publicKey = publicKey.asImmutableBytes,
+        addressType = tag == null ? XrpAddressType.classic : XrpAddressType.xAddress;
+  factory IXRPAddress._newAccount({
+    required CryptoCoins coin,
+    required int? tag,
+    required XRPBaseAddress address,
+    required DerivationIndex derivationIndex,
+    required IAppDatabaseApi? database,
+    required List<int> publicKey,
+    required WalletXRPNetwork network,
+    required String identifier,
+    required String? id,
+  }) {
     return IXRPAddress._(
         coin: coin,
         publicKey: publicKey,
-        address: addressDetails,
-        keyIndex: keyIndex,
+        address: address.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: address,
-        network: network.value,
+        network: network,
         tag: tag,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
-  factory IXRPAddress.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
+  factory IXRPAddress.deserialize(
+      {required WalletXRPNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
     final CborTagValue cborTag =
-        CborSerializable.decode(cborBytes: bytes, object: obj);
-    if (BytesUtils.bytesEqual(
-        cborTag.tags, CborTagsConst.rippleMultisigAccount)) {
-      return IXRPMultisigAddress.deserialize(network, obj: cborTag);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
+    if (AppSerializationIdentifier.rippleMultisigAccount.isValidTags(cborTag.tags)) {
+      return IXRPMultisigAddress.deserialize(
+          network: network, id: id, object: cborTag, database: database);
     }
-    final CborListValue values = CborSerializable.cborTagValue(
-        object: cborTag, tags: CborTagsConst.rippleAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.valueAs(0));
-    final keyIndex =
-        AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(1));
-    final List<int> publicKey = values.valueAs(2);
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(3));
-    final XRPAddress rippleAddress = XRPAddress(address.toAddress);
-    final int? tag = values.valueAs(4);
-    final networkId = values.valueAs(5);
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborObject: cborTag, identifier: AppSerializationIdentifier.rippleAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final derivationIndex =
+        DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
+    final List<int> publicKey = values.rawValueAt(2);
+    final XRPBaseAddress rippleAddress =
+        XRPBaseAddress.deserializeIAddress(bytes: values.rawValueAt(3));
+    final int? tag = values.rawValueAt(4);
+    final int networkId = values.rawValueAt(5);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String? accountName = values.valueAs(6);
-    final String identifier = values.valueAs(7);
-    final int? lastUpdateLedgerIndex = values.valueAs(8);
+    final String identifier = values.rawValueAt(6);
+    final int? lastUpdateLedgerIndex = values.rawValueAt(7);
     return IXRPAddress._(
         coin: coin,
         publicKey: publicKey,
-        address: address,
-        keyIndex: keyIndex,
+        address: rippleAddress.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: rippleAddress,
-        network: networkId,
+        network: network,
         tag: tag,
-        accountName: accountName,
         identifier: identifier,
-        lastUpdateLedgerIndex: lastUpdateLedgerIndex);
+        lastUpdateLedgerIndex: lastUpdateLedgerIndex,
+        id: id);
   }
 
   XRPPublicKey toXRPPublicKey() {
-    final algorithm = XRPKeyAlgorithm.values.firstWhere(
-        (element) => element.curveType == keyIndex.currencyCoin.conf.type);
-    return XRPPublicKey.fromBytes(publicKey, algorithm: algorithm);
+    switch (derivationIndex) {
+      case DerivableIndex index:
+        final algorithm = XRPKeyAlgorithm.values
+            .firstWhere((element) => element.curveType == index.currencyCoin.conf.type);
+        return XRPPublicKey.fromBytes(publicKey, algorithm: algorithm);
+      default:
+        throw WalletExceptionConst.featureUnavailableForMultiSignature;
+    }
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          keyIndex.toCbor(),
-          publicKey,
-          address.toCbor(),
-          tag,
-          network,
-          accountName ?? const CborNullValue(),
-          identifier
-        ]),
-        CborTagsConst.rippleAccount);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.rippleAccount;
   @override
-  List get variabels {
-    return [tag, keyIndex, network];
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        derivationIndex.toCbor(),
+        CborBytesValue(publicKey),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        tag?.toCbor(),
+        network.value.toCbor(),
+        identifier.toCbor()
+      ];
+  @override
+  List get variables {
+    return [tag, derivationIndex, network.value];
   }
 
   EllipticCurveTypes get curveType => coin.conf.type;
@@ -121,19 +126,51 @@ final class IXRPAddress extends ChainAccount<XRPAddress, RippleIssueToken,
   String get type => addressType.value;
 
   @override
-  String get baseAddress => networkAddress.address;
-  @override
+  String get baseAddress => networkAddress.classicAddress;
   final List<int> publicKey;
 
   @override
-  RippleNewAddressParams toAccountParams() {
-    return RippleNewAddressParams(deriveIndex: keyIndex, coin: coin, tag: tag);
+  NewAccountParams toAccountParams() {
+    return switch (derivationIndex) {
+      DerivableIndex index =>
+        RippleNewAddressParams(deriveIndex: index, coin: coin, tag: tag),
+      _ => throw AppCryptoExceptionConst.invalidDerivationKey
+    };
   }
 
-  Future<void> _setLastUpdateLedgerIndex(int ledgerIndex) async {
-    if (_lastUpdateLedgerIndex == ledgerIndex) return;
-    _lastUpdateLedgerIndex = ledgerIndex;
-    await _saveAddress();
+  Future<IResult<void>> _storageSaveAccountLedgeIndex(int ledgerIndex) async {
+    final storagekey = XRPNetworkStorageId.addressLedgerIndex;
+    return await _storage.insertNetworkStorageRaw(
+        storage: storagekey, value: LayoutConst.lebU32().serialize(ledgerIndex));
+  }
+
+  Future<IResult<int?>> _stoageGetAccountLedgerIndex() async {
+    final storagekey = XRPNetworkStorageId.addressLedgerIndex;
+    final data = await _storage.queryNetworkStorage(storage: storagekey);
+    return data.andThen((final data) {
+      final bytes = data?.data;
+      if (bytes == null) return ResultOk(null);
+      final result = IResult.callSync(
+        () => LayoutConst.lebU32().deserialize(bytes).value,
+        onError: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            function: "_stoageGetAccountLedgerIndex",
+            err: exception,
+            trace: trace.toString()),
+      );
+      return result.unwrapOrNull();
+    });
+  }
+
+  List<int>? toXrplPublicKeyBytes() {
+    switch (derivationIndex) {
+      case DerivableIndex index:
+        final algorithm = XRPKeyAlgorithm.values
+            .firstWhere((element) => element.curveType == index.currencyCoin.conf.type);
+        return RippleUtils.toXrplPublicKeyBytes(publicKey, algorithm);
+      default:
+        return [];
+    }
   }
 }
 
@@ -147,8 +184,9 @@ final class IXRPMultisigAddress extends IXRPAddress
       required super.tag,
       required this.multiSignatureAccount,
       required super.identifier,
-      super.accountName})
-      : super._(keyIndex: MultiSigAddressIndex(), publicKey: const []);
+      required super.database,
+      required super.id})
+      : super._(derivationIndex: MultiSigAddressIndex(), publicKey: const []);
   @override
   RippleMultiSigNewAddressParams toAccountParams() {
     return RippleMultiSigNewAddressParams(
@@ -161,51 +199,54 @@ final class IXRPMultisigAddress extends IXRPAddress
     required WalletXRPNetwork network,
     required CryptoCoins coin,
     required int? tag,
-    required XRPAddress address,
+    required XRPBaseAddress address,
     required RippleMultiSignatureAddress multiSigAccount,
     required String identifier,
+    required String? id,
+    required IAppDatabaseApi? database,
   }) {
-    final balance =
-        ChainAccountBalance(address: address.toAddress(), network: network);
     return IXRPMultisigAddress._(
         coin: coin,
         multiSignatureAccount: multiSigAccount,
-        address: balance,
+        address: address.address,
         networkAddress: address,
-        network: network.value,
+        network: network,
+        database: database,
         tag: tag,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
-  factory IXRPMultisigAddress.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory IXRPMultisigAddress.deserialize(
+      {required WalletXRPNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.rippleMultisigAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(1));
-    final int? tag = values.elementAs(2);
-    final int networkId = values.elementAs(3);
-    final XRPAddress rippleAddress = XRPAddress(address.toAddress);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.rippleMultisigAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final int? tag = values.rawValueAt(2);
+    final int networkId = values.rawValueAt(3);
+    final XRPBaseAddress rippleAddress =
+        XRPBaseAddress.deserializeIAddress(bytes: values.rawValueAt(1));
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
     final RippleMultiSignatureAddress multiSigAccount =
-        RippleMultiSignatureAddress.deserialize(
-            obj: values.elementAsCborTag(4));
-    final String? accountName = values.elementAs(5);
-    final String identifier = values.elementAs(6);
+        RippleMultiSignatureAddress.deserialize(object: values.objectAt<CborTagValue>(4));
+    final String identifier = values.rawValueAt(5);
     return IXRPMultisigAddress._(
         coin: coin,
-        address: address,
+        address: rippleAddress.address,
         networkAddress: rippleAddress,
-        network: networkId,
+        network: network,
+        database: database,
         tag: tag,
         multiSignatureAccount: multiSigAccount,
-        accountName: accountName,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
 
   final RippleMultiSignatureAddress multiSignatureAccount;
@@ -218,30 +259,37 @@ final class IXRPMultisigAddress extends IXRPAddress
       throw WalletExceptionConst.featureUnavailableForMultiSignature;
 
   @override
-  List get variabels {
-    return [tag, keyIndex, network, multiSignatureAccount];
+  List get variables {
+    return [tag, derivationIndex, network.value, multiSignatureAccount];
   }
 
   @override
-  List<Bip32AddressIndex> signerKeyIndexes() {
-    return multiSignatureAccount.signers.map((e) => e.keyIndex).toList();
+  List<DerivableIndex> derivableIndexes(
+      {AccountDerivationIndexRequest? request =
+          const AccountDerivationIndexRequestAddress()}) {
+    switch (request) {
+      case null:
+      case AccountDerivationIndexRequestSigners():
+        return multiSignatureAccount.signers.map((e) => e.derivationIndex).toList();
+      case AccountDerivationIndexRequestAddress():
+        return [];
+      default:
+        throw AppInternalError.internalError("Invalid request");
+    }
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          address.toCbor(),
-          tag,
-          network,
-          multiSignatureAccount.toCbor(),
-          accountName ?? const CborNullValue(),
-          identifier
-        ]),
-        CborTagsConst.rippleMultisigAccount);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.rippleMultisigAccount;
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        tag?.toCbor(),
+        network.value.toCbor(),
+        multiSignatureAccount.toCbor(),
+        identifier.toCbor()
+      ];
   @override
   IAdressType get iAddressType => IAdressType.multisigByAddress;
 }

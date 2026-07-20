@@ -1,17 +1,17 @@
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/ripple/client/ripple.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
 
 mixin XRPTransactionApiController on DisposableMixin {
-  XRPClient get client;
+  XRPNetworkClient get client;
   final CachedObject<int> _accountSequence =
       CachedObject(interval: const Duration(minutes: 2));
   final CachedObject<int> _ledgerOffset =
       CachedObject(interval: const Duration(minutes: 2));
 
-  Future<int> getAccountSequence(XRPAddress address) async {
+  Future<int> getAccountSequence(XRPBaseAddress address) async {
     return _accountSequence.get(onFetch: () async {
       final sequence = await client.getAccountSequence(address);
       return sequence.toInt();
@@ -40,21 +40,19 @@ mixin XRPTransactionApiController on DisposableMixin {
       if (disableMasterKey) throw AppException("disable_master_key_addr");
       return;
     }
-    final multiSignatureAccount =
-        (address as IXRPMultisigAddress).multiSignatureAccount;
+    final multiSignatureAccount = (address as IXRPMultisigAddress).multiSignatureAccount;
     if (multiSignatureAccount.isRegular) {
       final multisigRegularAddress = RippleUtils.strPublicKeyToRippleAddress(
           multiSignatureAccount.signers.first.publicKey);
-      if (multisigRegularAddress.address == regularKey) return;
+      if (multisigRegularAddress.classicAddress == regularKey) return;
       throw AppException("ripple_account_signature_updated_desc");
     }
     final accountSigners =
-        await client.getAccountSignerList(address.networkAddress.address);
+        await client.getAccountSignerList(address.networkAddress.classicAddress);
     if (accountSigners != null && accountSigners.signerEntries.isNotEmpty) {
       int threshHold = 0;
       final List<String> addressSigners = multiSignatureAccount.signers
-          .map((e) =>
-              RippleUtils.strPublicKeyToRippleAddress(e.publicKey).address)
+          .map((e) => RippleUtils.strPublicKeyToRippleAddress(e.publicKey).classicAddress)
           .toList();
       for (final i in addressSigners) {
         final inSignerList = accountSigners.signerEntries
@@ -68,7 +66,7 @@ mixin XRPTransactionApiController on DisposableMixin {
   }
 
   Future<int?> getNetworkId() async {
-    return await client.provider.getTransactionNetworkId();
+    return await client.provider.inner.getTransactionNetworkId();
   }
 
   Future<SubmittableTransaction> filledTransactionRequirment(
@@ -80,7 +78,7 @@ mixin XRPTransactionApiController on DisposableMixin {
     }
     if (transaction.ticketSequance == null || force) {
       final accountSequence =
-          await getAccountSequence(XRPAddress(transaction.account));
+          await getAccountSequence(XRPBaseAddress(transaction.account));
       transaction.setSequence(accountSequence);
     }
     final ledgerOffset = await getTransactionLastLedgerIndex();
@@ -88,8 +86,7 @@ mixin XRPTransactionApiController on DisposableMixin {
     return transaction;
   }
 
-  Future<SubmitResult> broadcastTransaction(
-      SubmittableTransaction transaction) async {
+  Future<SubmitResult> broadcastTransaction(SubmittableTransaction transaction) async {
     final txResult = await client.provider
         .request(XRPRequestSubmit(txBlob: transaction.toTransactionBlob()));
     return txResult;

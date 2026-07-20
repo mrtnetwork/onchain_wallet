@@ -16,8 +16,7 @@ class StellarTransactionPaymentWidget extends StatelessWidget {
         allowNativeAssets: true,
         allowCreateAsset: true,
         onSelectAsset: (asset) => form.onUpdateAsset(asset),
-        account: form.controller.account,
-        accountInfo: form.controller.accountData,
+        controller: form.controller,
         onAssetPicked: (context, field, selling) {
           return Column(
             children: [

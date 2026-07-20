@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
+import 'package:on_chain_wallet/future/wallet/global/helper/utxo_lock_time.dart';
+import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/monero/transaction/controllers/utxos.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
+import 'package:on_chain_wallet/future/wallet/network/monero/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 
 class MoneroTransactionSelectUtxos extends StatelessWidget {
@@ -15,136 +18,197 @@ class MoneroTransactionSelectUtxos extends StatelessWidget {
         SliverAppBar(
           pinned: true,
           title: Text("choose_utxos".tr),
-          actions: [
-            APPStreamBuilder(
-              value: form.accountUtxos,
-              builder: (context, value) {
-                return TextButton.icon(
-                  onPressed: () => form.onToggleAllUtxos(
-                    () {
-                      context.showAlert("transaction_input_exceeds_16_desc".tr);
-                    },
-                  ),
-                  label: Text("choose_all".tr),
-                  icon: APPAnimated(
-                      isActive: form.allUtxosSelected,
-                      onActive: (context) => Icon(Icons.check_box),
-                      onDeactive: (context) =>
-                          Icon(Icons.check_box_outline_blank_outlined)),
-                );
-              },
-            )
-          ],
         ),
         SliverConstraintsBoxView(
-            padding: WidgetConstant.paddingHorizontal20,
+            padding: WidgetConstant.padding20,
             sliver: APPStreamBuilder(
-              value: form.accountUtxos,
-              builder: (context, addresses) {
-                return SliverList.separated(
-                    separatorBuilder: (context, index) =>
-                        WidgetConstant.divider,
-                    itemBuilder: (context, index) {
-                      final addressUtxos = addresses[index];
-                      return APPStreamBuilder(
-                        value: addressUtxos.notifier,
-                        builder: (context, value) => APPExpansionListTile(
-                          title: Row(
-                            children: [
-                              Expanded(
-                                  child: AddressDetailsView(
-                                      address: addressUtxos.address)),
-                              ConditionalWidget(
-                                  enable: addressUtxos.allSelected ||
-                                      addressUtxos.totalSelected == 0,
-                                  onDeactive: (context) {
-                                    return IconButton(
-                                        onPressed: () {},
-                                        icon: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            Icon(Icons.check_box_outline_blank),
-                                            Text(addressUtxos.totalSelected
-                                                .toString()),
-                                          ],
-                                        ));
-                                  },
-                                  onActive: (context) {
-                                    return APPCheckBox(
-                                        onChanged: (v) {
-                                          form.onToggleAddressUtxos(
-                                              addressUtxos, () {
-                                            context.showAlert(
-                                                "transaction_input_exceeds_16_desc"
-                                                    .tr);
-                                          });
-                                        },
-                                        value: addressUtxos.allSelected,
-                                        backgroundColor:
-                                            context.colors.onPrimaryContainer,
-                                        color: context.colors.primaryContainer);
-                                  })
-                            ],
-                          ),
-                          children: [
-                            ConditionalWidget(onActive: (context) {
-                              final utxoData = addressUtxos.utxos.utxos;
-                              return ListView(
-                                shrinkWrap: true,
-                                physics: WidgetConstant.noScrollPhysics,
-                                children: List.generate(utxoData.length, (pos) {
-                                  final utxo = utxoData[pos];
-                                  final bool canSpent = !utxo.output.needUpdate;
-                                  final bool inPool = utxo.output.status.inPool;
-                                  return ContainerWithBorder(
-                                    validate: canSpent,
-                                    validateText: inPool
-                                        ? "spent_in_pool".tr
-                                        : 'monero_utxo_lake_of_confirmatins_desc'
-                                            .tr,
-                                    onRemove: canSpent
-                                        ? () {
-                                            form.onUpdateUtxo(
-                                                addressUtxos, utxo, () {
-                                              context.showAlert(
-                                                  "transaction_input_exceeds_16_desc"
-                                                      .tr);
-                                            });
-                                          }
-                                        : null,
-                                    onRemoveWidget: APPCheckBox(
-                                        value: addressUtxos.isSelected(utxo),
-                                        backgroundColor:
-                                            context.primaryContainer,
-                                        color: context.onPrimaryContainer),
-                                    backgroundColor: context.onPrimaryContainer,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        OneLineTextWidget(utxo.output.txId,
-                                            style: context
-                                                .primaryTextTheme.bodyMedium),
-                                        CoinPriceView(
-                                            balance: utxo.amount,
-                                            style: context
-                                                .primaryTextTheme.titleMedium,
-                                            symbolColor:
-                                                context.primaryContainer)
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              );
-                            })
-                          ],
-                        ),
-                      );
-                    },
-                    itemCount: addresses.length);
-              },
-            ))
+                value: form.accountUtxos,
+                builder: (context, addresses) {
+                  return MultiSliver(
+                    children: [
+                      SliverToBoxAdapter(
+                          child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          APPAnimated(
+                              isActive: !form.hasUtxos,
+                              onActive: (context) => AlertTextContainer(
+                                  message:
+                                      "update_utxo_durning_build_transaction_desc".tr,
+                                  enableTap: false)),
+                        ],
+                      )),
+                      SliverList.separated(
+                          separatorBuilder: (context, index) => WidgetConstant.divider,
+                          itemBuilder: (context, index) {
+                            final addressUtxos = addresses[index];
+                            return APPStreamBuilder(
+                              value: addressUtxos.notifier,
+                              builder: (context, _) => Shimmer(
+                                  onActive: (enable, context) => DisabledWidget(
+                                        disabled: !addressUtxos.hasUtxos,
+                                        ignoring: true,
+                                        onActive: (context, _) => ContainerWithBorder(
+                                          onRemoveWidget: switch (addressUtxos.status) {
+                                            BitcoinAccountUtxosStatusPending() => Icon(
+                                                Icons.sync,
+                                                color: context.onPrimaryContainer,
+                                              ),
+                                            BitcoinAccountUtxosStatusErr(
+                                              :final message
+                                            ) =>
+                                              IconButton(
+                                                  tooltip: message,
+                                                  onPressed: () {
+                                                    form.getAccountsUtxos(
+                                                        accountUtxos: [addressUtxos]);
+                                                  },
+                                                  icon: Icon(Icons.error,
+                                                      color: context.colors.error)),
+                                            _ => IconButton(
+                                                onPressed: () {
+                                                  if (!addressUtxos.hasUtxos) {
+                                                    context.showAlert(
+                                                        "no_available_utxos_found".tr);
+                                                    return;
+                                                  }
+                                                  context.openDialogPage(
+                                                    "",
+                                                    child: (context) => _SelectUtxos(
+                                                        form: form, utxos: addressUtxos),
+                                                  );
+                                                },
+                                                icon: Icon(Icons.open_in_new_sharp,
+                                                    color: context.onPrimaryContainer))
+                                          },
+                                          enableTap: addressUtxos.status.isSuccess,
+                                          onRemove: () {
+                                            context.openDialogPage(
+                                              "",
+                                              child: (context) => _SelectUtxos(
+                                                  form: form, utxos: addressUtxos),
+                                            );
+                                          },
+                                          child: AddressDetailsView(
+                                            address: addressUtxos.address,
+                                            chain: form.account,
+                                          ),
+                                        ),
+                                      ),
+                                  enable: !addressUtxos.isPending),
+                            );
+                          },
+                          itemCount: addresses.length)
+                    ],
+                  );
+                }))
       ],
     );
+  }
+}
+
+class _SelectUtxos extends StatelessWidget {
+  final MoneroTransactionUtxosController form;
+  final MoneroAccountFetchedUtxos utxos;
+
+  const _SelectUtxos({required this.form, required this.utxos});
+
+  @override
+  Widget build(BuildContext context) {
+    return APPStreamBuilder(
+        value: utxos.notifier,
+        builder: (context, v) {
+          final utxoData = utxos.utxos?.utxosWithBalance ?? [];
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                title: Text("choose_utxos".tr),
+                actions: [
+                  TextButton.icon(
+                    onPressed: () {
+                      form.toggleAllAddressUtxos(utxos, context.showAlert);
+                    },
+                    label: Text("choose_all".tr),
+                    icon: APPAnimated(
+                        isActive: utxos.allSelected,
+                        onActive: (context) => Icon(Icons.check_box),
+                        onDeactive: (context) =>
+                            Icon(Icons.check_box_outline_blank_outlined)),
+                  ),
+                ],
+              ),
+              EmptyItemSliverWidgetView(
+                isEmpty: utxoData.isEmpty,
+                itemBuilder: (context) => SliverConstraintsBoxView(
+                    padding: WidgetConstant.padding20,
+                    sliver: MultiSliver(
+                      children: [
+                        SliverPinnedHeaderSurface(
+                          child: ContainerWithBorder(
+                            child: CoinAndMarketPriceView(
+                                balance: utxos.totalUtxo,
+                                symbolColor: context.onPrimaryContainer,
+                                showTokenImage: true,
+                                style: context.onPrimaryTextTheme.titleMedium),
+                          ),
+                        ),
+                        SliverList.builder(
+                          itemCount: utxoData.length,
+                          itemBuilder: (context, pos) {
+                            final utxo = utxoData[pos];
+                            final txId = utxo.utxo.txId();
+                            final bool coinbase = utxo.utxo.coinbase;
+                            final confirmation = utxo.utxo.confirmation;
+                            return ContainerWithBorder(
+                              onRemove: () {
+                                form.addUtxo(
+                                  address: utxos,
+                                  utxo: utxo,
+                                  onErr: (s) => context.showAlert(s.tr),
+                                );
+                              },
+                              onRemoveWidget: switch (confirmation.confirmed) {
+                                true => APPCheckBox(
+                                    value: utxos.isSelected(utxo),
+                                    backgroundColor: context.primaryContainer,
+                                    color: context.onPrimaryContainer,
+                                  ),
+                                false => confirmation.tooltip(context.primaryContainer),
+                              },
+                              backgroundColor: context.onPrimaryContainer,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    RichText(
+                                      text: TextSpan(
+                                        text: coinbase ? "coinbase".tr : "at".tr,
+                                        children: [
+                                          TextSpan(
+                                              text: " (${utxo.utxo.utxo.blockHeight})")
+                                        ],
+                                        style: context.primaryTextTheme.labelSmall,
+                                      ),
+                                    )
+                                  ]),
+                                  OneLineTextWidget(txId,
+                                      style: context.primaryTextTheme.bodyMedium),
+                                  CoinAndMarketPriceView(
+                                      showTokenImage: true,
+                                      balance: utxo.amount,
+                                      style: context.primaryTextTheme.titleMedium,
+                                      symbolColor: context.primaryContainer),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    )),
+              )
+            ],
+          );
+        });
   }
 }

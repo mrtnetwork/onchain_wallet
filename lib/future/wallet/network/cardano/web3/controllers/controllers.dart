@@ -1,6 +1,6 @@
 import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/web3/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/cardano/params/core/request.dart';
+import 'package:on_chain_wallet/web3/web3/networks/cardano/params/core/request.dart';
 
 import 'provider.dart';
 

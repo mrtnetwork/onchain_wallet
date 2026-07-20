@@ -1,5 +1,5 @@
-import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/jetton.dart';
 import 'package:ton_dart/ton_dart.dart';
 
 class TonAccountJettonResponse {
@@ -16,10 +16,7 @@ class TonAccountJettonResponse {
       required this.jettonWalletAddress,
       this.metadata})
       : token = metadata ??
-            Token(
-                name: tokenAddress.toFriendlyAddress(),
-                decimal: 0,
-                symbol: tokenAddress.toFriendlyAddress());
+            Token(name: tokenAddress.address, decimal: 0, symbol: tokenAddress.address);
   factory TonAccountJettonResponse(
       {required TonAddress tokenAddress,
       required BigInt balance,

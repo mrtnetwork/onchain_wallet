@@ -1,12 +1,12 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/constant.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
-class SubstrateMultisigCall with CborSerializable, Equality {
+class SubstrateMultisigCall with AppSerialization, Equality {
   final List<int>? callData;
   final List<int> callHash;
   final String callHashHex;
@@ -16,29 +16,25 @@ class SubstrateMultisigCall with CborSerializable, Equality {
         callHash = callHash.asImmutableBytes,
         callHashHex = BytesUtils.toHexString(callHash),
         callDataHex = BytesUtils.tryToHexString(callData);
-  factory SubstrateMultisigCall.deserialize(
-      {List<int>? bytes, String? hex, CborObject? obj}) {
-    final values = CborSerializable.cborTagValue(
+  factory SubstrateMultisigCall.deserialize({List<int>? bytes, CborObject? object}) {
+    final values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: hex,
-        object: obj,
-        tags: CborTagsConst.substrateMultisigCall);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.substrateMultisigCall);
     return SubstrateMultisigCall(
-        callData: values.valueAs(0), callHash: values.valueAs(1));
+        callData: values.rawValueAt(0), callHash: values.rawValueAt(1));
   }
 
   @override
-  CborTagValue<CborObject> toCbor() {
-    return CborTagValue(
-        CborListValue.definite(<CborObject>[
-          callData == null ? CborNullValue() : CborBytesValue(callData!),
-          CborBytesValue(callHash)
-        ]),
-        CborTagsConst.substrateMultisigCall);
-  }
+  List get variables => [callHash];
 
   @override
-  List get variabels => [callHash];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.substrateMultisigCall;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [callData?.toCborBytes(), CborBytesValue(callHash)];
 }
 
 class SubstrateMultisigCallData {
@@ -60,9 +56,6 @@ class SubstrateMultisigCallData {
   }
 
   SubstrateMultisigCallData(
-      {required this.call,
-      this.weight,
-      Map<String, dynamic>? content,
-      this.multisig})
+      {required this.call, this.weight, Map<String, dynamic>? content, this.multisig})
       : content = content?.immutable;
 }

@@ -41,24 +41,20 @@ class WebView extends StatelessWidget {
                                         children: [
                                           ConditionalWidget(
                                             enable: model.enableBackForwardKey,
-                                            onActive: (context) =>
-                                                APPStreamBuilder(
+                                            onActive: (context) => APPStreamBuilder(
                                               value: model.navigatorStatus,
                                               builder: (context, value) {
                                                 return Row(
                                                   key: ValueKey(value),
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
+                                                  mainAxisSize: MainAxisSize.min,
                                                   children: [
                                                     _BooleanFutureIcon(
                                                         callBack: model.goBack,
                                                         icon: Icons.arrow_back,
                                                         enable: value.back),
                                                     _BooleanFutureIcon(
-                                                        callBack:
-                                                            model.goForward,
-                                                        icon:
-                                                            Icons.arrow_forward,
+                                                        callBack: model.goForward,
+                                                        icon: Icons.arrow_forward,
                                                         enable: value.forward),
                                                   ],
                                                 );
@@ -68,42 +64,37 @@ class WebView extends StatelessWidget {
                                           Flexible(
                                             child: APPStreamBuilder(
                                               value: model.controller.tab,
-                                              builder: (context, value) =>
-                                                  Padding(
-                                                padding: WidgetConstant
-                                                    .paddingHorizontal10,
+                                              builder: (context, value) => Padding(
+                                                padding:
+                                                    WidgetConstant.paddingHorizontal10,
                                                 child: AppTextField(
-                                                  controller:
-                                                      model.textController,
+                                                  controller: model.textController,
                                                   maxLines: 1,
                                                   canRequestFocus: false,
                                                   onTap: () {
                                                     model.onTapTextFeield(
                                                       () {
-                                                        return context.openDialogPage<
-                                                                String>('',
-                                                            routeName: PageRouter
-                                                                .web3Permission_,
-                                                            fullWidget: (context) =>
-                                                                WebViewSearchBarView(
-                                                                    model));
+                                                        return context
+                                                            .openDialogPage<String>('',
+                                                                routeName:
+                                                                    PageRouter
+                                                                        .web3Permission_,
+                                                                fullWidget: (context) =>
+                                                                    WebViewSearchBarView(
+                                                                        model));
                                                       },
                                                     );
                                                   },
-                                                  keyboardType:
-                                                      TextInputType.url,
-                                                  initialValue: model
-                                                      .controller.tab.value.url,
-                                                  prefixIcon:
-                                                      CircleAPPImageView(
+                                                  keyboardType: TextInputType.url,
+                                                  initialValue:
+                                                      model.controller.tab.value.url,
+                                                  prefixIcon: CircleAPPImageView(
                                                     model.controller.image,
-                                                    radius:
-                                                        APPConst.circleRadius12,
-                                                    onError: (c) => const Icon(Icons
-                                                        .travel_explore_rounded),
-                                                    onProgress: (c) =>
-                                                        const Icon(Icons
-                                                            .travel_explore_rounded),
+                                                    radius: APPConst.circleRadius12,
+                                                    onError: (c) => const Icon(
+                                                        Icons.travel_explore_rounded),
+                                                    onProgress: (c) => const Icon(
+                                                        Icons.travel_explore_rounded),
                                                   ),
                                                 ),
                                               ),
@@ -118,8 +109,8 @@ class WebView extends StatelessWidget {
                                             if (value != null) {
                                               return SizedBox(
                                                 height: 8,
-                                                child: LinearProgressIndicator(
-                                                    value: value),
+                                                child:
+                                                    LinearProgressIndicator(value: value),
                                               );
                                             }
                                             return WidgetConstant.height8;
@@ -135,21 +126,20 @@ class WebView extends StatelessWidget {
                   WebViewTabPage.hide: (c) => Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.travel_explore, size: APPConst.double80)
-                        ],
+                        children: [Icon(Icons.travel_explore, size: APPConst.double80)],
                       ),
                   WebViewTabPage.tabs: (c) => WebViewTabsView(model),
                   WebViewTabPage.browser: (c) => APPNativeView(
                         controller: model.controller.controller,
                         hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+                        platform: context.appContext.platform,
                         gestureRecognizers: {
                           Factory<OneSequenceGestureRecognizer>(
                               () => EagerGestureRecognizer2()),
                         },
                       ),
-                  WebViewTabPage.bookmarks: (c) => WebViewHistoriesView(
-                      model: model, items: model.bookmarks),
+                  WebViewTabPage.bookmarks: (c) =>
+                      WebViewHistoriesView(model: model, items: model.bookmarks),
                   WebViewTabPage.history: (c) => WebViewHistoriesView(
                       model: model, items: model.histories, isHistory: true)
                 },

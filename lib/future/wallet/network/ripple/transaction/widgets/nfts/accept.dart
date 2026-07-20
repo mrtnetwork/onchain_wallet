@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/token_details_view.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/operations/nfts/accept_offer.dart';
@@ -71,28 +71,26 @@ class RippleTransactionNFTAcceptOfferWidget extends StatelessWidget {
                         enable: value != null,
                         onActive: (context) => AccountTokenDetailsWidget(
                             key: ValueKey(value),
-                            token:
-                                value!.issueToken?.token ?? form.network.token,
+                            token: value!.issueToken?.token ?? form.network.token,
                             radius: APPConst.circleRadius25,
                             color: context.onPrimaryContainer)),
                   )),
               APPAnimated(
                   isActive: value != null,
-                  onActive: (context) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            WidgetConstant.height20,
-                            LiveFormWidgetBalanceCore(
-                                acceptZero: false,
-                                onUpdateAmount: (amount, max) {
-                                  if (amount is BigRational) {
-                                    form.onUpdateAmountIssue(amount);
-                                  } else if (amount is BigInt) {
-                                    form.onUpdateAmountXrp(amount);
-                                  }
-                                },
-                                field: form.amount),
-                          ]))
+                  onActive: (context) =>
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        WidgetConstant.height20,
+                        LiveFormWidgetBalanceCore(
+                            acceptZero: false,
+                            onUpdateAmount: (amount, max) {
+                              if (amount is BigRational) {
+                                form.onUpdateAmountIssue(amount);
+                              } else if (amount is BigInt) {
+                                form.onUpdateAmountXrp(amount);
+                              }
+                            },
+                            field: form.amount),
+                      ]))
             ],
           );
         },
@@ -100,8 +98,7 @@ class RippleTransactionNFTAcceptOfferWidget extends StatelessWidget {
       WidgetConstant.height20,
       RippleTransactionMemoWidget(controller: form),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }

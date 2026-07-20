@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/update_network_provider.dart';
+import 'package:on_chain_wallet/future/wallet/global/provider/update_network_provider.dart';
+import 'package:on_chain_wallet/wallet/api/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:stellar_dart/stellar_dart.dart';
 
@@ -11,11 +12,10 @@ class UpdateStellarProvider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<StellarClient?, IStellarAddress?,
-            StellarChain>(
+    return NetworkAccountControllerView<StellarClient?, IStellarAddress?, StellarChain>(
         addressRequired: false,
         clientRequired: false,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
+        childBulder: (wallet, account, client, address) =>
             _UpdateStellarProvider(account));
   }
 }
@@ -31,47 +31,40 @@ class _UpdateStellarProvider extends StatefulWidget {
 class _UpdateSolanaProviderState extends State<_UpdateStellarProvider>
     with
         SafeState<_UpdateStellarProvider>,
-        UpdateNetworkProviderState<
-            _UpdateStellarProvider,
-            StellarAPIProvider,
-            StellarAddress,
-            IStellarAddress,
-            StellarClient,
-            TokenCore,
-            NFTCore,
-            StellarChain> {
+        UpdateNetworkProviderState<_UpdateStellarProvider, StellarAddress,
+            IStellarAddress, StellarClient, TokenCore, NFTCore, StellarChain> {
   @override
   StellarChain get chain => widget.account;
 
   @override
-  StellarAPIProvider createProvider(
-      {required String url,
-      required APIProviderServiceInfo service,
-      ProviderAuthenticated? auth}) {
-    return StellarAPIProvider(
-        // httpNodeUri: url,
-        horizonUrl: url,
-        sorobanUrl: '',
-        auth: auth,
-        identifier: APIUtils.getProviderIdentifier());
-  }
-
-  @override
-  late final List<ServiceProtocol> supportedProtocol;
-
-  void init() {
-    supportedProtocol = [ServiceProtocol.http];
-    protocol = supportedProtocol.first;
-  }
-
-  @override
-  void onInitOnce() {
-    MethodUtils.after(() async => init());
-    super.onInitOnce();
-  }
-
-  @override
-  Future<StellarAPIProvider> validate(StellarAPIProvider provider) async {
-    throw UnimplementedError();
+  Future<DefaultAPIProvider> validate(DefaultAPIProvider provider) async {
+    StellarClient? client;
+    try {
+      if (provider.service == APIProviderServices.horizon) {
+        client = StellarClient.fromProvider(
+            netApi: context.appContext.netApi,
+            provider: StellarNetworkProvider(
+                horizon: provider,
+                soroban: provider.copyWith(service: APIProviderServices.stellarRpc)),
+            network: chain.network);
+        final correctChainId = await client.validateHorizon();
+        if (!correctChainId) throw AppException("provider_validation_failed_desc");
+        return provider;
+      }
+      if (provider.service == APIProviderServices.stellarRpc) {
+        client = StellarClient.fromProvider(
+            netApi: context.appContext.netApi,
+            provider: StellarNetworkProvider(
+                horizon: provider.copyWith(service: APIProviderServices.horizon),
+                soroban: provider),
+            network: chain.network);
+        final correctChainId = await client.validateSoroban();
+        if (!correctChainId) throw AppException("provider_validation_failed_desc");
+        return provider;
+      }
+      throw WalletExceptionConst.invalidProviderInformation;
+    } finally {
+      client?.dispose();
+    }
   }
 }

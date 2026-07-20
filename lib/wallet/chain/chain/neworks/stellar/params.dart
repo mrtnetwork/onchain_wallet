@@ -1,57 +1,46 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class StellarNewAddressParams extends NewAccountParams<IStellarAddress> {
-  @override
-  bool get isMultiSig => false;
-
+final class StellarNewAddressParams extends NewDerivableAccountParams<IStellarAddress> {
   EllipticCurveTypes get curve => coin.conf.type;
+
   @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
 
   final BigInt? id;
   @override
   final CryptoCoins coin;
   const StellarNewAddressParams._(
-      {required this.deriveIndex, required this.coin, this.id})
-      : super._();
+      {required this.deriveIndex, required this.coin, this.id});
   factory StellarNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
-      required CryptoCoins coin,
-      BigInt? id}) {
-    return StellarNewAddressParams._(
-        deriveIndex: deriveIndex, coin: coin, id: id);
+      {required DerivableIndex deriveIndex, required CryptoCoins coin, BigInt? id}) {
+    return StellarNewAddressParams._(deriveIndex: deriveIndex, coin: coin, id: id);
   }
 
-  factory StellarNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory StellarNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.stellarNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.stellarNewAddressParams.tag);
     return StellarNewAddressParams(
-      deriveIndex:
-          AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-      id: values.elementAs(1),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
+      deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+      id: values.rawValueAt(1),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
     );
   }
   @override
-  IStellarAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IStellarAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletStellarNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "StellarNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("StellarNewAddressParams.toAccount");
     }
     final keyBytes = publicKey.keyBytes(immutable: true);
-    final BigInt? muxId = id;
+    final BigInt? muxId = this.id;
     StellarAddress address;
     if (muxId != null) {
-      address = StellarMuxedAddress.fromPublicKey(
-          publicKey: keyBytes, accountId: muxId);
+      address = StellarMuxedAddress.fromPublicKey(publicKey: keyBytes, accountId: muxId);
     } else {
       address = StellarAccountAddress.fromPublicKey(keyBytes);
     }
@@ -59,19 +48,17 @@ final class StellarNewAddressParams extends NewAccountParams<IStellarAddress> {
         publicKey: keyBytes,
         network: network,
         address: address,
+        database: database,
         coin: coin,
         muxId: muxId,
-        keyIndex: deriveIndex,
-        identifier: NewAccountParams.toIdentifier(address.address));
+        derivationIndex: deriveIndex,
+        identifier: NewAccountParams.toIdentifier(address.address),
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([deriveIndex.toCbor(), id, coin.toCbor()]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems =>
+      [deriveIndex.toCbor(), id?.toCbor(), coin.identifier.toCbor()];
   @override
   NewAccountParamsType get type => NewAccountParamsType.stellarNewAddressParams;
 }

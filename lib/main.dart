@@ -1,83 +1,110 @@
 import 'dart:async';
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:on_chain_bridge/dev/dev.dart';
+import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/context/builder/builder.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 void main() async {
-  await _runApplication();
+  final logging = kDebugMode || true ? LoggerMode.debug : LoggerMode.error;
+  Logging.init(
+      LoggingConfig(
+          mode: logging,
+          netsdk: LoggerMode.info,
+          libs: LoggerMode.debug,
+          printDebug: true,
+          environment: "Main"),
+      writer: LogWriterDefault(logging));
+  Logging.debug(
+    fn: () => AppLogData(function: "run", msg: "Application start."),
+  );
+  runZonedGuarded(
+    _runApplication,
+    (error, stack) {
+      Logging.error(
+          fn: () => AppLogData(
+              runtime: "Main",
+              function: "runZonedGuarded",
+              trace: stack.toString(),
+              err: error,
+              loggingTrace: true));
+    },
+  );
 }
 
-class APPHTTPConfig extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-  }
+Future<IResult<void>> _configDesktop(MainAppContext context) async {
+  if (!context.platform.isDesktop) return ResultOk(null);
+  return context
+      .platformInterface()
+      .andThen((e) => e.desktop.toResult())
+      .andThenAsync((windows) async {
+    await windows.init();
+    await windows.waitUntilReadyToShow();
+    await windows.setMaximumSize(const WidgetSize(
+        width: APPConst.desktopAppWidth, height: APPConst.desktopAppHeight));
+    final size = context.setting.setting.size;
+    final pixel = size?.devicePixelRatio;
+    if (size != null && pixel != null) {
+      await windows.setBounds(pixelRatio: pixel, bounds: size);
+    }
+    return ResultOk(null);
+  });
 }
 
-Future<void> _configDesktop(APPSetting setting) async {
-  if (!PlatformInterface.appPlatform.isDesktop) return;
-  await PlatformInterface.instance.desktop.init();
-  await PlatformInterface.instance.desktop.waitUntilReadyToShow();
-  // final path =
-  //     await PlatformUtils.writeAssetToSupport(assetPath: APPConst.logoPath);
-  // Logg.log("oh ${path}");
-  // await PlatformInterface.instance.desktop.setIcon(path);
-
-  await PlatformInterface.instance.desktop.setMaximumSize(const WidgetSize(
-      width: APPConst.desktopAppWidth, height: APPConst.desktopAppHeight));
-  if (setting.size?.devicePixelRatio != null) {
-    final size = setting.size!;
-    await PlatformInterface.instance.desktop
-        .setBounds(pixelRatio: size.devicePixelRatio!, bounds: size);
-  }
-}
-
-Future<APPSetting> _readSetting() async {
-  final config = await PlatformInterface.instance.init(APPConst.applicationId);
-  final query =
-      await PlatformInterface.instance.readDb(APPDatabaseConst.appSettingQuery);
-  return APPSetting.deserialize(config, bytes: query?.data);
+Future<IResult<MainAppContext>> _readSetting() async {
+  final config = AppConfig(applicationId: APPConst.applicationId);
+  final context = await AppContextBuilder.initMainContext(config);
+  return context.andThenAsync((context) async {
+    final desktop = await _configDesktop(context);
+    return desktop.map((_) => context);
+  });
 }
 
 Future<void> _runApplication() async {
-  HttpOverrides.global = APPHTTPConfig();
   WidgetsFlutterBinding.ensureInitialized();
-  final setting = await _readSetting();
-  await _configDesktop(setting);
-  ThemeController.fromAppSetting(setting);
-  runApp(StateRepository(child: MyBTC(setting: setting)));
+  final context = await _readSetting();
+  context.map((context) {
+    ThemeController.fromAppSetting(context.setting.setting);
+  });
+  runApp(StateRepository(child: MyBTC(context: context)));
 }
 
-class MyBTC extends StatelessWidget {
-  const MyBTC({super.key, required this.setting});
-  final APPSetting setting;
+class MyBTC extends StatefulWidget {
+  const MyBTC({super.key, required this.context});
+  final IResult<MainAppContext> context;
 
   @override
+  State<MyBTC> createState() => _MyBTCState();
+}
+
+class _MyBTCState extends State<MyBTC> {
+  @override
   Widget build(BuildContext context) {
+    final observer = StateRepository.walletObserver(context);
+    final navigatorKey = StateRepository.navigatorKey(context);
+    final messengerKey = StateRepository.messengerKey(context);
     return StateBuilder<WalletProvider>(
       controller: () => WalletProvider(
-          appSetting: setting,
-          observer: StateRepository.walletObserver(context),
-          navigatorKey: StateRepository.navigatorKey(context)),
-      removable: false,
-      stateId: StateConst.main,
+          contextResult: widget.context,
+          observer: observer,
+          navigatorKey: navigatorKey,
+          messengerKey: messengerKey),
+      disposeStrategy: StateBuilderDisposeStrategy.never,
       repositoryId: StateConst.main,
       builder: (m) {
         return MaterialApp(
-            scaffoldMessengerKey: StateRepository.messengerKey(context),
+            scaffoldMessengerKey: messengerKey,
             title: APPConst.name,
-            scrollBehavior: AppScrollBehavior(PlatformInterface.appPlatform),
+            scrollBehavior: AppScrollBehavior(context.appContext.platform),
             builder: (context, child) {
               double? maxWidth;
-              if (PlatformInterface.appPlatform.isDesktop) {
+              if (context.appContext.platform.isDesktop) {
                 maxWidth = APPConst.desktopAppWidth;
               }
               ThemeController.updatePrimary(context.theme);
@@ -102,11 +129,11 @@ class MyBTC extends StatelessWidget {
             locale: ThemeController.materialLocale,
             onGenerateRoute: PageRouter.onGenerateRoute,
             initialRoute: PageRouter.home,
-            navigatorObservers: [StateRepository.walletObserver(context)],
+            navigatorObservers: [observer],
             showSemanticsDebugger: false,
             debugShowCheckedModeBanner: false,
             color: ThemeController.appTheme.colorScheme.primary,
-            navigatorKey: StateRepository.navigatorKey(context));
+            navigatorKey: navigatorKey);
       },
     );
   }

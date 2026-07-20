@@ -12,16 +12,15 @@ import 'package:on_chain_wallet/future/wallet/network/substrate/web3/types/types
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/substrate/constant/constants/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/substrate/params/models/transaction.dart';
+import 'package:on_chain_wallet/web3/web3/networks/substrate/constant/constants/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/substrate/params/models/transaction.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
 class WebSubstrateSignTransactionStateController
     extends Web3SubstrateTransactionStateController<
         Web3SubstrateSendTransactionResponse,
         Web3SubstrateSendTransaction,
-        IWeb3SubstrateTransactionRawData>
-    with SubstrateTransactionSignerController {
+        IWeb3SubstrateTransactionRawData> with SubstrateTransactionSignerController {
   StreamSubscription<void>? _feeListener;
   IWeb3SubstrateTransactionRawData? _transactionData;
   IWeb3SubstrateTransactionRawData get transactionData => _transactionData!;
@@ -42,15 +41,14 @@ class WebSubstrateSignTransactionStateController
       if (!BytesUtils.bytesEqual(params.genesisHash, metadata.genesisBytes())) {
         throw Web3SubstrateExceptionConstant.differentRuntimeMetadata;
       }
-      final decode =
-          metadata.metadata.decodeCall<Map<String, dynamic>>(params.call);
-      List<SubstrateKnownCallMethods> methods =
-          SubstrateKnownCallMethods.parseTxMethod(
-              data: decode.toJson(), network: network);
+      final decode = metadata.metadata.decodeCall<Map<String, dynamic>>(params.call);
+      List<SubstrateKnownCallMethods> methods = SubstrateKnownCallMethods.parseTxMethod(
+          data: decode.toJson(), network: network);
       methods = methods.map((e) {
         if (e is SubstrateTransferMethod) {
           return e.copyWith(
-              receiver: account.getReceiptAddress(e.receiver.view));
+              receiver: account.getOrCreateReceiptFromNetworkAddressSync(
+                  address: e.receiver.networkAddress));
         }
         return e;
       }).toList();
@@ -81,61 +79,54 @@ class WebSubstrateSignTransactionStateController
   }
 
   @override
-  Future<IWeb3SubstrateTransaction<IWeb3SubstrateTransactionRawData>>
-      buildTransaction({bool simulate = false}) async {
+  Future<IWeb3SubstrateTransaction<IWeb3SubstrateTransactionRawData>> buildTransaction(
+      {bool simulate = false}) async {
     return IWeb3SubstrateTransaction(
         account: defaultAccount, transactionData: transactionData);
   }
 
   @override
-  Future<
-      List<
-          IWalletTransaction<SubstrateWalletTransaction,
-              ISubstrateAddress>>> buildWalletTransaction(
-      {required IWeb3SubstrateSignedTransaction<
-              IWeb3SubstrateTransactionRawData>
-          signedTx,
-      required SubmitTransactionSuccess<
-              IWeb3SubstrateSignedTransaction<
-                  IWeb3SubstrateTransactionRawData>>?
-          txId}) async {
+  Future<List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>>
+      buildWalletTransaction(
+          {required IWeb3SubstrateSignedTransaction<IWeb3SubstrateTransactionRawData>
+              signedTx,
+          required SubmitTransactionSuccess<
+                  IWeb3SubstrateSignedTransaction<IWeb3SubstrateTransactionRawData>>?
+              txId}) async {
     if (txId == null) return [];
     return [];
   }
 
   @override
   Future<
-      Web3RequestTransactionResponseData<
-          Web3SubstrateSendTransactionResponse,
-          SubmitTransactionSuccess<
-              IWeb3SubstrateSignedTransaction<
-                  IWeb3SubstrateTransactionRawData>>>> getResponse() async {
+          Web3RequestTransactionResponseData<
+              Web3SubstrateSendTransactionResponse,
+              SubmitTransactionSuccess<
+                  IWeb3SubstrateSignedTransaction<IWeb3SubstrateTransactionRawData>>>>
+      getResponse() async {
     final transaction = await buildTransaction();
     final signedTransaction = await signTransaction(transaction);
     final withTx = params.withSignedTransaction ?? true;
     return Web3RequestTransactionResponseData(
         response: Web3SubstrateSendTransactionResponse(
             signature: signedTransaction.finalTransactionData.encodeSignature!,
-            signedTransaction: withTx
-                ? signedTransaction.finalTransactionData.serialize()
-                : null));
+            signedTransaction:
+                withTx ? signedTransaction.finalTransactionData.serialize() : null));
   }
 
   @override
   Future<IWeb3SubstrateSignedTransaction<IWeb3SubstrateTransactionRawData>>
       signTransaction(
-          IWeb3SubstrateTransaction<IWeb3SubstrateTransactionRawData>
-              transaction,
+          IWeb3SubstrateTransaction<IWeb3SubstrateTransactionRawData> transaction,
           {bool fakeSignature = false}) async {
     final signedTransaction = await signTransactionInternal(
-        payloadBytes:
-            transaction.transactionData.extrinsicPayloadInfo.payloadBytes,
+        payloadBytes: transaction.transactionData.extrinsicPayloadInfo.payloadBytes,
         signer: defaultAccount,
         fakeSignature: fakeSignature);
     final ExtrinsicInfo extrinsic = metadata.createExtrinsic(
         signature: signedTransaction.signatures[0],
         address: defaultAccount.networkAddress,
-        algorithm: defaultAccount.keyIndex.currencyCoin.conf.type,
+        algorithm: defaultAccount.coin.conf.type,
         payload: transaction.transactionData.extrinsicPayloadInfo);
     return IWeb3SubstrateSignedTransaction(
         transaction: transaction,
@@ -145,8 +136,7 @@ class WebSubstrateSignTransactionStateController
 
   @override
   Future<SubmitTransactionResult> submitTransaction(
-      {required IWeb3SubstrateSignedTransaction<
-              IWeb3SubstrateTransactionRawData>
+      {required IWeb3SubstrateSignedTransaction<IWeb3SubstrateTransactionRawData>
           signedTransaction}) {
     throw UnimplementedError();
   }
@@ -156,14 +146,13 @@ class WebSubstrateSignTransactionStateController
     if (txFee.isPending) return TransactionStateStatus.error();
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    final total = transactionData.methods
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.value);
-    final r =
-        defaultAccount.address.currencyBalance - total - txFee.fee.fee.balance;
+    final total =
+        transactionData.methods.fold<BigInt>(BigInt.zero, (p, c) => p + c.value);
+    final r = defaultAccount.addressData.currencyBalance - total - txFee.fee.fee.balance;
     if (r.isNegative) {
-      final error = TransactionStateStatus.insufficient(
-              IntegerBalance.token(r, network.token))
-          .error;
+      final error =
+          TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token))
+              .error;
       return TransactionStateStatus.ready(warning: error);
     }
     return TransactionStateStatus.ready(warning: simulateError);
@@ -175,7 +164,7 @@ class WebSubstrateSignTransactionStateController
   }
 
   @override
-  Future<void> initForm(SubstrateClient client) async {
+  Future<void> initForm(SubstrateNetworkClient client) async {
     await super.initForm(client);
     _transactionData = await buildTransactionData();
     _feeListener = txFee.stream.listen(onFeeUpdated);
@@ -185,8 +174,7 @@ class WebSubstrateSignTransactionStateController
   @override
   Future<SubstrateEstimateTransaction> simulateTransaction() async {
     final transaction = await buildTransaction(simulate: true);
-    final signedTransaction =
-        await signTransaction(transaction, fakeSignature: true);
+    final signedTransaction = await signTransaction(transaction, fakeSignature: true);
     return SubstrateEstimateTransaction(
         extrinsic: signedTransaction.finalTransactionData,
         owner: defaultAccount.networkAddress);

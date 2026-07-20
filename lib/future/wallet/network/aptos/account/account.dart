@@ -17,14 +17,14 @@ class AptosAccountPageView extends StatelessWidget {
         account: chainAccount,
         transferBuilder: (token) {
           return AptosTransactionTransferTokenOperation(
-              address: chainAccount.address,
+              address: chainAccount.addressSync,
               account: chainAccount,
               walletProvider: context.wallet,
               token: token);
         },
       ),
-      AccountTransactionActivityView<IAptosAddress, AptosWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<AptosWalletTransaction, IAptosAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -32,12 +32,11 @@ class AptosAccountPageView extends StatelessWidget {
 class _AptosServices extends StatelessWidget {
   const _AptosServices({required this.account});
   final AptosChain account;
-  IAptosAddress get address => account.address;
+  IAptosAddress get address => account.addressSync;
 
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverToBoxAdapter(
         child: Column(
           children: [

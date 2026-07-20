@@ -1,4 +1,5 @@
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/app/models/models/webview_tab.dart';
+import 'package:on_chain_wallet/app/utils/list/extension.dart';
 
 enum WebViewStorageType {
   tab(storageId: 0),
@@ -13,24 +14,24 @@ abstract class WebViewStorage {
   abstract final WebViewStorageType type;
   List<WebViewTab> _tabs;
   List<WebViewTab> get tabs => _tabs;
-  WebViewStorage(List<WebViewTab> tabs) : _tabs = tabs.imutable;
+  WebViewStorage(List<WebViewTab> tabs) : _tabs = tabs.immutable;
 
   void clear() {
-    _tabs = <WebViewTab>[].imutable;
+    _tabs = <WebViewTab>[].immutable;
   }
 
   void remove(WebViewTab tab) {
     if (!_tabs.contains(tab)) return;
     final tabs = List<WebViewTab>.from(_tabs);
     tabs.remove(tab);
-    _tabs = tabs.imutable;
+    _tabs = tabs.immutable;
   }
 
   bool addNewTab(WebViewTab newTab) {
     final tabs = List<WebViewTab>.from(_tabs);
     tabs.add(newTab);
     tabs.sort((a, b) => b.lastVisit.compareTo(a.lastVisit));
-    _tabs = tabs.imutable;
+    _tabs = tabs.immutable;
     return _tabs.firstOrNull?.url != newTab.url;
   }
 
@@ -49,7 +50,7 @@ class WebViewTabStorage extends WebViewStorage {
   void removeTab(WebViewTab removeTab) {
     final tabs = List<WebViewTab>.from(_tabs);
     tabs.removeWhere((e) => e.id == removeTab.id);
-    _tabs = tabs.imutable;
+    _tabs = tabs.immutable;
   }
 
   void addOrUpdateTab(WebViewTab newTab) {
@@ -101,7 +102,7 @@ class WebViewBookmarkStorage extends WebViewStorage {
     }
     final tabs = List<WebViewTab>.from(_tabs);
     tabs.removeAt(find);
-    _tabs = tabs.imutable;
+    _tabs = tabs.immutable;
     return false;
   }
 }

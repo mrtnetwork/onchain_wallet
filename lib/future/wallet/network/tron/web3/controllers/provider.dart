@@ -1,53 +1,47 @@
 import 'package:blockchain_utils/bip/address/trx_addr.dart';
+import 'package:blockchain_utils/crypto/quick_crypto.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:on_chain/ethereum/src/address/evm_address.dart';
 import 'package:on_chain/tron/tron.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/web3/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
 
 mixin TronWeb3TransactionApiController
-    on CryptoWokerImpl, DisposableMixin, SolidityWeb3TransactionApiController {
+    on DisposableMixin, SolidityWeb3TransactionApiController {
   TronClient get client;
   @override
-  EthereumClient get solidityClient => client.solidityProvider;
+  EthereumClient get solidityClient => client.ethClient;
   Future<Web3TronTransferInfo> _getWeb3TransferContractInfo({
     required TransferContract contract,
     required TronChain chain,
   }) async {
-    final destinationAddress = contract.toAddress.toAddress();
     return Web3TronTransferInfo(
-        receiptAddress: chain.getReceiptAddress(destinationAddress) ??
-            ReceiptAddress(
-                view: destinationAddress, networkAddress: contract.toAddress),
+        receiptAddress:
+            chain.getOrCreateReceiptFromNetworkAddressSync(address: contract.toAddress),
         amount: contract.amount,
         network: chain.network);
   }
 
   Future<Web3TronTransferAssetInfo> _getWeb3TransferAssetContractInfo(
-      {required TransferAssetContract contract,
-      required TronChain chain}) async {
-    final destinationAddress = contract.toAddress.toAddress();
-    final TronTRC10Token? token = await client.getIssueById(contract.assestId,
-        account: contract.ownerAddress);
+      {required TransferAssetContract contract, required TronChain chain}) async {
+    final TronTRC10Token? token =
+        await client.getIssueById(contract.assestId, account: contract.ownerAddress);
     if (token == null) {
       throw Web3RequestExceptionConst.invalidTransaction;
     }
     return Web3TronTransferAssetInfo(
         token: token,
-        receiptAddress: chain.getReceiptAddress(destinationAddress) ??
-            ReceiptAddress(
-                view: destinationAddress, networkAddress: contract.toAddress),
+        receiptAddress:
+            chain.getOrCreateReceiptFromNetworkAddressSync(address: contract.toAddress),
         amount: contract.amount);
   }
 
   Future<Web3TronTriggerSmartContract> _getWeb3TriggerSmartContract(
-      {required TriggerSmartContract contract,
-      required TronChain chain}) async {
+      {required TriggerSmartContract contract, required TronChain chain}) async {
     Web3TronTransferInfo? transfer;
     Web3TronTransferAssetInfo? transferAssets;
     if (contract.callValue != null) {
@@ -76,10 +70,8 @@ mixin TronWeb3TransactionApiController
     return Web3TronTriggerSmartContract(
         value: transfer,
         callValue: transferAssets,
-        contractAddress: chain.getReceiptAddress(contractAddress.toAddress()) ??
-            ReceiptAddress(
-                view: contractAddress.toAddress(),
-                networkAddress: contractAddress),
+        contractAddress:
+            chain.getOrCreateReceiptFromNetworkAddressSync(address: contractAddress),
         dataInfo: data);
   }
 
@@ -108,8 +100,7 @@ mixin TronWeb3TransactionApiController
                   contract.newContract.originAddress,
               amount: contract.callTokenValue!));
     }
-    final contractAddressHash = await crypto
-        .generateHash(type: CryptoRequestHashingType.keccack256, dataBytes: [
+    final contractAddressHash = QuickCrypto.keccack256Hash([
       ...BytesUtils.fromHexString(txId),
       ...contract.ownerAddress.toBytes(),
     ]);
@@ -132,8 +123,7 @@ mixin TronWeb3TransactionApiController
         return _getWeb3TransferContractInfo(contract: contract, chain: chain);
       case TransactionContractType.transferAssetContract:
         final contract = transaction.getContract<TransferAssetContract>();
-        return _getWeb3TransferAssetContractInfo(
-            contract: contract, chain: chain);
+        return _getWeb3TransferAssetContractInfo(contract: contract, chain: chain);
       case TransactionContractType.triggerSmartContract:
         final contract = transaction.getContract<TriggerSmartContract>();
         return _getWeb3TriggerSmartContract(contract: contract, chain: chain);

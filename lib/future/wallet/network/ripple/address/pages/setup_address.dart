@@ -5,7 +5,7 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class SetupRippleAddressView extends StatefulWidget {
@@ -29,15 +29,17 @@ class _SetupRippleAddressViewState extends State<SetupRippleAddressView>
   XrpAddressType addressTyoe = XrpAddressType.classic;
   bool get isXAddress => addressTyoe == XrpAddressType.xAddress;
   int tag = 0;
-  void onChangeTag(int newTag) {
-    if (newTag < 0 || newTag > RippleConst.maxRippleTag - 1) return;
+  void onChangeTag(int? newTag) {
+    if (newTag == null || newTag < 0 || newTag > RippleConst.maxRippleTag - 1) {
+      return;
+    }
     tag = newTag;
   }
 
   String? validateTag(String? v) {
     if (!isXAddress) return null;
     final newTag = int.tryParse(v ?? "");
-    if (newTag == null || newTag < 0 || newTag > mask32 - 1) {
+    if (newTag == null || newTag < 0 || newTag > BinaryOps.mask32 - 1) {
       return "tag_validator".tr;
     }
     return null;
@@ -49,29 +51,22 @@ class _SetupRippleAddressViewState extends State<SetupRippleAddressView>
   }
 
   void generateAddress() async {
-    final selectedCoins = widget.controller.network.coins
-        .firstWhere((e) => e.conf.type == algorithm.curve);
+    final selectedCoins =
+        widget.controller.network.coins.firstWhere((e) => e.conf.type == algorithm.curve);
     final keyIndex = await widget.controller.getCoin(
-        context: context,
-        seedGeneration: SeedTypes.bip39,
-        selectedCoins: selectedCoins);
-    if (keyIndex == null ||
-        keyIndex.currencyCoin.conf.type != selectedCoins.conf.type) {
+        context: context, seedGeneration: SeedTypes.bip39, selectedCoins: selectedCoins);
+    if (keyIndex == null || keyIndex.currencyCoin.conf.type != selectedCoins.conf.type) {
       return;
     }
     final newAccount = RippleNewAddressParams(
-        deriveIndex: keyIndex,
-        tag: isXAddress ? tag : null,
-        coin: selectedCoins);
+        deriveIndex: keyIndex, tag: isXAddress ? tag : null, coin: selectedCoins);
     widget.controller.generateAddress(newAccount);
   }
 
   @override
   void onInitOnce() {
     super.onInitOnce();
-    algorithmTypesWidget = {
-      for (final i in RippleKeyScheme.values) i: Text(i.name)
-    };
+    algorithmTypesWidget = {for (final i in RippleKeyScheme.values) i: Text(i.name)};
   }
 
   @override
@@ -114,10 +109,10 @@ class _SetupRippleAddressViewState extends State<SetupRippleAddressView>
                   WidgetConstant.height8,
                   NumberTextField(
                       label: "tag".tr,
-                      onChange: onChangeTag,
+                      onChangeValue: onChangeTag,
                       validator: validateTag,
                       defaultValue: tag,
-                      max: mask32 - 1,
+                      max: BinaryOps.mask32 - 1,
                       min: 0),
                 ],
               )

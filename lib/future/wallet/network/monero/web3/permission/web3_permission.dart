@@ -5,15 +5,14 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 
 class MoneroWeb3PermissionView extends StatefulWidget {
   const MoneroWeb3PermissionView({required this.application, super.key});
   final Web3ApplicationAuthentication application;
 
   @override
-  State<MoneroWeb3PermissionView> createState() =>
-      _MoneroWeb3PermissionViewState();
+  State<MoneroWeb3PermissionView> createState() => _MoneroWeb3PermissionViewState();
 }
 
 class _MoneroWeb3PermissionViewState extends State<MoneroWeb3PermissionView>
@@ -36,8 +35,7 @@ class _MoneroWeb3PermissionViewState extends State<MoneroWeb3PermissionView>
 
   @override
   Widget build(BuildContext context) {
-    return UpdateChainPermissionWidget<MoneroAddress, IMoneroAddress,
-            MoneroChain>(
+    return UpdateChainPermissionWidget<MoneroAddress, IMoneroAddress, MoneroChain>(
         chain: chain,
         isDefaultAddress: isDefaultAddress,
         chains: chains,

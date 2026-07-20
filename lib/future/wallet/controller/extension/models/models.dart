@@ -1,59 +1,71 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
 import 'package:blockchain_utils/crypto/quick_crypto.dart';
+import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys.dart';
 
-class ExtentionWalletKey with CborSerializable {
+class ExtentionWalletKey with AppSerialization {
   final String key;
   const ExtentionWalletKey(this.key);
 
-  factory ExtentionWalletKey.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory ExtentionWalletKey.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: ExtentionSessionStorageConst.historyTag);
-    return ExtentionWalletKey(values.elementAs(0));
+        cborObject: object,
+        identifier: AppSerializationIdentifier.historyTag);
+    return ExtentionWalletKey(values.rawValueAt(0));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.inDefinite([CborStringValue(key)]),
-        ExtentionSessionStorageConst.historyTag);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.historyTag;
+
+  @override
+  List<CborObject?> get serializationItems => [CborStringValue(key)];
 }
 
-class ExtentionKey with CborSerializable {
-  final String key;
-  final String nonce;
-  List<int> get keyBytes => BytesUtils.fromHexString(key);
-  List<int> get nonceBytes => BytesUtils.fromHexString(nonce);
+class ExtentionKey with AppSerialization {
+  final List<int> key;
+  final List<int> nonce;
+
   ExtentionKey({required List<int> key, required List<int> nonce})
-      : key = BytesUtils.toHexString(key),
-        nonce = BytesUtils.toHexString(nonce);
+      : key = key.asImmutableBytes,
+        nonce = nonce.asImmutableBytes;
   ExtentionKey.fromHex(this.key, this.nonce);
   factory ExtentionKey.generate() {
     return ExtentionKey(
-        key: QuickCrypto.generateRandom(),
-        nonce: QuickCrypto.generateRandom(12));
+        key: QuickCrypto.generateRandom(), nonce: QuickCrypto.generateRandom(12));
   }
-  factory ExtentionKey.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory ExtentionKey.deserialize({List<int>? bytes, CborObject? object, String? hex}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: ExtentionSessionStorageConst.keyTag);
-    return ExtentionKey.fromHex(values.elementAs(0), values.elementAs(1));
+        cborObject: object,
+        cborHex: hex,
+        identifier: AppSerializationIdentifier.keyTag);
+    return ExtentionKey.fromHex(values.rawValueAt(0), values.rawValueAt(1));
+  }
+
+  String encrypt(ExtentionWalletKey key) {
+    return BytesUtils.toHexString(CryptoKeyUtils.encryptChacha(
+        key: this.key, nonce: nonce, data: key.toCbor().encode()));
+  }
+
+  ExtentionWalletKey? decrypt(String plaintext) {
+    final pw = BytesUtils.tryFromHexString(plaintext);
+    if (pw == null) return null;
+    final decrypt = CryptoKeyUtils.decryptChacha(key: key, nonce: nonce, data: pw);
+    if (decrypt == null) return null;
+    return ExtentionWalletKey.deserialize(bytes: decrypt);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(CborSerializable.fromDynamic([key, nonce]),
-        ExtentionSessionStorageConst.keyTag);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.keyTag;
+
+  @override
+  List<CborObject?> get serializationItems => [key.toCborBytes(), nonce.toCborBytes()];
 }
 
 class ExtentionSessionStorageConst {
@@ -62,8 +74,7 @@ class ExtentionSessionStorageConst {
   static const String expireKey = "extention_expire";
   static const String extentionType = "popup";
   static const String normalTabType = "normal";
-  static const List<int> keyTag = [23, 123, 21, 10];
-  static const List<int> historyTag = [123, 21, 10, 21];
+
   static const String iframeName = "iframe";
   static const String viewQueryParameters = "view";
   static const String contextQueryParameters = "context";
@@ -95,8 +106,7 @@ enum ExtensionWalletContextType {
 
   static ExtensionWalletContextType fromValue(int? value) {
     return values.firstWhere((e) => e.value == value,
-        orElse: () => throw AppSerializationException(
-            objectName: "ExtensionWalletContextType"));
+        orElse: () => throw AppInternalError.internalError("ExtensionWalletContextType"));
   }
 }
 

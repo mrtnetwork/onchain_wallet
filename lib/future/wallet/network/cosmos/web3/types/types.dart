@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:cosmos_sdk/cosmos_sdk.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/tx/v1beta1/models.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/web3/operations/import_network.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/web3/operations/send_transaction.dart';
@@ -12,23 +12,21 @@ import 'package:on_chain_wallet/wallet/api/client/client.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/cosmos.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
 class CosmosWeb3MessagesInfo {
   final String typeUrl;
   final String value;
-  final String? content;
-  const CosmosWeb3MessagesInfo(
-      {required this.content, required this.typeUrl, required this.value});
+  const CosmosWeb3MessagesInfo({required this.typeUrl, required this.value});
 }
 
-abstract class Web3CosmosStateController<RESPONSE, CLIENT extends CosmosClient?,
+abstract class Web3CosmosStateController<RESPONSE, CLIENT extends CosmosNetworkClient?,
         T extends Web3CosmosRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         CosmosBaseAddress,
         WalletCosmosNetwork,
-        CosmosClient,
+        CosmosNetworkClient,
         CLIENT,
         ICosmosAddress,
         CosmosChain,
@@ -37,19 +35,10 @@ abstract class Web3CosmosStateController<RESPONSE, CLIENT extends CosmosClient?,
         Web3CosmosRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         CosmosWalletTransaction> {
-  Web3CosmosStateController(
-      {required super.walletProvider, required super.request});
+  Web3CosmosStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3CosmosRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3CosmosStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3CosmosRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3CosmosRequestMethods.signMessage:
         return Web3CosmosSignMessageStateController(
@@ -67,17 +56,15 @@ abstract class Web3CosmosStateController<RESPONSE, CLIENT extends CosmosClient?,
   }
 }
 
-abstract class BaseWeb3CosmosTransactionStateController<
-        RESPONSE,
-        T extends Web3CosmosRequestParam<RESPONSE>,
-        E extends IWeb3CosmosTransactionData>
+abstract class BaseWeb3CosmosTransactionStateController<RESPONSE,
+        T extends Web3CosmosRequestParam<RESPONSE>, E extends IWeb3CosmosTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
         CosmosBaseAddress,
-        ICosmosAddress,
-        CosmosClient,
-        CosmosClient,
         WalletCosmosNetwork,
+        ICosmosAddress,
+        CosmosNetworkClient,
+        CosmosNetworkClient,
         CosmosChain,
         Web3CosmosChainAccount,
         T,
@@ -95,7 +82,7 @@ abstract class IWeb3CosmosTransactionData extends ITransactionData {}
 
 class IWeb3CosmosTransactionRawData extends IWeb3CosmosTransactionData {
   final List<CosmosWeb3MessagesInfo> messages;
-  final TXBody? txBody;
+  final TxBody? txBody;
   final String? memo;
   final AuthInfo auth;
   final BigInt accountNumber;

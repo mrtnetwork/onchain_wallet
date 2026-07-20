@@ -1,12 +1,13 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/signer/const/constants.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/crypto/keys/keys.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 mixin BitcoinTransactionSignerController on DisposableMixin {
@@ -18,11 +19,10 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
       required List<IBitcoinAddress> signers,
       bool fakeSignature = false}) async {
     if (fakeSignature) {
-      final fakeSchnorSignaturBytes =
-          '01' * CryptoSignerConst.schnoorSginatureLength;
+      final fakeSchnorSignaturBytes = '01' * CryptoSignerConst.schnoorSginatureLength;
       final fakeDerSignature = '01' * 72;
-      final btcTransaction = transaction
-          .buildTransaction((trDigest, utxo, multiSigPublicKey, int sighash) {
+      final btcTransaction =
+          transaction.buildTransaction((trDigest, utxo, multiSigPublicKey, int sighash) {
         if (utxo.utxo.isP2tr) {
           if (sighash != BitcoinOpCodeConst.sighashDefault) {
             return '${fakeSchnorSignaturBytes}01';
@@ -32,26 +32,25 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
           return fakeDerSignature;
         }
       });
-      return BitcoinSignedTransactionBuilder(
-          transaction: btcTransaction, signatures: []);
+      return BitcoinSignedTransactionBuilder(transaction: btcTransaction, signatures: []);
     } else {
       List<List<int>> signatures = [];
       final request = WalletSigningRequest(
         addresses: signers,
         network: network,
         sign: (generateSignature) async {
-          return transaction.buildTransactionAsync(
-              (trDigest, utxo, publicKey, sighash) async {
+          return transaction
+              .buildTransactionAsync((trDigest, utxo, publicKey, sighash) async {
             final account = signers
                 .whereType<IBitcoinAddress>()
                 .firstWhere((element) => element.signers.contains(publicKey));
-            AddressDerivationIndex keyIndex = account.keyIndex;
+            DerivationIndex keyIndex = account.derivationIndex;
             if (account.multiSigAccount) {
               final multiSignatureAddress =
                   (account as BitcoinMultiSigBase).multiSignatureAddress;
               final correctSigner = multiSignatureAddress.signers
                   .firstWhere((element) => element.publicKey == publicKey);
-              keyIndex = correctSigner.keyIndex;
+              keyIndex = correctSigner.derivationIndex;
             }
             final bitcoinSigning = BitcoinSigning(
                 digest: trDigest,
@@ -59,7 +58,7 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
                 useTaproot: utxo.utxo.isP2tr,
                 sighash: sighash,
                 useBchSchnorr: false,
-                network: network.coinParam.isBCH
+                signingMode: network.coinParam.isBCH
                     ? SigningRequestMode.bitcoinCash
                     : SigningRequestMode.bitcoin);
             final sig = await generateSignature(bitcoinSigning);
@@ -68,10 +67,10 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
           });
         },
       );
-      final btcTransaction =
-          await walletProvider.wallet.signTransaction(request: request);
+      final btcTransaction = await walletProvider.wallet
+          .signTransaction(params: WalletActionSign(request: request));
       return BitcoinSignedTransactionBuilder(
-          transaction: btcTransaction.result, signatures: []);
+          transaction: btcTransaction.unwrap(), signatures: []);
     }
   }
 
@@ -90,8 +89,7 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
           final inputData = psbt.psbtInput(input.index);
           int? sighash = inputData.sigHashType?.sighash;
           if (sighash == null && network.type == NetworkType.bitcoinCash) {
-            sighash = BitcoinOpCodeConst.sighashForked |
-                BitcoinOpCodeConst.sighashAll;
+            sighash = BitcoinOpCodeConst.sighashForked | BitcoinOpCodeConst.sighashAll;
           } else {
             sighash = null;
           }
@@ -108,17 +106,14 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
                             signer: (params) async {
                               final bitcoinSigning = BitcoinSigning(
                                   digest: params.digest,
-                                  index: e.keyIndex.cast(),
+                                  index: e.derivationIndex.cast(),
                                   useBchSchnorr: false,
-                                  useTaproot:
-                                      account.networkAddress.type.isP2tr,
+                                  useTaproot: account.networkAddress.type.isP2tr,
                                   sighash: params.sighash,
-                                  network:
-                                      network.type == NetworkType.bitcoinCash
-                                          ? SigningRequestMode.bitcoinCash
-                                          : SigningRequestMode.bitcoin);
-                              final sig =
-                                  await generateSignature(bitcoinSigning);
+                                  signingMode: network.type == NetworkType.bitcoinCash
+                                      ? SigningRequestMode.bitcoinCash
+                                      : SigningRequestMode.bitcoin);
+                              final sig = await generateSignature(bitcoinSigning);
                               signatures.add(sig.signature);
                               return sig.signature;
                             },
@@ -131,11 +126,11 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
                   signer: (p) async {
                     final bitcoinSigning = BitcoinSigning(
                         digest: p.digest,
-                        index: account.keyIndex.cast(),
+                        index: account.derivationIndex.cast(),
                         useBchSchnorr: false,
                         useTaproot: account.networkAddress.type.isP2tr,
                         sighash: p.sighash,
-                        network: network.type == NetworkType.bitcoinCash
+                        signingMode: network.type == NetworkType.bitcoinCash
                             ? SigningRequestMode.bitcoinCash
                             : SigningRequestMode.bitcoin);
                     final sig = await generateSignature(bitcoinSigning);
@@ -150,9 +145,9 @@ mixin BitcoinTransactionSignerController on DisposableMixin {
         return psbt;
       },
     );
-    final signedTransaction =
-        await walletProvider.wallet.signTransaction(request: signingRequest);
+    final signedTransaction = await walletProvider.wallet
+        .signTransaction(params: WalletActionSign(request: signingRequest));
     return BitcoinSignedPsbt(
-        signatures: signatures, psbt: signedTransaction.result.toBase64());
+        signatures: signatures, psbt: signedTransaction.unwrap().toBase64());
   }
 }

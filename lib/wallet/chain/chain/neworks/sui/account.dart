@@ -1,126 +1,132 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 final class SuiChain extends Chain<
-    SuiAPIProvider,
-    SuiNetworkParams,
     SuiAddress,
     SuiToken,
     NFTCore,
-    ISuiAddress,
     WalletSuiNetwork,
-    SuiClient,
-    DefaultNetworkConfig,
     SuiWalletTransaction,
-    SuiContact,
-    SuiNewAddressParams> {
-  SuiChain._({
-    required super.network,
-    required super.addressIndex,
-    required super.id,
-    required super.config,
-    required super.service,
-    required super.addresses,
-    super.totalBalance,
-  }) : super._();
-  @override
-  SuiChain copyWith(
-      {WalletSuiNetwork? network,
-      List<ChainAccount>? addresses,
-      int? addressIndex,
-      ProviderIdentifier? service,
-      String? id,
-      DefaultNetworkConfig? config,
-      BigInt? totalBalance}) {
-    return SuiChain._(
-        network: network ?? this.network,
-        addressIndex: addressIndex ?? _addressIndex,
-        addresses: addresses?.cast<ISuiAddress>() ?? _addresses,
-        service: service ?? _serviceIdentifier,
-        id: id ?? this.id,
-        config: config ?? this.config,
-        totalBalance: totalBalance ?? totalBalance);
-  }
+    ISuiAddress,
+    SuiNetworkClient,
+    SuiNetworkProvider,
+    ISuiChainContext> {
+  SuiChain._(
+      {required WalletSuiNetwork network,
+      required String id,
+      required InChainWalletController controller})
+      : super._(
+            context: switch (controller) {
+          ChainWalletControllerDefault() =>
+            SuiMainChainContext(network: network, controller: controller, id: id),
+          ChainWalletControllerExternal() => throw UnimplementedError(),
+        });
 
   factory SuiChain.setup(
       {required WalletSuiNetwork network,
       required String id,
-      ProviderIdentifier? service}) {
-    return SuiChain._(
-        network: network,
-        id: id,
-        addressIndex: 0,
-        service: service,
-        addresses: [],
-        config: DefaultNetworkConfig.defaultConfig);
+      required InChainWalletController controller}) {
+    return SuiChain._(network: network, id: id, controller: controller);
   }
 
   factory SuiChain.deserialize(
-      {required WalletSuiNetwork network, required CborListValue cbor}) {
-    final int networkId = cbor.elementAs(0);
+      {required WalletSuiNetwork network,
+      required CborListValue cbor,
+      required InChainWalletController controller}) {
+    final int networkId = cbor.rawValueAt(0);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String id = cbor.elementAs<String>(2);
-    final List<ISuiAddress> accounts = cbor
-        .elementAsListOf<CborTagValue>(3)
-        .map((e) => ISuiAddress.deserialize(network, obj: e))
-        .toList();
-    final int addressIndex = cbor.elementAs(4);
-    final DefaultNetworkConfig config =
-        DefaultNetworkConfig.deserialize(cborObject: cbor.indexAs(5));
-    final ProviderIdentifier? service = MethodUtils.nullOnException(() {
-      final CborTagValue? identifier = cbor.elementAs(6);
-      if (identifier == null) return null;
-      return ProviderIdentifier.deserialize(cbor: identifier);
-    });
-    final BigInt? totalBalance = cbor.elementAs<BigInt?>(7);
-    return SuiChain._(
-        network: network,
-        addresses: accounts,
-        addressIndex: addressIndex,
-        service: service,
-        id: id,
-        config: config,
-        totalBalance: totalBalance);
+    final String id = cbor.rawValueAt<String>(2);
+    return SuiChain._(network: network, id: id, controller: controller);
   }
+}
+
+abstract final class ISuiChainContext
+    implements
+        IChainContext<SuiAddress, SuiToken, NFTCore, WalletSuiNetwork,
+            SuiWalletTransaction, ISuiAddress, SuiNetworkClient, SuiNetworkProvider> {}
+
+final class SuiMainChainContext extends DefaultMainChainContext<
+    SuiAddress,
+    SuiToken,
+    NFTCore,
+    WalletSuiNetwork,
+    SuiWalletTransaction,
+    ISuiAddress,
+    SuiNetworkClient,
+    SuiNetworkProvider> implements ISuiChainContext {
+  SuiMainChainContext(
+      {required super.id, required super.controller, required super.network});
 
   @override
-  Future<void> _updateAddressBalanceInternal(ISuiAddress address,
+  Future<IResult<bool>> updateAddressBalanceInternal(ISuiAddress address,
       {bool tokens = true}) async {
-    await onClient(onConnect: (client) async {
-      final balance = await client.getAcountBalances(address.networkAddress);
-      final native = balance.firstWhereOrNull(
-          (e) => e.coinType == SuiTransactionConst.suiTypeArgs);
-      address._updateAddressBalance(native?.totalBalance ?? BigInt.zero);
-      for (final token in address.tokens) {
-        final asset =
-            balance.firstWhereOrNull((e) => e.coinType == token.assetType);
-        address._updateTokenBalance(token,
-            () => token._updateBalance(asset?.totalBalance ?? BigInt.zero));
-      }
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
+        final balance = await client.getAcountBalances(address.networkAddress);
+        final native = balance
+            .firstWhereOrNull((e) => e.coinType == SuiTransactionConst.suiTypeArgs);
+        final updateBalance =
+            await address._updateAccountBalance(native?.totalBalance ?? BigInt.zero);
+        if (updateBalance.isErr) return updateBalance;
+        final tokens = await address.getAccountTokens();
+        return tokens.andThenAsync((tokens) async {
+          for (final token in tokens) {
+            final asset = balance.firstWhereOrNull((e) => e.coinType == token.assetType);
+            final result = await address._updateAccountTokenBalance(
+                token, () => token._updateBalance(asset?.totalBalance ?? BigInt.zero));
+            if (result.isErr) return result;
+          }
+          return updateBalance;
+        });
+      });
     });
   }
 
   @override
-  Future<void> updateTokenBalance(
-      {required ISuiAddress address, required List<SuiToken> tokens}) async {
-    _isAccountAddress(address);
-    await onClient(onConnect: (client) async {
-      final balance = await client.getAcountBalances(address.networkAddress);
-      final native = balance.firstWhereOrNull(
-          (e) => e.coinType == SuiTransactionConst.suiTypeArgs);
-      address._updateAddressBalance(native?.totalBalance ?? BigInt.zero);
-      for (final token in tokens) {
-        final asset =
-            balance.firstWhereOrNull((e) => e.coinType == token.assetType);
-        address._updateTokenBalance(token,
-            () => token._updateBalance(asset?.totalBalance ?? BigInt.zero));
-      }
+  Future<IResult<void>> updateTokenBalance(
+      {required ISuiAddress address,
+      required List<SuiToken> tokens,
+      bool isAccountAddress = false}) async {
+    final accountAddress =
+        await this.isAccountAddress(address, validate: !isAccountAddress);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
+        final balance = await client.getAcountBalances(address.networkAddress);
+        final native = balance
+            .firstWhereOrNull((e) => e.coinType == SuiTransactionConst.suiTypeArgs);
+        final updateBalance =
+            await address._updateAccountBalance(native?.totalBalance ?? BigInt.zero);
+        if (updateBalance.isErr) return updateBalance;
+        for (final token in tokens) {
+          final asset = balance.firstWhereOrNull((e) => e.coinType == token.assetType);
+          final result = await address._updateAccountTokenBalance(
+              token, () => token._updateBalance(asset?.totalBalance ?? BigInt.zero));
+          if (result.isErr) return result;
+        }
+        return ResultOk.okVoid;
+      });
     });
   }
 
   @override
-  ISuiAddress _deserializeAddress(List<int> adressBytes) {
-    return ISuiAddress.deserialize(network, bytes: adressBytes);
+  IResult<SuiNetworkProvider?> buildProviderNetworkIdentifier(
+      {required List<DefaultAPIProvider> providers,
+      List<SuiNetworkProvider> exclude = const []}) {
+    for (final p in providers) {
+      if (!clientRequiredServices.allowServices.contains(p.service)) {
+        continue;
+      }
+      final identifier = SuiNetworkProvider(p);
+      if (exclude.contains(identifier)) continue;
+      return ResultOk(identifier);
+    }
+    return ResultOk(null);
   }
+
+  @override
+  final clientRequiredServices = NetworkClientRequirment.oneOf({APIProviderServices.sui});
 }

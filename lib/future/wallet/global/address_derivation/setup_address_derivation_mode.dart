@@ -1,26 +1,29 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/next_derivation.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart' show Chain, WalletNetwork;
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
 
-typedef _OnGenerateDerivation = Future<AddressDerivationIndex?> Function();
-typedef ADDRESSDNEXTDERIVATION = AddressDerivationIndex Function(
-    {required CryptoCoins<CoinConfig> coin,
-    required SeedTypes seedGeneration,
-    required int? subId});
+typedef _OnGenerateDerivation = Future<DerivableIndex?> Function();
+typedef ADDRESSDNEXTDERIVATION = NetDerivation Function(
+    {required CryptoCoins coin, required SeedTypes seedGeneration, required int? subId});
 
-///     "setup_derivation".tr,
+/// TODO
+@Deprecated("Merge to SetupAddressDerivationIndex")
 class SetupDerivationModeView extends StatefulWidget {
   final CryptoCoins coin;
   final Chain chainAccout;
-  final AddressDerivationIndex? defaultDerivation;
+  final DerivableIndex? defaultDerivation;
   final SeedTypes seedGenerationType;
   final ScrollController controller;
   final ADDRESSDNEXTDERIVATION? nextAddressDerivationBuilder;
+  final Bip44Levels? fixedLevel;
+  final String? buttonText;
   const SetupDerivationModeView(
       {super.key,
       required this.coin,
@@ -28,11 +31,12 @@ class SetupDerivationModeView extends StatefulWidget {
       this.defaultDerivation,
       required this.seedGenerationType,
       required this.controller,
-      this.nextAddressDerivationBuilder});
+      this.fixedLevel,
+      this.nextAddressDerivationBuilder,
+      this.buttonText});
 
   @override
-  State<SetupDerivationModeView> createState() =>
-      _SetupDerivationModeView2State();
+  State<SetupDerivationModeView> createState() => _SetupDerivationModeView2State();
 }
 
 class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
@@ -41,33 +45,36 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
   List<ViewDerivationKeyModel> derivationKeys = [];
   late ViewDerivationKeyModel derivationKey;
-  late AddressDerivationIndex nextKeyIndex;
-  AddressDerivationIndex? customKeyIndex;
+  late DerivableIndex nextKeyIndex;
+  DerivableIndex? customKeyIndex;
   WalletNetwork get network => chainAccount.network;
   Chain get chainAccount => widget.chainAccout;
-  late CryptoCoins coin = widget.coin;
-  late final bool useByronLegacyDeriavation =
-      coin.proposal == CustomProposal.cip0019;
-  List<EncryptedCustomKey> customKeys = [];
+  CryptoCoins get coin => widget.coin;
+  late final bool useByronLegacyDeriavation = coin.proposal == CoinProposal.cip0019;
+  List<ViewImportedSecretKey> customKeys = [];
   bool get derivationStandard => customKeyIndex == null;
 
   Map<ViewDerivationKeyModel, Widget> items = {};
 
-  AddressDerivationIndex getNextDerivation() {
-    final defaultP = widget.defaultDerivation;
-    if (defaultP != null && defaultP.subId == derivationKey.subId) {
-      return defaultP;
+  DerivableIndex _getNextDerivation() {
+    // final defaultP = widget.defaultDerivation;
+    // if (defaultP != null && defaultP.subId == derivationKey.subId) {
+    //   return defaultP;
+    // }
+    final builder = widget.nextAddressDerivationBuilder ?? chainAccount.nextDerive;
+    return builder(
+            coin: coin,
+            seedGeneration: widget.seedGenerationType,
+            subId: derivationKey.subId)
+        .nextIndex;
+  }
+
+  DerivableIndex getNextDerivation() {
+    if (derivationKey.isImportedKey) {
+      return derivationKey.master(coin, widget.seedGenerationType);
     }
-    final builder =
-        widget.nextAddressDerivationBuilder ?? chainAccount.nextDerive;
-    final nextDerive = builder(
-        coin: coin,
-        seedGeneration: widget.seedGenerationType,
-        subId: derivationKey.subId);
-    if (derivationKey.subId != null) {
-      return nextDerive.asSubWalletKey(derivationKey.subId!);
-    }
-    return nextDerive;
+    DerivableIndex nextDerivation = _getNextDerivation();
+    return derivationKey.toCurrentKeyDerivation(nextDerivation);
   }
 
   final generateAddressKey = GlobalKey();
@@ -83,11 +90,13 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
     updateState();
   }
 
-  Future<void> onChangeDerivation(
-      _OnGenerateDerivation onGenerateDerivation) async {
+  Future<void> onChangeDerivation(_OnGenerateDerivation onGenerateDerivation) async {
     assert(derivationKey.allowDerivation);
     if (derivationStandard) {
-      customKeyIndex = await onGenerateDerivation();
+      final index = customKeyIndex = await onGenerateDerivation();
+      if (index != null) {
+        customKeyIndex = derivationKey.toCurrentKeyDerivation(index);
+      }
     } else {
       customKeyIndex = null;
     }
@@ -100,7 +109,8 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
         customKeyIndex: customKeyIndex,
         defaultKeyIndex: nextKeyIndex,
         seedGeneration: widget.seedGenerationType);
-    assert(derivationKey.importedKey == key.importedKeyId);
+    assert(derivationKey.importedKey == key.importedKeyId,
+        "imported key ${derivationKey.importedKey} ${key.importedKeyId}");
     assert(derivationKey.subId == key.subId);
     assert(widget.seedGenerationType == key.seedGeneration);
     context.pop(key);
@@ -116,52 +126,56 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
     final List<ViewDerivationKeyModel> keys = [mainWalletDerivation];
     final sWIcon = Icon(Icons.account_balance_wallet_outlined);
     for (final i in wallet.subWallets) {
-      switch (i.walletType) {
+      switch (i.type) {
         case SubWalletType.bip39:
-          keys.add(ViewDerivationKeyModel(
-              name: i.name,
-              created: i.created,
-              subId: i.id,
-              allowDerivation: true,
-              icon: sWIcon));
           break;
         case SubWalletType.monero:
-          if (network.type == NetworkType.monero) {
-            keys.add(ViewDerivationKeyModel(
-                name: i.name,
-                created: i.created,
-                subId: i.id,
-                allowDerivation: false,
-                icon: sWIcon));
-          }
-          break;
+          if (network.type == NetworkType.monero) break;
+          continue;
         case SubWalletType.ton:
-          if (network.type == NetworkType.ton) {
-            keys.add(ViewDerivationKeyModel(
-                name: i.name,
-                created: i.created,
-                subId: i.id,
-                allowDerivation: false,
-                icon: sWIcon));
-          }
-          break;
+          if (network.type == NetworkType.ton) break;
+          continue;
       }
+      keys.add(ViewDerivationKeyModel(
+          name: i.name,
+          created: i.created,
+          subId: i.id,
+          allowDerivation: i.type.allowDerivation,
+          icon: sWIcon));
     }
 
     for (final i in customKeys) {
       keys.add(ViewDerivationKeyModel(
-          name: i.name ?? i.publicKey,
+          name: i.name,
           created: i.created,
           importedKey: i.id,
-          allowDerivation: false,
+          allowDerivation: i.allowDerivation(coin),
           icon: Icon(Icons.key)));
     }
 
+    ViewDerivationKeyModel? findKey(int? subId, int? importedKeyId) {
+      if (subId != null) {
+        return keys.firstWhereNullable((e) => e.subId == subId);
+      }
+      if (importedKeyId != null) {
+        return keys.firstWhereNullable((e) => e.importedKey == importedKeyId);
+      }
+      return mainWalletDerivation;
+    }
+
     derivationKeys = keys;
-    derivationKey = keys.firstWhere(
-        (e) => e.subId == widget.defaultDerivation?.subId,
-        orElse: () => mainWalletDerivation);
-    nextKeyIndex = getNextDerivation();
+    final defaultDerivation = widget.defaultDerivation;
+    ViewDerivationKeyModel? currentDerivation;
+    DerivableIndex? currentIndex;
+    if (defaultDerivation != null) {
+      final key = findKey(defaultDerivation.subId, defaultDerivation.importedKeyId);
+      if (key != null) {
+        currentDerivation = key;
+        currentIndex = defaultDerivation;
+      }
+    }
+    derivationKey = currentDerivation ?? mainWalletDerivation;
+    nextKeyIndex = currentIndex ?? getNextDerivation();
   }
 
   Map<ViewDerivationKeyModel, Widget> buildKeysItems() {
@@ -169,12 +183,15 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
   }
 
   Future<void> init() async {
-    customKeys = await context.wallet.wallet.getCustomKeysForCoin(coin);
+    final customKeys =
+        await context.wallet.wallet.doAction(WalletActionViewImportedAccounts());
+    assert(customKeys.isOk, "failed to get imported accounts.");
+    this.customKeys = customKeys.ok()?.where((e) => e.canUseFor(coin)).toList() ?? [];
     buildKeys();
     items = buildKeysItems();
 
     controller.backToIdle();
-    MethodUtils.after(() async {
+    MethodUtils.executeAfterDelay(() async {
       generateAddressKey.ensureKeyVisible();
     }, duration: APPConst.animationDuraion);
   }
@@ -207,11 +224,9 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AlertTextContainer(
-                        message: "custom_key_derivation_desc".tr,
-                        enableTap: false),
+                        message: "custom_key_derivation_desc".tr, enableTap: false),
                     WidgetConstant.height20,
-                    Text("derivation_path".tr,
-                        style: context.textTheme.titleMedium),
+                    Text("derivation_path".tr, style: context.textTheme.titleMedium),
                     WidgetConstant.height8,
                     ContainerWithBorder(
                         onRemove: derivationKey.allowDerivation
@@ -219,24 +234,20 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
                                 onChangeDerivation(
                                   () async {
                                     if (useByronLegacyDeriavation) {
-                                      return context.openSliverBottomSheet<
-                                              Bip32AddressIndex>(
-                                          "key_derivation".tr,
-                                          child: ByronLegacyKeyDerivationView(
-                                              coin: coin,
-                                              curve: coin.conf.type));
+                                      return context
+                                          .openSliverBottomSheet<Bip32DerivationIndex>(
+                                              "key_derivation".tr,
+                                              child: ByronLegacyKeyDerivationView(
+                                                  coin: coin, curve: coin.conf.type));
                                     }
-                                    return context
-                                        .openMaxExtendSliverBottomSheet<
-                                                AddressDerivationIndex>(
-                                            "key_derivation".tr,
-                                            child: Bip32KeyDerivationView(
-                                                coin: coin,
-                                                defaultPath:
-                                                    nextKeyIndex.hdPath,
-                                                seedGeneration:
-                                                    widget.seedGenerationType),
-                                            centerContent: false);
+                                    return context.openMaxExtendSliverBottomSheet<
+                                            DerivableIndex>("key_derivation".tr,
+                                        child: Bip32KeyDerivationView(
+                                            coin: coin,
+                                            fixedLevel: widget.fixedLevel,
+                                            defaultPath: nextKeyIndex.hdPath,
+                                            seedGeneration: widget.seedGenerationType),
+                                        centerContent: false);
                                   },
                                 );
                               }
@@ -261,8 +272,7 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
                                         ? "standard_derivation".tr
                                         : "custom_derivation".tr,
                                     style: context.textTheme.labelLarge),
-                                AddressDrivationInfo(
-                                    customKeyIndex ?? nextKeyIndex)
+                                AddressDrivationInfo(customKeyIndex ?? nextKeyIndex)
                               ],
                             ),
                           ),
@@ -280,8 +290,7 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
                           ),
                         )),
                     WidgetConstant.height20,
-                    Text("select_creation_type".tr,
-                        style: context.textTheme.titleMedium),
+                    Text("select_creation_type".tr, style: context.textTheme.titleMedium),
                     Text("generate_from_hd_wallet".tr),
                     WidgetConstant.height8,
                     AppDropDownBottom(
@@ -297,7 +306,7 @@ class _SetupDerivationModeView2State extends State<SetupDerivationModeView>
                             key: generateAddressKey,
                             padding: WidgetConstant.paddingVertical40,
                             onPressed: onSubmit,
-                            child: Text("generate_address".tr))
+                            child: Text(widget.buttonText ?? "generate_address".tr))
                       ],
                     )
                   ],
@@ -321,8 +330,7 @@ class ViewDerivationKeyModelWidget extends StatelessWidget {
       derivationKey.icon,
       WidgetConstant.width8,
       Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(derivationKey.name, style: context.textTheme.bodyMedium),
         Text(derivationKey.createdAt, style: context.textTheme.bodySmall)
       ]))
@@ -333,32 +341,92 @@ class ViewDerivationKeyModelWidget extends StatelessWidget {
 class ViewDerivationKeyModel {
   final String name;
   final String createdAt;
-  final String? importedKey;
+  final int? importedKey;
   final int? subId;
   final bool allowDerivation;
   final Icon icon;
+  final ViewImportedSecretKey? customKey;
   bool get isMainWallet => subId == null && importedKey == null;
   bool get isSubWallet => subId != null;
+  bool get isImportedKey => importedKey != null;
+  DerivableIndex master(CryptoCoins coin, SeedTypes seedGenerationType) {
+    DerivableIndex index = switch (coin) {
+      SubstrateCoins coin => SubstrateDerivationIndex(currencyCoin: coin),
+      _ => Bip32DerivationIndex(currencyCoin: coin, seedGeneration: seedGenerationType)
+    };
+    final subId = this.subId;
+    final importedKey = this.importedKey;
+    if (subId != null) {
+      index = index.asSubWalletKey(subId);
+    }
+    if (importedKey != null) {
+      index = index.asImportedKey(importedKey);
+    }
+    return index;
+  }
 
-  AddressDerivationIndex toDerivationIndex(
-      {required AddressDerivationIndex defaultKeyIndex,
-      required AddressDerivationIndex? customKeyIndex,
+  DerivableIndex defaultIndex(CryptoCoins coin, SeedTypes seedGenerationType) {
+    DerivableIndex index = switch (coin) {
+      BipCoins coin when allowDerivation =>
+        Bip32DerivationIndex.defaultBip(coin: coin, seedGeneration: seedGenerationType),
+      ZIP32Coins coin when allowDerivation =>
+        Bip32DerivationIndex.defaultZip(coin: coin, seedGeneration: seedGenerationType),
+      SubstrateCoins coin => SubstrateDerivationIndex(currencyCoin: coin),
+      _ => Bip32DerivationIndex(currencyCoin: coin, seedGeneration: seedGenerationType)
+    };
+    final subId = this.subId;
+    final importedKey = this.importedKey;
+    if (subId != null) {
+      index = index.asSubWalletKey(subId);
+    }
+    if (importedKey != null) {
+      index = index.asImportedKey(importedKey);
+    }
+    return index;
+  }
+
+  DerivableIndex toCurrentKeyDerivation(DerivableIndex index) {
+    assert(index.isMaster || allowDerivation);
+    if (!index.isMaster && !allowDerivation) {
+      return defaultIndex(index.currencyCoin, index.seedGeneration);
+    }
+    final subId = this.subId;
+    final importedKey = this.importedKey;
+    if (subId != null) {
+      index = index.asSubWalletKey(subId);
+    }
+    if (importedKey != null) {
+      index = index.asImportedKey(importedKey);
+    }
+    assert(index.subId == subId && index.importedKeyId == importedKey);
+    if (index.subId == subId && index.importedKeyId == importedKey) {
+      return index;
+    }
+    return defaultIndex(index.currencyCoin, index.seedGeneration);
+  }
+
+  DerivableIndex toDerivationIndex(
+      {required DerivableIndex defaultKeyIndex,
+      required DerivableIndex? customKeyIndex,
       required CryptoCoins coin,
       required SeedTypes seedGeneration}) {
+    final importedKey = this.importedKey;
+    final subId = this.subId;
     if (!allowDerivation) {
       final keyIndex = switch (coin.proposal) {
-        SubstratePropoosal.substrate =>
-          SubstrateAddressIndex(currencyCoin: coin as SubstrateCoins),
-        _ =>
-          Bip32AddressIndex(currencyCoin: coin, seedGeneration: seedGeneration)
+        CoinProposal.substrate =>
+          SubstrateDerivationIndex(currencyCoin: coin as SubstrateCoins),
+        _ => Bip32DerivationIndex(currencyCoin: coin, seedGeneration: seedGeneration)
       };
       if (importedKey != null) {
-        return keyIndex.asImportedKey(importedKey!);
+        return keyIndex.asImportedKey(importedKey);
       }
-      return keyIndex.asSubWalletKey(subId!);
+      if (subId != null) return keyIndex.asSubWalletKey(subId);
+      return keyIndex;
     }
-    final keyIndex = customKeyIndex ?? defaultKeyIndex;
-    if (subId != null) return keyIndex.asSubWalletKey(subId!);
+    DerivableIndex keyIndex = customKeyIndex ?? defaultKeyIndex;
+    if (subId != null) return keyIndex.asSubWalletKey(subId);
+    if (importedKey != null) return keyIndex.asImportedKey(importedKey);
     return keyIndex;
   }
 
@@ -366,6 +434,7 @@ class ViewDerivationKeyModel {
       {required this.name,
       required DateTime created,
       required this.allowDerivation,
+      this.customKey,
       required this.icon,
       this.importedKey,
       this.subId})

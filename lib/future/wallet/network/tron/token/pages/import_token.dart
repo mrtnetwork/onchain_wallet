@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/account/state.dart';
@@ -18,9 +18,8 @@ class MonitorTronTokenView extends StatelessWidget {
       title: "import_token".tr,
       addressRequired: true,
       clientRequired: true,
-      childBulder: (wallet, account, client, address, onAccountChanged) {
-        return _MonitorTronTokenView(
-            account: account, wallet: wallet, client: client);
+      childBulder: (wallet, account, client, address) {
+        return _MonitorTronTokenView(account: account, wallet: wallet, client: client);
       },
     );
   }
@@ -37,73 +36,75 @@ class _MonitorTronTokenView extends StatefulWidget {
   State<_MonitorTronTokenView> createState() => _MonitorTronTokenViewState();
 }
 
-class _MonitorTronTokenViewState
-    extends TronAccountState<_MonitorTronTokenView> {
+class _MonitorTronTokenViewState extends TronAccountState<_MonitorTronTokenView> {
   @override
   TronChain get account => widget.account;
   @override
   TronClient get client => widget.client;
+  List<TronToken> accountTokens = [];
+  final StreamPageProgressController pageStreamController =
+      StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
   final StreamPageProgressController trc10ProgressKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
-  final StreamPageProgressController trc20ProgressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController trc20ProgressKey = StreamPageProgressController();
   final Set<TronTRC10Token> tokens = {};
 
   bool get hasContractAddress => contractAddress != null;
   ReceiptAddress<TronAddress>? contractAddress;
   void onSetupAddress(ReceiptAddress<TronAddress>? addr) {
     contractAddress = addr;
-    setState(() {});
+    updateState(() {});
   }
 
   TronTRC20Token? token;
   void onNewToken() {
     contractAddress = null;
     token = null;
-    setState(() {});
+    updateState(() {});
   }
 
-  void onAddTrc20Token() async {
+  Future<void> onAddTrc20Token() async {
     if (!hasContractAddress) return;
-    final exists = addressTokens.any((e) => e.issuer == contractAddress!.view);
+    final exists = accountTokens.any((e) => e.issuer == contractAddress!.view);
     if (exists) {
       context.showAlert("token_already_exists".tr);
       return;
     }
     trc20ProgressKey.progressText("retrieving_contract_detauls".tr);
-    final result = await MethodUtils.call(() async {
-      final data = await client.solidityProvider.getAccountERC20Token(
-          address.networkAddress, contractAddress!.networkAddress);
+    final result = await IResult.call(() async {
+      final data = await client.ethClient
+          .getAccountERC20Token(address.networkAddress, contractAddress!.networkAddress);
       return data;
     });
-    if (result.hasError) {
-      trc20ProgressKey.errorText(result.localizationError,
+    if (result.isErr) {
+      trc20ProgressKey.errorText(result.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
-    } else if (result.result == null) {
+    } else if (result.ok() == null) {
       trc20ProgressKey.errorText("smart_contract_not_found".tr,
           backToIdle: false, showBackButton: true);
     } else {
-      final addResult = await MethodUtils.call(() async => await widget.account
-          .addNewToken(token: result.result! as TronToken, address: address));
-
-      if (addResult.hasError) {
-        trc20ProgressKey.errorText(addResult.localizationError);
-      } else {
-        token = result.result! as TronTRC20Token;
-        trc20ProgressKey.success();
-      }
+      final addResult = await widget.account
+          .addNewToken(token: result.unwrap()! as TronToken, address: address);
+      addResult.watch(
+        onErr: (err) => trc20ProgressKey.errorText(err.localizationError),
+        onOk: (value) {
+          token = value as TronTRC20Token;
+          trc20ProgressKey.success();
+        },
+      );
     }
   }
 
-  void fetchingTokens() async {
-    final result = await MethodUtils.call(() async {
-      if (address.accountInfo == null) {
+  Future<void> fetchingTokens() async {
+    final result = await IResult.call(() async {
+      TronAccountInfo? tronAccount = (await address.getAccountInfo_()).unwrap();
+      if (tronAccount == null) {
         await account.updateAddressBalance(address);
       }
-      if (address.accountInfo == null) {
+      tronAccount = (await address.getAccountInfo_()).unwrap();
+      if (tronAccount == null) {
         return null;
       }
-      final tronAccount = address.accountInfo!;
       if (tronAccount.assetV2.isEmpty) {
         return <TronTRC10Token>[];
       }
@@ -121,30 +122,32 @@ class _MonitorTronTokenViewState
       }
       return accountTokens;
     });
-    if (result.hasError) {
-      trc10ProgressKey.errorText(result.localizationError, backToIdle: false);
+    if (result.isErr) {
+      trc10ProgressKey.errorText(result.unwrapErr().localizationError, backToIdle: false);
     } else {
-      if (result.result == null) {
+      if (result.ok() == null) {
         trc10ProgressKey.errorText("account_not_found".tr, backToIdle: false);
       } else {
-        tokens.addAll(result.result!);
+        tokens.addAll(result.unwrap()!);
         trc10ProgressKey.success();
       }
     }
   }
 
-  Future<void> add(TronTRC10Token token) async {
-    return await widget.account.addNewToken(
+  Future<TronToken> add(TronTRC10Token token) async {
+    final result = await widget.account.addNewToken(
         token: TronTRC10Token.create(
           balance: token.balance.balance,
           token: token.token,
           tokenID: token.tokenID,
-        ) as TronToken,
+        ),
         address: address);
+    return result.unwrap();
   }
 
   Future<void> removeToken(TronToken token) async {
-    return await widget.account.removeToken(token: token, address: address);
+    final remove = await widget.account.removeToken(token: token, address: address);
+    return remove.unwrap();
   }
 
   Future<void> onTap(TronTRC10Token token, bool exist) async {
@@ -159,32 +162,56 @@ class _MonitorTronTokenViewState
     }
   }
 
+  Future<void> init() async {
+    final tokens = await address.getAccountTokens();
+    tokens.watch(
+      onErr: (error) =>
+          pageStreamController.errorText(error.localizationError, backToIdle: false),
+      onOk: (tokens) {
+        accountTokens = tokens;
+        pageStreamController.backToIdle();
+      },
+    );
+  }
+
+  @override
+  void onInitOnce() {
+    super.onInitOnce();
+    init();
+  }
+
   @override
   void safeDispose() {
     super.safeDispose();
     trc10ProgressKey.dispose();
     trc20ProgressKey.dispose();
+    pageStreamController.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // return (context) {
-    return DefaultTabController(
-      length: TronTokenTypes.values.length,
-      child: Column(
-        children: [
-          TabBar(
-              tabs: TronTokenTypes.values
-                  .map((e) => Tab(
-                        text: e.name.tr,
-                      ))
-                  .toList()),
-          Expanded(
-              child: TabBarView(
-                  children: [_TRC20TokenView(this), _TRC10TokenView(this)])),
-        ],
-      ),
-    );
+    return StreamPageProgress(
+        controller: pageStreamController,
+        initialWidget:
+            ProgressWithTextView(text: "fetching_account_token_please_wait".tr),
+        builder: (context) {
+          return DefaultTabController(
+            length: TronTokenTypes.values.length,
+            child: Column(
+              children: [
+                TabBar(
+                    tabs: TronTokenTypes.values
+                        .map((e) => Tab(
+                              text: e.name.tr,
+                            ))
+                        .toList()),
+                Expanded(
+                    child: TabBarView(
+                        children: [_TRC20TokenView(this), _TRC10TokenView(this)])),
+              ],
+            ),
+          );
+        });
   }
 }
 
@@ -212,8 +239,7 @@ class _TRC10TokenViewState extends State<_TRC10TokenView>
     super.build(context);
     return StreamPageProgress(
       controller: widget.state.trc10ProgressKey,
-      initialWidget:
-          ProgressWithTextView(text: "fetching_account_token_please_wait".tr),
+      initialWidget: ProgressWithTextView(text: "fetching_account_token_please_wait".tr),
       builder: (context) => CustomScrollView(
         slivers: [
           SliverConstraintsBoxView(
@@ -224,8 +250,7 @@ class _TRC10TokenViewState extends State<_TRC10TokenView>
                 separatorBuilder: (context, index) => WidgetConstant.divider,
                 itemBuilder: (context, index) {
                   final token = widget.state.tokens.elementAt(0);
-                  final bool exist =
-                      widget.state.address.tokens.contains(token);
+                  final bool exist = widget.state.accountTokens.contains(token);
                   return AccountTokenDetailsView(
                     token: token,
                     onSelect: () {
@@ -240,8 +265,8 @@ class _TRC10TokenViewState extends State<_TRC10TokenView>
                                   : "add_token_to_your_account".tr),
                           label: exist ? "remove_token".tr : "add_token".tr);
                     },
-                    onSelectIcon: APPCheckBox(
-                        value: exist, ignoring: true, onChanged: (e) {}),
+                    onSelectIcon:
+                        APPCheckBox(value: exist, ignoring: true, onChanged: (e) {}),
                   );
                 },
                 addAutomaticKeepAlives: false,
@@ -306,8 +331,7 @@ class _TRC20TokenViewState extends State<_TRC20TokenView>
                               .selectAccount<TronAddress>(
                                   account: widget.state.account,
                                   title: "contract_address".tr)
-                              .then((v) =>
-                                  widget.state.onSetupAddress(v?.firstOrNull));
+                              .then((v) => widget.state.onSetupAddress(v?.firstOrNull));
                         },
                       ),
                       Row(

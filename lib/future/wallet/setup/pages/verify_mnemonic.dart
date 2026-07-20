@@ -11,10 +11,7 @@ typedef OnValidateMnemonic = void Function(List<String>);
 
 class VerifyMnemonicView extends StatefulWidget {
   const VerifyMnemonicView(
-      {required this.mnemonic,
-      required this.onValidate,
-      this.submitText,
-      super.key});
+      {required this.mnemonic, required this.onValidate, this.submitText, super.key});
   final List<String> mnemonic;
   final OnValidateMnemonic onValidate;
   final String? submitText;
@@ -24,8 +21,7 @@ class VerifyMnemonicView extends StatefulWidget {
 
 class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
     with SafeState<VerifyMnemonicView> {
-  late final List<String> shuffleMnemonic = List<String>.from(widget.mnemonic)
-    ..shuffle();
+  late final List<String> shuffleMnemonic = List<String>.from(widget.mnemonic)..shuffle();
 
   late List<SelectedMnemonic> inSelectMnemonic;
   bool equal = false;
@@ -48,22 +44,19 @@ class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
       if (selectedIndex.contains(index)) {
         final selcetIndex =
             inSelectMnemonic.indexWhere((element) => element.index == index);
-        inSelectMnemonic[selcetIndex] = SelectedMnemonic.notSelected(
-            inSelectMnemonic[selcetIndex].readIndex);
+        inSelectMnemonic[selcetIndex] =
+            SelectedMnemonic.notSelected(inSelectMnemonic[selcetIndex].readIndex);
         selectedIndex.remove(index);
 
         return;
       }
 
       final word = shuffleMnemonic.elementAt(index);
-      final emptyIndex =
-          inSelectMnemonic.indexWhere((element) => element.index == null);
+      final emptyIndex = inSelectMnemonic.indexWhere((element) => element.index == null);
       if (emptyIndex.isNegative) return;
       selectedIndex.add(index);
       inSelectMnemonic[emptyIndex] = SelectedMnemonic.select(
-          index: index,
-          word: word,
-          readIndex: inSelectMnemonic[emptyIndex].readIndex);
+          index: index, word: word, readIndex: inSelectMnemonic[emptyIndex].readIndex);
     } finally {
       updateState(() {
         isEqual();
@@ -155,8 +148,7 @@ class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
                     onLongPressStart: onLongTab,
                     onLongPressEnd: onLongTabCancel,
                     child: _MnemonicView(mnemonic: inSelectMnemonic)),
-                onActive: (context) =>
-                    MnemonicView(mnemonic: widget.mnemonic))),
+                onActive: (context) => MnemonicView(mnemonic: widget.mnemonic))),
         WidgetConstant.height20,
         AnimatedSwitcher(
             duration: APPConst.animationDuraion,
@@ -170,8 +162,7 @@ class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
                             FixedElevatedButton(
                                 padding: WidgetConstant.paddingVertical40,
                                 onPressed: validate,
-                                child:
-                                    Text(widget.submitText ?? "continue".tr)),
+                                child: Text(widget.submitText ?? "continue".tr)),
                           ],
                         ),
                       ],
@@ -179,16 +170,14 @@ class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
                 onDeactive: (context) => Column(
                       children: [
                         Container(
-                          decoration: BoxDecoration(
-                              borderRadius: WidgetConstant.border8),
+                          decoration: BoxDecoration(borderRadius: WidgetConstant.border8),
                           child: Padding(
                             padding: WidgetConstant.padding10,
                             child: Wrap(
                               crossAxisAlignment: WrapCrossAlignment.center,
                               alignment: WrapAlignment.center,
                               spacing: 8.0,
-                              children: List.generate(shuffleMnemonic.length,
-                                  (index) {
+                              children: List.generate(shuffleMnemonic.length, (index) {
                                 return Card(
                                   surfaceTintColor: Colors.transparent,
                                   color: selectedIndex.contains(index)
@@ -205,13 +194,10 @@ class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
                                         padding: WidgetConstant.padding20,
                                         child: Text(
                                           shuffleMnemonic[index],
-                                          style: context.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                  color: selectedIndex
-                                                          .contains(index)
-                                                      ? context
-                                                          .colors.onPrimaryFixed
-                                                      : null),
+                                          style: context.textTheme.bodyMedium?.copyWith(
+                                              color: selectedIndex.contains(index)
+                                                  ? context.colors.onPrimaryFixed
+                                                  : null),
                                         )),
                                   ),
                                 );
@@ -220,9 +206,7 @@ class _VerifyMnemonicViewState extends State<VerifyMnemonicView>
                           ),
                         ),
                         ErrorTextContainer(
-                            error: wrongFilled
-                                ? "invalid_mnemonic_ordering".tr
-                                : null),
+                            error: wrongFilled ? "invalid_mnemonic_ordering".tr : null),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [

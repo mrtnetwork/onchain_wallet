@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain/solana/src/exception/exception.dart';
+import 'package:on_chain_bridge/net_sdk/types/config.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/impl/worker_impl.dart';
-import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/api/client/core/client.dart';
-import 'package:on_chain_wallet/wallet/api/provider/networks/solana.dart';
-import 'package:on_chain_wallet/wallet/api/services/service.dart';
+import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/services/default.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/network_providers.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/solana.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/solana/models/solana_account_tokens_info.dart';
 import 'package:on_chain_wallet/wallet/models/token/token.dart';
@@ -16,18 +15,40 @@ import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart'
 import 'package:on_chain_wallet/wallet/models/transaction/networks/solana.dart';
 import 'package:on_chain/solana/solana.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
-class SolanaClient extends NetworkClient<
-    SolanaWalletTransaction,
-    SolanaAPIProvider,
-    SolanaNetworkToken,
-    SolAddress> with CryptoWokerImpl, HttpImpl implements BaseSwapSolanaClient {
-  SolanaClient({required this.provider, required this.network});
-  final SolanaProvider provider;
+class SolanaNetworkClient extends NetworkClient<SolanaWalletTransaction,
+    SolanaNetworkToken, SolAddress, WalletSolanaNetwork> implements BaseSwapSolanaClient {
   @override
-  final WalletSolanaNetwork network;
-  @override
-  SolanaHTTPService get service => provider.rpc as SolanaHTTPService;
+  final SolanaNetworkProvider networkProvider;
+  SolanaNetworkClient._(
+      {required this.provider, required super.network, required this.networkProvider});
+  final DefaultProvider<SolanaProvider<MultiChainServiceClient>, SolanaRequestDetails>
+      provider;
+
+  factory SolanaNetworkClient.fromProvider({
+    required SolanaNetworkProvider provider,
+    required WalletSolanaNetwork network,
+    required INetApi netApi,
+  }) {
+    return SolanaNetworkClient._(
+      network: network,
+      networkProvider: provider,
+      provider: DefaultProvider(SolanaProvider(MultiChainServiceClient.fromProvider(
+          provider: provider.provider, netApi: netApi))),
+    );
+  }
+  factory SolanaNetworkClient.fromService(
+      {required SolanaNetworkProvider provider,
+      required WalletSolanaNetwork network,
+      required MultiChainServiceClient service}) {
+    assert(service.provider == provider.provider);
+    return SolanaNetworkClient._(
+        network: network,
+        networkProvider: provider,
+        provider: DefaultProvider(SolanaProvider(service)));
+  }
+
   List<SolanaTokenInfo>? _tokenLists;
 
   Future<BigInt> getAccountBalance(SolAddress address) async {
@@ -37,14 +58,12 @@ class SolanaClient extends NetworkClient<
 
   @override
   Future<SolanaAccountInfo?> getAccountInfo(SolAddress account) async {
-    final info =
-        await provider.request(SolanaRequestGetAccountInfo(account: account));
+    final info = await provider.request(SolanaRequestGetAccountInfo(account: account));
     return info;
   }
 
   Future<SolanaTokenAccount?> getTokenAccount(SolAddress account) async {
-    final info =
-        await provider.request(SolanaRPCGetTokenAccount(account: account));
+    final info = await provider.request(SolanaRPCGetTokenAccount(account: account));
     return info;
   }
 
@@ -57,7 +76,7 @@ class SolanaClient extends NetworkClient<
   Future<BigInt?> getFee(SolanaTransaction transaction) async {
     return await provider.request(SolanaRequestGetFeeForMessage(
         encodedMessage: StringUtils.decode(transaction.message.serialize(),
-            type: StringEncoding.base64),
+            encoding: StringEncoding.base64),
         commitment: Commitment.processed));
   }
 
@@ -71,8 +90,8 @@ class SolanaClient extends NetworkClient<
       MinContextSlot? minContextSlot}) async {
     return await provider.request(
       SolanaRequestSimulateTransaction(
-          encodedTransaction: transaction.serializeString(
-              encoding: TransactionSerializeEncoding.base64),
+          encodedTransaction:
+              transaction.serializeString(encoding: TransactionSerializeEncoding.base64),
           sigVerify: sigVerify,
           replaceRecentBlockhash: replaceRecentBlockhash,
           encoding: SolanaRequestEncoding.base64,
@@ -81,19 +100,17 @@ class SolanaClient extends NetworkClient<
           accounts: account == null
               ? null
               : RPCAccountConfig(
-                  addresses: [account],
-                  encoding: SolanaRequestEncoding.base64)),
+                  addresses: [account], encoding: SolanaRequestEncoding.base64)),
     );
   }
 
   Future<List<SolanaTokenInfo>> getTokenList() async {
     if (_tokenLists != null) return _tokenLists!;
-    final result = await MethodUtils.call(() async {
-      final result = await httpGet<Map<String, dynamic>>(
-          SolanaConst.tokenListUri,
-          responseType: HTTPResponseType.map);
-      final Map<String, dynamic> data = result.result;
-      final tokenJson = (data["tokens"] as List).cast<Map<String, dynamic>>();
+    final tokenListJson = await provider.netApi.httpGet<Map<String, dynamic>>(
+        SolanaConst.tokenListUri,
+        responseType: StreamEncoding.map);
+    final result = await tokenListJson.mapCatchAsync((json) {
+      final tokenJson = json.valueEnsureAsList<Map<String, dynamic>>("tokens");
       final List<SolanaTokenInfo> tokenList = [];
       for (final i in tokenJson) {
         if (i["chainId"] != network.coinParam.chainId) continue;
@@ -101,17 +118,18 @@ class SolanaClient extends NetworkClient<
       }
       return tokenList;
     });
-    if (result.hasError) {
-      return [];
-    }
-    _tokenLists = result.result;
-    return _tokenLists!;
+    return result.fold(
+      onErr: (error) => [],
+      onOk: (tokenLists) {
+        final tokens = _tokenLists = tokenLists;
+        return tokens;
+      },
+    );
   }
 
   @override
   Future<SolAddress> getBlockHash() async {
-    final blockHash =
-        await provider.request(const SolanaRequestGetLatestBlockhash());
+    final blockHash = await provider.request(const SolanaRequestGetLatestBlockhash());
     return blockHash.blockhash;
   }
 
@@ -126,15 +144,13 @@ class SolanaClient extends NetworkClient<
   }
 
   Future<BigInt> getTokenAddressBalance(SolAddress address) async {
-    final account =
-        await provider.request(SolanaRPCGetTokenAccount(account: address));
+    final account = await provider.request(SolanaRPCGetTokenAccount(account: address));
     return account?.amount ?? BigInt.zero;
   }
 
   Future<SolanaMintAccount?> getMintAccount(SolAddress mintAddress) async {
     try {
-      return await provider
-          .request(SolanaRPCGetMintAccount(account: mintAddress));
+      return await provider.request(SolanaRPCGetMintAccount(account: mintAddress));
     } on SolanaPluginException {
       return null;
     }
@@ -143,17 +159,15 @@ class SolanaClient extends NetworkClient<
   Future<List<SolanaAccountSPLTokenInfo>> getAccountTokens(SolAddress account,
       {SolAddress tokenProgram = SPLTokenProgramConst.tokenProgramId}) async {
     final List<SolanaAccountSPLTokenInfo> tokens = [];
-    final tokenAccounts = await provider.request(
-        SolanaRequestGetTokenAccountsByOwner(
-            account: account,
-            programId: tokenProgram,
-            encoding: SolanaRequestEncoding.base64));
+    final tokenAccounts = await provider.request(SolanaRequestGetTokenAccountsByOwner(
+        account: account,
+        programId: tokenProgram,
+        encoding: SolanaRequestEncoding.base64));
     if (tokenAccounts.isEmpty) return [];
     for (final i in tokenAccounts) {
-      final mint = await provider
-          .request(SolanaRPCGetMintAccount(account: i.tokenAccount.mint));
-      final splToken =
-          await _createSplTokenInfo(mintAccount: mint!, tokenAccount: i);
+      final mint =
+          await provider.request(SolanaRPCGetMintAccount(account: i.tokenAccount.mint));
+      final splToken = await _createSplTokenInfo(mintAccount: mint!, tokenAccount: i);
       tokens.add(splToken);
     }
     return tokens;
@@ -166,15 +180,14 @@ class SolanaClient extends NetworkClient<
     SolanaTokenInfo? tokenInfo;
     final metadatPda =
         MetaplexTokenMetaDataProgramUtils.findMetadataPda(mint: mintAddress);
-    final tokenMetadata = await MethodUtils.call(() async => provider
-        .request(SolanaRPCGetMetadataAccount(account: metadatPda.address)));
+    final tokenMetadata = await IResult.call(() async =>
+        provider.request(SolanaRPCGetMetadataAccount(account: metadatPda.address)));
 
-    if (tokenMetadata.hasResult && tokenMetadata.result != null) {
-      tokenInfo = SolanaTokenInfo.fromOnChainMetadata(tokenMetadata.result!);
+    if (tokenMetadata.ok() != null) {
+      tokenInfo = SolanaTokenInfo.fromOnChainMetadata(tokenMetadata.unwrap()!);
     } else {
       final metadatas = await getTokenList();
-      tokenInfo =
-          metadatas.firstWhereOrNull((e) => e.address == mintAddress.address);
+      tokenInfo = metadatas.firstWhereOrNull((e) => e.address == mintAddress.address);
     }
     APPImage? image = APPImage.network(tokenInfo?.logoURI);
     final token = Token(
@@ -207,9 +220,8 @@ class SolanaClient extends NetworkClient<
         skipPreflight: skipPreflight,
         maxRetries: maxRetries,
         commitment: skipPreflight ? Commitment.processed : commitment,
-        minContextSlot: minContextSlot == null
-            ? null
-            : MinContextSlot(slot: minContextSlot)));
+        minContextSlot:
+            minContextSlot == null ? null : MinContextSlot(slot: minContextSlot)));
   }
 
   Future<bool> validateNetworkGenesis() async {
@@ -243,12 +255,12 @@ class SolanaClient extends NetworkClient<
     if (tokenProgramId == null) {
       final mintAccount = await getAccountInfo(mint);
       if (mintAccount == null) {
-        throw ApiProviderException.message("mint_account_not_found");
+        throw AppException("mint_account_not_found");
       }
       tokenProgramId = mintAccount.owner;
       if (tokenProgramId != SPLTokenProgramConst.token2022ProgramId &&
           tokenProgramId != SPLTokenProgramConst.tokenProgramId) {
-        throw ApiProviderException.message("invalid_mint_account_owner");
+        throw AppException("invalid_mint_account_owner");
       }
     }
     final pda = AssociatedTokenAccountProgramUtils.associatedTokenAccount(
@@ -257,9 +269,7 @@ class SolanaClient extends NetworkClient<
         tokenProgramId: tokenProgramId,
         allowOwnerOffCurve: true);
     return SolanaTokenPDAInfo(
-        address: account,
-        pdaAddress: pda.address,
-        tokenProgramId: tokenProgramId);
+        address: account, pdaAddress: pda.address, tokenProgramId: tokenProgramId);
   }
 
   @override
@@ -275,8 +285,7 @@ class SolanaClient extends NetworkClient<
         final receipt = await getSignatureStatuses(transactionId);
         if (receipt != null) {
           if (receipt.err != null) {
-            completer.completeError(ApiProviderException.message(
-                "transaction_confirmation_failed"));
+            completer.completeError(AppException("transaction_confirmation_failed"));
           } else {
             final status = receipt.confirmationStatus;
             if (status == TransactionConfirmationStatus.finalized) {
@@ -288,7 +297,7 @@ class SolanaClient extends NetworkClient<
       final receipt = await completer.future.timeout(timeout);
       return receipt;
     } on TimeoutException {
-      throw ApiProviderException.message("transaction_confirmation_failed");
+      throw AppException("transaction_confirmation_failed");
     } finally {
       timer?.cancel();
       timer = null;
@@ -296,26 +305,16 @@ class SolanaClient extends NetworkClient<
   }
 
   @override
-  Future<bool> initSwapClient() async {
-    final init = await this.init();
-    if (!init) {
-      throw ApiProviderExceptionConst.initializeClientFailed;
-    }
-    return true;
-  }
-
-  @override
   Future<SwapSolanaAccountAssetBalance> getAccountsAssetBalance(
       SolanaSwapAsset asset, SolAddress account) async {
     if (asset.isContract && asset.contractAddress == null) {
-      throw ApiProviderExceptionConst.unexpectedRequestData;
+      throw APIErrorConst.unexpectedRequestData;
     }
     return SwapSolanaAccountAssetBalance(
         address: account,
         balance: asset.isNative
             ? await getBalance(account)
-            : await getTokenBalance(
-                account: account, mint: asset.contractAddress!),
+            : await getTokenBalance(account: account, mint: asset.contractAddress!),
         asset: asset);
   }
 
@@ -331,8 +330,8 @@ class SolanaClient extends NetworkClient<
 
   @override
   Future<WalletTransactionStatus> transactionStatus(
-      {required String txId}) async {
-    final status = await getSignatureStatuses(txId);
+      SolanaWalletTransaction transaction) async {
+    final status = await getSignatureStatuses(transaction.txId);
     if (status == null) return WalletTransactionStatus.unknown;
     if (status.err != null) return WalletTransactionStatus.failed;
     if (status.confirmationStatus == TransactionConfirmationStatus.finalized) {
@@ -352,39 +351,39 @@ class SolanaClient extends NetworkClient<
     if (!token.status.allowRetry) return;
     token.setPending();
     final mintAddress = token.token.mint;
-    final mintAccount = await MethodUtils.call(() async {
-      return await provider
-          .request(SolanaRPCGetMintAccount(account: mintAddress));
+    final mintAccount = await IResult.call(() async {
+      return await provider.request(SolanaRPCGetMintAccount(account: mintAddress));
     });
-    if (mintAccount.hasError || mintAccount.result == null) {
+    if (mintAccount.ok() == null) {
       token.setError();
       return;
     }
-    token.updaetTokenDecimals(mintAccount.result!.decimals);
+    token.updaetTokenDecimals(mintAccount.unwrap()!.decimals);
     SolanaTokenInfo? tokenInfo;
     final metadatPda =
         MetaplexTokenMetaDataProgramUtils.findMetadataPda(mint: mintAddress);
-    final tokenMetadata = await MethodUtils.call(() async => provider
-        .request(SolanaRPCGetMetadataAccount(account: metadatPda.address)));
-    if (tokenMetadata.hasResult && tokenMetadata.result != null) {
-      tokenInfo = SolanaTokenInfo.fromOnChainMetadata(tokenMetadata.result!);
-      final offChainMetadata = await MethodUtils.call(() async {
-        final url = tokenInfo?.logoURI;
-        if (url == null) return null;
-        final data = await httpGet<Map<String, dynamic>>(
-            StrUtils.stripControlChars(url),
-            responseType: HTTPResponseType.map,
-            headers: HttpCallerUtils.applicationJsonContentType);
+    final tokenMetadata = await IResult.call(() async =>
+        provider.request(SolanaRPCGetMetadataAccount(account: metadatPda.address)));
+    if (tokenMetadata.ok() != null) {
+      tokenInfo = SolanaTokenInfo.fromOnChainMetadata(tokenMetadata.unwrap()!);
+      final url = tokenInfo.logoURI;
+      final IResult<Map<String, dynamic>?> data = url == null
+          ? ResultOk(null)
+          : await provider.netApi.httpGet<Map<String, dynamic>>(
+              StrUtils.stripControlChars(url),
+              responseType: StreamEncoding.map,
+              headers: HttpConst.applicationJsonContentType);
+      final offChainMetadata = data.map((data) {
+        if (data == null) return null;
         return tokenInfo?.copyWith(
-            symbol: data.result["symbol"],
-            name: data.result["name"],
-            logoURI: data.result["image"]);
+            symbol: data.valueAs("symbol"),
+            name: data.valueAs("name"),
+            logoURI: data.valueAs("image"));
       });
-      tokenInfo = offChainMetadata.resultOrNull ?? tokenInfo;
+      tokenInfo = offChainMetadata.ok() ?? tokenInfo;
     } else {
       final metadatas = await getTokenList();
-      tokenInfo =
-          metadatas.firstWhereOrNull((e) => e.address == mintAddress.address);
+      tokenInfo = metadatas.firstWhereOrNull((e) => e.address == mintAddress.address);
     }
     if (tokenInfo == null) {
       token.setError();
@@ -394,7 +393,7 @@ class SolanaClient extends NetworkClient<
     APPImage? image = APPImage.network(tokenInfo.logoURI);
     final updateToken = Token(
         assetLogo: image,
-        decimal: mintAccount.result!.decimals,
+        decimal: mintAccount.unwrap()!.decimals,
         name: tokenInfo.name,
         symbol: tokenInfo.symbol);
     token.updaetTokenMetadata(updateToken);
@@ -402,10 +401,10 @@ class SolanaClient extends NetworkClient<
 
   @override
   Stream<List<SolanaNetworkToken>> getAccountTokensStream(SolAddress address) {
-    final controller = StreamController<List<SolanaNetworkToken>>();
+    final controller = SafeStreamController<List<SolanaNetworkToken>>(
+        name: "SolanaNetworkClient.getAccountTokensStream");
     void add(List<SolanaSPLToken> splTokens) {
-      final tokens =
-          splTokens.map((e) => SolanaNetworkToken(token: e)).toList();
+      final tokens = splTokens.map((e) => SolanaNetworkToken(token: e)).toList();
       if (!controller.isClosed) {
         controller.add(tokens);
         for (final i in tokens) {
@@ -424,11 +423,10 @@ class SolanaClient extends NetworkClient<
 
     Future<List<SolanaSPLToken>> fetchSplTokens(
         {SolAddress programId = SPLTokenProgramConst.tokenProgramId}) async {
-      final tokenAccounts = await provider.request(
-          SolanaRequestGetTokenAccountsByOwner(
-              account: address,
-              programId: programId,
-              encoding: SolanaRequestEncoding.base64));
+      final tokenAccounts = await provider.request(SolanaRequestGetTokenAccountsByOwner(
+          account: address,
+          programId: programId,
+          encoding: SolanaRequestEncoding.base64));
       return tokenAccounts
           .map((e) => SolanaSPLToken.create(
               balance: e.tokenAccount.amount,
@@ -443,38 +441,41 @@ class SolanaClient extends NetworkClient<
     }
 
     Future<void> fetchTokens() async {
-      final splTokens = await MethodUtils.call(() async {
+      final splTokens = await IResult.call(() async {
         return await fetchSplTokens();
       });
-      if (splTokens.hasError) {
-        error(splTokens.exception!);
+      if (splTokens.isErr) {
+        error(splTokens.unwrapErr().exception);
         close();
         return;
       }
-      add(splTokens.result);
+      add(splTokens.unwrap());
 
       close();
     }
 
-    controller.onListen = fetchTokens;
-    controller.onCancel = close;
+    controller.onListenListener(fetchTokens);
+    controller.onCancelListener(close);
 
-    return controller.stream;
+    return controller.stream();
   }
 
   @override
-  Future<bool> onInit() async {
-    final result =
-        await MethodUtils.call(() async => await validateNetworkGenesis());
-    return result.hasResult && result.result;
-  }
-
-  @override
-  void close() {
-    super.close();
+  void dispose() {
+    super.dispose();
     _tokenLists = null;
   }
 
   @override
-  NetworkType get networkType => NetworkType.solana;
+  List<MultiChainServiceClient> services() {
+    return [provider.service];
+  }
+
+  @override
+  Future<bool> verifyService(DefaultAPIProvider provider) async {
+    if (provider == this.provider.service.provider) {
+      return validateNetworkGenesis();
+    }
+    return false;
+  }
 }

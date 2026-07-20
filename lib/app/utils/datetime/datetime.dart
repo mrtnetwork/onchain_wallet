@@ -8,8 +8,7 @@ class DateTimeUtils {
   }
 
   static DateTime? detectEpochUnit(int epoch, {int? minYear, int? maxYear}) {
-    final dtSeconds =
-        DateTime.fromMillisecondsSinceEpoch(epoch * 1000, isUtc: true);
+    final dtSeconds = DateTime.fromMillisecondsSinceEpoch(epoch * 1000, isUtc: true);
     final dtMillis = DateTime.fromMillisecondsSinceEpoch(epoch, isUtc: true);
     final dtMicros = DateTime.fromMicrosecondsSinceEpoch(epoch, isUtc: true);
     final now = DateTime.now().year;
@@ -21,4 +20,9 @@ class DateTimeUtils {
     if (inRange(dtSeconds)) return dtSeconds.toLocal();
     return null;
   }
+}
+
+extension ExtDateTime on DateTime {
+  int get secondsSinceEpoch => DateTimeUtils.secondsSinceEpoch(this);
+  bool get isAfterNow => toUtc().isAfter(DateTime.now().toUtc());
 }

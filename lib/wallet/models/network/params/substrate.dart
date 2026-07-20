@@ -1,8 +1,8 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
@@ -15,46 +15,43 @@ class SubstrateNetworkParams extends NetworkCoinParams {
   final List<SubstrateKeyAlgorithm> keyAlgorithms;
   final SubstrateRelaySystem? relaySystem;
   final SubstrateConsensusRole? consensusRole;
-  final BigInt? evmChainId;
   bool get assetTransferEnabled => true;
   bool get xcmTransferEnabled => relaySystem != null && consensusRole != null;
   bool get allowMultisig => true;
-  factory SubstrateNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory SubstrateNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.substrateNetworkParams);
+        cborObject: object,
+        identifier: NetworkType.substrate.identifier);
 
     return SubstrateNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(2)),
-        chainType: ChainType.fromValue(values.valueAs(4)),
-        ss58Format: values.valueAs(5),
-        substrateChainType: SubstrateChainType.fromValue(values.valueAs(8)),
-        gnesisBlock: values.valueAs(9),
-        bip32CoinType: values.valueAs(10),
-        addressExplorer: values.valueAs(11),
-        transactionExplorer: values.valueAs(12),
-        keyAlgorithms: values
-            .elementAsListOf<CborIntValue>(13)
-            .map((e) => SubstrateKeyAlgorithm.fromValue(e.value))
-            .toList(),
-        specVersion: values.valueAs(14),
-        relaySystem: values.elemetMybeAs<SubstrateRelaySystem, CborIntValue>(
-            15, (value) => SubstrateRelaySystem.fromValue(value.value)),
-        consensusRole:
-            values.elemetMybeAs<SubstrateConsensusRole, CborIntValue>(
-                16, (value) => SubstrateConsensusRole.fromValue(value.value)),
-        evmChainId: values.valueAs(17));
+      token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+      chainType: ChainType.fromValue(values.rawValueAt(1)),
+      ss58Format: values.rawValueAt(2),
+      substrateChainType: SubstrateChainType.fromValue(values.rawValueAt(3)),
+      gnesisBlock: values.rawValueAt(4),
+      bip32CoinType: values.rawValueAt(5),
+      addressExplorer: values.rawValueAt(6),
+      transactionExplorer: values.rawValueAt(7),
+      keyAlgorithms: values
+          .listAt<CborIntValue>(8)
+          .map((e) => SubstrateKeyAlgorithm.fromValue(e.value))
+          .toList(),
+      specVersion: values.rawValueAt(9),
+      relaySystem: values.maybeObjectAt<SubstrateRelaySystem, CborIntValue>(
+          10, (value) => SubstrateRelaySystem.fromValue(value.value)),
+      consensusRole: values.maybeObjectAt<SubstrateConsensusRole, CborIntValue>(
+          11, (value) => SubstrateConsensusRole.fromValue(value.value)),
+    );
   }
-  SubstrateNetworkParams(
+  const SubstrateNetworkParams(
       {required super.token,
       required super.chainType,
       required this.ss58Format,
       required this.specVersion,
       required this.relaySystem,
       required this.consensusRole,
-      this.evmChainId,
+      // this.chainId,
       this.gnesisBlock,
       required this.substrateChainType,
       super.bip32CoinType,
@@ -67,58 +64,31 @@ class SubstrateNetworkParams extends NetworkCoinParams {
       ]});
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          chainType.name,
-          ss58Format,
-          const CborNullValue(),
-          const CborNullValue(),
-          substrateChainType.value,
-          gnesisBlock,
-          bip32CoinType,
-          addressExplorer,
-          transactionExplorer,
-          CborSerializable.fromDynamic(
-              keyAlgorithms.map((e) => e.value).toList()),
-          specVersion,
-          relaySystem?.value,
-          consensusRole?.value,
-          evmChainId
-        ]),
-        CborTagsConst.substrateNetworkParams);
-  }
-
-  @override
   NetworkCoinParams updateParams(
       {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
     return SubstrateNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
-        addressExplorer: addressExplorer,
-        transactionExplorer: transactionExplorer,
-        chainType: chainType,
-        ss58Format: ss58Format,
-        gnesisBlock: gnesisBlock,
-        substrateChainType: substrateChainType,
-        bip32CoinType: bip32CoinType,
-        keyAlgorithms: keyAlgorithms,
-        specVersion: specVersion,
-        consensusRole: consensusRole,
-        relaySystem: relaySystem,
-        evmChainId: evmChainId);
+      token:
+          NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
+      addressExplorer: addressExplorer,
+      transactionExplorer: transactionExplorer,
+      chainType: chainType,
+      ss58Format: ss58Format,
+      gnesisBlock: gnesisBlock,
+      substrateChainType: substrateChainType,
+      bip32CoinType: bip32CoinType,
+      keyAlgorithms: keyAlgorithms,
+      specVersion: specVersion,
+      consensusRole: consensusRole,
+      relaySystem: relaySystem,
+    );
   }
 
   SubstrateNetworkParams updateSpecVersion(int specVersion) {
     if (specVersion.isNegative || specVersion < this.specVersion) {
-      throw WalletException.error("invalid_spec_version");
+      throw WalletException.message("invalid_spec_version");
     }
     return SubstrateNetworkParams(
         token: token,
@@ -134,4 +104,24 @@ class SubstrateNetworkParams extends NetworkCoinParams {
         relaySystem: relaySystem,
         consensusRole: consensusRole);
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier => NetworkType.substrate.identifier;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        ss58Format.toCbor(),
+        substrateChainType.value.toCbor(),
+        gnesisBlock?.toCbor(),
+        bip32CoinType?.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor(),
+        AppSerialization.listFromObjects(
+            keyAlgorithms.map((e) => e.value.toCbor()).toList()),
+        specVersion.toCbor(),
+        relaySystem?.value.toCbor(),
+        consensusRole?.value.toCbor(),
+      ];
 }

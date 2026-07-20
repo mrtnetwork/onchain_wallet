@@ -2,7 +2,7 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/models/networks/aptos/models/types.dart';
@@ -14,8 +14,7 @@ class SetupAptosAddressView extends StatefulWidget {
   State<SetupAptosAddressView> createState() => _SetupAptosAddressViewState();
 }
 
-class _SetupAptosAddressViewState extends State<SetupAptosAddressView>
-    with SafeState {
+class _SetupAptosAddressViewState extends State<SetupAptosAddressView> with SafeState {
   AptosSupportKeyScheme algorithm = AptosSupportKeyScheme.ed25519;
 
   late final Map<AptosSupportKeyScheme, Widget> algorithmTypesWidget;
@@ -42,13 +41,13 @@ class _SetupAptosAddressViewState extends State<SetupAptosAddressView>
   void generateAddress() async {
     final algorithm = this.algorithm;
     final coin = findCoin(algorithm);
-    final keyIndex = await widget.controller.getCoin(
-        context: context, seedGeneration: SeedTypes.bip39, selectedCoins: coin);
+    final keyIndex = await widget.controller
+        .getCoin(context: context, seedGeneration: SeedTypes.bip39, selectedCoins: coin);
     if (keyIndex == null || keyIndex.currencyCoin.conf.type != coin.conf.type) {
       return;
     }
-    final newAccount = AptosNewAddressParams(
-        deriveIndex: keyIndex, coin: coin, keyScheme: algorithm);
+    final newAccount =
+        AptosNewAddressParams(deriveIndex: keyIndex, coin: coin, keyScheme: algorithm);
     widget.controller.generateAddress(newAccount);
   }
 

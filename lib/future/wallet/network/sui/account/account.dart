@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/account_tokens_view.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/select_provider.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/transaction_activity.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/transaction/operations/transfer_token.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
@@ -21,12 +20,12 @@ class SuiAccountPageView extends StatelessWidget {
           return SuiTransactionTransferTokenOperation(
               walletProvider: context.wallet,
               account: chainAccount,
-              address: chainAccount.address,
+              address: chainAccount.addressSync,
               token: p0);
         },
       ),
-      AccountTransactionActivityView<ISuiAddress, SuiWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<SuiWalletTransaction, ISuiAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -38,7 +37,6 @@ class _SuiServices extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverToBoxAdapter(
         child: Column(
           children: [

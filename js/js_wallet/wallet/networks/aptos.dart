@@ -1,7 +1,8 @@
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import '../../js_wallet.dart';
 import '../../models/models/networks/aptos.dart';
 import '../../models/models/networks/wallet_standard.dart';
@@ -26,8 +27,7 @@ class AptosWeb3JSStateAccount extends Web3JSStateAccount<
     if (chain == null) {
       throw Web3RequestExceptionConst.missingPermission;
     }
-    return JSAptosNetworkInfo.setup(
-        chainId: chain.chainId, name: chain.aptosChain.name);
+    return JSAptosNetworkInfo.setup(chainId: chain.chainId, name: chain.aptosChain.name);
   }
 
   AptosWeb3JSStateAccount._({
@@ -39,8 +39,7 @@ class AptosWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory AptosWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return AptosWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return AptosWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory AptosWeb3JSStateAccount(Web3AptosChainAuthenticated? authenticated) {
     if (authenticated == null) {
@@ -90,10 +89,16 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
         Web3AptosChainAccount,
         JSAptosWalletAccount,
         Web3AptosChainIdnetifier,
+        AptosWeb3JSStateAddress,
         AptosWeb3JSStateAccount>
     with
-        AptosWeb3StateHandler<JSAptosWalletAccount, AptosWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        AptosWeb3StateHandler<
+            JSAptosWalletAccount,
+            AptosWeb3JSStateAddress,
+            AptosWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   AptosWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
   @override
@@ -114,12 +119,12 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
     if (networkChanged) {
       final chain = currentState.defaultChain;
       if (chain != null) {
-        event.chainChanged = JSAptosNetworkInfo.setup(
-            chainId: chain.chainId, name: chain.aptosChain.name);
+        event.chainChanged =
+            JSAptosNetworkInfo.setup(chainId: chain.chainId, name: chain.aptosChain.name);
       } else {
         final error = Web3RequestExceptionConst.disconnectProvider;
-        event.disconnect = JSEthereumEIPProviderRpcError(
-            message: error.message, code: error.code);
+        event.disconnect =
+            JSEthereumEIPProviderRpcError(message: error.message, code: error.code);
       }
     }
     return event;
@@ -139,13 +144,11 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
         }
         throw Web3RequestExceptionConst.missingPermission;
       case Web3AptosRequestMethods.signTransaction:
-        return toSignTransactionRequest(
-            params: params, state: state, method: method!);
+        return toSignTransactionRequest(params: params, state: state, method: method!);
       case Web3AptosRequestMethods.signMessage:
         return toSignInRequest(params: params, state: state, method: method!);
       case Web3AptosRequestMethods.switchNetwork:
-        return toSwitchChainRequest(
-            params: params, state: state, method: method!);
+        return toSwitchChainRequest(params: params, state: state, method: method!);
       default:
         throw Web3RequestExceptionConst.methodDoesNotSupport;
     }
@@ -170,8 +173,7 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
               : state.chains.firstWhereOrNull((e) => e.isChain(chainId));
           if (chain == null || chain == state.defaultChain) {
             return WalletMessageResponse.success(
-                JSAptosWalletStandardUserResponse.approved(
-                    state.defaultAccountOrError));
+                JSAptosWalletStandardUserResponse.approved(state.defaultAccountOrError));
           }
         }
 
@@ -182,16 +184,14 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
         final message = JSAptosWalletStandardUserResponse.approved(
             JSAptosSignTransactionResponse.setup(
                 bytes: transactionResponse,
-                dataHex:
-                    BytesUtils.toHexString(transactionResponse, prefix: "0x")));
+                dataHex: BytesUtils.toHexString(transactionResponse, prefix: "0x")));
         return WalletMessageResponse.success(message);
       case Web3AptosRequestMethods.signMessage:
-        final responseMessage = Web3AptosSignMessageResponse.deserialize(
-            bytes: response.resultAsList<int>());
+        final responseMessage =
+            Web3AptosSignMessageResponse.deserialize(bytes: response.resultAsList<int>());
         final signedMessage = JSAptosSignMessageResponse.setup(
             signatureBytes: responseMessage.signature,
-            signatureHex:
-                BytesUtils.toHexString(responseMessage.signature, prefix: "0x"),
+            signatureHex: BytesUtils.toHexString(responseMessage.signature, prefix: "0x"),
             message: responseMessage.message!,
             nonce: responseMessage.nonce!,
             fullMessage: responseMessage.fullMessage!,
@@ -207,19 +207,18 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
         }
         throw Web3RequestExceptionConst.missingPermission;
       case Web3AptosRequestMethods.switchNetwork:
-        final network = parseSwitchChainRequest(
-            params: message, state: state, method: method!);
+        final network =
+            parseSwitchChainRequest(params: message, state: state, method: method!);
         if (network == state.defaultChain) {
-          return WalletMessageResponse.success(
-              JSAptosSwitchChainResponse.success());
+          return WalletMessageResponse.success(JSAptosSwitchChainResponse.success());
         }
         return WalletMessageResponse.success(JSAptosSwitchChainResponse.fail());
 
       default:
         break;
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
@@ -250,7 +249,7 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
   }
 
   @override
-  AptosWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  AptosWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return AptosWeb3JSStateAccount.init();
     return AptosWeb3JSStateAccount(authenticated.getAuth(networkType));
   }
@@ -260,16 +259,16 @@ class AptosWeb3JSStateHandler extends Web3JSStateHandler<
     final state = await getState();
     switch (event) {
       case Web3NetworkEvent.chainChanged:
-        final event = JSWalletNetworkEvent(
-            events: [JSNetworkEventType.defaultChainChanged]);
+        final event =
+            JSWalletNetworkEvent(events: [JSNetworkEventType.defaultChainChanged]);
         final chain = state.defaultChain;
         if (chain != null) {
           event.chainChanged = JSAptosNetworkInfo.setup(
               chainId: chain.chainId, name: chain.aptosChain.name);
         } else {
           final error = Web3RequestExceptionConst.disconnectProvider;
-          event.disconnect = JSEthereumEIPProviderRpcError(
-              message: error.message, code: error.code);
+          event.disconnect =
+              JSEthereumEIPProviderRpcError(message: error.message, code: error.code);
         }
         return event;
       default:

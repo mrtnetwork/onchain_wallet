@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
-import 'package:on_chain_wallet/future/constant/constant.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
 
@@ -19,38 +19,33 @@ class SetupRippleMutlisigAddressView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<XRPClient, IXRPAddress, XRPChain>(
+    return NetworkAccountControllerView<XRPNetworkClient, IXRPAddress, XRPChain>(
       title: "multi_sig_addr".tr,
       addressRequired: true,
       clientRequired: true,
-      childBulder: (wallet, account, client, address, onAccountChanged) {
-        return _SetupRippleMutlisigAddressView(
-            account: account, client: client);
+      childBulder: (wallet, account, client, address) {
+        return _SetupRippleMutlisigAddressView(account: account, client: client);
       },
     );
   }
 }
 
 class _SetupRippleMutlisigAddressView extends StatefulWidget {
-  const _SetupRippleMutlisigAddressView(
-      {required this.account, required this.client});
+  const _SetupRippleMutlisigAddressView({required this.account, required this.client});
   final XRPChain account;
-  final XRPClient client;
+  final XRPNetworkClient client;
   @override
   State<_SetupRippleMutlisigAddressView> createState() =>
       _SetupRippleMutlisigAddressViewState();
 }
 
-class _SetupRippleMutlisigAddressViewState
-    extends State<_SetupRippleMutlisigAddressView>
+class _SetupRippleMutlisigAddressViewState extends State<_SetupRippleMutlisigAddressView>
     with SafeState<_SetupRippleMutlisigAddressView> {
   late WalletProvider wallet;
-  final Map<AccountObjectSignerEntry, RippleMultiSigSignerDetails?> signers =
-      {};
+  final Map<AccountObjectSignerEntry, RippleMultiSigSignerDetails?> signers = {};
   int sumOfWeight = 0;
   bool get sigerListIsReady => sumOfWeight >= signerList!.signerQuorum;
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController progressKey = StreamPageProgressController();
   _MultiSigPage page = _MultiSigPage.account;
   bool get inInfoPage => page == _MultiSigPage.info;
   _MultiSigType? addressType;
@@ -86,13 +81,13 @@ class _SetupRippleMutlisigAddressViewState
 
       final newAcc = RippleMultiSigSignerDetails(
           publicKey: acc.publicKey,
-          keyIndex: acc.keyIndex.cast(),
+          derivationIndex: acc.derivationIndex.cast(),
           weight: signer.signerWeight);
 
       signers.addAll({signer: newAcc});
     } finally {
-      sumOfWeight = signers.values.fold<int>(0,
-          (previousValue, element) => previousValue + (element?.weight ?? 0));
+      sumOfWeight = signers.values.fold<int>(
+          0, (previousValue, element) => previousValue + (element?.weight ?? 0));
       updateState();
     }
   }
@@ -101,19 +96,19 @@ class _SetupRippleMutlisigAddressViewState
     final address = this.address;
     if (address == null || progressKey.inProgress) return;
     progressKey.progressText("retrieving_account_information".tr);
-    final result = await MethodUtils.call(() async {
-      final account = await widget.client.getAccountRegularAndSignerList(
-          RippleUtils.ensureClassicAddress(address.view));
+    final result = await IResult.call(() async {
+      final account = await widget.client
+          .getAccountRegularAndSignerList(RippleUtils.ensureClassicAddress(address.view));
       return account;
     });
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
-    } else if (result.result == null) {
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError);
+    } else if (result.ok() == null) {
       progressKey.errorText("ripple_mutlti_sig_address_not_found".tr);
     } else {
       page = _MultiSigPage.info;
-      regularKey = result.result!.$1;
-      signerList = result.result!.$2;
+      regularKey = result.unwrap()!.$1;
+      signerList = result.unwrap()!.$2;
       if (signerList != null) {
         for (final i in signerList!.signerEntries) {
           signers[i] = null;
@@ -140,7 +135,7 @@ class _SetupRippleMutlisigAddressViewState
         threshold: 1,
         signers: [
           RippleMultiSigSignerDetails(
-              keyIndex: addr.keyIndex.cast(),
+              derivationIndex: addr.derivationIndex.cast(),
               publicKey: addr.publicKey,
               weight: 1)
         ],
@@ -152,49 +147,45 @@ class _SetupRippleMutlisigAddressViewState
     final pickedRegular = this.pickedRegular;
     if (!hasRegularKey || pickedRegular == null) return;
     progressKey.progressText("setup_address".tr);
-    final rippleAddress = XRPAddress(address!.view);
+    final rippleAddress = XRPBaseAddress(address!.view);
     final addrParam = RippleMultiSigNewAddressParams(
         coin: network.coins.first,
         masterAddress: rippleAddress,
         multiSigAccount: pickedRegular);
-    final result = await wallet.wallet
-        .deriveNewAccount(newAccountParams: addrParam, chain: widget.account);
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError,
+    final result = await wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: addrParam, chain: widget.account));
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
     } else {
-      progressKey.successText("address_added_to_accounts".tr,
-          backToIdle: false);
+      progressKey.successText("address_added_to_accounts".tr, backToIdle: false);
     }
   }
 
   Future<void> onSetupSignerList() async {
     progressKey.progressText("setup_address".tr);
-    final wallet = context.watch<WalletProvider>(StateConst.main).wallet;
-    final accountParams = await MethodUtils.call(() async {
+    final wallet = context.wallet.wallet;
+    final accountParams = await IResult.call(() async {
       final rippleAddress =
-          XRPAddress(address!.view, isTestnet: !network.coinParam.mainnet);
+          XRPBaseAddress(address!.view, chainType: network.coinParam.chainType);
       final newAccountParams = RippleMultiSigNewAddressParams(
         coin: network.coins.first,
         masterAddress: rippleAddress,
         multiSigAccount: RippleMultiSignatureAddress(
-            signers: signers.values
-                .where((element) => element != null)
-                .toList()
-                .cast(),
+            signers: signers.values.where((element) => element != null).toList().cast(),
             threshold: signerList!.signerQuorum,
             isRegularKey: false),
       );
       return newAccountParams;
     });
-    if (accountParams.hasError) {
-      progressKey.errorText(accountParams.localizationError,
+    if (accountParams.isErr) {
+      progressKey.errorText(accountParams.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
     } else {
-      final result = await wallet.deriveNewAccount(
-          newAccountParams: accountParams.result, chain: widget.account);
-      if (result.hasError) {
-        progressKey.errorText(result.localizationError,
+      final result = await wallet.doAction(WalletActionDeriveNewAccount(
+          newAccountParams: accountParams.unwrap(), chain: widget.account));
+      if (result.isErr) {
+        progressKey.errorText(result.unwrapErr().localizationError,
             showBackButton: true, backToIdle: false);
       } else {
         progressKey.success(
@@ -202,7 +193,7 @@ class _SetupRippleMutlisigAddressViewState
             progressWidget: SuccessWithButtonView(
               buttonWidget: ContainerWithBorder(
                   margin: WidgetConstant.paddingVertical8,
-                  child: AddressDetailsView(address: result.result)),
+                  child: AddressDetailsView(address: result.unwrap())),
               buttonText: "close".tr,
               onPressed: () {
                 if (mounted) {
@@ -270,23 +261,19 @@ class _SetupRippleMutlisigAddressViewState
                                 PageTitleSubtitle(
                                     title: "multi_sig_addr".tr,
                                     body: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                            "ripple_multi_sig_address_desc".tr),
+                                        Text("ripple_multi_sig_address_desc".tr),
                                         if (inInfoPage) ...[
                                           WidgetConstant.height8,
-                                          Text("ripple_multi_sig_address_desc2"
-                                              .tr)
+                                          Text("ripple_multi_sig_address_desc2".tr)
                                         ]
                                       ],
                                     )),
                                 ConditionalWidget(
                                   enable: inInfoPage,
                                   onActive: (context) => Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     key: ValueKey(page),
                                     children: [
                                       Text("multi_sig_feature_type".tr,
@@ -301,12 +288,9 @@ class _SetupRippleMutlisigAddressViewState
                                               children: [
                                                 IgnorePointer(
                                                   ignoring: regularKey == null,
-                                                  child: RadioListTile<
-                                                      _MultiSigType>(
-                                                    title:
-                                                        Text("regular_key".tr),
-                                                    value: _MultiSigType
-                                                        .regularKey,
+                                                  child: RadioListTile<_MultiSigType>(
+                                                    title: Text("regular_key".tr),
+                                                    value: _MultiSigType.regularKey,
                                                     subtitle: regularKey == null
                                                         ? Text(
                                                             "account_does_not_support_feature"
@@ -315,8 +299,7 @@ class _SetupRippleMutlisigAddressViewState
                                                   ),
                                                 ),
                                                 RadioListTile<_MultiSigType>(
-                                                  value:
-                                                      _MultiSigType.signerList,
+                                                  value: _MultiSigType.signerList,
                                                   title: Text("signer_list".tr),
                                                   subtitle: signerList == null
                                                       ? Text(
@@ -327,69 +310,49 @@ class _SetupRippleMutlisigAddressViewState
                                               ])),
                                       AnimatedSwitcher(
                                         duration: APPConst.animationDuraion,
-                                        child:
-                                            ConditionalWidgets<_MultiSigType>(
-                                                enable: addressType,
-                                                widgets: {
-                                              _MultiSigType.regularKey:
-                                                  (context) =>
-                                                      _RegularKeyFeatureView(
-                                                          regularKey:
-                                                              regularKey!,
-                                                          onSetupRegularKey:
-                                                              onSetupRegularKey,
-                                                          hasRegularKey:
-                                                              hasRegularKey,
-                                                          onTapSetup:
-                                                              onSetRegularKey),
-                                              _MultiSigType.signerList:
-                                                  (context) =>
-                                                      _SignerListFeatureView(
-                                                          signerQuorum:
-                                                              signerList!
-                                                                  .signerQuorum,
-                                                          sumOfWeight:
-                                                              sumOfWeight,
-                                                          onTapSetup:
-                                                              onSetupSignerList,
-                                                          signers: signers,
-                                                          onTapSigner:
-                                                              onAddSigner)
-                                            }),
+                                        child: ConditionalWidgets<
+                                            _MultiSigType>(enable: addressType, widgets: {
+                                          _MultiSigType.regularKey: (context) =>
+                                              _RegularKeyFeatureView(
+                                                  regularKey: regularKey!,
+                                                  onSetupRegularKey: onSetupRegularKey,
+                                                  hasRegularKey: hasRegularKey,
+                                                  onTapSetup: onSetRegularKey),
+                                          _MultiSigType.signerList: (context) =>
+                                              _SignerListFeatureView(
+                                                  signerQuorum: signerList!.signerQuorum,
+                                                  sumOfWeight: sumOfWeight,
+                                                  onTapSetup: onSetupSignerList,
+                                                  signers: signers,
+                                                  onTapSigner: onAddSigner)
+                                        }),
                                       )
                                     ],
                                   ),
                                   onDeactive: (context) => Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       ReceiptAddressView(
                                           title: "account".tr,
-                                          subtitle:
-                                              "ripple_multi_sig_account_desc"
-                                                  .tr,
+                                          subtitle: "ripple_multi_sig_account_desc".tr,
                                           onTap: () {
                                             context
-                                                .selectAccount<XRPAddress>(
+                                                .selectAccount<XRPBaseAddress>(
                                                     account: widget.account,
                                                     title: "account".tr)
                                                 .then((value) =>
-                                                    onSelectAddress(
-                                                        value?.firstOrNull));
+                                                    onSelectAddress(value?.firstOrNull));
                                           },
                                           address: address),
                                       Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
+                                        mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           FixedElevatedButton(
-                                              padding: WidgetConstant
-                                                  .paddingVertical20,
+                                              padding: WidgetConstant.paddingVertical20,
                                               onPressed: address == null
                                                   ? null
                                                   : onAccountInformation,
-                                              child: Text(
-                                                  "get_account_information".tr))
+                                              child: Text("get_account_information".tr))
                                         ],
                                       )
                                     ],
@@ -435,11 +398,10 @@ class _SignerListFeatureView extends StatelessWidget {
         Text("signerquorum".tr, style: context.textTheme.titleMedium),
         WidgetConstant.height8,
         ContainerWithBorder(
-          child:
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text("${signerQuorum.toString()}/${sumOfWeight.toString()}"),
             Icon(Icons.check_circle,
-                color: hasSigner ? ColorConst.green : context.colors.disable)
+                color: hasSigner ? context.colors.green : context.colors.disable)
           ]),
         ),
         WidgetConstant.height20,
@@ -505,8 +467,7 @@ class _RegularKeyFeatureView extends StatelessWidget {
       children: [
         WidgetConstant.height20,
         PageTitleSubtitle(
-            title: "regular_key".tr,
-            body: Text("ripple_multi_sig_regular_key_desc".tr)),
+            title: "regular_key".tr, body: Text("ripple_multi_sig_regular_key_desc".tr)),
         Text("address".tr, style: context.textTheme.titleMedium),
         Text("ripple_multi_sig_addres_signer_list_desc2".tr),
         WidgetConstant.height8,

@@ -3,6 +3,7 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class UpdateNetworkView extends StatelessWidget {
@@ -10,8 +11,7 @@ class UpdateNetworkView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-            WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
         request: WalletCredentialLogin.instance,
         title: "update_network".tr,
         onAccsess: (_) => _UpdateNetworkView());
@@ -32,8 +32,7 @@ class _UpdateNetworkViewState extends State<_UpdateNetworkView>
   String networkName = '';
   String explorerAddressLink = "";
   String explorerTransaction = "";
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController progressKey = StreamPageProgressController();
   // final GlobalKey<PageProgressState> pageProgressKey = GlobalKey();
   void onChangeSymbol(String v) {
     symbol = v;
@@ -85,14 +84,13 @@ class _UpdateNetworkViewState extends State<_UpdateNetworkView>
                 market: network.coinParam.token.market),
             addressExplorer: explorerAddressLink.nullOnEmpty,
             transactionExplorer: explorerTransaction.nullOnEmpty));
-    final update = await MethodUtils.call(
-        () async => wallet.wallet.updateNetwork(updateNetwork));
-    if (update.hasError) {
-      progressKey.errorText(update.localizationError,
+    final update = await IResult.call(() async =>
+        wallet.wallet.doAction(WalletActionUpdateNetwork(network: updateNetwork)));
+    if (update.isErr) {
+      progressKey.errorText(update.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
-      progressKey.successText("network_imported_to_your_wallet".tr,
-          backToIdle: false);
+      progressKey.successText("network_imported_to_your_wallet".tr, backToIdle: false);
     }
   }
 
@@ -127,65 +125,59 @@ class _UpdateNetworkViewState extends State<_UpdateNetworkView>
             SliverConstraintsBoxView(
               padding: WidgetConstant.paddingHorizontal20,
               sliver: SliverToBoxAdapter(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("network_name".tr, style: context.textTheme.titleMedium),
+                  Text("network_name_desc".tr),
+                  WidgetConstant.height8,
+                  AppTextField(
+                    initialValue: networkName,
+                    onChanged: onChangeNetworkName,
+                    validator: validateNetworkName,
+                    label: "network_name".tr,
+                  ),
+                  WidgetConstant.height20,
+                  Text("symbol".tr, style: context.textTheme.titleMedium),
+                  Text("symbol_desc".tr),
+                  WidgetConstant.height8,
+                  AppTextField(
+                      initialValue: symbol,
+                      onChanged: onChangeSymbol,
+                      validator: validateSymbol,
+                      label: "symbol".tr),
+                  WidgetConstant.height20,
+                  Text("network_explorer_address_link".tr,
+                      style: context.textTheme.titleMedium),
+                  LargeTextView(["network_evm_explorer_address_desc".tr], maxLine: 1),
+                  WidgetConstant.height8,
+                  AppTextField(
+                    initialValue: explorerAddressLink,
+                    onChanged: onChangeExplorerAddress,
+                    validator: validateAddressLink,
+                    label: "network_explorer_address_link".tr,
+                    pasteIcon: true,
+                  ),
+                  WidgetConstant.height20,
+                  Text("network_explorer_transaction_link".tr,
+                      style: context.textTheme.titleMedium),
+                  LargeTextView(["network_evm_explorer_transaction_desc".tr], maxLine: 1),
+                  WidgetConstant.height8,
+                  AppTextField(
+                    initialValue: explorerAddressLink,
+                    onChanged: onChangeExplorerTransaction,
+                    validator: validateAddressLink,
+                    label: "network_explorer_transaction_link".tr,
+                    pasteIcon: true,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("network_name".tr,
-                          style: context.textTheme.titleMedium),
-                      Text("network_name_desc".tr),
-                      WidgetConstant.height8,
-                      AppTextField(
-                        initialValue: networkName,
-                        onChanged: onChangeNetworkName,
-                        validator: validateNetworkName,
-                        label: "network_name".tr,
-                      ),
-                      WidgetConstant.height20,
-                      Text("symbol".tr, style: context.textTheme.titleMedium),
-                      Text("symbol_desc".tr),
-                      WidgetConstant.height8,
-                      AppTextField(
-                          initialValue: symbol,
-                          onChanged: onChangeSymbol,
-                          validator: validateSymbol,
-                          label: "symbol".tr),
-                      WidgetConstant.height20,
-                      Text("network_explorer_address_link".tr,
-                          style: context.textTheme.titleMedium),
-                      LargeTextView(["network_evm_explorer_address_desc".tr],
-                          maxLine: 1),
-                      WidgetConstant.height8,
-                      AppTextField(
-                        initialValue: explorerAddressLink,
-                        onChanged: onChangeExplorerAddress,
-                        validator: validateAddressLink,
-                        label: "network_explorer_address_link".tr,
-                        pasteIcon: true,
-                      ),
-                      WidgetConstant.height20,
-                      Text("network_explorer_transaction_link".tr,
-                          style: context.textTheme.titleMedium),
-                      LargeTextView(
-                          ["network_evm_explorer_transaction_desc".tr],
-                          maxLine: 1),
-                      WidgetConstant.height8,
-                      AppTextField(
-                        initialValue: explorerAddressLink,
-                        onChanged: onChangeExplorerTransaction,
-                        validator: validateAddressLink,
-                        label: "network_explorer_transaction_link".tr,
-                        pasteIcon: true,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          FixedElevatedButton(
-                              padding: WidgetConstant.paddingVertical40,
-                              onPressed: updateNetwork,
-                              child: Text("update_network".tr))
-                        ],
-                      )
-                    ]),
+                      FixedElevatedButton(
+                          padding: WidgetConstant.paddingVertical40,
+                          onPressed: updateNetwork,
+                          child: Text("update_network".tr))
+                    ],
+                  )
+                ]),
               ),
             ),
           ],

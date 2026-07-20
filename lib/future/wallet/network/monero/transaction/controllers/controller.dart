@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/transaction.dart';
 import 'package:on_chain_wallet/future/wallet/network/monero/transaction/controllers/utxos.dart';
@@ -13,8 +14,7 @@ import 'fee.dart';
 import 'provider.dart';
 import 'signer.dart';
 
-abstract class MoneroTransactionStateController
-    extends BaseMoneroTransactionController
+abstract class MoneroTransactionStateController extends BaseMoneroTransactionController
     with
         MoneroTransactionApiController,
         MoneroTransactionFeeController,
@@ -23,9 +23,7 @@ abstract class MoneroTransactionStateController
   Token get transferToken;
 
   MoneroTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   Future<IMoneroTransactionData> simulateTransaction() async {
@@ -34,8 +32,7 @@ abstract class MoneroTransactionStateController
   }
 
   @override
-  Future<IMoneroSignedTransaction> signTransaction(
-      IMoneroTransaction transaction,
+  Future<IMoneroSignedTransaction> signTransaction(IMoneroTransaction transaction,
       {bool fakeSignature = false}) async {
     final signedTx = await signTransactionInternal(transaction);
     return signedTx;
@@ -44,36 +41,26 @@ abstract class MoneroTransactionStateController
   @override
   Future<IMoneroTransaction> buildTransaction({bool simulate = false}) async {
     final transactionData = await buildTransactionData(simulate: simulate);
-    final payments = transactionData.payments
-        .map((e) => e.paymet.toLockedPayment())
-        .toList();
-    final MoneroRingOutput ringOutput = await buildRingOutput(payments);
-    final spendablePayment = await generatePaymentOutputsRings(
-        payments: payments,
-        outKeysRequestOrder: ringOutput.orderedIndexes,
-        outKeysRequests: ringOutput.indexes,
-        fakeOutsLength: MoneroConst.ringSize - 1);
+    final payments = transactionData.payments.map((e) => e.toLockedPayment()).toList();
+    final spendablePayment = await buildRingOutput(payments);
     return IMoneroTransaction(
         account: address,
         transactionData: transactionData,
         fee: txFee.fee.fee.balance,
-        ringOutput: ringOutput,
         spendablePayment: spendablePayment);
   }
 
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IMoneroSignedTransaction signedTransaction}) async {
-    final response =
-        await client.sendTx(signedTransaction.finalTransactionData.txBytes);
+    final response = await client.sendTx(signedTransaction.finalTransactionData.txBytes);
     if (response.isOk) {
       return SubmitTransactionSuccess(
           txId: signedTransaction.finalTransactionData.txData.txID,
           signedTransaction: signedTransaction);
     }
-    return SubmitTransactionFailed("transaction_submission_error"
-        .tr
-        .replaceOne(response.getErrorMessage() ?? ''));
+    return SubmitTransactionFailed(
+        "transaction_submission_error".tr.replaceOne(response.getErrorMessage() ?? ''));
   }
 
   @override
@@ -106,13 +93,28 @@ abstract class MoneroTransactionStateController
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required MoneroClient client,
+    required MoneroNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
-    await initAccountUtxos(account: account, address: address);
-    return this;
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
+    final syncing = await account.getSyncing();
+    final addresses = await syncing.andThenAsync((e) async {
+      final related = await account.getPrimaryAccountAddresses(address);
+      return related.map((addresses) => (syncing: e, addresses: addresses));
+    });
+    return addresses.fold(
+      onErr: (error) => throw error.exception,
+      onOk: (value) async {
+        final syncing = value.syncing;
+        if (syncing == null) {
+          throw AppException("transaction_required_syncing_desc");
+        }
+        final height = await client.getHeight();
+        await initAccountUtxos(
+            addresses: value.addresses, syncing: syncing, latestHeight: height);
+        return this;
+      },
+    );
   }
 }

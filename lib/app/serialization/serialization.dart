@@ -1,1 +1,1 @@
-export 'cbor/cbor.dart';
+export 'serialization/tags.dart';

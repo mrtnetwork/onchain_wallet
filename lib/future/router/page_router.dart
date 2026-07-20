@@ -47,15 +47,12 @@ class PageRouter {
   static const String substrateMultisigTransaction =
       "/substrate/multi_signature/transaction";
   static const String importSubstrateNetwork = "/substrate/networks/import";
-  static const String substrateMultisigAddress =
-      "/substrate/setup_multisig_address";
+  static const String substrateMultisigAddress = "/substrate/setup_multisig_address";
 
   /// cardano
   static const String cardanoTransaction = "/cardano/transaction";
-  static const String cardanoMultisigAddress =
-      "/cardano/setup_multisig_address";
-  static const String cardanoMultisigAccountInfo =
-      "/cardano/multisig_account_info";
+  static const String cardanoMultisigAddress = "/cardano/setup_multisig_address";
+  static const String cardanoMultisigAccountInfo = "/cardano/multisig_account_info";
 
   static const String cosmosTransfer = "/cosmos/transfer";
   static const String cosmosTransaction = "/cosmos/transaction";
@@ -80,8 +77,7 @@ class PageRouter {
   static const String suiKeyConversion = "setting/sui/key_conversion";
   static const String setupBitcoinMultsig = "/bitcoin/setup_multisig_address";
 
-  static const String bitcoinMultisigAccountInfo =
-      "/bitcoin/multisig_account_info";
+  static const String bitcoinMultisigAccountInfo = "/bitcoin/multisig_account_info";
   static const String bitcoinCashMultisigAccountInfo =
       "/bitcoinCash/multisig_account_info";
   static const String createWallet = "/create_wallet";
@@ -112,8 +108,7 @@ class PageRouter {
 
   static const String updateElectrumProviders = "/networks/bitcoin/providers";
   static const String updateSolanaProviders = "/networks/solana/providers";
-  static const String updateSubstrateProviders =
-      "/networks/substrate/providers";
+  static const String updateSubstrateProviders = "/networks/substrate/providers";
   static const String updateRippleProviders = "/networks/ripple/providers";
   static const String updateCardanoProviders = "/networks/cardano/providers";
   static const String updateTonProviders = "/networks/ton/providers";
@@ -123,7 +118,7 @@ class PageRouter {
   static const String updateTronProviders = "/networks/tron/providers";
   static const String updateSuiProviders = "/networks/sui/providers";
   static const String updateAptosProviders = "/networks/aptos/providers";
-
+  static const String updateZcashProviders = "/networks/zcash/providers";
   static const String updateNetwork = "/networks/update";
 
   /// UpdateStellarProvider
@@ -138,12 +133,17 @@ class PageRouter {
 
   static const String moneroSettings = "setting/monero";
   static const String moneroSyncOptions = "setting/monero/sync_options";
-  static const String moneroGenerateProof =
-      "setting/monero/generate_transaction_proof";
+  static const String moneroGenerateProof = "setting/monero/generate_transaction_proof";
   static const String moneroVerifyProof = "setting/monero/verify_proof";
+  static const String moneroImportUtxos = "setting/monero/import_utxos";
+  static const String moneroWalletRpc = "setting/monero/wallet_rpc";
   static const String moneroAccountSync = "setting/monero/sync";
   static const String moneroMnemonic = "setting/monero/mnemonic";
   static const String moneroTransfer = "/monero/transfer";
+  static const String moneroUpdateSyncNetwork =
+      "settings/monero/update_synchronization_network";
+  static const String moneroCreateSynchronizationRequest =
+      "settings/monero/create_synchronization_request";
 
   /// WalletConnectView
   /// web3
@@ -174,6 +174,13 @@ class PageRouter {
 
   static const String publicKeyDeration = "account/public_key_derivation";
 
+  static const String zcashAccountSync = "setting/zcash/sync";
+  // static const String zcashCreateSyncRequest =
+  //     "settings/zcash/create_synchronization_request";
+  static const String zcashUpdateSyncNetwork =
+      "settings/zcash/update_synchronization_network";
+
+  /// zcash
   static Widget _page(String? name) {
     switch (name) {
       case cardanoMultisigAccountInfo:
@@ -248,6 +255,8 @@ class PageRouter {
         return const UpdateMoneroProvider();
       case updateStellarProviders:
         return const UpdateStellarProvider();
+      case updateZcashProviders:
+        return const UpdateZcashProvider();
       case tonSettings:
         return const TonSettingsView();
       case tonMnemonic:
@@ -294,16 +303,24 @@ class PageRouter {
         return const UpdateTronProvider();
       case moneroSettings:
         return const MoneroSettingsView();
-      case moneroSyncOptions:
-        return const MoneroSyncOptionsView();
+      // case moneroSyncOptions:
+      //   return const MoneroSyncOptionsView();
       case moneroGenerateProof:
         return const MoneroGenerateTxProofView();
       case moneroVerifyProof:
         return const MoneroVerifyTxProofView();
+      case moneroImportUtxos:
+        return const MoneroImportUtxos();
+      case moneroWalletRpc:
+        return const MoneroSyncWithWalletRpcView();
       case moneroAccountSync:
         return const MoneroAccountSyncView();
       case moneroMnemonic:
         return const GenerateMoneroMnemonicView();
+      case moneroUpdateSyncNetwork:
+        return const MoneroUpdateSyncNetwork();
+      case moneroCreateSynchronizationRequest:
+        return const MoneroCreateSynchronizationRequest();
       case importSubstrateNetwork:
         return const SubstrateImportChainView();
       case updateNetwork:
@@ -321,6 +338,12 @@ class PageRouter {
         return const SetupAptosMultisigAddress();
       case web3Global:
         return const GlobalWeb3FieldsView();
+      case zcashAccountSync:
+        return const ZcashAccountSyncView();
+      // case zcashCreateSyncRequest:
+      //   return const ZcashCreateSyncRequest();
+      case zcashUpdateSyncNetwork:
+        return const ZcashUpdateSyncNetwork();
       default:
         return const WalletScreen();
     }
@@ -342,10 +365,12 @@ class PageRouter {
         opaque: false);
   }
 
-  static String updateProvider(WalletNetwork network) {
-    switch (network.type) {
+  static String updateProvider(NetworkType network) {
+    switch (network) {
       case NetworkType.ethereum:
         return updateEthereumProvider;
+      case NetworkType.zcash:
+        return updateZcashProviders;
       case NetworkType.solana:
         return updateSolanaProviders;
       case NetworkType.ton:
@@ -369,12 +394,8 @@ class PageRouter {
         return updateElectrumProviders;
       case NetworkType.sui:
         return updateSuiProviders;
-
       case NetworkType.aptos:
         return updateAptosProviders;
-
-      default:
-        throw UnsupportedError("edit provider unsuported.");
     }
   }
 

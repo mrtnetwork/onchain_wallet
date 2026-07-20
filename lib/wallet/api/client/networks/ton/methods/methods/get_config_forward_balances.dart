@@ -35,7 +35,7 @@ class TonRquestGetMsgForwardPricesConfig
   MsgForwardPricesResponse onResonse(json) {
     if (api.isTonCenter) {
       final result = (_request as TonCenterGetConfigParam).onResonse(json);
-      final slice = TonHelper.toCell(result["config"]?["bytes"]).beginParse();
+      final slice = TonHelper.toCell(result.bytes).beginParse();
       final config = BlockchainConfig24.derserialize(slice);
       return config.msgForwardPrices;
     }
@@ -74,7 +74,7 @@ class TonRquestGetMsgForwardGasLimitPrice
   GasLimitPricesResponse onResonse(json) {
     if (api.isTonCenter) {
       final result = (_request as TonCenterGetConfigParam).onResonse(json);
-      final slice = TonHelper.toCell(result["config"]?["bytes"]).beginParse();
+      final slice = TonHelper.toCell(result.bytes).beginParse();
       final config = BlockchainConfig21.deserialize(slice);
       return config.gasLimitsPrices;
     }
@@ -112,7 +112,7 @@ class TonRquestGetMsgForwardStoragePrices
   List<BlockchainConfig18StoragePricesItem> onResonse(json) {
     if (api.isTonCenter) {
       final result = (_request as TonCenterGetConfigParam).onResonse(json);
-      final slice = TonHelper.toCell(result["config"]?["bytes"]).beginParse();
+      final slice = TonHelper.toCell(result.bytes).beginParse();
       final config = BlockchainConfig18.deserialize(slice);
       return config.storagePrices;
     }

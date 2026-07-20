@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/widgets/pick_token.dart';
@@ -9,7 +9,7 @@ import 'package:on_chain_wallet/future/wallet/network/cosmos/web3/types/fee.dart
 import 'package:on_chain_wallet/future/wallet/transaction/pages/live_form_widget.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/web3_request_page_builder.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/cw20.dart';
 
 class Web3CosmosSignOrSendTransactionsStateView extends StatelessWidget {
   final WebCosmosSignTransactionStateController controller;
@@ -34,42 +34,23 @@ class Web3CosmosSignOrSendTransactionsStateView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("message_bytes".tr,
-                          style: context.onPrimaryTextTheme.titleMedium),
+                      WidgetConstant.height20,
+                      Text("content".tr, style: context.onPrimaryTextTheme.titleMedium),
                       WidgetConstant.height8,
                       ContainerWithBorder(
-                        backgroundColor: context.onPrimaryContainer,
-                        child: CopyableTextWidget(
-                          text: msg.value,
-                          color: context.primaryContainer,
-                          widget: SelectableText(msg.value,
+                          onRemove: () {
+                            context.openDialogPage(
+                              "message_content".tr,
+                              child: (context) => APPTextView(
+                                  text: msg.value, title: "message_content".tr),
+                            );
+                          },
+                          onRemoveIcon: Icon(Icons.code, color: context.primaryContainer),
+                          backgroundColor: context.onPrimaryContainer,
+                          child: SelectableText(msg.value,
                               style: context.primaryTextTheme.bodyMedium,
                               maxLines: 3,
-                              minLines: 1),
-                        ),
-                      ),
-                      if (msg.content != null) ...[
-                        WidgetConstant.height20,
-                        Text("content".tr,
-                            style: context.onPrimaryTextTheme.titleMedium),
-                        WidgetConstant.height8,
-                        ContainerWithBorder(
-                            onRemove: () {
-                              context.openDialogPage(
-                                "message_content".tr,
-                                child: (context) => APPTextView(
-                                    text: msg.content!,
-                                    title: "message_content".tr),
-                              );
-                            },
-                            onRemoveIcon: Icon(Icons.code,
-                                color: context.primaryContainer),
-                            backgroundColor: context.onPrimaryContainer,
-                            child: SelectableText(msg.content!,
-                                style: context.primaryTextTheme.bodyMedium,
-                                maxLines: 3,
-                                minLines: 1)),
-                      ],
+                              minLines: 1)),
                     ],
                   ),
                 )
@@ -84,65 +65,56 @@ class Web3CosmosSignOrSendTransactionsStateView extends StatelessWidget {
             final fee = controller.fee;
             return ConditionalWidget(
                 enable: fee.allowSimulate,
-                onActive: (context) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          WidgetConstant.height20,
-                          Text("simulate_transaction".tr,
-                              style: context.textTheme.titleMedium),
-                          WidgetConstant.height8,
-                          Shimmer(
-                              onActive: (enable, context) {
-                                return APPAnimated(
-                                  isActive: true,
-                                  onActive: (context) => ConditionalWidget(
-                                      key: ValueKey(fee.simulateStatus),
-                                      enable: fee.simulateStatus.isSuccess,
-                                      onActive: (context) {
-                                        return _SimulateView(
-                                            fee.simulate!.simulate!);
-                                      },
-                                      onDeactive: (context) =>
-                                          ContainerWithBorder(
-                                            errorIcon: Icons.refresh,
-                                            validate:
-                                                fee.simulateStatus.isSuccess,
-                                            validateText:
-                                                fee.simulate?.simulateError,
-                                            onTapError: () {
-                                              controller.simulateTransaction();
-                                            },
-                                            child: APPAnimatedSwitcher<
-                                                CosmosWeb3TransactionFeeStatus>(
-                                              enable: fee.simulateStatus,
-                                              widgets: {
-                                                CosmosWeb3TransactionFeeStatus
-                                                        .pending:
-                                                    (context) => FullWidthWrapper(
-                                                        child: Text(
-                                                            "transaction_simulate_please_wait"
-                                                                .tr,
-                                                            style: context
-                                                                .onPrimaryTextTheme
-                                                                .bodyMedium)),
-                                                CosmosWeb3TransactionFeeStatus
-                                                        .failed:
-                                                    (context) =>
-                                                        FullWidthWrapper(
-                                                          child: Text(
-                                                              "transaction_simulation_failed"
-                                                                  .tr,
-                                                              style: context
-                                                                  .onPrimaryTextTheme
-                                                                  .bodyMedium),
-                                                        ),
-                                              },
-                                            ),
-                                          )),
-                                );
-                              },
-                              enable: !fee.simulateStatus.isProgress)
-                        ]));
+                onActive: (context) =>
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      WidgetConstant.height20,
+                      Text("simulate_transaction".tr,
+                          style: context.textTheme.titleMedium),
+                      WidgetConstant.height8,
+                      Shimmer(
+                          onActive: (enable, context) {
+                            return APPAnimated(
+                              isActive: true,
+                              onActive: (context) => ConditionalWidget(
+                                  key: ValueKey(fee.simulateStatus),
+                                  enable: fee.simulateStatus.isSuccess,
+                                  onActive: (context) {
+                                    return _SimulateView(fee.simulate!.simulate!);
+                                  },
+                                  onDeactive: (context) => ContainerWithBorder(
+                                        errorIcon: Icons.refresh,
+                                        validate: fee.simulateStatus.isSuccess,
+                                        validateText: fee.simulate?.simulateError,
+                                        onTapError: () {
+                                          controller.simulateTransaction();
+                                        },
+                                        child: APPAnimatedSwitcher<
+                                            CosmosWeb3TransactionFeeStatus>(
+                                          enable: fee.simulateStatus,
+                                          widgets: {
+                                            CosmosWeb3TransactionFeeStatus.pending:
+                                                (context) => FullWidthWrapper(
+                                                    child: Text(
+                                                        "transaction_simulate_please_wait"
+                                                            .tr,
+                                                        style: context.onPrimaryTextTheme
+                                                            .bodyMedium)),
+                                            CosmosWeb3TransactionFeeStatus.failed:
+                                                (context) => FullWidthWrapper(
+                                                      child: Text(
+                                                          "transaction_simulation_failed"
+                                                              .tr,
+                                                          style: context
+                                                              .onPrimaryTextTheme
+                                                              .bodyMedium),
+                                                    ),
+                                          },
+                                        ),
+                                      )),
+                            );
+                          },
+                          enable: !fee.simulateStatus.isProgress)
+                    ]));
           }),
       WidgetConstant.height20,
       LiveFormWidgetMemo(
@@ -151,8 +123,7 @@ class Web3CosmosSignOrSendTransactionsStateView extends StatelessWidget {
           onRemoveMemo: controller.onRemoveMemo),
       WidgetConstant.height20,
       _FeeView(form: controller),
-      Web3StateAcceptRequestView(
-          controller: controller, title: "sign_transaction".tr),
+      Web3StateAcceptRequestView(controller: controller, title: "sign_transaction".tr),
     ]);
   }
 }
@@ -178,13 +149,11 @@ class _FeeView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   WidgetConstant.height20,
-                  Text("gas_limit".tr,
-                      style: context.onPrimaryTextTheme.titleMedium),
+                  Text("gas_limit".tr, style: context.onPrimaryTextTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
                     backgroundColor: context.onPrimaryContainer,
-                    onRemoveIcon:
-                        Icon(Icons.edit, color: context.primaryContainer),
+                    onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                     onRemove: () {
                       context
                           .openSliverBottomSheet<BigRational>(
@@ -205,8 +174,7 @@ class _FeeView extends StatelessWidget {
                         style: context.primaryTextTheme.bodyMedium),
                   ),
                   WidgetConstant.height20,
-                  Text("fee_tokens".tr,
-                      style: context.onPrimaryTextTheme.titleMedium),
+                  Text("fee_tokens".tr, style: context.onPrimaryTextTheme.titleMedium),
                   WidgetConstant.height8,
                   ListView.separated(
                       physics: WidgetConstant.noScrollPhysics,
@@ -234,35 +202,32 @@ class _FeeView extends StatelessWidget {
                             ContainerWithBorder(
                                 backgroundColor: context.primaryContainer,
                                 validate: fee.hasAmount,
-                                onRemoveIcon: Icon(Icons.edit,
-                                    color: context.onPrimaryContainer),
+                                onRemoveIcon:
+                                    Icon(Icons.edit, color: context.onPrimaryContainer),
                                 onRemove: () {
                                   context
                                       .setupAmount(
                                           title: "fee_amount".tr,
                                           token: fee.token.token,
                                           max: fee.token.balance.balance)
-                                      .then((v) =>
-                                          feeInfo.onUpdateFeeAmount(fee, v));
+                                      .then((v) => feeInfo.onUpdateFeeAmount(fee, v));
                                 },
                                 child: CoinAndMarketPriceView(
                                     balance: fee.feeAmount,
-                                    style:
-                                        context.onPrimaryTextTheme.titleMedium,
+                                    style: context.onPrimaryTextTheme.titleMedium,
                                     symbolColor: context.onPrimaryContainer)),
                           ]),
                         );
                       },
-                      separatorBuilder: (context, index) =>
-                          WidgetConstant.divider,
+                      separatorBuilder: (context, index) => WidgetConstant.divider,
                       itemCount: feeInfo.fees.length),
                   APPAnimated(
                       isActive: feeInfo.allowAddFee,
                       onDeactive: (context) => WidgetConstant.sizedBox,
                       onActive: (context) => ContainerWithBorder(
                             backgroundColor: context.onPrimaryContainer,
-                            onRemoveIcon: Icon(Icons.add_box,
-                                color: context.primaryContainer),
+                            onRemoveIcon:
+                                Icon(Icons.add_box, color: context.primaryContainer),
                             child: Text("tap_to_add_new_fee_token".tr,
                                 style: context.primaryTextTheme.bodyMedium),
                             onRemove: () {
@@ -270,10 +235,8 @@ class _FeeView extends StatelessWidget {
                                   .openMaxExtendSliverBottomSheet<CW20Token>(
                                     "fee_token".tr,
                                     centerContent: false,
-                                    bodyBuilder: (sc) =>
-                                        CosmosTransactionPickTokenView(
-                                            tokens: feeInfo.feeTokens,
-                                            controller: sc),
+                                    bodyBuilder: (sc) => CosmosTransactionPickTokenView(
+                                        tokens: feeInfo.feeTokens, controller: sc),
                                   )
                                   .then(feeInfo.onAddFeeToken);
                             },
@@ -304,8 +267,7 @@ class _SimulateView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("gas_limit".tr,
-                    style: context.primaryTextTheme.titleMedium),
+                Text("gas_limit".tr, style: context.primaryTextTheme.titleMedium),
                 WidgetConstant.height8,
                 ContainerWithBorder(
                   child: Text(simulate.gasUsed.toString(),
@@ -330,8 +292,7 @@ class _SimulateView extends StatelessWidget {
                 ],
                 if (simulate.events.isNotEmpty) ...[
                   WidgetConstant.height20,
-                  Text("events".tr,
-                      style: context.primaryTextTheme.titleMedium),
+                  Text("events".tr, style: context.primaryTextTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
                     onRemoveIcon: Icon(
@@ -464,8 +425,7 @@ class _MessageResponseView extends StatelessWidget {
                   ),
                 ),
                 WidgetConstant.height20,
-                Text("message_bytes".tr,
-                    style: context.onPrimaryTextTheme.titleMedium),
+                Text("content".tr, style: context.onPrimaryTextTheme.titleMedium),
                 WidgetConstant.height8,
                 ContainerWithBorder(
                   backgroundColor: context.onPrimaryContainer,
@@ -480,25 +440,6 @@ class _MessageResponseView extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (message.content != null) ...[
-                  WidgetConstant.height20,
-                  Text("content".tr,
-                      style: context.onPrimaryTextTheme.titleMedium),
-                  WidgetConstant.height8,
-                  ContainerWithBorder(
-                    backgroundColor: context.onPrimaryContainer,
-                    child: CopyableTextWidget(
-                      text: message.content!,
-                      color: context.primaryContainer,
-                      widget: SelectableText(
-                        message.content!,
-                        style: context.primaryTextTheme.bodyMedium,
-                        minLines: 1,
-                        maxLines: 5,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           );

@@ -14,16 +14,14 @@ class SubstrateQuickAccessView extends StatelessWidget {
   final SubstrateChain account;
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<SubstrateClient, ISubstrateAddress,
+    return NetworkAccountControllerView<SubstrateNetworkClient, ISubstrateAddress,
         SubstrateChain>(
       addressRequired: true,
       account: account,
       clientRequired: true,
-      childBulder: (wallet, account, client, address, onAccountChanged) {
+      childBulder: (wallet, account, client, address) {
         return _QuickAccessView(
-            scrollController: scrollController,
-            account: account,
-            client: client);
+            scrollController: scrollController, account: account, client: client);
       },
     );
   }
@@ -34,7 +32,7 @@ class _QuickAccessView extends StatefulWidget {
       {this.scrollController, required this.account, required this.client});
   final ScrollController? scrollController;
   final SubstrateChain account;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
 
   @override
   State<_QuickAccessView> createState() => __QuickAccessViewState();
@@ -44,12 +42,11 @@ class __QuickAccessViewState extends SubstrateAccountState<_QuickAccessView> {
   @override
   SubstrateChain get account => widget.account;
   @override
-  SubstrateClient get client => widget.client;
+  SubstrateNetworkClient get client => widget.client;
 
   SubstrateChainMetadata get api => client.metadata;
   StorageInfo? accountInfoKey;
-  late final Future<SubstrateBlockWithEra> finalizeBlock =
-      client.finalizeBlockWithEra();
+  late final Future<SubstrateBlockWithEra> finalizeBlock = client.finalizeBlockWithEra();
 
   @override
   void onInitOnce() {
@@ -81,15 +78,13 @@ class __QuickAccessViewState extends SubstrateAccountState<_QuickAccessView> {
                                       widget: AppListTile(
                                           subtitle: Text(result.block),
                                           title: Text("finaliz_block".tr,
-                                              style: context
-                                                  .textTheme.titleMedium))),
+                                              style: context.textTheme.titleMedium))),
                                   CopyableTextWidget(
                                       text: result.era.toString(),
                                       widget: AppListTile(
                                           subtitle: Text(result.era.toString()),
                                           title: Text("quick_era".tr,
-                                              style: context
-                                                  .textTheme.titleMedium)))
+                                              style: context.textTheme.titleMedium)))
                                 ],
                               );
                             },
@@ -103,8 +98,7 @@ class __QuickAccessViewState extends SubstrateAccountState<_QuickAccessView> {
                             onProgress: (context) {
                               return AppListTile(
                                   title: Text("finaliz_block_era".tr),
-                                  trailing:
-                                      const APPCircularProgressIndicator());
+                                  trailing: const APPCircularProgressIndicator());
                             },
                             future: finalizeBlock),
                         CopyableTextWidget(

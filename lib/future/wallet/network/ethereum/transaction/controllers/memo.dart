@@ -6,10 +6,7 @@ import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types
 mixin EthereumTransactionMemoController<T extends IEthereumTransactionData>
     on BaseEthereumTransactionController<T> {
   final LiveFormField<String?, String> memo = LiveFormField(
-      title: "setup_memo".tr,
-      subtitle: "memo_desc2".tr,
-      value: null,
-      optional: true);
+      title: "setup_memo".tr, subtitle: "memo_desc2".tr, value: null, optional: true);
   List<int>? memoBytes() {
     final memo = this.memo.value;
     if (memo == null) return null;
@@ -24,11 +21,5 @@ mixin EthereumTransactionMemoController<T extends IEthereumTransactionData>
 
   void onRemoveMemo() {
     memo.setValue(null);
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    memo.dispose();
   }
 }

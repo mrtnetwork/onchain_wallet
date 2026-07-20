@@ -1,8 +1,8 @@
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 
 typedef HASPERMISSION<ACCOUNT> = bool Function(ACCOUNT);
@@ -11,8 +11,8 @@ typedef ADDPERMISSIONACCOUNT<ACCOUNT> = void Function(ACCOUNT);
 typedef ONCHANGEDEFAULTACCOUNT<ACCOUNT> = void Function(ACCOUNT);
 
 class UpdateChainPermissionWidget<
-    NETWORKADDRESS,
-    ADDRESS extends NETWORKCHAINACCOUNT<NETWORKADDRESS>,
+    NETWORKADDRESS extends IAddress,
+    ADDRESS extends ACCOUNTADDRESS<NETWORKADDRESS>,
     CHAIN extends APPCHAINACCOUNT<ADDRESS>> extends StatefulWidget {
   const UpdateChainPermissionWidget(
       {required this.chain,
@@ -47,8 +47,8 @@ class UpdateChainPermissionWidget<
 }
 
 class _UpdateChainPermissionWidget2State<
-        NETWORKADDRESS,
-        ADDRESS extends NETWORKCHAINACCOUNT<NETWORKADDRESS>,
+        NETWORKADDRESS extends IAddress,
+        ADDRESS extends ACCOUNTADDRESS<NETWORKADDRESS>,
         CHAIN extends APPCHAINACCOUNT<ADDRESS>>
     extends State<UpdateChainPermissionWidget<NETWORKADDRESS, ADDRESS, CHAIN>>
     with
@@ -70,7 +70,7 @@ class _UpdateChainPermissionWidget2State<
     super.didChangeDependencies();
     if (widget.chain != chain) {
       page = pages.elementAtOrNull(0)?.name;
-      MethodUtils.after(
+      MethodUtils.executeAfterDelay(
           () async => DefaultTabController.of(context).animateTo(0));
     }
   }
@@ -84,8 +84,7 @@ class _UpdateChainPermissionWidget2State<
       "histories".tr
     ];
     assert(allPages.toSet().length == allPages.length, "duplicate page name");
-    pages =
-        allPages.indexed.map((e) => _ChainPermissionPages(e.$2, e.$1)).toList();
+    pages = allPages.indexed.map((e) => _ChainPermissionPages(e.$2, e.$1)).toList();
   }
 
   @override
@@ -111,13 +110,11 @@ class _UpdateChainPermissionWidget2State<
           floating: true,
           snap: true,
           bottom: TabBar(
-              onTap: onChangeTab,
-              tabs: pages.map((e) => Tab(text: e.name)).toList())),
+              onTap: onChangeTab, tabs: pages.map((e) => Tab(text: e.name)).toList())),
       SliverConstraintsBoxView(
           sliver: APPSliverAnimatedSwitcher<String>(enable: page, widgets: {
         "Accounts": (context) {
-          return SelectWeb3PermissionAccountView<NETWORKADDRESS, ADDRESS,
-                  CHAIN>(
+          return SelectWeb3PermissionAccountView<NETWORKADDRESS, ADDRESS, CHAIN>(
               isDefaultAddress: widget.isDefaultAddress,
               chain: widget.chain,
               addresses: widget.addresses,
@@ -125,7 +122,10 @@ class _UpdateChainPermissionWidget2State<
               addAccount: widget.addAccount,
               onChangeDefaultAccount: widget.onChangeDefaultAccount,
               addressWidget: (p0, p1) => AddressDetailsView(
-                  address: p1, color: context.onPrimaryContainer));
+                    address: p1,
+                    color: context.onPrimaryContainer,
+                    chain: widget.chain,
+                  ));
         },
         "Histories": (context) {
           return _Web3ActivitiesView(widget.activities);
@@ -150,14 +150,12 @@ class _Web3ActivitiesView extends StatelessWidget {
             return SliverToBoxAdapter();
           },
           onDeactive: (context) => SliverToBoxAdapter(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Padding(padding: WidgetConstant.paddingVertical40),
-                      Icon(Icons.hourglass_empty, size: APPConst.double40),
-                      WidgetConstant.height8,
-                      Text("no_web3_activities".tr)
-                    ]),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                  Padding(padding: WidgetConstant.paddingVertical40),
+                  Icon(Icons.hourglass_empty, size: APPConst.double40),
+                  WidgetConstant.height8,
+                  Text("no_web3_activities".tr)
+                ]),
               ),
           enable: activities.isNotEmpty),
       SliverList.separated(
@@ -165,8 +163,7 @@ class _Web3ActivitiesView extends StatelessWidget {
         itemBuilder: (context, index) {
           final activity = activities[index];
           return ContainerWithBorder(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(activity.activity.method.camelCase),
               Text(activity.activity.date.toDateAndTime(),
                   style: context.onPrimaryTextTheme.bodySmall),
@@ -177,8 +174,7 @@ class _Web3ActivitiesView extends StatelessWidget {
                       text: activity.address!.view,
                       color: context.primaryContainer,
                       widget: ReceiptAddressDetailsView(
-                          address: activity.address!,
-                          color: context.primaryContainer)),
+                          address: activity.address!, color: context.primaryContainer)),
                 ),
               if (activity.url != null)
                 ContainerWithBorder(
@@ -186,8 +182,7 @@ class _Web3ActivitiesView extends StatelessWidget {
                   onRemove: () {},
                   onRemoveIcon: LaunchBrowserIcon(
                       url: activity.url, color: context.primaryContainer),
-                  child: OneLineTextWidget(
-                      activity.activity.path ?? activity.url!,
+                  child: OneLineTextWidget(activity.activity.path ?? activity.url!,
                       style: context.primaryTextTheme.bodyMedium),
                 )
             ]),
@@ -205,12 +200,11 @@ class _ChainPermissionPages {
   const _ChainPermissionPages(this.name, this.index);
 }
 
-typedef WEB3PERMISSIONADDRESSWIDGET<ADDRESS> = Widget Function(
-    BuildContext, ADDRESS);
+typedef WEB3PERMISSIONADDRESSWIDGET<ADDRESS> = Widget Function(BuildContext, ADDRESS);
 
 class SelectWeb3PermissionAccountView<
-    NETWORKADDRESS,
-    ADDRESS extends NETWORKCHAINACCOUNT<NETWORKADDRESS>,
+    NETWORKADDRESS extends IAddress,
+    ADDRESS extends ACCOUNTADDRESS<NETWORKADDRESS>,
     CHAIN extends APPCHAINACCOUNT<ADDRESS>> extends StatelessWidget {
   final HASPERMISSION<ADDRESS>? isDefaultAddress;
   final CHAIN chain;
@@ -251,8 +245,7 @@ class SelectWeb3PermissionAccountView<
                     ),
                   ),
                   ConditionalWidget(
-                      enable: onChangeDefaultAccount != null &&
-                          isDefaultAddress != null,
+                      enable: onChangeDefaultAccount != null && isDefaultAddress != null,
                       onActive: (context) => APPAnimatedSize(
                           isActive: hasPermission,
                           onActive: (context) => IconButton(
@@ -263,8 +256,7 @@ class SelectWeb3PermissionAccountView<
                                   groupValue: true,
                                   onChanged: (e) {},
                                   child: Radio<bool>(
-                                      toggleable: true,
-                                      value: isDefaultAddress!(addr)),
+                                      toggleable: true, value: isDefaultAddress!(addr)),
                                 ),
                               )),
                           onDeactive: (context) => WidgetConstant.sizedBox))

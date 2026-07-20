@@ -2,10 +2,8 @@ import 'dart:async';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/ada/ada.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/utils/list/extension.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/web3/web3.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
@@ -16,11 +14,12 @@ import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart
 import 'package:on_chain_wallet/wallet/models/signing/signing.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/ada.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/cardano/cardano.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/web3/networks/cardano/cardano.dart';
 
 class WebCardanoSignTransactionStateController
-    extends Web3CardanoTransactionStateController<
-        Web3ADASignTransactionsResponse, Web3ADASignTransaction> {
+    extends Web3CardanoTransactionStateController<Web3ADASignTransactionsResponse,
+        Web3ADASignTransaction> {
   @override
   bool get showRequestAccount => false;
   IWeb3ADATransactionData? _transactionData;
@@ -33,8 +32,7 @@ class WebCardanoSignTransactionStateController
     return IWeb3ADATransaction(
         account: defaultAccount,
         transactionData: transactionData,
-        transactions:
-            transactionData.transactions.map((e) => e.transaction).toList());
+        transactions: transactionData.transactions.map((e) => e.transaction).toList());
   }
 
   Set<NativeScript> buildNativeScripts({required List<ADAAddress> addresses}) {
@@ -46,13 +44,12 @@ class WebCardanoSignTransactionStateController
       bool isRewardOfBaseAddress = address.rewardAddress == i;
       if (!address.multiSigAccount) continue;
       final mAccount = address as ICardanoMultiSigAddress;
-      final BaseCardanoMultiSignatureCredential? cred =
-          switch (isRewardOfBaseAddress) {
+      final BaseCardanoMultiSignatureCredential? cred = switch (isRewardOfBaseAddress) {
         true => mAccount.addressInfo.stakeCredential,
         false => mAccount.addressInfo.credential
       };
       if (cred == null) {
-        throw WalletExceptionConst.invalidAccountDeta("buildNativeScripts");
+        throw WalletExceptionConst.invalidAccountData("buildNativeScripts");
       }
       if (cred.type == CardanoCredentialType.script) {
         final script = cred as CardanoMultiSignatureScript;
@@ -85,21 +82,16 @@ class WebCardanoSignTransactionStateController
                 address: account,
                 signMode: Web3ADATransactionSigningMode.payment,
                 signer: ReceiptAddress(
-                    view: address.address,
-                    networkAddress: address,
-                    account: account));
+                    view: address.address, networkAddress: address, account: account));
           }
         }
       } else {
-        if (!account.isRewardAddress &&
-            address.paymentCredential == credential) {
+        if (!account.isRewardAddress && address.paymentCredential == credential) {
           return Web3ADATransactionSigner(
               address: account,
               signMode: Web3ADATransactionSigningMode.payment,
               signer: ReceiptAddress(
-                  view: address.address,
-                  networkAddress: address,
-                  account: account));
+                  view: address.address, networkAddress: address, account: account));
         }
       }
     }
@@ -166,8 +158,7 @@ class WebCardanoSignTransactionStateController
           }
         }
       } else {
-        if (!account.isRewardAddress &&
-            account.addressInfo.policyId == policyId) {
+        if (!account.isRewardAddress && account.addressInfo.policyId == policyId) {
           return Web3ADATransactionSigner(
               address: account,
               signMode: Web3ADATransactionSigningMode.payment,
@@ -181,8 +172,7 @@ class WebCardanoSignTransactionStateController
     return null;
   }
 
-  List<Web3ADATransactionSigner?> findCertificateSigners(
-      Certificate certificate) {
+  List<Web3ADATransactionSigner?> findCertificateSigners(Certificate certificate) {
     List<Web3ADATransactionSigner?> signers = [];
     final credential = certificate.signersCredential;
     for (final i in credential) {
@@ -202,7 +192,6 @@ class WebCardanoSignTransactionStateController
       ...prevUtxos
     ];
     final txInputs = transaction.body.inputs?.inputs ?? [];
-    final txOutputs = transaction.body.outputs?.outputs ?? [];
     final collateral = transaction.body.collateral?.inputs ?? [];
     final reference = transaction.body.referenceInputs?.inputs ?? [];
     final returnCollateral = transaction.body.collateralReturn;
@@ -213,11 +202,12 @@ class WebCardanoSignTransactionStateController
         .map((e) => findSignerFromCredential(CredentialKey(e.data)))
         .toList()
         .emptyAsNull;
-    List<Web3ADAOutputDetails> outputs = [
-      ...txOutputs,
+    final txOutputs = [
+      ...transaction.body.outputs?.outputs ?? [],
       if (returnCollateral != null) returnCollateral
-    ]
-        .indexed
+    ];
+
+    List<Web3ADAOutputDetails> outputs = txOutputs.indexed
         .map(
           (e) => Web3ADAOutputDetails(
               outputType: Web3ADAOutputType.output,
@@ -225,20 +215,19 @@ class WebCardanoSignTransactionStateController
               scriptRef: e.$2.scriptRef?.toJson(),
               output: e.$2,
               index: e.$1,
-              address:
-                  getOrCreateAddressInfo(e.$2.address, e.$2.address.address),
+              address: getOrCreateAddressInfo(e.$2.address),
               lovelace: IntegerBalance.token(e.$2.amount.coin, network.token),
               assets: extractMultiAssetAssets(e.$2.amount.multiAsset),
-              account: accounts
-                  .firstWhereNullable((i) => i.networkAddress == e.$2.address)),
+              account:
+                  accounts.firstWhereNullable((i) => i.networkAddress == e.$2.address)),
         )
         .toList();
-    final metadata = transaction.data?.metadata?.metadata.map((k, v) =>
-        MapEntry(
-            k,
-            v.toJsonSchema(
-                config: const MetadataSchemaConfig(
-                    jsonSchema: MetadataJsonSchema.basicConversions))));
+
+    final metadata = transaction.data?.metadata?.metadata.map((k, v) => MapEntry(
+        k,
+        v.toJsonSchema(
+            config: const MetadataSchemaConfig(
+                jsonSchema: MetadataJsonSchema.basicConversions))));
     final nativeScripts =
         transaction.data?.nativeScripts?.map((e) => e.toJson()).toList();
     final plutusScripts =
@@ -246,8 +235,7 @@ class WebCardanoSignTransactionStateController
     final certificates = transaction.body.certificates?.certificates
         .map((e) {
           final requiredSigners = findCertificateSigners(e);
-          final signers =
-              requiredSigners.whereType<Web3ADATransactionSigner>().toList();
+          final signers = requiredSigners.whereType<Web3ADATransactionSigner>().toList();
           return Web3ADACeriticateDatails(
               type: e.type,
               content: e.toJson(),
@@ -287,12 +275,11 @@ class WebCardanoSignTransactionStateController
           inputs: inputs,
           address: v.key,
           totalLovelace: IntegerBalance.token(
-              v.value.fold<BigInt>(
-                  BigInt.zero, (p, c) => p + c.utxo!.utxoBalance.balance),
+              v.value
+                  .fold<BigInt>(BigInt.zero, (p, c) => p + c.utxo!.utxoBalance.balance),
               network.token),
           totalAssets: assets.entries
-              .map((e) =>
-                  Web3ADAAssetInputDetails(amount: e.value, token: e.key))
+              .map((e) => Web3ADAAssetInputDetails(amount: e.value, token: e.key))
               .toList());
     }).toList();
 
@@ -303,15 +290,13 @@ class WebCardanoSignTransactionStateController
             policyId: e.policyID.toHex()))
         .toList()
         .emptyAsNull;
-
-    List<Web3ADAWithdrawalDetails>? withdrawalsInfos = withdrawals
-        ?.withdrawals.entries
+    final withdrawalsEntries = withdrawals?.withdrawals.entries ?? [];
+    List<Web3ADAWithdrawalDetails> withdrawalsInfos = withdrawalsEntries
         .map((e) => Web3ADAWithdrawalDetails(
             amount: IntegerBalance.token(e.value, network.token),
             signer: findSignerRewardAddress(e.key),
-            address: getOrCreateAddressInfo(e.key, e.key.address)))
-        .toList()
-        .emptyAsNull;
+            address: getOrCreateAddressInfo(e.key)))
+        .toList();
     final List<Web3ADAVoteDetails>? votesInfo = votes?.votes.entries
         .map((e) => Web3ADAVoteDetails(
             type: e.key.type,
@@ -335,7 +320,7 @@ class WebCardanoSignTransactionStateController
         plutusScripts: plutusScripts,
         totalAccountsInputs: totalAccountsInputs,
         transaction: transaction,
-        withdrawals: withdrawalsInfos,
+        withdrawals: withdrawalsInfos.nullOnEmoty,
         content: transaction.toJson(),
         votes: votesInfo,
         partialSign: partialSign,
@@ -344,8 +329,7 @@ class WebCardanoSignTransactionStateController
   }
 
   @override
-  Future<IWeb3ADATransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IWeb3ADATransactionData> buildTransactionData({bool simulate = false}) async {
     return _transactionData ??= await () async {
       List<CardanoAccountUtxo> prevUtxos = [];
       List<Web3ADATransactionData> txsData = [];
@@ -353,14 +337,12 @@ class WebCardanoSignTransactionStateController
       for (final i in params.transactions) {
         final txId = i.transaction.body.toHash().data;
         final txData = await parseTx(
-            transaction: i.transaction,
-            partialSign: i.partialSign,
-            prevUtxos: prevUtxos);
+            transaction: i.transaction, partialSign: i.partialSign, prevUtxos: prevUtxos);
         final relatedOutputs = txData.outputs
             .map((e) => e.utxo(txId: txId, network: network))
             .whereType<CardanoAccountUtxo>();
-        prevUtxos.removeWhere(
-            (p) => relatedOutputs.any((e) => e.utxo.input == p.utxo.input));
+        prevUtxos
+            .removeWhere((p) => relatedOutputs.any((e) => e.utxo.input == p.utxo.input));
         prevUtxos.addAll(relatedOutputs);
         txsData.add(txData);
       }
@@ -372,8 +354,7 @@ class WebCardanoSignTransactionStateController
   Future<List<IWalletTransaction<ADAWalletTransaction, ICardanoAddress>>>
       buildWalletTransaction(
           {required IWeb3ADASignedTransaction signedTx,
-          required SubmitTransactionSuccess<IWeb3ADASignedTransaction>?
-              txId}) async {
+          required SubmitTransactionSuccess<IWeb3ADASignedTransaction>? txId}) async {
     final tx = signedTx.transaction.transactionData.transactions
         .firstWhereOrNull((e) => e.txId == txId?.txId);
 
@@ -386,6 +367,7 @@ class WebCardanoSignTransactionStateController
       final adaTx = ADAWalletTransaction(
           txId: tx.txId,
           web3Client: web3ClientInfo(),
+          type: WalletTransactionType.web3,
           totalOutput: WalletTransactionIntegerAmount(
               amount: i.totalLovelace.balance, network: network),
           network: network);
@@ -397,27 +379,26 @@ class WebCardanoSignTransactionStateController
   Future<SubmitTransactionResult> submitTransactionInternal(
       {required IWeb3ADASignedTransaction signedTransaction,
       required ADATransaction transaction}) async {
-    final txId = await MethodUtils.call(() async {
+    final txId = await IResult.call(() async {
       final ser = transaction.serialize();
       final txId = await client.broadcastTransaction(ser);
       return txId;
     });
 
-    if (txId.hasError) {
+    if (txId.isErr) {
       if (params.method != Web3ADARequestMethods.submitTxs) {
-        throw txId.exception!;
+        txId.unwrap();
       }
-      return SubmitTransactionFailed(txId.localizationError);
+      return SubmitTransactionFailed(txId.unwrapErr().localizationError);
     }
     return SubmitTransactionSuccess(
-        txId: txId.result, signedTransaction: signedTransaction);
+        txId: txId.unwrap(), signedTransaction: signedTransaction);
   }
 
   @override
   Future<
-          Web3RequestTransactionResponseData<Web3ADASignTransactionsResponse,
-              SubmitTransactionSuccess<IWeb3ADASignedTransaction>>>
-      getResponse() async {
+      Web3RequestTransactionResponseData<Web3ADASignTransactionsResponse,
+          SubmitTransactionSuccess<IWeb3ADASignedTransaction>>> getResponse() async {
     switch (params.method) {
       case Web3ADARequestMethods.submitTx:
       case Web3ADARequestMethods.submitTxs:
@@ -450,9 +431,7 @@ class WebCardanoSignTransactionStateController
               // txId: signTx.finalTransactionData.body.toHash().toHex(),
               witnesses: signTx.finalTransactionData
                   .map((e) => Web3ADASignTransactionResponse(
-                      txId: e.body.toHash().toHex(),
-                      witness: e.witnessSet,
-                      error: null))
+                      txId: e.body.toHash().toHex(), witness: e.witnessSet, error: null))
                   .toList()),
         );
     }
@@ -480,14 +459,13 @@ class WebCardanoSignTransactionStateController
           if (signer.multiSigAccount) {
             final mAccount = signer as ICardanoMultiSigAddress;
 
-            final BaseCardanoMultiSignatureCredential? cred =
-                switch (isRewardOfBaseAddress) {
+            final BaseCardanoMultiSignatureCredential? cred = switch (
+                isRewardOfBaseAddress) {
               true => mAccount.addressInfo.stakeCredential,
               false => mAccount.addressInfo.credential
             };
             if (cred == null) {
-              throw WalletExceptionConst.invalidAccountDeta(
-                  "_signTransactionInternal");
+              throw WalletExceptionConst.invalidAccountData("_signTransactionInternal");
             }
             final indexes = cred.keyIndexes;
             List<Vkeywitness> witnesses = [];
@@ -495,19 +473,17 @@ class WebCardanoSignTransactionStateController
               final signRequest =
                   GlobalSignRequest.cardano(digest: digest, index: i.cast());
               final sig = await generateSignature(signRequest);
-              final pubkey =
-                  AdaPublicKey.fromBytes(sig.signerPubKey.keyBytes());
+              final pubkey = AdaPublicKey.fromBytes(sig.signerPubKey.keyBytes());
               final ed25519Signature = Ed25519Signature(sig.signature);
               signatures.add(sig.signature);
               witnesses.add(Vkeywitness(
-                  vKey: pubkey.toVerificationKey(),
-                  signature: ed25519Signature));
+                  vKey: pubkey.toVerificationKey(), signature: ed25519Signature));
               if (witnesses.length >= cred.threshold) break;
             }
             return witnesses;
           }
           final keyIndex =
-              isRewardOfBaseAddress ? signer.rewardKeyIndex! : signer.keyIndex;
+              isRewardOfBaseAddress ? signer.rewardKeyIndex! : signer.derivationIndex;
           final signRequest =
               GlobalSignRequest.cardano(digest: digest, index: keyIndex.cast());
           final sig = await generateSignature(signRequest);
@@ -520,13 +496,11 @@ class WebCardanoSignTransactionStateController
                   vkey: Vkey(pubkey.toBytes(false)),
                   signature: ed25519Signature,
                   chainCode: sig.signerPubKey.chainCodeBytes()!,
-                  attributes:
-                      address.cast<ADAByronAddress>().attributeSerialize())
+                  attributes: address.cast<ADAByronAddress>().attributeSerialize())
             ];
           }
           return [
-            Vkeywitness(
-                vKey: pubkey.toVerificationKey(), signature: ed25519Signature)
+            Vkeywitness(vKey: pubkey.toVerificationKey(), signature: ed25519Signature)
           ];
         }
 
@@ -534,12 +508,10 @@ class WebCardanoSignTransactionStateController
         witnesses.addAll(wintess);
       }
       final vkeys = witnesses.whereType<Vkeywitness>().toSet().toList();
-      final bootstraps =
-          witnesses.whereType<BootstrapWitness>().toSet().toList();
+      final bootstraps = witnesses.whereType<BootstrapWitness>().toSet().toList();
       return TransactionWitnessSet(
           vKeys: vkeys.isEmpty ? null : VkeyWitnesses(vkeys),
-          bootstraps:
-              bootstraps.isEmpty ? null : BootstrapWitnesses(bootstraps));
+          bootstraps: bootstraps.isEmpty ? null : BootstrapWitnesses(bootstraps));
     }();
 
     final scripts = <NativeScript>{
@@ -556,8 +528,7 @@ class WebCardanoSignTransactionStateController
     };
     final newWitness = TransactionWitnessSet(
         nativeScripts: scripts.isEmpty ? null : NativeScripts(scripts.toList()),
-        bootstraps:
-            bootstraps.isEmpty ? null : BootstrapWitnesses(bootstraps.toList()),
+        bootstraps: bootstraps.isEmpty ? null : BootstrapWitnesses(bootstraps.toList()),
         vKeys: vkey.isEmpty ? null : VkeyWitnesses(vkey.toList()),
         plutusData: witnessSet.plutusData,
         plutusScriptsV1: witnessSet.plutusScriptsV1,
@@ -568,8 +539,7 @@ class WebCardanoSignTransactionStateController
   }
 
   @override
-  Future<IWeb3ADASignedTransaction> signTransaction(
-      IWeb3ADATransaction transaction,
+  Future<IWeb3ADASignedTransaction> signTransaction(IWeb3ADATransaction transaction,
       {bool fakeSignature = false}) async {
     switch (params.method) {
       case Web3ADARequestMethods.submitTx:
@@ -583,26 +553,27 @@ class WebCardanoSignTransactionStateController
     }
 
     final signedTransaction = await walletProvider.wallet.signTransaction(
-        request: WalletSigningRequest(
-            addresses: transaction.transactionData.transactions
-                .expand((e) => e.signers)
-                .map((e) => e.address)
-                .toSet()
-                .toList(),
-            network: network,
-            sign: (generateSignature) async {
-              List<ADATransaction> signedTransaction = [];
-              for (final i in transaction.transactionData.transactions) {
-                final signedTx = await _signTransactionInternal(
-                    transaction: i, generateSignature: generateSignature);
-                signedTransaction.add(signedTx);
-              }
-              return signedTransaction;
-            }));
+        params: WalletActionSign(
+            request: WalletSigningRequest(
+                addresses: transaction.transactionData.transactions
+                    .expand((e) => e.signers)
+                    .map((e) => e.address)
+                    .toSet()
+                    .toList(),
+                network: network,
+                sign: (generateSignature) async {
+                  List<ADATransaction> signedTransaction = [];
+                  for (final i in transaction.transactionData.transactions) {
+                    final signedTx = await _signTransactionInternal(
+                        transaction: i, generateSignature: generateSignature);
+                    signedTransaction.add(signedTx);
+                  }
+                  return signedTransaction;
+                })));
     return IWeb3ADASignedTransaction(
         transaction: transaction,
         signatures: [],
-        finalTransactionData: signedTransaction.result);
+        finalTransactionData: signedTransaction.unwrap());
   }
 
   @override
@@ -611,7 +582,7 @@ class WebCardanoSignTransactionStateController
   }
 
   @override
-  Future<void> initForm(ADAClient client) async {
+  Future<void> initForm(ADANetworkClient client) async {
     await super.initForm(client);
     _transactionData = await buildTransactionData();
     if (params.method == Web3ADARequestMethods.submitTx ||

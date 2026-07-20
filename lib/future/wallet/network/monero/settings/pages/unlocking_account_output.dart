@@ -11,8 +11,7 @@ class MoneroUnlockingAccountOutputView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       appbar: AppBar(title: Text("tranaction_received".tr)),
       subtitle: PageTitleSubtitle(
@@ -23,9 +22,9 @@ class MoneroUnlockingAccountOutputView extends StatelessWidget {
             ],
           )),
       onAccsess: (credential) {
-        return NetworkAccountControllerView<MoneroClient, IMoneroAddress,
+        return NetworkAccountControllerView<MoneroNetworkClient, IMoneroAddress,
                 MoneroChain>(
-            childBulder: (wallet, account, client, address, onAccountChanged) {
+            childBulder: (wallet, account, client, address) {
               return _MoneroUnlockingAccountOutputView(account);
             },
             addressRequired: true,
@@ -51,14 +50,12 @@ class __MoneroUnlockingAccountOutputViewState
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
 
   Future<void> unlockingPayment() async {
-    final result = await context.wallet.wallet
-        .moneroUpdatePendingTxes(account: widget.account);
-    if (result.hasError) {
-      controller.errorText(result.localizationError, backToIdle: false);
-    } else {
-      controller.successText('monero_successful_unlock_tx_desc'.tr,
-          backToIdle: false);
-    }
+    // final result = await widget.account.updatePendingTxes();
+    // if (result.isErr) {
+    //   controller.errorText(result.unwrapErr().localizationError, backToIdle: false);
+    // } else {
+    //   controller.successText('monero_successful_unlock_tx_desc'.tr, backToIdle: false);
+    // }
   }
 
   @override
@@ -77,8 +74,7 @@ class __MoneroUnlockingAccountOutputViewState
   Widget build(BuildContext context) {
     return StreamPageProgress(
       controller: controller,
-      initialWidget:
-          ProgressWithTextView(text: "unlocking_transaction_please_wait".tr),
+      initialWidget: ProgressWithTextView(text: "unlocking_transaction_please_wait".tr),
       builder: (context) {
         return WidgetConstant.sizedBox;
       },

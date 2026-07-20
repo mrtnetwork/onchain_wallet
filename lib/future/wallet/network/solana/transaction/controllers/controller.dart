@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/transaction/controllers/memo.dart';
@@ -10,17 +11,14 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 
 import 'provider.dart';
 
-abstract class SolanaTransactionStateController
-    extends BaseSolanaTransactionController
+abstract class SolanaTransactionStateController extends BaseSolanaTransactionController
     with
         SolanaTransactionApiController,
         SolanaTransactionFeeController,
         SolanaTransactionMemoController,
         SolanaTransactionSignerController {
   SolanaTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   void onFeeUpdated(void _) {
@@ -43,14 +41,13 @@ abstract class SolanaTransactionStateController
   }
 
   @override
-  Future<void> estimateFee(
-      {BigInt? accountBalance, BigInt? totalTxLamports}) async {
+  Future<void> estimateFee({BigInt? accountBalance, BigInt? totalTxLamports}) async {
     if (!fieldsReady) {
       setDefaultFee();
       return;
     }
     return super.estimateFee(
-        accountBalance: address.address.currencyBalance,
+        accountBalance: address.addressData.currencyBalance,
         totalTxLamports: totalTxLamports ?? BigInt.zero);
   }
 
@@ -61,9 +58,8 @@ abstract class SolanaTransactionStateController
 
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    final r = address.address.currencyBalance - txFee.fee.fee.balance;
-    return TransactionStateStatus.insufficient(
-        IntegerBalance.token(r, network.token),
+    final r = address.addressData.currencyBalance - txFee.fee.fee.balance;
+    return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token),
         warning: simulateError);
   }
 
@@ -75,18 +71,16 @@ abstract class SolanaTransactionStateController
         payerKey: address.networkAddress,
         instructions: [
           ...transactionData.instructions,
-          if (memo != null) MemoProgram(layout: MemoLayout(memo: memo)),
+          if (memo != null)
+            MemoProgram(layout: MemoLayout(memoBytes: StringUtils.toBytes(memo))),
         ],
         recentBlockhash: transactionData.blockHash);
     return ISolanaTransaction(
-        account: address,
-        transaction: transaction,
-        transactionData: transactionData);
+        account: address, transaction: transaction, transactionData: transactionData);
   }
 
   @override
-  Future<ISolanaSignedTransaction> signTransaction(
-      ISolanaTransaction transaction,
+  Future<ISolanaSignedTransaction> signTransaction(ISolanaTransaction transaction,
       {bool fakeSignature = false}) async {
     final solanaTransaction = transaction.transaction;
     final signersAddresses = solanaTransaction.message.accountKeys
@@ -94,8 +88,7 @@ abstract class SolanaTransactionStateController
         .map((e) => e.address)
         .toList();
     final signerAccounts = account.addresses
-        .where((element) =>
-            signersAddresses.contains(element.networkAddress.address))
+        .where((element) => signersAddresses.contains(element.networkAddress.address))
         .toList();
     final signature = await signTransactionInternal(
         transaction: solanaTransaction, signers: signerAccounts);
@@ -108,11 +101,9 @@ abstract class SolanaTransactionStateController
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required ISolanaSignedTransaction signedTransaction}) async {
-    final txId = await client.sendTransaction(
-        signedTransaction.finalTransactionData,
+    final txId = await client.sendTransaction(signedTransaction.finalTransactionData,
         encoding: SolanaRequestEncoding.base58);
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 
   @override
@@ -120,11 +111,11 @@ abstract class SolanaTransactionStateController
       buildWalletTransaction(
           {required ISolanaSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
+    final memo = signedTx.transaction.transactionData.getWalletTxMemo();
     final transaction = SolanaWalletTransaction(
         txId: txId.txId,
-        outputs: [
-          SolanaWalletTransactionOperationOutput(name: operation.value.tr)
-        ],
+        memos: [if (memo != null) memo],
+        outputs: [SolanaWalletTransactionOperationOutput(name: operation.value.tr)],
         network: network);
     return [IWalletTransaction(transaction: transaction, account: address)];
   }
@@ -135,9 +126,7 @@ abstract class SolanaTransactionTransferStateController2
   Token get transferToken;
 
   SolanaTransactionTransferStateController2(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   late final LiveFormFields<SolanaTransferDetails> recipients =
       LiveFormFields<SolanaTransferDetails>(
@@ -186,7 +175,6 @@ abstract class SolanaTransactionTransferStateController2
     for (final i in [...recipients.value]) {
       i.dispose();
     }
-    recipients.dispose();
   }
 
   @override

@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/widgets.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/animated/widgets/animated_size.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/paste_icon_widget.dart';
@@ -26,8 +26,9 @@ class _UTF8EncoderViewState extends State<UTF8EncoderView>
   late String text = "";
   void onChange(String v) {
     text = v;
-    final decode = MethodUtils.nullOnException(() =>
-        BytesUtils.tryToHexString(StringUtils.tryEncode(v), prefix: "0x"));
+    final decode = MethodUtils.fallbackOnException(
+        () => BytesUtils.tryToHexString(StringUtils.tryEncode(v), prefix: "0x"),
+        logOnDebug: false);
     if (decode != inHex) {
       inHex = decode;
       updateState();
@@ -67,8 +68,8 @@ class _UTF8EncoderViewState extends State<UTF8EncoderView>
         APPAnimatedSize(
             isActive: inHex != null,
             onActive: (context) => ContainerWithBorder(
-                  child: CopyableTextWidget(
-                      text: inHex!, color: context.onPrimaryContainer),
+                  child:
+                      CopyableTextWidget(text: inHex!, color: context.onPrimaryContainer),
                 ),
             onDeactive: (context) => WidgetConstant.sizedBox),
         Row(

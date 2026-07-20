@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/bip/bip/conf/bip44/bip44_coins.dart';
 import 'package:blockchain_utils/bip/ecc/bip_ecc.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain/sui/sui.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
 enum SuiSupportKeyScheme {
   ed25519(value: 0, name: "ED25519"),
@@ -15,8 +15,7 @@ enum SuiSupportKeyScheme {
   const SuiSupportKeyScheme({required this.value, required this.name});
   static SuiSupportKeyScheme fromValue(int? value) {
     return values.firstWhere((e) => e.value == value,
-        orElse: () =>
-            throw AppSerializationException(objectName: "SuiSupportKeyScheme"));
+        orElse: () => throw AppInternalError.internalError("SuiSupportKeyScheme"));
   }
 
   EllipticCurveTypes get curve {

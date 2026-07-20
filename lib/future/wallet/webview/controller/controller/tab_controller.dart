@@ -13,7 +13,7 @@ class WebViewTabController {
       required List<int> key,
       required WebViewTab tab})
       : viewTypeBytes = BytesUtils.fromHexString(viewId),
-        _tab = StreamValue<WebViewTab>(tab);
+        _tab = StreamValue<WebViewTab>(tab, name: "WebViewTabController");
   StreamValue<WebViewTab> get tab => _tab;
   bool _inBookmark = false;
   bool get inBookmark => _inBookmark;
@@ -35,8 +35,8 @@ class WebViewTabController {
     _inBookmark = inBookmark;
   }
 
-  Future<void> dispose() async {
-    _tab.dispose();
-    await controller.dispose();
-  }
+  // void dispose() {
+  //   _tab.dispose();
+  //   // await controller.dispose();
+  // }
 }

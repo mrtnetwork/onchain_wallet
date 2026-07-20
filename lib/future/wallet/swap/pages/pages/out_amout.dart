@@ -31,8 +31,7 @@ class SwapAmountOutView extends StatelessWidget {
                 hoverColor: context.colors.transparent,
                 onRemoveIcon: IconButton(
                     onPressed: onChangeAsset,
-                    icon: Icon(Icons.edit,
-                        color: context.colors.onPrimaryContainer)),
+                    icon: Icon(Icons.edit, color: context.colors.onPrimaryContainer)),
                 child: Row(
                   children: [
                     SizedBox(
@@ -45,8 +44,7 @@ class SwapAmountOutView extends StatelessWidget {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            CircleAPPImageView(
-                                destinationAsset?.token.assetLogo,
+                            CircleAPPImageView(destinationAsset?.token.assetLogo,
                                 radius: APPConst.circleRadius25),
                             Align(
                               alignment: Alignment.topRight,
@@ -72,31 +70,26 @@ class SwapAmountOutView extends StatelessWidget {
                                         enable: route != null,
                                         onDeactive: (context) => Text(
                                           "0.0",
-                                          style: context.textTheme.titleLarge
-                                              ?.copyWith(
-                                                  color: context.colors
-                                                      .onPrimaryContainer,
-                                                  fontWeight: FontWeight.bold),
+                                          style: context.textTheme.titleLarge?.copyWith(
+                                              color: context.colors.onPrimaryContainer,
+                                              fontWeight: FontWeight.bold),
                                         ),
                                         onActive: (context) => APPStreamBuilder(
                                             value: route!.route,
                                             builder: (context, currentRoute) {
                                               return CoinAndMarketPriceView(
                                                 balance: currentRoute.amount,
-                                                symbolColor: context
-                                                    .colors.onPrimaryContainer,
-                                                style: context
-                                                    .textTheme.titleLarge
+                                                symbolColor:
+                                                    context.colors.onPrimaryContainer,
+                                                style: context.textTheme.titleLarge
                                                     ?.copyWith(
-                                                        color: context.colors
-                                                            .onPrimaryContainer,
-                                                        fontWeight:
-                                                            FontWeight.bold),
+                                                        color: context
+                                                            .colors.onPrimaryContainer,
+                                                        fontWeight: FontWeight.bold),
                                               );
                                             }),
                                       ),
-                                  onDeactive: (context) =>
-                                      WidgetConstant.sizedBox),
+                                  onDeactive: (context) => WidgetConstant.sizedBox),
                             ],
                           ),
                         ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
-import 'package:on_chain_wallet/future/wallet/controller/tabs/tabs.dart';
+import 'package:on_chain_wallet/future/wallet/controller/impls/tabs.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
+import 'package:on_chain_wallet/future/wallet/global/provider/manage_provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/aptos/account/account.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/account/account.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/account/account.dart';
@@ -16,23 +17,23 @@ import 'package:on_chain_wallet/future/wallet/network/substrate/substrate.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/account/account.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/account/account.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/account/account.dart';
+import 'package:on_chain_wallet/future/wallet/network/zcash/account/pages/account.dart';
 import 'package:on_chain_wallet/future/wallet/start/pages/drawer_view.dart';
 import 'package:on_chain_wallet/future/wallet/start/pages/platform_widgets/widgets.dart';
 import 'package:on_chain_wallet/future/wallet/swap/pages/pages/swap.dart';
-import 'package:on_chain_wallet/future/wallet/wc/widgets/icon.dart';
+import 'package:on_chain_wallet/future/wallet/web3/pages/wallet_connect.dart';
 import 'package:on_chain_wallet/future/wallet/webview/pages/web_view.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'account_no_adress.dart';
 import 'account_appbar.dart';
-import 'client_appbar.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class NetworkAccountPageView extends StatelessWidget {
-  const NetworkAccountPageView(
-      {super.key, required this.wallet, required this.account});
+  const NetworkAccountPageView({super.key, required this.wallet, required this.account});
   final WalletProvider wallet;
   final Chain account;
   @override
@@ -40,13 +41,16 @@ class NetworkAccountPageView extends StatelessWidget {
     final bool isReady = wallet.wallet.homePageStatus.isReady;
     final bool isOpen = wallet.wallet.isOpen;
     return ChainStreamBuilder(
+        progressEventDelay: APPConst.oneSecoundDuration,
         allowNotify: [
           DefaultChainNotify.account,
           DefaultChainNotify.address,
           DefaultChainNotify.client,
           DefaultChainNotify.config
         ],
-        builder: (context, chain, lastNotify) {
+        builder: (context, lastEvent) {
+          bool enableShimmer =
+              lastEvent?.isProgressOf(DefaultChainNotify.address) ?? false;
           return Shimmer(
               onActive: (enable, context) => Scaffold(
                   drawer: Drawer(child: DrawerView()),
@@ -62,6 +66,7 @@ class NetworkAccountPageView extends StatelessWidget {
                             WalletPage.webview: (context) =>
                                 WebViewAppBar(wallet.webviewContoller),
                           }),
+                      ProviderStatusView(account.clientStatus),
                       WalletConnectIcon(),
                       appbarWidgets(true),
                     ],
@@ -71,18 +76,14 @@ class NetworkAccountPageView extends StatelessWidget {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                OneLineTextWidget(
-                                    wallet.wallet.currentChain.network
-                                        .networkName,
+                                OneLineTextWidget(account.network.networkName,
                                     style: context.textTheme.titleMedium),
-                                if (wallet.wallet.currentChain.network.coinParam
-                                    .isTestNet)
+                                if (account.network.coinParam.isTestNet)
                                   ToolTipView(
                                     message: "testnet_price_desc".tr,
                                     child: Text("testnet".tr,
                                         style: context.textTheme.labelSmall
-                                            ?.copyWith(
-                                                color: context.colors.error)),
+                                            ?.copyWith(color: context.colors.error)),
                                   ),
                               ],
                             );
@@ -91,16 +92,13 @@ class NetworkAccountPageView extends StatelessWidget {
                         },
                         enable: isReady),
                   ),
-                  floatingActionButton: APPAnimatedSwitcher<WalletPage>(
-                      enable: wallet.walletPage,
-                      widgets: {
-                        WalletPage.webview: (context) =>
-                            WalletPageFloatingActionButton(
-                                account: account, wallet: wallet),
-                        WalletPage.wallet: (context) =>
-                            WalletPageFloatingActionButton(
-                                account: account, wallet: wallet),
-                      }),
+                  floatingActionButton: APPAnimatedSwitcher<
+                      WalletPage>(enable: wallet.walletPage, widgets: {
+                    WalletPage.webview: (context) =>
+                        WalletPageFloatingActionButton(account: account, wallet: wallet),
+                    WalletPage.wallet: (context) =>
+                        WalletPageFloatingActionButton(account: account, wallet: wallet),
+                  }),
                   bottomNavigationBar: ConditionalWidget(
                     enable: wallet.multipleTab,
                     onActive: (context) => BottomNavigationBar(
@@ -111,8 +109,7 @@ class NetworkAccountPageView extends StatelessWidget {
                               icon: Icon(Icons.wallet), label: 'wallet'.tr),
                           if (wallet.enableSwap)
                             BottomNavigationBarItem(
-                                icon: Icon(Icons.swap_horiz_rounded),
-                                label: 'swap'.tr),
+                                icon: Icon(Icons.swap_horiz_rounded), label: 'swap'.tr),
                           if (wallet.enableWebView)
                             BottomNavigationBarItem(
                                 icon: Icon(Icons.travel_explore_outlined),
@@ -127,14 +124,11 @@ class NetworkAccountPageView extends StatelessWidget {
                             children: [
                               _WalletPage(account),
                               if (wallet.enableSwap)
-                                SwapView(
-                                    swapController: wallet.swap!,
-                                    account: account),
-                              if (wallet.enableWebView)
-                                WebView(wallet.webviewContoller!)
+                                SwapView(swapController: wallet.swap!, account: account),
+                              if (wallet.enableWebView) WebView(wallet.webviewContoller!)
                             ],
                           ))),
-              enable: lastNotify != DefaultChainNotify.address);
+              enable: !enableShimmer);
         },
         account: account);
   }
@@ -150,18 +144,15 @@ class _WalletPage extends StatelessWidget {
     return DefaultTabController(
       length: account.services.length,
       key: ValueKey(account.services.length),
-      child:
-          NestedScrollView(headerSliverBuilder: (context, innerBoxIsScrolled) {
+      child: NestedScrollView(headerSliverBuilder: (context, innerBoxIsScrolled) {
         if (!account.haveAddress) return [];
         return [
-          NetworkClientConnectionSliverHeaderDelegate(
-              wallet: wallet, chain: account),
           SliverOverlapAbsorber(
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
               sliver: SliverPersistentHeader(
                   pinned: true,
-                  delegate: AccountPageSliverHeaderDelegate(
-                      wallet: wallet, account: account))),
+                  delegate:
+                      AccountPageSliverHeaderDelegate(wallet: wallet, account: account))),
         ];
       }, body: Builder(builder: (context) {
         if (!account.haveAddress) {
@@ -208,9 +199,8 @@ class _AccountPageView extends StatelessWidget {
         return SuiAccountPageView(chainAccount: account.cast());
       case NetworkType.aptos:
         return AptosAccountPageView(chainAccount: account.cast());
-      default:
-        return const TabBarView(
-            physics: WidgetConstant.noScrollPhysics, children: []);
+      case NetworkType.zcash:
+        return ZcashAccountPageView(chainAccount: account.cast());
     }
   }
 }
@@ -233,16 +223,21 @@ class WalletPageFloatingActionButton extends StatelessWidget {
                       SwitchNetworkView(selectedNetwork: account.network))
               .then(
             (value) {
-              if (value == null) return;
-              if (value is Chain) {
-                wallet.wallet.switchNetwork(value);
-              } else {
-                context.mybeTo(PageRouter.importNetwork(value));
+              switch (value) {
+                case Chain network:
+                  wallet.wallet
+                      .doAction(WalletActionSwitchNetwork(network: network))
+                      .then((e) {
+                    if (e.isErr) context.showAlert(e.unwrapErr().localizationError);
+                  });
+                  break;
+                case NetworkType network:
+                  context.mybeTo(PageRouter.importNetwork(network));
               }
             },
           );
         },
-        child: CircleTokenImageView(account.network.token,
-            radius: APPConst.circleRadius25));
+        child:
+            CircleTokenImageView(account.network.token, radius: APPConst.circleRadius25));
   }
 }

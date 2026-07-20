@@ -5,7 +5,7 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/tools/secure_state/secure_state.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/keys/keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -13,8 +13,7 @@ class ExportSeedView extends StatelessWidget {
   const ExportSeedView({super.key});
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseMnemonic,
-            WalletCredentialMnemonic>(
+    return AccessWalletView<WalletCredentialResponseMnemonic, WalletCredentialMnemonic>(
         request: WalletCredentialMnemonic(),
         onAccsess: (credential) {
           return _ExportSeedView(
@@ -22,8 +21,7 @@ class ExportSeedView extends StatelessWidget {
         },
         title: "export_mnemonic".tr,
         subtitle: PageTitleSubtitle(
-            title: "export_mnemonic".tr,
-            body: Text("export_mnemonic_desc2".tr)));
+            title: "export_mnemonic".tr, body: Text("export_mnemonic_desc2".tr)));
   }
 }
 
@@ -37,7 +35,7 @@ class _ExportSeedView extends StatefulWidget {
 }
 
 class _ExportSeedViewState extends State<_ExportSeedView>
-    with SafeState<_ExportSeedView>, SecureState<_ExportSeedView> {
+    with SafeState<_ExportSeedView>, AndroidSecureState<_ExportSeedView> {
   List<_ViewMnemonicData> mnemonics = [];
 
   List<_ViewMnemonicData> _buildMnemonics() {
@@ -49,8 +47,7 @@ class _ExportSeedViewState extends State<_ExportSeedView>
         mnemonic: widget.mnemonic.mnemonic,
         createdAt: wallet.created.toOnlyDateStr()));
     for (final i in widget.mnemonic.subWallets) {
-      final sWallet =
-          wallet.subWallets.firstWhereOrNull((e) => e.id == i.subWalletId);
+      final sWallet = wallet.subWallets.firstWhereOrNull((e) => e.id == i.subWalletId);
       // assert(sWallet != null, "wallet not found ${i.subWalletId}");
       if (sWallet == null) continue;
       mnemonics.add(_ViewMnemonicData(
@@ -72,17 +69,14 @@ class _ExportSeedViewState extends State<_ExportSeedView>
             ConditionalWidget(
               enable: i.subwalletId == null,
               onActive: (context) => Icon(Icons.account_balance_wallet),
-              onDeactive: (context) =>
-                  Icon(Icons.account_balance_wallet_outlined),
+              onDeactive: (context) => Icon(Icons.account_balance_wallet_outlined),
             ),
             WidgetConstant.width8,
             Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(i.name, style: context.textTheme.bodyMedium),
-                    Text(i.createdAt, style: context.textTheme.bodySmall)
-                  ]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(i.name, style: context.textTheme.bodyMedium),
+                Text(i.createdAt, style: context.textTheme.bodySmall)
+              ]),
             )
           ],
         )

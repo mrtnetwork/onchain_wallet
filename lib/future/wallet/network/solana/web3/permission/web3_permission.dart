@@ -4,7 +4,7 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'package:on_chain/solana/solana.dart';
 
 class SolanaWeb3PermissionView extends StatefulWidget {
@@ -12,8 +12,7 @@ class SolanaWeb3PermissionView extends StatefulWidget {
   final Web3ApplicationAuthentication application;
 
   @override
-  State<SolanaWeb3PermissionView> createState() =>
-      _SolanaWeb3PermissionViewState();
+  State<SolanaWeb3PermissionView> createState() => _SolanaWeb3PermissionViewState();
 }
 
 class _SolanaWeb3PermissionViewState extends State<SolanaWeb3PermissionView>

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -12,9 +12,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionEscrowCreateOperation
     extends RippleTransactionStateController<EscrowCreate> {
   RippleTransactionEscrowCreateOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionEscrowCreateOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -23,8 +21,7 @@ class RippleTransactionEscrowCreateOperation
         walletProvider: walletProvider, account: account, address: address);
   }
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "amount".tr,
     subtitle: "ripple_escrow_create_amount".tr,
     optional: false,
@@ -34,7 +31,7 @@ class RippleTransactionEscrowCreateOperation
       return "field_is_required".tr.replaceOne(field.title.tr);
     },
   );
-  final LiveFormField<ReceiptAddress<XRPAddress>?, ReceiptAddress<XRPAddress>>
+  final LiveFormField<ReceiptAddress<XRPBaseAddress>?, ReceiptAddress<XRPBaseAddress>>
       destination = LiveFormField(
     title: "destination".tr,
     subtitle: "ripple_escrow_create_destionation".tr,
@@ -61,7 +58,7 @@ class RippleTransactionEscrowCreateOperation
   );
 
   BigInt getMaxInput() {
-    final total = address.address.currencyBalance - txFee.fee.fee.balance;
+    final total = address.addressData.currencyBalance - txFee.fee.fee.balance;
     if (total.isNegative) return BigInt.zero;
     return total;
   }
@@ -74,7 +71,7 @@ class RippleTransactionEscrowCreateOperation
     estimateFee();
   }
 
-  void onUpdateDestination(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateDestination(ReceiptAddress<XRPBaseAddress>? address) {
     if (address == null) return;
     destination.setValue(address);
     onStateUpdated();
@@ -103,19 +100,19 @@ class RippleTransactionEscrowCreateOperation
   EscrowCreate buildTransactionInternal() {
     return EscrowCreate(
         amount: XRPAmount(amount.value.balance),
-        destination: destination.value!.networkAddress.toAddress(),
+        destination: destination.value!.networkAddress.address,
         cancelAfterTime: cancelAfter.value,
         finishAfterTime: finishAfter.value,
         condition: condition.value,
         destinationTag: destination.value!.networkAddress.tag,
-        account: address.networkAddress.toAddress(),
+        account: address.networkAddress.address,
         sourceTag: address.networkAddress.tag,
         memos: RippleUtils.toXrplMemos(memos),
         fee: txFee.fee.fee.balance);
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionEscrowCreateOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

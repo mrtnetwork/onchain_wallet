@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../utils/utils/extensions.dart';
 import 'solana.dart';
 import 'wallet_standard.dart';
@@ -9,8 +11,7 @@ class RippleJSConst {
   static const String signTransaction = "xrpl_signTransaction";
   static const String requestAccounts = "xrpl_requestAccounts";
   static const String version = '1.0.0';
-  static JSArray<JSString> rippleDefaultAccountFeatures(
-          {bool allowSignMessage = true}) =>
+  static JSArray<JSString> rippleDefaultAccountFeatures({bool allowSignMessage = true}) =>
       [
         "xrpl:signAndSendTransaction".toJS,
         "xrpl:signTransaction".toJS,
@@ -18,36 +19,28 @@ class RippleJSConst {
       ].toJS;
 }
 
-extension type JSRippleWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSRippleWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSRippleWalletAccount.setup(
-      {required String address,
-      required List<int>? publicKey,
-      required String chain}) {
+      {required String address, required List<int>? publicKey, required String chain}) {
     return JSRippleWalletAccount._(JSObject())
       ..address = address
       ..chains = [chain.toJS].toJS
-      ..features = RippleJSConst.rippleDefaultAccountFeatures(
-              allowSignMessage: publicKey != null)
-          .freez
-      ..publicKey =
-          publicKey == null ? null : APPJSUint8Array.fromList(publicKey);
+      ..features =
+          RippleJSConst.rippleDefaultAccountFeatures(allowSignMessage: publicKey != null)
+              .freez
+      ..publicKey = publicKey == null ? null : APPJSUint8Array.fromList(publicKey);
   }
 }
 extension type JSRippleWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSRippleWalletStandardConnect.setup(
-      List<JSRippleWalletAccount> accounts) {
-    return JSRippleWalletStandardConnect._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSRippleWalletStandardConnect.setup(List<JSRippleWalletAccount> accounts) {
+    return JSRippleWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSRippleWalletAccount> get accounts;
   external set accounts(JSArray<JSRippleWalletAccount> _);
 }
 extension type JSRippleWalletConnectResponse._(JSObject _) implements JSAny {
-  factory JSRippleWalletConnectResponse.setup(
-      List<JSRippleWalletAccount> accounts) {
-    return JSRippleWalletConnectResponse._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSRippleWalletConnectResponse.setup(List<JSRippleWalletAccount> accounts) {
+    return JSRippleWalletConnectResponse._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSRippleWalletAccount> get accounts;
   external set accounts(JSArray<JSRippleWalletAccount> _);
@@ -66,8 +59,7 @@ extension type RippleWalletAdapterRippleSignAndSendTransactionFeature(JSAny _)
   external set signAndSendTransaction(JSFunction _);
 }
 @JS()
-extension type RippleWalletAdapterRippleSignTransactionFeature(JSAny _)
-    implements JSAny {
+extension type RippleWalletAdapterRippleSignTransactionFeature(JSAny _) implements JSAny {
   factory RippleWalletAdapterRippleSignTransactionFeature.setup(
       {required JSFunction signTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -79,8 +71,7 @@ extension type RippleWalletAdapterRippleSignTransactionFeature(JSAny _)
   external set signTransaction(JSFunction _);
 }
 @JS()
-extension type RippleWalletAdapterRippleSignMessageFeature(JSAny _)
-    implements JSAny {
+extension type RippleWalletAdapterRippleSignMessageFeature(JSAny _) implements JSAny {
   factory RippleWalletAdapterRippleSignMessageFeature.setup(
       {required JSFunction signMessage,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -94,8 +85,7 @@ extension type RippleWalletAdapterRippleSignMessageFeature(JSAny _)
 @JS()
 extension type JSRippleWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSRippleWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSRippleWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;

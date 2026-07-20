@@ -11,6 +11,7 @@ import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/cosmos.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/cw20.dart';
 
 class CosmosTransactionTransferWidget extends StatelessWidget {
   final CosmosTransactionTransferOperation form;
@@ -21,12 +22,11 @@ class CosmosTransactionTransferWidget extends StatelessWidget {
     return MultiSliver(children: [
       LiveFormWidgetList(
         field: form.recipients,
-        onCreate: (context, field) =>
-            LiveWidgetAddNewTransferDetails<CosmosBaseAddress>(
-                onUpdateAddresses: form.onUpdateRecipients,
-                account: form.account,
-                isReady: field.hasValue,
-                multipleSelect: true),
+        onCreate: (context, field) => LiveWidgetAddNewTransferDetails<CosmosBaseAddress>(
+            onUpdateAddresses: form.onUpdateRecipients,
+            account: form.account,
+            isReady: field.hasValue,
+            multipleSelect: true),
         builder: (context, field, value) => APPStreamBuilder(
           value: value.notifier,
           builder: (context, _) {
@@ -53,15 +53,14 @@ class CosmosTransactionTransferWidget extends StatelessWidget {
                             .openMaxExtendSliverBottomSheet<CW20Token>(
                               "transfer".tr,
                               centerContent: false,
-                              bodyBuilder: (sc) =>
-                                  CosmosTransactionPickTokenView(
-                                      tokens: form.tokens, controller: sc),
+                              bodyBuilder: (sc) => CosmosTransactionPickTokenView(
+                                  tokens: form.tokens, controller: sc),
                             )
-                            .then((e) => form.onUpdateRecipientToken(
-                                receipt: value, token: e));
+                            .then((e) =>
+                                form.onUpdateRecipientToken(receipt: value, token: e));
                       },
-                      onRemoveIcon: Icon(Icons.edit,
-                          color: context.colors.primaryContainer),
+                      onRemoveIcon:
+                          Icon(Icons.edit, color: context.colors.primaryContainer),
                       child: AccountTokenDetailsWidget(
                         token: value.token.token,
                         liveBalance: value.token.streamBalance,
@@ -79,8 +78,7 @@ class CosmosTransactionTransferWidget extends StatelessWidget {
                         });
                       },
                       validate: value.hasAmount,
-                      onRemoveIcon:
-                          Icon(Icons.edit, color: context.primaryContainer),
+                      onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                       backgroundColor: context.onPrimaryContainer,
                       child: CoinAndMarketPriceView(
                         balance: value.amount,
@@ -106,8 +104,7 @@ class CosmosTransactionTransferWidget extends StatelessWidget {
           onRetryFeeEstimate: form.estimateFee,
           onTapManual: () {
             context
-                .openSliverBottomSheet<CosmosTransactionFee>(
-                    "setup_custom_fee".tr,
+                .openSliverBottomSheet<CosmosTransactionFee>("setup_custom_fee".tr,
                     child: CosmosSetTransferFeeView(
                       currentFee: form.txFee.fee,
                       feeTokens: form.transactionRequirment.feeTokens,
@@ -125,15 +122,11 @@ class CosmosSetTransferFeeView extends StatefulWidget {
   final List<CW20Token> feeTokens;
   final BigInt? max;
   const CosmosSetTransferFeeView(
-      {required this.feeTokens,
-      required this.currentFee,
-      super.key,
-      required this.max});
+      {required this.feeTokens, required this.currentFee, super.key, required this.max});
   // final CosmosTransactionFeeController form;
 
   @override
-  State<CosmosSetTransferFeeView> createState() =>
-      _CosmosSetTransferFeeViewState();
+  State<CosmosSetTransferFeeView> createState() => _CosmosSetTransferFeeViewState();
 }
 
 class _CosmosSetTransferFeeViewState extends State<CosmosSetTransferFeeView>
@@ -209,8 +202,7 @@ class _CosmosSetTransferFeeViewState extends State<CosmosSetTransferFeeView>
                   )
                   .then(setFeeToken);
             },
-            onRemoveIcon:
-                Icon(Icons.edit, color: context.colors.onPrimaryContainer),
+            onRemoveIcon: Icon(Icons.edit, color: context.colors.onPrimaryContainer),
             child: AccountTokenDetailsWidget(
               token: feeToken,
               radius: APPConst.circleRadius25,
@@ -236,8 +228,7 @@ class _CosmosSetTransferFeeViewState extends State<CosmosSetTransferFeeView>
           onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
           onRemove: () {
             context
-                .setupAmount(
-                    token: feeToken, max: max, title: "transaction_fee".tr)
+                .setupAmount(token: feeToken, max: max, title: "transaction_fee".tr)
                 .then(setFee);
           },
           child: CoinAndMarketPriceView(

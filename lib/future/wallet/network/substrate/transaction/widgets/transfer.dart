@@ -54,16 +54,14 @@ class SubstrateTransactionTransferWidget extends StatelessWidget {
                                   items: {
                                     for (final i in value.token.transferMethod)
                                       i: Text(i.method.camelCase,
-                                          style: context
-                                              .primaryTextTheme.bodyMedium)
+                                          style: context.primaryTextTheme.bodyMedium)
                                   },
                                   selectedItemBuilder: {
                                     for (final i in value.token.transferMethod)
                                       i: Text(i.method.camelCase)
                                   },
                                   value: value.method,
-                                  onChanged: (v) =>
-                                      form.onUpdateTransferMethod(value, v),
+                                  onChanged: (v) => form.onUpdateTransferMethod(value, v),
                                 )),
                         ContainerWithBorder(
                             backgroundColor: context.onPrimaryContainer,
@@ -84,37 +82,32 @@ class SubstrateTransactionTransferWidget extends StatelessWidget {
                                               SubstrateTransactionPickTokenView(
                                                   controller: sc,
                                                   tokens: form.tokens
-                                                      .map(
-                                                          (e) => e.tokenDetails)
+                                                      .map((e) => e.tokenDetails)
                                                       .toList()),
                                         )
-                                        .then((v) =>
-                                            form.onUpdateToken(value, v));
+                                        .then((v) => form.onUpdateToken(value, v));
                                   },
                                   onRemoveIcon: AddOrEditIconWidget(true,
                                       color: context.primaryContainer),
                                   child: AccountTokenDetailsWidget(
                                       color: context.primaryContainer,
                                       token: value.token.token,
-                                      liveBalance:
-                                          value.token.tokenDetails.balance,
+                                      liveBalance: value.token.tokenDetails.balance,
                                       radius: APPConst.circleRadius25),
                                 )),
                         ContainerWithBorder(
                             onRemove: () {
                               final max = form.getMaxInput(value);
                               context
-                                  .setupAmount(
-                                      token: value.token.token, max: max)
+                                  .setupAmount(token: value.token.token, max: max)
                                   .then((amount) {
                                 if (amount == null) return;
-                                form.onUpdateAmount(
-                                    value, amount, amount == max);
+                                form.onUpdateAmount(value, amount, amount == max);
                               });
                             },
                             // validate: transfer.hasAmount,
-                            onRemoveIcon: Icon(Icons.edit,
-                                color: context.primaryContainer),
+                            onRemoveIcon:
+                                Icon(Icons.edit, color: context.primaryContainer),
                             backgroundColor: context.onPrimaryContainer,
                             child: CoinAndMarketPriceView(
                                 balance: value.amount,
@@ -137,14 +130,13 @@ class SubstrateTransactionTransferWidget extends StatelessWidget {
                         onRemove: () {
                           form.onRemoveMemo(value);
                         },
-                        onRemoveIcon: Icon(Icons.remove_circle,
-                            color: context.onPrimaryContainer),
-                        child: Text(value,
-                            style: context.onPrimaryTextTheme.bodyMedium)),
+                        onRemoveIcon:
+                            Icon(Icons.remove_circle, color: context.onPrimaryContainer),
+                        child: Text(value, style: context.onPrimaryTextTheme.bodyMedium)),
                     onCreate: (context, field) {
                       return ContainerWithBorder(
-                          onRemoveIcon: Icon(Icons.add_box,
-                              color: context.onPrimaryContainer),
+                          onRemoveIcon:
+                              Icon(Icons.add_box, color: context.onPrimaryContainer),
                           onRemove: () {
                             context
                                 .openSliverBottomSheet<String>(
@@ -153,8 +145,7 @@ class SubstrateTransactionTransferWidget extends StatelessWidget {
                                       title: PageTitleSubtitle(
                                           title: "setup_memo".tr,
                                           body: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text("memo_desc1".tr),
                                               WidgetConstant.height8,

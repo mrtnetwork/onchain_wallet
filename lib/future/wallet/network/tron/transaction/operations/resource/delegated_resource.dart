@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/types.dart';
@@ -22,20 +22,17 @@ class TronTransactionDelegateResourceContractOperation
   MaxDelegatedResourceAmount get maxResourceBalance => _maxResourceBalance!;
 
   TronTransactionDelegateResourceContractOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
-          title: "amount".tr,
-          subtitle: "resource_delegated_amount".tr,
-          value: IntegerBalance.zero(network.token, allowNegative: false),
-          optional: false,
-          onValidateError: (field, value) {
-            if (value.largerThanZero) return null;
-            return "";
-          });
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
+      title: "amount".tr,
+      subtitle: "resource_delegated_amount".tr,
+      value: IntegerBalance.zero(network.token, allowNegative: false),
+      optional: false,
+      onValidateError: (field, value) {
+        if (value.largerThanZero) return null;
+        return "";
+      });
 
   final LiveFormField<ResourceCode, ResourceCode> resource = LiveFormField(
       title: "resource".tr,
@@ -86,9 +83,8 @@ class TronTransactionDelegateResourceContractOperation
   void onUpdateResource(ResourceCode? resource) {
     if (resource == null) return;
     this.resource.setValue(resource);
-    _maxResourceBalance = this.resource.value == ResourceCode.bandWidth
-        ? bandWidthResource
-        : energy;
+    _maxResourceBalance =
+        this.resource.value == ResourceCode.bandWidth ? bandWidthResource : energy;
     onUpdateAmount(BigInt.zero);
   }
 
@@ -132,7 +128,7 @@ class TronTransactionDelegateResourceContractOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
     return TronTransactionDelegateResourceContractOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -153,8 +149,7 @@ class TronTransactionDelegateResourceContractOperation
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     final delegated = await getMaxDelegatedEnergyAndBandwidth(address);
     _energy = delegated.$1;
     _bandWidthResource = delegated.$2;

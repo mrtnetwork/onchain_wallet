@@ -40,8 +40,7 @@ class RippleTransactionSignerListSetWidget extends StatelessWidget {
               onRemove: () {
                 form.onRemoveSignerEntries(value);
               },
-              onRemoveIcon:
-                  Icon(Icons.remove_circle, color: context.onPrimaryContainer),
+              onRemoveIcon: Icon(Icons.remove_circle, color: context.onPrimaryContainer),
               child: _SignerEntryView(signer: value));
         },
       ),
@@ -78,14 +77,12 @@ class RippleTransactionSignerListSetWidget extends StatelessWidget {
                     )
                     .then(form.onUpdateSignerQuorum);
               },
-              child: Text(
-                  value?.toString().to3Digits ?? "tap_to_input_value".tr,
+              child: Text(value?.toString().to3Digits ?? "tap_to_input_value".tr,
                   style: context.onPrimaryTextTheme.bodyMedium));
         },
       ),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }
@@ -105,16 +102,14 @@ class _SignerEntryView extends StatelessWidget {
         ContainerWithBorder(
             backgroundColor: context.onPrimaryContainer,
             child: ReceiptAddressDetailsView(
-                address: signer.address,
-                color: context.colors.primaryContainer)),
+                address: signer.address, color: context.colors.primaryContainer)),
         WidgetConstant.height20,
-        Text("ripple_signer_weight".tr,
-            style: context.onPrimaryTextTheme.titleMedium),
+        Text("ripple_signer_weight".tr, style: context.onPrimaryTextTheme.titleMedium),
         WidgetConstant.height8,
         ContainerWithBorder(
           backgroundColor: context.onPrimaryContainer,
-          child: Text(signer.weight.toString(),
-              style: context.primaryTextTheme.bodyMedium),
+          child:
+              Text(signer.weight.toString(), style: context.primaryTextTheme.bodyMedium),
         )
       ],
     );
@@ -126,13 +121,12 @@ class _SetupRippleSignerEntries extends StatefulWidget {
   final XRPChain account;
 
   @override
-  State<_SetupRippleSignerEntries> createState() =>
-      _SetupRippleSignerEntriesState();
+  State<_SetupRippleSignerEntries> createState() => _SetupRippleSignerEntriesState();
 }
 
 class _SetupRippleSignerEntriesState extends State<_SetupRippleSignerEntries>
     with SafeState<_SetupRippleSignerEntries> {
-  ReceiptAddress<XRPAddress>? address;
+  ReceiptAddress<XRPBaseAddress>? address;
   BigRational? signerWegith;
   String? walletLocator;
 
@@ -143,7 +137,7 @@ class _SetupRippleSignerEntriesState extends State<_SetupRippleSignerEntries>
     updateState();
   }
 
-  void onSelectAddress(ReceiptAddress<XRPAddress>? newAddress) {
+  void onSelectAddress(ReceiptAddress<XRPBaseAddress>? newAddress) {
     address = newAddress;
     _isReady();
   }
@@ -198,7 +192,7 @@ class _SetupRippleSignerEntriesState extends State<_SetupRippleSignerEntries>
           title: null,
           onTap: () {
             context
-                .selectAccount<XRPAddress>(
+                .selectAccount<XRPBaseAddress>(
                     account: widget.account, title: "account".tr)
                 .then((v) => onSelectAddress(v?.firstOrNull));
           },

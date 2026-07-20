@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class ChangeWalletPasswordView extends StatelessWidget {
   const ChangeWalletPasswordView({super.key});
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseRequirePassword,
-            WalletCredentialRequirePassword>(
-        request: WalletCredentialRequirePassword(),
+    return AccessWalletView<WalletCredentialResponseCredential,
+            WalletCredentialPasswordRequire>(
+        request:
+            WalletCredentialPasswordRequire(type: WalletCredentialType.changePassword),
         onAccsess: (credential) {
           return _ChangePasswordView(credential: credential.id);
         },
@@ -76,14 +77,15 @@ class _ChangePasswordViewState extends State<_ChangePasswordView>
   void setupPassword() async {
     if (form.ready()) {
       progressKey.progressText("changing_password".tr);
-      final model = context.watch<WalletProvider>(StateConst.main);
-      final result =
-          await model.wallet.changePassword(widget.credential, password);
-      if (result.hasError) {
-        progressKey.errorText(result.localizationError);
+      final model = context.wallet;
+      final params = WalletActionChangeWalletPassword(
+          credential: widget.credential, newPassword: password);
+      final result = await model.wallet.doAction(params);
+      if (result.isErr) {
+        progressKey.errorText(result.unwrapErr().localizationError);
       } else {
         progressKey.successText("password_changed".tr, backToIdle: false);
-        await MethodUtils.wait();
+        await MethodUtils.delayed();
         navigatorKey?.currentContext?.popToHome();
       }
     }
@@ -102,53 +104,45 @@ class _ChangePasswordViewState extends State<_ChangePasswordView>
               sliver: SliverToBoxAdapter(
                 child: Form(
                   key: form,
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    WidgetConstant.height20,
+                    PageTitleSubtitle(
+                        title: "wallet_password_desc".tr,
+                        body: LargeTextView(
+                          ["p_note1".tr, "p_note2".tr, "p_note3".tr, "p_note4".tr],
+                        )),
+                    AppTextField(
+                        obscureText: _obscureText,
+                        onChanged: onChangePassword,
+                        keyboardType: TextInputType.visiblePassword,
+                        textInputAction: TextInputAction.go,
+                        disableContextMenu: true,
+                        nextFocus: nextFocus,
+                        validator: onValidatePassword,
+                        errorBuilder: (context, errorText) => WidgetConstant.sizedBox,
+                        label: "enter_new_password".tr),
+                    PasswordStrengthIndicator(strength: passwordStrength),
+                    WidgetConstant.height20,
+                    AppTextField(
+                      obscureText: _obscureText,
+                      keyboardType: TextInputType.visiblePassword,
+                      textInputAction: TextInputAction.done,
+                      focusNode: nextFocus,
+                      disableContextMenu: true,
+                      validator: confirmForm,
+                      label: "c_password".tr,
+                    ),
+                    WidgetConstant.height20,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        WidgetConstant.height20,
-                        PageTitleSubtitle(
-                            title: "wallet_password_desc".tr,
-                            body: LargeTextView(
-                              [
-                                "p_note1".tr,
-                                "p_note2".tr,
-                                "p_note3".tr,
-                                "p_note4".tr
-                              ],
-                            )),
-                        AppTextField(
-                            obscureText: _obscureText,
-                            onChanged: onChangePassword,
-                            keyboardType: TextInputType.visiblePassword,
-                            textInputAction: TextInputAction.go,
-                            disableContextMenu: true,
-                            nextFocus: nextFocus,
-                            validator: onValidatePassword,
-                            errorBuilder: (context, errorText) =>
-                                WidgetConstant.sizedBox,
-                            label: "enter_new_password".tr),
-                        PasswordStrengthIndicator(strength: passwordStrength),
-                        WidgetConstant.height20,
-                        AppTextField(
-                          obscureText: _obscureText,
-                          keyboardType: TextInputType.visiblePassword,
-                          textInputAction: TextInputAction.done,
-                          focusNode: nextFocus,
-                          disableContextMenu: true,
-                          validator: confirmForm,
-                          label: "c_password".tr,
-                        ),
-                        WidgetConstant.height20,
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FixedElevatedButton(
-                                padding: WidgetConstant.paddingVertical40,
-                                onPressed: setupPassword,
-                                child: Text("change_password".tr)),
-                          ],
-                        )
-                      ]),
+                        FixedElevatedButton(
+                            padding: WidgetConstant.paddingVertical40,
+                            onPressed: setupPassword,
+                            child: Text("change_password".tr)),
+                      ],
+                    )
+                  ]),
                 ),
               ),
             ),

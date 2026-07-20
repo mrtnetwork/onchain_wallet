@@ -1,22 +1,21 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/helper/helper.dart';
-import 'package:blockchain_utils/signer/bitcoin/bitcoin_signer.dart';
+import 'package:blockchain_utils/signer/bitcoin/bitcoin_key_signer.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/messages.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/messages.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/web3_request_page_builder.dart';
 import 'package:on_chain_wallet/future/wallet/web3/core/state.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/constant/constants/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/params/models/sign_message.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/constant/constants/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/params/models/sign_message.dart';
 
 class Web3BitcoinSignMessageStateController extends Web3BitcoinStateController<
-    Web3BitcoinSignMessageResponse,
-    BitcoinClient?,
-    BaseWeb3BitcoinSignMessage> {
+    Web3BitcoinSignMessageResponse, BitcoinNetworkClient?, BaseWeb3BitcoinSignMessage> {
   late final List<int> payloadMessage =
       BytesUtils.fromHexString(params.message).asImmutableBytes;
   String get message => request.params.message;
@@ -32,20 +31,20 @@ class Web3BitcoinSignMessageStateController extends Web3BitcoinStateController<
       {required super.walletProvider, required super.request});
 
   @override
-  Future<Web3RequestResponseData<Web3BitcoinSignMessageResponse>>
-      getResponse() async {
+  Future<Web3RequestResponseData<Web3BitcoinSignMessageResponse>> getResponse() async {
     final account = defaultAccount;
-    MethodResult<CryptoBitcoinPersonalSignResponse> sign = await walletProvider
-        .wallet
-        .walletRequest(WalletRequestBitcoinSignMessage(
-            message: payloadMessage,
-            index: account.keyIndex.cast(),
-            useTaproot: account.addressType.isP2tr,
-            mode: mode,
-            messagePrefix: messagePrefix));
+    IResult<CryptoBitcoinPersonalSignResponse> sign = await walletProvider.wallet
+        .doAction(WalletActionWalletRequest(
+            request: WalletRequestBitcoinSignMessage(
+                message: payloadMessage,
+                index: account.derivationIndex.cast(),
+                useTaproot: account.addrType.isP2tr,
+                mode: mode,
+                messagePrefix: messagePrefix)));
+    final signature = sign.unwrap();
     return Web3RequestResponseData(
         response: Web3BitcoinSignMessageResponse(
-            signature: sign.result.signature, digest: sign.result.digest));
+            signature: signature.signature, digest: signature.digest));
   }
 
   @override
@@ -59,7 +58,7 @@ class Web3BitcoinSignMessageStateController extends Web3BitcoinStateController<
   }
 
   @override
-  Future<void> initForm(BitcoinClient<IBitcoinAddress>? client) async {
+  Future<void> initForm(BitcoinNetworkClient<IBitcoinAddress>? client) async {
     final account = defaultAccount;
     switch (account.networkAddress.type) {
       case P2pkhAddressType.p2pkh:
@@ -78,7 +77,7 @@ class Web3BitcoinSignMessageStateController extends Web3BitcoinStateController<
         break;
       default:
         throw Web3BitcoinExceptionConstant.unsuportedSigningMessageAccount(
-            account.address.toAddress);
+            account.address);
     }
   }
 }

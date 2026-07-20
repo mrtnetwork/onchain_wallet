@@ -1,10 +1,10 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:monero_dart/monero_dart.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/app/utils/list/extension.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
-import 'package:on_chain_wallet/wallet/constant/constant.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 
@@ -16,71 +16,67 @@ class MoneroWalletTransactionProof {
       {required this.txKeys, required this.recepient, required this.txId});
 }
 
-class MoneroWalletTransaction extends ChainTransaction {
+class MoneroWalletTransaction extends ChainTransaction<MoneroWalletTransactionOutput> {
   final List<List<int>>? txKeys;
   MoneroWalletTransaction(
-      {required super.txId,
+      {required String txId,
       required super.time,
       required super.outputs,
       required WalletMoneroNetwork network,
       required List<List<int>>? txKeys,
       required super.totalOutput,
+      super.memos,
       super.type = WalletTransactionType.send,
       super.status = WalletTransactionStatus.pending})
-      : txKeys = txKeys?.map((e) => e.asImmutableBytes).toImutableList,
-        super();
+      : txKeys = txKeys?.emptyAsNull?.map((e) => e.asImmutableBytes).toImutableList,
+        super(txId: StringUtils.normalizeHex(txId));
 
   factory MoneroWalletTransaction.deserialize(WalletMoneroNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: NetworkType.monero.tag);
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.monero.identifier);
     return MoneroWalletTransaction(
-      txId: values.elementAs(0),
-      time: values.elementAs(1),
-      network: network,
-      totalOutput: values.elemetMybeAs<WalletTransactionAmount, CborTagValue>(
-          2, (e) => WalletTransactionAmount.deserialize(network, object: e)),
-      outputs: values
-          .elementAsListOf<CborTagValue>(3)
-          .map((e) =>
-              MoneroWalletTransactionOutput.deserialize(network, object: e))
-          .toList(),
-      type: WalletTransactionType.fromValue(values.elementAs(5)),
-      status: WalletTransactionStatus.fromValue(values.elementAs(6)),
-      txKeys: values
-          .elementAsListOf<CborBytesValue>(7, emyptyOnNull: true)
-          .map((e) => e.value)
-          .nullOnEmoty,
-    );
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          txId,
-          time,
-          totalOutput?.toCbor(),
-          CborSerializable.fromDynamic(outputs.map((e) => e.toCbor()).toList()),
-          web3Client?.toCbor(),
-          type.value,
-          status.value,
-          CborSerializable.fromDynamic(
-              txKeys?.map((e) => CborBytesValue(e)).toList() ?? []),
-        ]),
-        network.tag);
+        txId: values.rawValueAt(0),
+        time: values.rawValueAt(1),
+        network: network,
+        totalOutput: values.maybeObjectAt<WalletTransactionAmount, CborTagValue>(
+            2, (e) => WalletTransactionAmount.deserialize(network, object: e)),
+        outputs: values
+            .listAt<CborTagValue>(3)
+            .map((e) => MoneroWalletTransactionOutput.deserialize(network, object: e))
+            .toList(),
+        type: WalletTransactionType.fromValue(values.rawValueAt(5)),
+        status: WalletTransactionStatus.fromValue(values.rawValueAt(6)),
+        txKeys: values
+            .listAt<CborBytesValue>(7, emptyOnNull: true)
+            .map((e) => e.value)
+            .toList(),
+        memos: values
+            .listAt<CborTagValue>(8)
+            .map((e) => WalletTransactionMemo.deserialize(object: e))
+            .toList());
   }
 
   @override
   NetworkType get network => NetworkType.monero;
 
   MoneroWalletTransactionProof generateProofRequest(MoneroAddress recepient) {
-    return MoneroWalletTransactionProof(
-        txKeys: txKeys, recepient: recepient, txId: txId);
+    return MoneroWalletTransactionProof(txKeys: txKeys, recepient: recepient, txId: txId);
   }
+
+  @override
+  List<CborObject?> get serializationItems => [
+        txId.toCbor(),
+        time.toCbor(),
+        totalOutput?.toCbor(),
+        AppSerialization.listFromObjects(outputs.map((e) => e.toCbor()).toList()),
+        web3Client?.toCbor(),
+        type.value.toCbor(),
+        status.value.toCbor(),
+        AppSerialization.listFromObjects(
+            txKeys?.map((e) => CborBytesValue(e)).toList() ?? []),
+        AppSerialization.listFromObjects(memos.map((e) => e.toCbor()).toList()),
+      ];
 }
 
 class MoneroWalletTransactionOutput
@@ -91,23 +87,22 @@ class MoneroWalletTransactionOutput
   String get address => to.address;
 
   factory MoneroWalletTransactionOutput.deserialize(WalletMoneroNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: CborTagsConst.moneroWalletTransactionOutput);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.moneroWalletTransactionOutput);
     return MoneroWalletTransactionOutput(
       amount: WalletTransactionIntegerAmount.deserialize(network,
-          object: values.elementAsCborTag(0)),
-      to: MoneroAddress(values.elementAs(1)),
+          object: values.objectAt<CborTagValue>(0)),
+      to: MoneroAddress.deserializeIAddress(bytes: values.rawValueAt(1)),
     );
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([amount.toCbor(), to.address]),
-        CborTagsConst.moneroWalletTransactionOutput);
-  }
+  List<CborObject?> get serializationItems =>
+      [amount.toCbor(), CborBytesValue(to.encodeAsIAddress())];
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.moneroWalletTransactionOutput;
 }

@@ -1,7 +1,6 @@
 import 'package:blockchain_utils/crypto/quick_crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart' show MethodUtils;
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/operations/escrow/create.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/widgets/memo/memo.dart';
@@ -64,8 +63,8 @@ class RippleTransactionEscrowCreateWidget extends StatelessWidget {
                     form.onUpdateCancelAfter(date);
                     return;
                   }
-                  final DateTime picked = DateTime(
-                      date.year, date.month, date.day, time.hour, time.minute);
+                  final DateTime picked =
+                      DateTime(date.year, date.month, date.day, time.hour, time.minute);
                   form.onUpdateCancelAfter(picked);
                 });
               });
@@ -120,8 +119,8 @@ class RippleTransactionEscrowCreateWidget extends StatelessWidget {
                     form.onUpdateFinishAfter(date);
                     return;
                   }
-                  final DateTime picked = DateTime(
-                      date.year, date.month, date.day, time.hour, time.minute);
+                  final DateTime picked =
+                      DateTime(date.year, date.month, date.day, time.hour, time.minute);
                   form.onUpdateFinishAfter(picked);
                 });
               });
@@ -158,8 +157,7 @@ class RippleTransactionEscrowCreateWidget extends StatelessWidget {
                           body: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (field.subtitle != null)
-                                Text(field.subtitle!.tr),
+                              if (field.subtitle != null) Text(field.subtitle!.tr),
                             ],
                           )),
                       buttonText: "setup_input".tr,
@@ -169,42 +167,36 @@ class RippleTransactionEscrowCreateWidget extends StatelessWidget {
                   .then(form.onUpdateCondition);
             },
             onRemoveIcon: AddOrRemoveIconWidget(field.hasValue),
-            child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                      child: APPAnimated(
-                          onActive: (context) => FullWidthWrapper(
-                                key: ValueKey(value?.length),
-                                child: Text(
-                                    field.value ?? "tap_to_input_value".tr,
-                                    maxLines: 3,
-                                    style:
-                                        context.onPrimaryTextTheme.bodyMedium),
-                              ))),
-                  if (!field.hasValue) ...[
-                    WidgetConstant.width8,
-                    FilledButton(
-                      onPressed: () {
-                        context
-                            .openSliverDialog<String>(
-                                widget: (p0) =>
-                                    const _GenerateFulFillmentView(),
-                                label: "fulfillment".tr)
-                            .then(form.onUpdateCondition);
-                      },
-                      child: Text("generate".tr),
-                    )
-                  ],
-                ]),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Expanded(
+                  child: APPAnimated(
+                      onActive: (context) => FullWidthWrapper(
+                            key: ValueKey(value?.length),
+                            child: Text(field.value ?? "tap_to_input_value".tr,
+                                maxLines: 3,
+                                style: context.onPrimaryTextTheme.bodyMedium),
+                          ))),
+              if (!field.hasValue) ...[
+                WidgetConstant.width8,
+                FilledButton(
+                  onPressed: () {
+                    context
+                        .openSliverDialog<String>(
+                            widget: (p0) => const _GenerateFulFillmentView(),
+                            label: "fulfillment".tr)
+                        .then(form.onUpdateCondition);
+                  },
+                  child: Text("generate".tr),
+                )
+              ],
+            ]),
           );
         },
       ),
       WidgetConstant.height20,
       RippleTransactionMemoWidget(controller: form),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }
@@ -214,8 +206,7 @@ class _GenerateFulFillmentView extends StatefulWidget {
   const _GenerateFulFillmentView();
 
   @override
-  State<_GenerateFulFillmentView> createState() =>
-      _GenerateFulFillmentViewState();
+  State<_GenerateFulFillmentView> createState() => _GenerateFulFillmentViewState();
 }
 
 class _GenerateFulFillmentViewState extends State<_GenerateFulFillmentView>
@@ -227,19 +218,19 @@ class _GenerateFulFillmentViewState extends State<_GenerateFulFillmentView>
     if (fulFillment != null) {
       fulFillment = null;
       setState(() {});
-      await MethodUtils.wait(duration: Duration(milliseconds: 400));
+      await MethodUtils.delayed(duration: Duration(milliseconds: 400));
     }
     progressKey.process();
 
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       final rand = QuickCrypto.generateRandom();
       final fullFillment = FulfillmentPreimageSha256.generate(rand);
       return fullFillment;
     }, delay: APPConst.oneSecoundDuration);
-    if (result.hasError) {
+    if (result.isErr) {
       progressKey.error();
     } else {
-      fulFillment = result.result;
+      fulFillment = result.unwrap();
       progressKey.success();
       setState(() {});
     }
@@ -296,8 +287,7 @@ class _GenerateFulFillmentViewState extends State<_GenerateFulFillmentView>
                     ? ButtonProgress(
                         key: progressKey,
                         child: (context) => FilledButton(
-                            onPressed: generateFulFillment,
-                            child: Text("generate".tr)))
+                            onPressed: generateFulFillment, child: Text("generate".tr)))
                     : Row(children: [
                         FilledButton(
                             onPressed: () {
@@ -305,8 +295,7 @@ class _GenerateFulFillmentViewState extends State<_GenerateFulFillmentView>
                                   .openSliverDialog<bool>(
                                       widget: (p0) => DialogTextView(
                                             text: "saved_fulfillment_desc".tr,
-                                            buttonWidget:
-                                                const DialogDoubleButtonView(),
+                                            buttonWidget: const DialogDoubleButtonView(),
                                           ),
                                       label: "fulfillment".tr)
                                   .then((value) {

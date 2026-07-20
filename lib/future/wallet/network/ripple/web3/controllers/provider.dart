@@ -1,29 +1,28 @@
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/app/utils/list/extension.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/web3/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ripple/methods/methods.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ripple/methods/methods.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
 
 mixin XRPWeb3TransactionApiController on DisposableMixin {
-  XRPClient get client;
+  XRPNetworkClient get client;
 
   Future<XRPAccountInfo> getWeb3TransactionAccountInfo(
-      ReceiptAddress<XRPAddress> address) async {
-    final info = await client.getAccountInfo(address.networkAddress.address);
+      ReceiptAddress<XRPBaseAddress> address) async {
+    final info = await client.getAccountInfo(address.networkAddress.classicAddress);
     if (info == null) {
       throw Web3RequestExceptionConst.inactiveAccount;
     }
 
     final accountSigners =
-        await client.getAccountSignerList(address.networkAddress.address);
+        await client.getAccountSignerList(address.networkAddress.classicAddress);
     final String? regularKey = info.accountData.regularKey;
     return XRPAccountInfo(
         enableMasterKey: !(info.accountFlags?.disableMasterKey ?? false),
-        regularKey: regularKey == null ? null : XRPAddress(regularKey),
+        regularKey: regularKey == null ? null : XRPBaseAddress(regularKey),
         accountSigners: accountSigners,
         owner: address);
   }
@@ -33,11 +32,12 @@ mixin XRPWeb3TransactionApiController on DisposableMixin {
     required IXRPAddress address,
     required Web3XRPRequestMethods method,
   }) {
-    if (owner.owner.networkAddress.address == address.networkAddress.address) {
+    if (owner.owner.networkAddress.classicAddress ==
+        address.networkAddress.classicAddress) {
       if (owner.enableMasterKey) return XRPWeb3SigningMode.full;
       if (!address.multiSigAccount) return null;
       final msig = (address as IXRPMultisigAddress).multiSignatureAccount;
-      final List<XRPAddress> addressSigners = msig.signers
+      final List<XRPBaseAddress> addressSigners = msig.signers
           .map((e) => RippleUtils.strPublicKeyToRippleAddress(e.publicKey))
           .toList();
       if (msig.isRegular) {
@@ -51,7 +51,7 @@ mixin XRPWeb3TransactionApiController on DisposableMixin {
       int threshHold = 0;
       for (final i in addressSigners) {
         final inSignerList = accountSigners.signerEntries
-            .firstWhereOrNull((element) => element.account == i.address);
+            .firstWhereOrNull((element) => element.account == i.classicAddress);
         if (inSignerList == null) continue;
         threshHold += inSignerList.signerWeight;
       }
@@ -74,10 +74,9 @@ mixin XRPWeb3TransactionApiController on DisposableMixin {
     required XRPChain account,
     required IXRPAddress address,
   }) async {
-    final recipient = account.getReceiptAddress(paymet.destination) ??
-        ReceiptAddress(
-            view: paymet.destination,
-            networkAddress: XRPAddress(paymet.destination));
+    final tokens = (await address.getAccountTokens()).unwrap();
+    final nAddress = XRPBaseAddress(paymet.destination);
+    final recipient = account.getOrCreateReceiptFromNetworkAddressSync(address: nAddress);
     switch (paymet.amount.type) {
       case AmountType.native:
         return XRPWeb3TransactionInfoPayment(
@@ -86,14 +85,12 @@ mixin XRPWeb3TransactionApiController on DisposableMixin {
                 (paymet.amount as XRPAmount).value, account.network.token));
       case AmountType.issue:
         final amount = paymet.amount as IssuedCurrencyAmount;
-        NonDecimalToken? token = address.tokens
+        NonDecimalToken? token = tokens
             .firstWhereOrNull(
-              (e) =>
-                  e.assetCode == amount.currency && e.issuer == amount.issuer,
+              (e) => e.assetCode == amount.currency && e.issuer == amount.issuer,
             )
             ?.token;
-        token ??=
-            NonDecimalToken(name: amount.currency, symbol: amount.currency);
+        token ??= NonDecimalToken(name: amount.currency, symbol: amount.currency);
         return XRPWeb3TransactionInfoPayment(
             recipient: recipient,
             amount: DecimalBalance.fromRational(token, amount.rational));

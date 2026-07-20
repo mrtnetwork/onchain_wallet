@@ -1,27 +1,24 @@
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ton/ton.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ton/ton.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
 import 'package:ton_dart/ton_dart.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import '../../models/models.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../core/network_handler.dart';
 
-class TonWeb3JSStateAddress extends Web3JSStateAddress<TonAddress,
-    Web3TonChainAccount, JSTonWalletAccount, Web3ChainDefaultIdnetifier> {
+class TonWeb3JSStateAddress extends Web3JSStateAddress<TonAddress, Web3TonChainAccount,
+    JSTonWalletAccount, Web3ChainDefaultIdnetifier> {
   const TonWeb3JSStateAddress(
       {required super.chainaccount,
       required super.jsAccount,
       required super.networkIdentifier});
 }
 
-class TonWeb3JSStateAccount extends Web3JSStateAccount<
-    TonAddress,
-    Web3TonChainAccount,
-    JSTonWalletAccount,
-    Web3ChainDefaultIdnetifier,
-    TonWeb3JSStateAddress> {
+class TonWeb3JSStateAccount extends Web3JSStateAccount<TonAddress, Web3TonChainAccount,
+    JSTonWalletAccount, Web3ChainDefaultIdnetifier, TonWeb3JSStateAddress> {
   TonWeb3JSStateAccount._({
     required super.state,
     required super.chains,
@@ -31,8 +28,7 @@ class TonWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory TonWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return TonWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return TonWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory TonWeb3JSStateAccount(Web3TonChainAuthenticated? authenticated) {
     if (authenticated == null) {
@@ -79,10 +75,16 @@ class TonWeb3JSStateHandler extends Web3JSStateHandler<
         Web3TonChainAccount,
         JSTonWalletAccount,
         Web3ChainDefaultIdnetifier,
+        TonWeb3JSStateAddress,
         TonWeb3JSStateAccount>
     with
-        TonWeb3StateHandler<JSTonWalletAccount, TonWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        TonWeb3StateHandler<
+            JSTonWalletAccount,
+            TonWeb3JSStateAddress,
+            TonWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   TonWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
 
@@ -96,8 +98,7 @@ class TonWeb3JSStateHandler extends Web3JSStateHandler<
         return onConnect_(params);
       case Web3TonRequestMethods.sendTransaction:
       case Web3TonRequestMethods.signTransaction:
-        return toSignTransactionRequest(
-            params: params, state: state, method: method!);
+        return toSignTransactionRequest(params: params, state: state, method: method!);
       case Web3TonRequestMethods.signMessage:
         final signMessage =
             toSignMessageRequest(params: params, state: state, method: method!);
@@ -118,14 +119,14 @@ class TonWeb3JSStateHandler extends Web3JSStateHandler<
     final method = Web3TonRequestMethods.fromName(message.request.method);
     switch (method) {
       case Web3TonRequestMethods.signMessage:
-        final signature = Web3TonSignMessageResponse.deserialize(
-            bytes: response.resultAsList<int>());
+        final signature =
+            Web3TonSignMessageResponse.deserialize(bytes: response.resultAsList<int>());
         return WalletMessageResponse.success(
             JSTonSignMessageResponse.setup(signature.signature));
       case Web3TonRequestMethods.sendTransaction:
       case Web3TonRequestMethods.signTransaction:
-        final r = Web3TonSendTransactionResponse.deserialize(
-            bytes: response.resultAsList());
+        final r =
+            Web3TonSendTransactionResponse.deserialize(bytes: response.resultAsList());
         final txHash = r.txHash;
         if (txHash == null) {
           return WalletMessageResponse.success(
@@ -137,12 +138,12 @@ class TonWeb3JSStateHandler extends Web3JSStateHandler<
         return onConnectResponse(message);
       default:
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  TonWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  TonWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return TonWeb3JSStateAccount.init();
     return TonWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

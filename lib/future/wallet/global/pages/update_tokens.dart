@@ -1,16 +1,14 @@
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 typedef ONUPDATETOKEN = void Function(BuildContext context, Token updatedToken);
 
-class UpdateTokenDetailsView<NETWORKADDRESS, TOKEN extends TokenCore,
+class UpdateTokenDetailsView<NETWORKADDRESS extends IAddress, TOKEN extends TokenCore,
     CHAINACCOUNT extends ChainAccount> extends StatefulWidget {
   const UpdateTokenDetailsView({
     super.key,
@@ -45,8 +43,7 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
 
   final GlobalKey<FormState> formKey =
       GlobalKey(debugLabel: "_UpdateTokenDetailsViewState");
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController progressKey = StreamPageProgressController();
   APPToken get token => widget.token;
   late String tokenName = token.name;
   late String tokenSymbol = token.symbol;
@@ -59,8 +56,7 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
   void onInitOnce() {
     super.onInitOnce();
     canChangeDecimal = _canChangeDecimal();
-    if (canChangeDecimal ||
-        widget.account.network.type == NetworkType.stellar) {
+    if (canChangeDecimal || widget.account.network.type == NetworkType.stellar) {
       decimal = (widget.token as Token).decimal;
       tokenDecimal = decimal;
     }
@@ -75,8 +71,8 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
     return null;
   }
 
-  void onChangeDicmal(int v) {
-    decimal = v;
+  void onChangeDicmal(int? v) {
+    decimal = v ?? 0;
   }
 
   void onChangeApiId(String v) {
@@ -118,14 +114,14 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
   void onUpdate() async {
     if (!formKey.ready()) return;
     final apiId = apiIdTextField.currentState!.getValue();
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     int? currectDecimal = tokenDecimal;
     if (canChangeDecimal && currectDecimal != decimal) {
       currectDecimal = decimal;
       final alert = await context.openSliverDialog(
           widget: (ctx) => DialogTextView(
-                buttonWidget: AsyncDialogDoubleButtonView(
-                    firstButtonLabel: "change_decimals".tr),
+                buttonWidget:
+                    AsyncDialogDoubleButtonView(firstButtonLabel: "change_decimals".tr),
                 widget: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -148,16 +144,13 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
     if (apiId.isNotEmpty) {
       if (apiId != token.market?.apiId) {
         progressKey.progressText("retrieving_token_price".tr);
-        final result = await MethodUtils.call(() async {
-          return await wallet.currency.getCoinPrice(apiId);
-        });
-        if (result.hasError || result.result == null) {
-          progressKey.errorText(
-              result.localizationErrorOrNull ?? "invalid_api_id".tr,
+        final result = await wallet.currency.getCoinPrice(apiId);
+        if (result.ok() == null) {
+          progressKey.errorText(result.err()?.localizationError ?? "invalid_api_id".tr,
               backToIdle: true);
           return;
         }
-        market = CoingeckoCoin(apiId: result.result!.id);
+        market = CoingeckoCoin(apiId: result.unwrap()!.id);
       }
     } else {
       market = null;
@@ -172,16 +165,15 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
       widget.onUpdateToken?.call(context, updateToken);
     } else {
       progressKey.progressText("updating_token".tr);
-      final update = await MethodUtils.call(() async => await widget.account
-          .updateToken(
-              token: widget.accountToken!,
-              updatedToken: updateToken,
-              address: widget.address));
-      if (update.hasError) {
-        progressKey.errorText(update.localizationError,
-            backToIdle: false, showBackButton: true);
-        return;
-      }
+      final update = await widget.account.updateToken(
+          token: widget.accountToken!,
+          updatedToken: updateToken,
+          address: widget.address);
+      update.watch(
+        onErr: (error) => progressKey.errorText(error.localizationError,
+            backToIdle: false, showBackButton: true),
+      );
+      if (update.isErr) return;
     }
     progressKey.successText("token_updated_successfully".tr, backToIdle: false);
   }
@@ -210,8 +202,7 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
         key: formKey,
         child: StreamPageProgress(
           controller: progressKey,
-          initialWidget:
-              ProgressWithTextView(text: "retrieving_token_information".tr),
+          initialWidget: ProgressWithTextView(text: "retrieving_token_information".tr),
           builder: (c) => CustomScrollView(
             controller: widget.scrollController,
             slivers: [
@@ -242,8 +233,7 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
                           onChanged: onTokenSymbolChange,
                           key: symbolTextFieldKey),
                       WidgetConstant.height20,
-                      Text("live_price".tr,
-                          style: context.textTheme.titleMedium),
+                      Text("live_price".tr, style: context.textTheme.titleMedium),
                       Text("coin_gecko_desc".tr),
                       WidgetConstant.height8,
                       AppTextField(
@@ -255,14 +245,13 @@ class _UpdateTokenDetailsViewState extends State<UpdateTokenDetailsView>
                       ),
                       WidgetConstant.height20,
                       if (canChangeDecimal) ...[
-                        Text("token_decimals".tr,
-                            style: context.textTheme.titleMedium),
+                        Text("token_decimals".tr, style: context.textTheme.titleMedium),
                         Text("change_token_decimal_desc".tr),
                         WidgetConstant.height8,
                         NumberTextField(
                             label: "decimals".tr,
                             validator: onValidateDecimal,
-                            onChange: onChangeDicmal,
+                            onChangeValue: onChangeDicmal,
                             defaultValue: decimal,
                             max: BlockchainConst.maxTokenDecimal,
                             min: 0),

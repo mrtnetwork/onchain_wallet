@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class SetupTronMultiSigAddressView extends StatelessWidget {
@@ -17,7 +17,7 @@ class SetupTronMultiSigAddressView extends StatelessWidget {
       title: "multi_sig_addr".tr,
       addressRequired: true,
       clientRequired: true,
-      childBulder: (wallet, account, client, address, onAccountChanged) {
+      childBulder: (wallet, account, client, address) {
         return _SetupTronMultisigAddressView(account: account, client: client);
       },
     );
@@ -25,8 +25,7 @@ class SetupTronMultiSigAddressView extends StatelessWidget {
 }
 
 class _SetupTronMultisigAddressView extends StatefulWidget {
-  const _SetupTronMultisigAddressView(
-      {required this.account, required this.client});
+  const _SetupTronMultisigAddressView({required this.account, required this.client});
   final TronChain account;
   final TronClient client;
   @override
@@ -34,19 +33,16 @@ class _SetupTronMultisigAddressView extends StatefulWidget {
       __SetupTronMultisigAddressViewState();
 }
 
-class __SetupTronMultisigAddressViewState
-    extends State<_SetupTronMultisigAddressView>
+class __SetupTronMultisigAddressViewState extends State<_SetupTronMultisigAddressView>
     with SafeState<_SetupTronMultisigAddressView> {
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController progressKey = StreamPageProgressController();
   ReceiptAddress<TronAddress>? address;
   WalletTronNetwork get network => widget.account.network;
   TronAccountInfo? account;
   List<AccountPermission> get permissions => account!.permissions;
   AccountPermission? permission;
   List<TransactionContractType>? operations;
-  bool get isReady =>
-      permission != null && sumOfWeight >= permission!.threshold;
+  bool get isReady => permission != null && sumOfWeight >= permission!.threshold;
   BigInt sumOfWeight = BigInt.zero;
   final Map<PermissionKeys, TronMultiSigSignerDetais?> signers = {};
 
@@ -61,8 +57,7 @@ class __SetupTronMultisigAddressViewState
     if (permission!.operations == null) {
       operations = null;
     } else {
-      operations =
-          TronHelper.decodePermissionOperation(permission!.operations!);
+      operations = TronHelper.decodePermissionOperation(permission!.operations!);
     }
     signers.clear();
     sumOfWeight = BigInt.zero;
@@ -101,15 +96,13 @@ class __SetupTronMultisigAddressViewState
 
       final newAcc = TronMultiSigSignerDetais(
           publicKey: acc.publicKey,
-          keyIndex: acc.keyIndex.cast(),
+          derivationIndex: acc.derivationIndex.cast(),
           weight: signer.weight);
 
       signers.addAll({signer: newAcc});
     } finally {
-      sumOfWeight = signers.values.fold<BigInt>(
-          BigInt.zero,
-          (previousValue, element) =>
-              previousValue + (element?.weight ?? BigInt.zero));
+      sumOfWeight = signers.values.fold<BigInt>(BigInt.zero,
+          (previousValue, element) => previousValue + (element?.weight ?? BigInt.zero));
       setState(() {});
     }
   }
@@ -117,13 +110,13 @@ class __SetupTronMultisigAddressViewState
   Future<void> onAccountInformation() async {
     if (address == null) return;
     progressKey.progressText("retrieving_account_information".tr);
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       return await widget.client.getAccount(address!.networkAddress);
     });
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError);
     } else {
-      account = result.result;
+      account = result.unwrap();
       if (account == null) {
         progressKey.errorText("account_not_found".tr);
       } else {
@@ -134,36 +127,33 @@ class __SetupTronMultisigAddressViewState
 
   Future<void> onGenerateAddress() async {
     progressKey.progressText("setup_address".tr);
-    final wallet = context.watch<WalletProvider>(StateConst.main).wallet;
+    final wallet = context.wallet.wallet;
 
-    final accountParams = await MethodUtils.call(() async {
+    final accountParams = await IResult.call(() async {
       final newAccountParams = TronMultisigNewAddressParams(
         coin: network.coins.first,
         masterAddress: address!.networkAddress,
         multiSigAccount: TronMultiSignatureAddress(
-            signers: signers.values
-                .where((element) => element != null)
-                .toList()
-                .cast(),
+            signers: signers.values.where((element) => element != null).toList().cast(),
             threshold: permission!.threshold,
             permissionID: permission!.id),
       );
       return newAccountParams;
     });
-    if (accountParams.hasError) {
-      progressKey.errorText(accountParams.localizationError);
+    if (accountParams.isErr) {
+      progressKey.errorText(accountParams.unwrapErr().localizationError);
     } else {
-      final result = await wallet.deriveNewAccount(
-          newAccountParams: accountParams.result, chain: widget.account);
-      if (result.hasError) {
-        progressKey.errorText(result.localizationError);
+      final result = await wallet.doAction(WalletActionDeriveNewAccount(
+          newAccountParams: accountParams.unwrap(), chain: widget.account));
+      if (result.isErr) {
+        progressKey.errorText(result.unwrapErr().localizationError);
       } else {
         progressKey.success(
             backToIdle: false,
             progressWidget: SuccessWithButtonView(
               buttonWidget: ContainerWithBorder(
                   margin: WidgetConstant.paddingVertical8,
-                  child: AddressDetailsView(address: result.result)),
+                  child: AddressDetailsView(address: result.unwrap())),
               buttonText: "close".tr,
               onPressed: () {
                 if (mounted) {
@@ -202,8 +192,7 @@ class __SetupTronMultisigAddressViewState
                               PageTitleSubtitle(
                                   title: "multi_sig_addr".tr,
                                   body: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text("tron_multi_sig_desc".tr),
                                     ],
@@ -214,16 +203,12 @@ class __SetupTronMultisigAddressViewState
                                 width: context.mediaQuery.size.width,
                                 widgets: {
                                   true: (context) => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         key: const ValueKey<bool>(true),
                                         children: [
                                           Text("permissions".tr,
-                                              style: context
-                                                  .textTheme.titleMedium),
-                                          Text(
-                                              "tron_multi_sig_select_permission"
-                                                  .tr),
+                                              style: context.textTheme.titleMedium),
+                                          Text("tron_multi_sig_select_permission".tr),
                                           WidgetConstant.height8,
                                           AppDropDownBottom(
                                               items: {
@@ -231,19 +216,15 @@ class __SetupTronMultisigAddressViewState
                                                   i: RichText(
                                                       text: TextSpan(
                                                           style: context
-                                                              .textTheme
-                                                              .bodyMedium,
-                                                          text: i.type.name
-                                                              .camelCase,
+                                                              .textTheme.bodyMedium,
+                                                          text: i.type.name.camelCase,
                                                           children: [
-                                                        if (i.permissionName !=
-                                                            null)
+                                                        if (i.permissionName != null)
                                                           TextSpan(
                                                               text:
                                                                   " (${i.permissionName}) ",
                                                               style: context
-                                                                  .textTheme
-                                                                  .bodySmall)
+                                                                  .textTheme.bodySmall)
                                                       ]))
                                               },
                                               hint: "permissions".tr,
@@ -259,62 +240,65 @@ class __SetupTronMultisigAddressViewState
                                               children: [
                                                 WidgetConstant.height20,
                                                 Text("threshold".tr,
-                                                    style: context
-                                                        .textTheme.titleMedium),
+                                                    style: context.textTheme.titleMedium),
                                                 WidgetConstant.height8,
                                                 ContainerWithBorder(
                                                     child: Text(
-                                                        permission!.threshold
-                                                            .toString(),
-                                                        style: context
-                                                            .onPrimaryTextTheme
+                                                        permission!.threshold.toString(),
+                                                        style: context.onPrimaryTextTheme
                                                             .bodyMedium)),
                                                 WidgetConstant.height20,
                                                 Text("operations".tr,
-                                                    style: context
-                                                        .textTheme.titleMedium),
+                                                    style: context.textTheme.titleMedium),
                                                 WidgetConstant.height8,
                                                 ContainerWithBorder(
                                                   child: Row(
                                                     children: [
                                                       Expanded(
                                                         child: Text(
-                                                            permission
-                                                                    ?.operations ??
-                                                                "all_operations"
-                                                                    .tr,
+                                                            permission?.operations ??
+                                                                "all_operations".tr,
                                                             style: context
                                                                 .onPrimaryTextTheme
                                                                 .bodyMedium),
                                                       ),
-                                                      if (operations !=
-                                                          null) ...[
+                                                      if (operations != null) ...[
                                                         WidgetConstant.width8,
                                                         ToolTipView(
                                                             waitDuration: null,
                                                             tooltipWidget: (c) =>
                                                                 TooltipConstrainsWidget(
                                                                     child: Wrap(
-                                                                  alignment:
-                                                                      WrapAlignment
-                                                                          .spaceBetween,
-                                                                  runSpacing:
-                                                                      2.5,
+                                                                  alignment: WrapAlignment
+                                                                      .spaceBetween,
+                                                                  runSpacing: 2.5,
                                                                   spacing: 2.5,
-                                                                  children: List
-                                                                      .generate(
-                                                                          operations!
-                                                                              .length,
-                                                                          (index) =>
-                                                                              Container(
-                                                                                padding: WidgetConstant.padding5,
-                                                                                decoration: BoxDecoration(color: context.colors.surface, borderRadius: WidgetConstant.border8),
-                                                                                width: 120,
-                                                                                child: OneLineTextWidget(TransactionContractType.values[index].name, style: context.textTheme.bodySmall),
-                                                                              )),
+                                                                  children: List.generate(
+                                                                      operations!.length,
+                                                                      (index) =>
+                                                                          Container(
+                                                                            padding:
+                                                                                WidgetConstant
+                                                                                    .padding5,
+                                                                            decoration: BoxDecoration(
+                                                                                color: context
+                                                                                    .colors
+                                                                                    .surface,
+                                                                                borderRadius:
+                                                                                    WidgetConstant
+                                                                                        .border8),
+                                                                            width: 120,
+                                                                            child: OneLineTextWidget(
+                                                                                TransactionContractType
+                                                                                    .values[
+                                                                                        index]
+                                                                                    .name,
+                                                                                style: context
+                                                                                    .textTheme
+                                                                                    .bodySmall),
+                                                                          )),
                                                                 )),
-                                                            child: Icon(
-                                                                Icons.help,
+                                                            child: Icon(Icons.help,
                                                                 color: context
                                                                     .onPrimaryContainer))
                                                       ]
@@ -323,57 +307,47 @@ class __SetupTronMultisigAddressViewState
                                                 ),
                                                 WidgetConstant.height20,
                                                 Text("tron_permission_key".tr,
-                                                    style: context
-                                                        .textTheme.titleMedium),
-                                                Text(
-                                                    "tron_multi_sig_addres_threshhold"
-                                                        .tr),
+                                                    style: context.textTheme.titleMedium),
+                                                Text("tron_multi_sig_addres_threshhold"
+                                                    .tr),
                                                 WidgetConstant.height8,
-                                                ...List.generate(
-                                                    permission!.keys.length,
+                                                ...List.generate(permission!.keys.length,
                                                     (index) {
                                                   final signerEntries =
                                                       permission!.keys.toList();
-                                                  final key =
-                                                      signerEntries[index];
-                                                  final signerAccount =
-                                                      signers[key];
+                                                  final key = signerEntries[index];
+                                                  final signerAccount = signers[key];
                                                   return CustomizedContainer(
                                                     onTapStackIcon: () {
                                                       onAddSigner(key);
                                                     },
                                                     enableTap: false,
                                                     onStackWidget: APPCheckBox(
-                                                        backgroundColor: context
-                                                            .primaryContainer,
-                                                        color: context
-                                                            .onPrimaryContainer,
-                                                        value: signerAccount !=
-                                                            null,
+                                                        backgroundColor:
+                                                            context.primaryContainer,
+                                                        color: context.onPrimaryContainer,
+                                                        value: signerAccount != null,
                                                         onChanged: (value) {
                                                           onAddSigner(key);
                                                         }),
                                                     child: Column(
                                                       crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
+                                                          CrossAxisAlignment.start,
                                                       children: [
                                                         ContainerWithBorder(
-                                                          backgroundColor: context
-                                                              .onPrimaryContainer,
+                                                          backgroundColor:
+                                                              context.onPrimaryContainer,
                                                           child: Text(
-                                                              key.address
-                                                                  .toAddress(),
+                                                              key.address.toAddress(),
                                                               style: context
                                                                   .primaryTextTheme
                                                                   .bodyMedium),
                                                         ),
                                                         ContainerWithBorder(
-                                                          backgroundColor: context
-                                                              .onPrimaryContainer,
+                                                          backgroundColor:
+                                                              context.onPrimaryContainer,
                                                           child: Text(
-                                                              key.weight
-                                                                  .toString(),
+                                                              key.weight.toString(),
                                                               style: context
                                                                   .primaryTextTheme
                                                                   .bodyMedium),
@@ -386,25 +360,20 @@ class __SetupTronMultisigAddressViewState
                                             ),
                                           ),
                                           Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               FixedElevatedButton(
-                                                padding: WidgetConstant
-                                                    .paddingVertical40,
-                                                onPressed: isReady
-                                                    ? onGenerateAddress
-                                                    : null,
-                                                child:
-                                                    Text("generate_address".tr),
+                                                padding: WidgetConstant.paddingVertical40,
+                                                onPressed:
+                                                    isReady ? onGenerateAddress : null,
+                                                child: Text("generate_address".tr),
                                               )
                                             ],
                                           )
                                         ],
                                       ),
                                   false: (context) => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           ReceiptAddressView(
                                             title: "account".tr,
@@ -414,24 +383,22 @@ class __SetupTronMultisigAddressViewState
                                                   .selectAccount<TronAddress>(
                                                       account: widget.account,
                                                       title: "account".tr)
-                                                  .then((v) => onSelectAddress(
-                                                      v?.firstOrNull));
+                                                  .then((v) =>
+                                                      onSelectAddress(v?.firstOrNull));
                                             },
                                             address: address,
                                           ),
                                           Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               FixedElevatedButton(
-                                                  padding: WidgetConstant
-                                                      .paddingVertical20,
+                                                  padding:
+                                                      WidgetConstant.paddingVertical20,
                                                   onPressed: address == null
                                                       ? null
                                                       : onAccountInformation,
-                                                  child: Text(
-                                                      "get_account_information"
-                                                          .tr))
+                                                  child:
+                                                      Text("get_account_information".tr))
                                             ],
                                           )
                                         ],

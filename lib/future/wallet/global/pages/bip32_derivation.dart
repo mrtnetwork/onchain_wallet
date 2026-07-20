@@ -4,20 +4,21 @@ import 'package:blockchain_utils/bip/substrate/substrate.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/utils/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/utils.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart' show BlockchainConst;
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 
 class Bip32KeyDerivationView extends StatefulWidget {
   const Bip32KeyDerivationView(
       {super.key,
       required this.coin,
       required this.defaultPath,
-      required this.seedGeneration});
+      required this.seedGeneration,
+      this.fixedLevel});
   final CryptoCoins coin;
-  // final EllipticCurveTypes curve;
   final SeedTypes seedGeneration;
   final String? defaultPath;
+  final Bip44Levels? fixedLevel;
 
   @override
   State<Bip32KeyDerivationView> createState() => _Bip32KeyDerivationViewState();
@@ -26,25 +27,23 @@ class Bip32KeyDerivationView extends StatefulWidget {
 class _Bip32KeyDerivationViewState extends State<Bip32KeyDerivationView>
     with SafeState<Bip32KeyDerivationView> {
   String path = "";
+  // Bip44Changes s
   final GlobalKey<FormState> form =
       GlobalKey<FormState>(debugLabel: "_Bip32KeyDerivationViewState_form");
-  final GlobalKey<AppTextFieldState> pathTextFieldKey =
-      GlobalKey<AppTextFieldState>(
-          debugLabel: "_Bip32KeyDerivationViewState_pathTextFieldKey");
-  late final bool isSupportNoneHardend;
+  final GlobalKey<AppTextFieldState> pathTextFieldKey = GlobalKey<AppTextFieldState>(
+      debugLabel: "_Bip32KeyDerivationViewState_pathTextFieldKey");
+  bool allowNoneHardend = true;
   late final bool isSubstrate;
 
   void onSubmit() {
     if (!form.ready()) return;
-    AddressDerivationIndex keyIndex;
+    DerivableIndex keyIndex;
     if (isSubstrate) {
-      keyIndex = SubstrateAddressIndex.fromPath(
+      keyIndex = SubstrateDerivationIndex.fromPath(
           currencyCoin: widget.coin as SubstrateCoins, substratePath: path);
     } else {
-      keyIndex = Bip32AddressIndex.fromPath(
-          path: path,
-          currencyCoin: widget.coin,
-          seedGeneration: widget.seedGeneration);
+      keyIndex = Bip32DerivationIndex.fromPath(
+          path: path, currencyCoin: widget.coin, seedGeneration: widget.seedGeneration);
     }
 
     context.pop(keyIndex);
@@ -57,16 +56,19 @@ class _Bip32KeyDerivationViewState extends State<Bip32KeyDerivationView>
   String? _validatorBip32(String? v) {
     if (path.trim().isEmpty) return null;
     try {
+      final fixedLevel = widget.fixedLevel;
       final parse = BlockchainAddressUtils.praseBip32Path(path);
+      if (fixedLevel != null && parse.length != fixedLevel.value) {
+        return "path_must_exactly_at_n_level".tr.replaceOne(fixedLevel.name);
+      }
       if (parse.isEmpty) return null;
-      if (!isSupportNoneHardend &&
-          parse.any((element) => !element.isHardened)) {
-        return "ed25519_support_derivation_desc".tr;
+      if (!allowNoneHardend && parse.any((element) => !element.isHardened)) {
+        return "coin_support_derivation_desc".tr;
       }
       if (parse.length > BlockchainConst.maxBip32LevelIndex) {
         return "invalid_hd_wallet_derivation_path".tr;
       }
-    } catch (e) {
+    } catch (_) {
       return "invalid_hd_wallet_derivation_path".tr;
     }
     return null;
@@ -98,9 +100,33 @@ class _Bip32KeyDerivationViewState extends State<Bip32KeyDerivationView>
   @override
   void onInitOnce() {
     super.onInitOnce();
+    final defaultPath = widget.defaultPath;
     path = widget.defaultPath ?? "";
-    isSubstrate = widget.coin.proposal == SubstratePropoosal.substrate;
-    isSupportNoneHardend = curve != EllipticCurveTypes.ed25519;
+    isSubstrate = widget.coin.proposal == CoinProposal.substrate;
+    final fixedLevel = widget.fixedLevel;
+    if (fixedLevel != null && defaultPath != null) {
+      try {
+        final parse = BlockchainAddressUtils.praseBip32Path(defaultPath)
+            .take(fixedLevel.value)
+            .toList();
+        assert(parse.length >= fixedLevel.value,
+            "Fixed Level is grather than default path.");
+        final bip32Path = Bip32Path(elems: parse);
+        path = bip32Path.toPath();
+      } catch (e) {
+        assert(false, "Invalid default path $e");
+      }
+    }
+    assert(widget.fixedLevel == null || !isSubstrate,
+        "Fixed level not  worked with substrate derivation.");
+    switch (curve) {
+      case EllipticCurveTypes.ed25519:
+      case EllipticCurveTypes.redJubJub:
+      case EllipticCurveTypes.redPallas:
+        allowNoneHardend = false;
+      default:
+        break;
+    }
   }
 
   @override
@@ -110,8 +136,7 @@ class _Bip32KeyDerivationViewState extends State<Bip32KeyDerivationView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AlertTextContainer(
-              message: "custom_key_derivation_desc".tr, enableTap: false),
+          AlertTextContainer(message: "custom_key_derivation_desc".tr, enableTap: false),
           WidgetConstant.height20,
           Text("derivation_path".tr, style: context.textTheme.titleMedium),
           if (isSubstrate)

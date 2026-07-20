@@ -4,7 +4,6 @@ import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart'
 import 'package:ton_dart/ton_dart.dart';
 
 class TonTransactionFeeDetails {
-  static final feeRate = BigRational.parseDecimal("1.1");
   final IntegerBalance storageFee;
   final IntegerBalance gasFee;
   final IntegerBalance actionPhase;
@@ -52,10 +51,10 @@ class TonTransactionFeeDetails {
         immutable: true, decimalPlaces: 2);
     final internalFess = internalMessages.fold(BigInt.zero,
         (previousValue, element) => previousValue + element.total.balance);
+    final feeRate = BigRational.parseDecimal("1.1");
 
-    final finalFee = (BigRational(internalFess + fee.balance) *
-            TonTransactionFeeDetails.feeRate)
-        .toBigInt();
+    final finalFee =
+        (BigRational(internalFess + fee.balance) * feeRate).toBigInt();
     final IntegerBalance totalFees = IntegerBalance.token(
         finalFee, network.token,
         immutable: true, decimalPlaces: 2);

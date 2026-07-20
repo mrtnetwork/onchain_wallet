@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart'
     show GlobalKey, Scrollable, Curves, Rect, RenderBox, Offset, FormState;
-import 'package:on_chain_wallet/app/models/models/typedef.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-extension QuickWidgetKeys on GlobalKey {
+extension ExtQuickWidgetKeys on GlobalKey {
   Future<void> ensureKeyVisible(
       {int afterMilliseconds = 400,
       int jumpDuration = 320,
@@ -23,8 +23,7 @@ extension QuickWidgetKeys on GlobalKey {
 
   Rect? getPosition() {
     try {
-      final RenderBox renderBox =
-          currentContext!.findRenderObject() as RenderBox;
+      final RenderBox renderBox = currentContext!.findRenderObject() as RenderBox;
       final position = renderBox.localToGlobal(Offset.zero);
       final size = renderBox.size;
       return Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
@@ -34,7 +33,7 @@ extension QuickWidgetKeys on GlobalKey {
   }
 }
 
-extension QuickFromKeyAccess on GlobalKey<FormState> {
+extension ExtQuickFromKeyAccess on GlobalKey<FormState> {
   bool ready() {
     return currentState?.validate() ?? false;
   }

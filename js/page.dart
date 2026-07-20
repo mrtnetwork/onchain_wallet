@@ -1,5 +1,4 @@
 import 'dart:js_interop';
-
 import 'package:on_chain_bridge/web/web.dart';
 
 import 'js_wallet/constant/constant.dart';
@@ -17,11 +16,9 @@ void main(List<String> args) async {
       return;
     }
     inited = true;
-    jsWindow.addEventListener(
-        JSWalletConstant.activationEventName, onActivation.toJS);
+    jsWindow.removeEventListener(JSWalletConstant.activationEventName, onActivation.toJS);
     pageController.initClients(event.asString());
   }
 
-  jsWindow.addEventListener(
-      JSWalletConstant.activationEventName, onActivation.toJS);
+  jsWindow.addEventListener(JSWalletConstant.activationEventName, onActivation.toJS);
 }

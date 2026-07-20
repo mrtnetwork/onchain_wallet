@@ -13,19 +13,19 @@ class ETHAccountPageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return TabBarView(physics: WidgetConstant.noScrollPhysics, children: [
       _EtherumServices(chainAccount),
-      AccountTokensView<ETHERC20Token, IEthAddress>(
+      AccountTokensView<ETHERC20Token, IEthereumAddress>(
         account: chainAccount,
         importTokenPage: PageRouter.importERC20Token,
         transferBuilder: (p0) {
           return EthereumTransactionTransferTokenOperation(
-              address: chainAccount.address,
+              address: chainAccount.addressSync,
               account: chainAccount,
               walletProvider: context.wallet,
               token: p0);
         },
       ),
-      AccountTransactionActivityView<IEthAddress, EthWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<EthWalletTransaction, IEthereumAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -37,7 +37,6 @@ class _EtherumServices extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverToBoxAdapter(
         child: AppListTile(
           title: Text("import_erc20_token".tr),

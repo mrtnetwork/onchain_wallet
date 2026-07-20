@@ -1,4 +1,5 @@
 import 'package:blockchain_utils/bip/bip/bip.dart';
+import 'package:blockchain_utils/bip/cardano/cip0019/conf/cip0019_coins.dart';
 import 'package:blockchain_utils/blockchain_utils.dart'
     show ADAAddressType, Bip32PathParser, Bip44Coins, BytesUtils, Cip1852Coins;
 import 'package:flutter/material.dart';
@@ -6,10 +7,10 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
 
 typedef _OnChangeShellyAddrType = void Function(ADAAddressType? addrType);
 
@@ -54,12 +55,12 @@ enum _AdaEra {
 
   CryptoCoins getRelatedByronLegacy(WalletCardanoNetwork network) {
     if (isShelly) {
-      throw AppExceptionConst.internalError("getRelatedByronLegacy");
+      throw AppInternalError.internalError("getRelatedByronLegacy");
     }
     if (network.coinParam.mainnet) {
-      return CustomCoins.byronLegacy;
+      return Cip0019Coins.byronLegacy;
     } else {
-      return CustomCoins.byronLegacyTestnet;
+      return Cip0019Coins.byronLegacyTestnet;
     }
   }
 }
@@ -74,36 +75,28 @@ enum _CardanoMasterKeyGenerationType {
   bool get isLegacy => this == _CardanoMasterKeyGenerationType.byronLegacy;
 }
 
-enum _GenerateAddressPage {
-  seedGeneration,
-  era,
-  masterKeyGeneration,
-  generateAddress
-}
+enum _GenerateAddressPage { seedGeneration, era, masterKeyGeneration, generateAddress }
 
 class SetupCardanoAddressView extends StatefulWidget {
   const SetupCardanoAddressView(this.chain, {super.key});
   final ADAChain chain;
 
   @override
-  State<SetupCardanoAddressView> createState() =>
-      _SetupCardanoAddressViewState();
+  State<SetupCardanoAddressView> createState() => _SetupCardanoAddressViewState();
 }
 
 class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
     with SafeState {
-  final StreamPageProgressController pageProgressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController pageProgressKey = StreamPageProgressController();
   final GlobalKey visibleGenerateAddress =
       GlobalKey(debugLabel: "_SetupCardanoAddressViewState_visibleContinue");
   final GlobalKey visibleXAddressDetails =
       GlobalKey(debugLabel: "_SetupCardanoAddressViewState_visibleContinue");
   final GlobalKey<FormState> form = GlobalKey<FormState>();
   final GlobalKey<AppTextFieldState> hdPathKeyKey =
-      GlobalKey<AppTextFieldState>(
-          debugLabel: "_SetupCardanoAddressViewState_hdPathKey");
-  final GlobalKey<AppTextFieldState> hdPathKey = GlobalKey<AppTextFieldState>(
-      debugLabel: "_SetupCardanoAddressViewState_hdPath");
+      GlobalKey<AppTextFieldState>(debugLabel: "_SetupCardanoAddressViewState_hdPathKey");
+  final GlobalKey<AppTextFieldState> hdPathKey =
+      GlobalKey<AppTextFieldState>(debugLabel: "_SetupCardanoAddressViewState_hdPath");
 
   bool customDervation = false;
   late final ADAChain chainAccount = widget.chain;
@@ -212,10 +205,8 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
     updateState();
   }
 
-  bool get showLegacy =>
-      !era.isShelly && seedGenerationType == SeedTypes.byronLegacySeed;
-  void onChangeMasterKeyGeneration(
-      _CardanoMasterKeyGenerationType? masterKeyGeneration) {
+  bool get showLegacy => !era.isShelly && seedGenerationType == SeedTypes.byronLegacySeed;
+  void onChangeMasterKeyGeneration(_CardanoMasterKeyGenerationType? masterKeyGeneration) {
     if (masterKeyGeneration == null) return;
     if (era.isShelly && masterKeyGeneration.isLegacy) return;
     keyGenerationType = masterKeyGeneration;
@@ -253,12 +244,11 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
 
   void generateAddress() async {
     if (!form.ready()) return;
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       pageProgressKey.progressText("generating_new_addr".tr);
-      final model = context.watch<WalletProvider>(StateConst.main);
-      Bip32AddressIndex? keyIndex =
-          await context.openMaxExtendSliverBottomSheet<Bip32AddressIndex>(
-              "setup_derivation".tr,
+      final model = context.wallet;
+      Bip32DerivationIndex? keyIndex = await context
+          .openMaxExtendSliverBottomSheet<Bip32DerivationIndex>("setup_derivation".tr,
               bodyBuilder: (controller) => SetupDerivationModeView(
                   coin: coin,
                   chainAccout: chainAccount,
@@ -268,15 +258,14 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
         return null;
       }
       keyIndex = keyIndex.copyWith(keyName: "base_key");
-      Bip32AddressIndex? stakeDerivation;
+      Bip32DerivationIndex? stakeDerivation;
       if (addrType == ADAAddressType.base) {
         final defaultStakeKey = keyIndex.copyWith(
             changeLevel: CardanoUtils.bip32StakeChangeLevel,
             addressIndex: CardanoUtils.bip32StakeAddressLevel);
         // ignore: use_build_context_synchronously
-        stakeDerivation =
-            await context.openMaxExtendSliverBottomSheet<Bip32AddressIndex>(
-                "setup_derivation".tr,
+        stakeDerivation = await context
+            .openMaxExtendSliverBottomSheet<Bip32DerivationIndex>("setup_derivation".tr,
                 bodyBuilder: (controller) => SetupDerivationModeView(
                       coin: coin,
                       chainAccout: chainAccount,
@@ -315,14 +304,15 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
           customHdPath: hdPath,
           customHdPathKey: hdPathKey,
           coin: coin);
-      final result = await model.wallet
-          .deriveNewAccount(newAccountParams: newAccount, chain: chainAccount);
-      return result.result;
+      final result = await model.wallet.doAction(WalletActionDeriveNewAccount(
+          newAccountParams: newAccount, chain: chainAccount));
+      return result.unwrap();
     });
 
-    if (result.hasError) {
-      pageProgressKey.errorText(result.localizationError);
-    } else if (result.result == null) {
+    if (result.isErr) {
+      pageProgressKey.errorText(result.unwrapErr().localizationError);
+    }
+    if (result.ok() == null) {
       pageProgressKey.backToIdle();
     } else {
       pageProgressKey.success(
@@ -330,9 +320,10 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
           progressWidget: SuccessWithButtonView(
             buttonWidget: ContainerWithBorder(
                 margin: WidgetConstant.paddingVertical8,
-                child: AddressDetailsView(address: result.result!)),
+                child: AddressDetailsView(address: result.unwrap()!)),
             buttonText: "generate_new_address".tr,
             onPressed: () {
+              backToDefault();
               pageProgressKey.backToIdle();
             },
           ));
@@ -350,15 +341,12 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
   Widget build(BuildContext context) {
     return Form(
       key: form,
-      canPop: pageProgressKey.isSuccess ||
-          page == _GenerateAddressPage.seedGeneration,
+      canPop: pageProgressKey.isSuccess || page == _GenerateAddressPage.seedGeneration,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) backToDefault();
       },
       child: StreamPageProgress(
         controller: pageProgressKey,
-        // backToIdle: APPConst.twoSecoundDuration,
-        // initialStatus: PageProgressStatus.idle,
         builder: (context) => Center(
           child: CustomScrollView(
             shrinkWrap: true,
@@ -389,10 +377,8 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
                                   ? _SelectMasterKeyGeneration(
                                       keyGenerationType: keyGenerationType,
                                       era: era,
-                                      onChangeKeyGeneration:
-                                          onChangeMasterKeyGeneration,
-                                      onContinue:
-                                          onContinueFromMasterkeyGeneration,
+                                      onChangeKeyGeneration: onChangeMasterKeyGeneration,
+                                      onContinue: onContinueFromMasterkeyGeneration,
                                       seedGeneration: seedGenerationType,
                                     )
                                   : _GenerateAddress(
@@ -408,12 +394,10 @@ class _SetupCardanoAddressViewState extends State<SetupCardanoAddressView>
                                       onChangedHdPathKey: onChangeHdPathKey,
                                       validatorHdPath: onValidateHdPath,
                                       validatorHdPathKey: onValidateHdPathKey,
-                                      onChangeShellyddrType:
-                                          onChangeShellyddrType,
+                                      onChangeShellyddrType: onChangeShellyddrType,
                                       hdPath: manuallyHdPath,
                                       hdPathKey: manuallyHdPathKey,
-                                      manuallySetHdPathKey:
-                                          manuallySetLegacyHdPathKey,
+                                      manuallySetHdPathKey: manuallySetLegacyHdPathKey,
                                       onChangeManuallySetHdPathKey:
                                           onChangeManuallySetHdPathKey,
                                     ),
@@ -472,8 +456,7 @@ class _SelectEra extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FixedElevatedButton(
-                onPressed: onContinue, child: Text("continue".tr)),
+            FixedElevatedButton(onPressed: onContinue, child: Text("continue".tr)),
           ],
         )
       ],
@@ -496,8 +479,7 @@ class _SelectMasterKeyGeneration extends StatelessWidget {
   final DynamicVoid onContinue;
   final _AdaEra era;
   final SeedTypes seedGeneration;
-  bool get showLegacy =>
-      !era.isShelly && seedGeneration == SeedTypes.byronLegacySeed;
+  bool get showLegacy => !era.isShelly && seedGeneration == SeedTypes.byronLegacySeed;
 
   @override
   Widget build(BuildContext context) {
@@ -537,8 +519,7 @@ class _SelectMasterKeyGeneration extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FixedElevatedButton(
-                onPressed: onContinue, child: Text("continue".tr)),
+            FixedElevatedButton(onPressed: onContinue, child: Text("continue".tr)),
           ],
         )
       ],
@@ -569,8 +550,8 @@ class _SelectSeedGenerationType extends StatelessWidget {
         AppCheckListTile(
           contentPadding: EdgeInsets.zero,
           value: custom,
-          title: Text("customize_key_derivation".tr,
-              style: context.textTheme.titleMedium),
+          title:
+              Text("customize_key_derivation".tr, style: context.textTheme.titleMedium),
           subtitle: Text("ada_customize_derivation_desc".tr),
           onChanged: (p0) => onCustom(),
         ),
@@ -583,12 +564,10 @@ class _SelectSeedGenerationType extends StatelessWidget {
                   builder: (context) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("seed_generation".tr,
-                          style: context.textTheme.titleMedium),
+                      Text("seed_generation".tr, style: context.textTheme.titleMedium),
                       Text("seed_generation_type".tr),
                       WidgetConstant.height8,
-                      AppRadioListTile(
-                          value: SeedTypes.icarus, title: Text("icarus".tr)),
+                      AppRadioListTile(value: SeedTypes.icarus, title: Text("icarus".tr)),
                       AppRadioListTile(
                           title: Text("byron_legacy_seed".tr),
                           value: SeedTypes.byronLegacySeed),
@@ -657,8 +636,7 @@ class _GenerateAddress extends StatelessWidget {
       children: [
         if (era.isShelly) ...[
           WidgetConstant.height20,
-          Text("shelley_address_format".tr,
-              style: context.textTheme.titleMedium),
+          Text("shelley_address_format".tr, style: context.textTheme.titleMedium),
           WidgetConstant.height8,
           AppDropDownBottom(
               items: {
@@ -674,8 +652,7 @@ class _GenerateAddress extends StatelessWidget {
           AppSwitchListTile(
             value: manuallySetHdPathKey,
             title: Text("manually_set_hd_path".tr),
-            subtitle:
-                Text("byron_legacy_hd_path_generate_from_master_key_desc".tr),
+            subtitle: Text("byron_legacy_hd_path_generate_from_master_key_desc".tr),
             onChanged: (p0) => onChangeManuallySetHdPathKey(),
           ),
           AnimatedSize(

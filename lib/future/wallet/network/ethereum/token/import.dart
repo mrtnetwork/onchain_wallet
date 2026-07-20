@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
@@ -12,11 +12,11 @@ class ImportERC20TokenView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<EthereumClient, IEthAddress,
+    return NetworkAccountControllerView<EthereumNetworkClient, IEthereumAddress,
             EthereumChain>(
         addressRequired: true,
         clientRequired: true,
-        childBulder: (wallet, account, client, address, onAccountChanged) {
+        childBulder: (wallet, account, client, address) {
           return _ImportErc20TokenView(account: account, apiProvider: client);
         },
         title: "import_token".tr);
@@ -24,20 +24,17 @@ class ImportERC20TokenView extends StatelessWidget {
 }
 
 class _ImportErc20TokenView extends StatefulWidget {
-  const _ImportErc20TokenView(
-      {required this.account, required this.apiProvider});
+  const _ImportErc20TokenView({required this.account, required this.apiProvider});
   final EthereumChain account;
-  final EthereumClient apiProvider;
+  final EthereumNetworkClient apiProvider;
 
   @override
   State<_ImportErc20TokenView> createState() => __ImportErc20TokenViewState();
 }
 
 class __ImportErc20TokenViewState extends State<_ImportErc20TokenView>
-    with
-        SafeState<_ImportErc20TokenView>,
-        ProgressMixin<_ImportErc20TokenView> {
-  late final address = widget.account.address;
+    with SafeState<_ImportErc20TokenView>, ProgressMixin<_ImportErc20TokenView> {
+  late final address = widget.account.addressSync;
   ReceiptAddress<ETHAddress>? contractAddress;
 
   bool get hasContractAddress => contractAddress != null;
@@ -48,29 +45,30 @@ class __ImportErc20TokenViewState extends State<_ImportErc20TokenView>
   }
 
   ETHERC20Token? token;
-  void onAddToAccount() async {
+  Future<void> onAddToAccount() async {
     if (!hasContractAddress) return;
     progressKey.progressText("retrieving_contract_detauls".tr);
-    final result = await MethodUtils.call(() async {
-      final data = await widget.apiProvider.getAccountERC20Token(
-          address.networkAddress, contractAddress!.networkAddress);
+    final result = await IResult.call(() async {
+      final data = await widget.apiProvider
+          .getAccountERC20Token(address.networkAddress, contractAddress!.networkAddress);
       return data;
     });
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
-    } else if (result.result == null) {
-      progressKey.errorText("smart_contract_not_found".tr);
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError);
+    } else if (result.ok() == null) {
+      progressKey.errorText("smart_contract_not_found".tr,
+          backToIdle: false, showBackButton: true);
     } else {
-      final addResult = await MethodUtils.call(() async => widget.account
-          .addNewToken(
-              address: address, token: result.result! as ETHERC20Token));
-
-      if (addResult.hasError) {
-        progressKey.errorText(addResult.localizationError);
-      } else {
-        token = result.result! as ETHERC20Token;
-        progressKey.success();
-      }
+      final addResult = await widget.account
+          .addNewToken(address: address, token: result.unwrap()! as ETHERC20Token);
+      addResult.watch(
+        onErr: (error) => progressKey.errorText(error.localizationError,
+            backToIdle: false, showBackButton: true),
+        onOk: (value) {
+          token = value;
+          progressKey.success();
+        },
+      );
     }
   }
 
@@ -94,18 +92,15 @@ class __ImportErc20TokenViewState extends State<_ImportErc20TokenView>
                   children: [
                     CircleTokenImageView(token!.token, radius: 60),
                     WidgetConstant.height8,
-                    Text(token!.token.name,
-                        style: context.textTheme.labelLarge),
-                    if (token!.issuer != null)
-                      OneLineTextWidget(token!.issuer!),
+                    Text(token!.token.name, style: context.textTheme.labelLarge),
+                    if (token!.issuer != null) OneLineTextWidget(token!.issuer!),
                     WidgetConstant.height8,
                     CoinAndMarketLivePriceView(
                         liveBalance: token!.streamBalance,
                         style: context.textTheme.titleLarge),
                     WidgetConstant.height20,
                     FilledButton(
-                        onPressed: onNewToken,
-                        child: Text("import_new_token".tr))
+                        onPressed: onNewToken, child: Text("import_new_token".tr))
                   ],
                 )
               : SingleChildScrollView(
@@ -122,8 +117,7 @@ class __ImportErc20TokenViewState extends State<_ImportErc20TokenView>
                         onTap: () {
                           context
                               .selectAccount<ETHAddress>(
-                                  account: widget.account,
-                                  title: "contract_address".tr)
+                                  account: widget.account, title: "contract_address".tr)
                               .then((e) => onSetupAddress(e?.firstOrNull));
                         },
                       ),
@@ -132,8 +126,7 @@ class __ImportErc20TokenViewState extends State<_ImportErc20TokenView>
                         children: [
                           FixedElevatedButton(
                             padding: WidgetConstant.paddingVertical40,
-                            onPressed:
-                                hasContractAddress ? onAddToAccount : null,
+                            onPressed: hasContractAddress ? onAddToAccount : null,
                             child: Text("add_to_my_account".tr),
                           )
                         ],

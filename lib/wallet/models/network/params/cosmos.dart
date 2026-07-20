@@ -1,16 +1,14 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:cosmos_sdk/cosmos_sdk.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/app/utils/list/extension.dart';
-import 'package:on_chain_wallet/wallet/api/provider/core/provider.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/cosmos.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/networks/networks.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/cw20.dart';
 
 class CosmosNetworkParams extends NetworkCoinParams {
   final String hrp;
@@ -42,7 +40,7 @@ class CosmosNetworkParams extends NetworkCoinParams {
     return CW20Token.create(balance: BigInt.zero, token: token, denom: denom);
   }
 
-  CosmosNetworkParams._({
+  const CosmosNetworkParams.unsafe({
     super.transactionExplorer,
     super.addressExplorer,
     required super.token,
@@ -54,7 +52,7 @@ class CosmosNetworkParams extends NetworkCoinParams {
     required this.chainId,
     required this.keysAlgs,
     required this.chainRegisteryName,
-    required this.ibcEnabled,
+    this.ibcEnabled = true,
     this.networkConstantUri,
     super.bip32CoinType,
   });
@@ -74,12 +72,12 @@ class CosmosNetworkParams extends NetworkCoinParams {
       int? bip32CoinType,
       bool ibcEnabled = true}) {
     if (feeTokens.isEmpty) {
-      throw WalletException.error("at_least_one_fee_token_required");
+      throw WalletException.message("at_least_one_fee_token_required");
     }
     if (token.decimal > CosmosConst.maxTokenExponent) {
-      throw WalletException.error("invalid_token_exponent");
+      throw WalletException.message("invalid_token_exponent");
     }
-    return CosmosNetworkParams._(
+    return CosmosNetworkParams.unsafe(
         token: token,
         chainType: chainType,
         hrp: hrp,
@@ -96,65 +94,54 @@ class CosmosNetworkParams extends NetworkCoinParams {
         ibcEnabled: ibcEnabled);
   }
 
-  factory CosmosNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.cosmosNetworkParams);
+  factory CosmosNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.cosmos.identifier);
 
     return CosmosNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(2)),
-        // providers: values
-        //     .elementAsListOf<CborTagValue>(3)
-        //     .map((e) => CosmosAPIProvider.fromCborBytesOrObject(obj: e))
-        //     .toList(),
-        chainType: ChainType.fromValue(values.elementAs(4)),
-        hrp: values.elementAs(5),
-        denom: values.elementAs(6),
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+        chainType: ChainType.fromValue(values.rawValueAt(1)),
+        hrp: values.rawValueAt(2),
+        denom: values.rawValueAt(3),
         feeTokens: values
-            .elementAsListOf<CborTagValue>(7)
-            .map((e) => CosmosFeeToken.fromCborBytesOrObject(obj: e))
+            .listAt<CborTagValue>(4)
+            .map((e) => CosmosFeeToken.deserialize(object: e))
             .toList(),
-        networkType: CosmosNetworkTypes.fromValue(values.elementAs(8)),
-        bip32CoinType: values.elementAs(9),
-        chainId: values.elementAs(10),
-        networkConstantUri: values.elementAs(11),
+        networkType: CosmosNetworkTypes.fromValue(values.rawValueAt(5)),
+        bip32CoinType: values.rawValueAt(6),
+        chainId: values.rawValueAt(7),
+        networkConstantUri: values.rawValueAt(8),
         keysAlgs: values
-            .elementAsListOf<CborStringValue>(12)
-            .map((e) => CosmosKeysAlgs.fromName(e.value))
+            .listAt<CborIntValue>(9)
+            .map((e) => CosmosKeysAlgs.fromValue(e.value))
             .toList(),
-        transactionExplorer: values.elementAs(13),
-        addressExplorer: values.elementAs(14),
-        chainRegisteryName: values.elementAs(15),
-        ibcEnabled: values.elementAs<bool?>(16) ?? true);
+        transactionExplorer: values.rawValueAt(10),
+        addressExplorer: values.rawValueAt(11),
+        chainRegisteryName: values.rawValueAt(12),
+        ibcEnabled: values.rawValueAt<bool?>(13) ?? true);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          chainType.name,
-          hrp,
-          denom,
-          CborSerializable.fromDynamic(
-              feeTokens.map((e) => e.toCbor()).toList()),
-          networkType.value,
-          bip32CoinType,
-          chainId,
-          networkConstantUri,
-          CborSerializable.fromDynamic(
-              keysAlgs.map((e) => CborStringValue(e.name)).toList()),
-          transactionExplorer,
-          addressExplorer,
-          chainRegisteryName,
-          ibcEnabled
-        ]),
-        CborTagsConst.cosmosNetworkParams);
-  }
+  SerializationIdentifier get serializationIdentifier => NetworkType.cosmos.identifier;
 
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        hrp.toCbor(),
+        denom.toCbor(),
+        AppSerialization.listFromObjects(feeTokens.map((e) => e.toCbor()).toList()),
+        networkType.value.toCbor(),
+        bip32CoinType?.toCbor(),
+        chainId.toCbor(),
+        networkConstantUri?.toCbor(),
+        AppSerialization.listFromObjects(
+            keysAlgs.map((e) => CborIntValue(e.value)).toList()),
+        transactionExplorer?.toCbor(),
+        addressExplorer?.toCbor(),
+        chainRegisteryName?.toCbor(),
+        ibcEnabled.toCbor()
+      ];
   CosmosNetworkParams copyWith(
       {String? transactionExplorer,
       String? addressExplorer,
@@ -191,16 +178,15 @@ class CosmosNetworkParams extends NetworkCoinParams {
 
   @override
   NetworkCoinParams updateParams(
-      {List<APIProvider>? updateProviders,
-      Token? token,
+      {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
     return CosmosNetworkParams(
         transactionExplorer: transactionExplorer,
         addressExplorer: addressExplorer,
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         hrp: hrp,
         feeTokens: feeTokens,

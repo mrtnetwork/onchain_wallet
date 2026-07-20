@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/utils/string/password.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 import 'animated/widgets/animated_switcher.dart';
@@ -12,8 +11,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget buildItem(
-        String label, String info, bool reached, Color reachedColor,
+    Widget buildItem(String label, String info, bool reached, Color reachedColor,
         {IconData reachedIcon = Icons.check_circle}) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -25,8 +23,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(label,
-                    style: context.textTheme.labelLarge
-                        ?.copyWith(color: reachedColor)),
+                    style: context.textTheme.labelLarge?.copyWith(color: reachedColor)),
                 WidgetConstant.width8,
                 Text(info, style: context.textTheme.bodyMedium)
               ],

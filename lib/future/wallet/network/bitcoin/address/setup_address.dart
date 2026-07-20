@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
-import 'package:on_chain_wallet/crypto/utils/bitcoin/bitcoin.dart';
+import 'package:on_chain_wallet/crypto/networks/bitcoin/bitcoin.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class SetupBitcoinAddressView extends StatefulWidget {
@@ -16,8 +16,7 @@ class SetupBitcoinAddressView extends StatefulWidget {
   final BitcoinChain chain;
 
   @override
-  State<SetupBitcoinAddressView> createState() =>
-      _SetupBitcoinAddressViewState();
+  State<SetupBitcoinAddressView> createState() => _SetupBitcoinAddressViewState();
 }
 
 class _SetupBitcoinAddressViewState extends State<SetupBitcoinAddressView>
@@ -67,15 +66,15 @@ class _SetupBitcoinAddressViewState extends State<SetupBitcoinAddressView>
 
   void buildTypes() {
     typesToSelect = {
-      P2pkhAddressType.p2pkh: P2pkhAddressType.p2pkh.value,
+      P2pkhAddressType.p2pkh: P2pkhAddressType.p2pkh.name,
       if (supportAddressTypes.contains(P2shAddressType.p2pkhInP2sh))
         _defaultP2sh(): "P2SH",
       if (supportAddressTypes.contains(SegwitAddressType.p2wpkh))
-        SegwitAddressType.p2wpkh: SegwitAddressType.p2wpkh.value,
+        SegwitAddressType.p2wpkh: SegwitAddressType.p2wpkh.name,
       if (supportAddressTypes.contains(SegwitAddressType.p2wsh))
-        SegwitAddressType.p2wsh: SegwitAddressType.p2wsh.value,
+        SegwitAddressType.p2wsh: SegwitAddressType.p2wsh.name,
       if (supportAddressTypes.contains(SegwitAddressType.p2tr))
-        SegwitAddressType.p2tr: SegwitAddressType.p2tr.value,
+        SegwitAddressType.p2tr: SegwitAddressType.p2tr.name,
     };
     typesWidget = {for (final i in typesToSelect.entries) i.key: Text(i.value)};
     recomendedTypeDescription = typesToSelect[SegwitAddressType.p2tr] ??
@@ -91,8 +90,7 @@ class _SetupBitcoinAddressViewState extends State<SetupBitcoinAddressView>
   void _init() {
     if (inited) return;
     inited = true;
-    supportAddressTypes =
-        network.coinParam.transacationNetwork.supportedAddress;
+    supportAddressTypes = network.coinParam.transacationNetwork.supportedAddress;
     p2shTypes = supportAddressTypes.whereType<P2shAddressType>().toList();
     p2pkhTypes = supportAddressTypes.whereType<P2pkhAddressType>().toList();
     p2shType = _defaultP2sh();
@@ -151,13 +149,12 @@ class _SetupBitcoinAddressViewState extends State<SetupBitcoinAddressView>
   }
 
   Future<void> generateAddress() async {
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     final coin = findCoin();
     final BitcoinAddressType selectedType = correctAddressType();
 
-    final Bip32AddressIndex? keyIndex =
-        await context.openMaxExtendSliverBottomSheet<Bip32AddressIndex>(
-            "setup_derivation".tr,
+    final Bip32DerivationIndex? keyIndex = await context
+        .openMaxExtendSliverBottomSheet<Bip32DerivationIndex>("setup_derivation".tr,
             bodyBuilder: (controller) => SetupDerivationModeView(
                 coin: coin,
                 chainAccout: chainAccount,
@@ -182,10 +179,10 @@ class _SetupBitcoinAddressViewState extends State<SetupBitcoinAddressView>
           keyType: keyType);
     }
 
-    final result = await wallet.wallet
-        .deriveNewAccount(newAccountParams: newAccount, chain: chainAccount);
-    if (result.hasError) {
-      pageProgressKey.errorText(result.localizationError);
+    final result = await wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: newAccount, chain: chainAccount));
+    if (result.isErr) {
+      pageProgressKey.errorText(result.unwrapErr().localizationError);
     } else {
       pageProgressKey.success(
           backToIdle: false,
@@ -193,7 +190,7 @@ class _SetupBitcoinAddressViewState extends State<SetupBitcoinAddressView>
               buttonText: "generate_new_address".tr,
               buttonWidget: ContainerWithBorder(
                   margin: WidgetConstant.paddingVertical8,
-                  child: AddressDetailsView(address: result.result)),
+                  child: AddressDetailsView(address: result.unwrap())),
               onPressed: () {
                 pageProgressKey.backToIdle();
               },
@@ -301,12 +298,9 @@ class _DriveFromHdWallet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("choose_bitcoin_address_type".tr,
-            style: context.textTheme.titleMedium),
+        Text("choose_bitcoin_address_type".tr, style: context.textTheme.titleMedium),
         if (recommendedTypeDescription != null)
-          Text("bitcoin_type_recomended"
-              .tr
-              .replaceOne(recommendedTypeDescription ?? "")),
+          Text("bitcoin_type_recomended".tr.replaceOne(recommendedTypeDescription ?? "")),
         WidgetConstant.height8,
         AppDropDownBottom(
             isExpanded: true,
@@ -384,8 +378,7 @@ class _AddressTypeOPtion extends StatelessWidget {
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text("p2wsh_one_of_one_desc".tr, textAlign: TextAlign.center),
             ]),
-        P2pkhAddressType.p2pkh: (context) =>
-            AppGroupRadioBuilder<P2pkhAddressType>(
+        P2pkhAddressType.p2pkh: (context) => AppGroupRadioBuilder<P2pkhAddressType>(
               groupValue: selectP2pkhType,
               onChanged: onChangeP2pkhAddress,
               builder: (context) => Column(
@@ -393,10 +386,10 @@ class _AddressTypeOPtion extends StatelessWidget {
                   children: List.generate(
                       p2pkhTypes.length,
                       (index) => AppRadioListTile<P2pkhAddressType>(
-                          title: Text(p2pkhTypes[index].value),
+                          title: Text(p2pkhTypes[index].name),
                           value: p2pkhTypes[index],
-                          subtitle: Text(
-                              BTCUtils.getAddressDetails(p2pkhTypes[index]))))),
+                          subtitle:
+                              Text(BTCUtils.getAddressDetails(p2pkhTypes[index]))))),
             ),
         SegwitAddressType.p2tr: (context) => WidgetConstant.sizedBox,
         SegwitAddressType.p2wpkh: (context) => WidgetConstant.sizedBox,
@@ -408,44 +401,12 @@ class _AddressTypeOPtion extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: List.generate(p2shTypes.length, (index) {
               return AppRadioListTile<P2shAddressType>(
-                title: Text(p2shTypes[index].value),
+                title: Text(p2shTypes[index].name),
                 value: p2shTypes[index],
                 subtitle: Text(BTCUtils.getAddressDetails(p2shTypes[index])),
               );
             })),
       ),
     );
-    // return AnimatedSwitcher(
-    //   duration: APPConst.animationDuraion,
-    //   child: Column(
-    //       key: ValueKey<BitcoinAddressType>(select),
-    //       children: switch (select) {
-    //         P2pkhAddressType.p2pkh => List.generate(
-    //             p2pkhTypes.length,
-    //             (index) => AppRadioListTile<P2pkhAddressType>(
-    //                 title: Text(p2pkhTypes[index].value),
-    //                 value: p2pkhTypes[index],
-    //                 groupValue: selectP2pkhType,
-    //                 subtitle:
-    //                     Text(BTCUtils.getAddressDetails(p2pkhTypes[index])),
-    //                 onChanged: onChangeP2pkhAddress)),
-    //         SegwitAddressType.p2wsh => [
-    //             Text(
-    //               "p2wsh_one_of_one_desc".tr,
-    //               textAlign: TextAlign.center,
-    //             ),
-    //           ],
-    //         SegwitAddressType.p2tr || SegwitAddressType.p2wpkh => [],
-    //         _ => List.generate(p2shTypes.length, (index) {
-    //             return AppRadioListTile(
-    //                 title: Text(p2shTypes[index].value),
-    //                 value: p2shTypes[index],
-    //                 groupValue: selectedP2shType,
-    //                 subtitle:
-    //                     Text(BTCUtils.getAddressDetails(p2shTypes[index])),
-    //                 onChanged: onChangeP2shSegwit);
-    //           }),
-    //       }),
-    // );
   }
 }

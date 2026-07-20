@@ -18,8 +18,7 @@ class CreateStellarMemoView extends StatefulWidget {
   State<CreateStellarMemoView> createState() => _CreateStellarMemoViewState();
 }
 
-class _CreateStellarMemoViewState extends State<CreateStellarMemoView>
-    with SafeState {
+class _CreateStellarMemoViewState extends State<CreateStellarMemoView> with SafeState {
   final GlobalKey<FormState> formKey =
       GlobalKey(debugLabel: "_CreateStellarMemoViewState_form");
 
@@ -38,7 +37,8 @@ class _CreateStellarMemoViewState extends State<CreateStellarMemoView>
     switch (type) {
       case MemoType.id:
         final num = BigintUtils.tryParse(v);
-        final toU64 = MethodUtils.nullOnException(() => num?.asInt64);
+        final toU64 =
+            MethodUtils.fallbackOnException(() => num?.asI64, logOnDebug: false);
         if (toU64 == null) {
           return "enter_stellar_muxed_id_desc".tr;
         }
@@ -119,7 +119,7 @@ class _CreateStellarMemoViewState extends State<CreateStellarMemoView>
 
   void onSetupMemo() {
     if (!formKey.ready()) return;
-    final memo = MethodUtils.nullOnException(() => createMemo());
+    final memo = MethodUtils.fallbackOnException(() => createMemo(), logOnDebug: false);
     if (memo == null) return;
     context.pop(memo);
   }
@@ -143,8 +143,7 @@ class _CreateStellarMemoViewState extends State<CreateStellarMemoView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextAndLinkView(
-                      text: "stellar_memo_desc".tr,
-                      url: LinkConst.reviewStellarMemos),
+                      text: "stellar_memo_desc".tr, url: LinkConst.reviewStellarMemos),
                   WidgetConstant.height8,
                   Text("stellar_memo_desc2"
                       .tr
@@ -180,7 +179,7 @@ class _CreateStellarMemoViewState extends State<CreateStellarMemoView>
                   onChange: onChangeMemoId,
                   validator: validator,
                   defaultValue: id,
-                  max: maxU64,
+                  max: BinaryOps.maxU64,
                   min: BigInt.zero,
                   helperText: "enter_stellar_muxed_id_desc".tr,
                 ),

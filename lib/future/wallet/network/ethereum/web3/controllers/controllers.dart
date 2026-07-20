@@ -1,6 +1,6 @@
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ethereum/etherum.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ethereum/etherum.dart';
 
 abstract class Web3EthereumTransactionStateController<
         RESPONSE,
@@ -13,9 +13,7 @@ abstract class Web3EthereumTransactionStateController<
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IWeb3EthereumSignedTransaction<E> signedTransaction}) async {
-    final txId =
-        await client.sendRawTransaction(signedTransaction.finalTransactionData);
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    final txId = await client.sendRawTransaction(signedTransaction.finalTransactionData);
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 }

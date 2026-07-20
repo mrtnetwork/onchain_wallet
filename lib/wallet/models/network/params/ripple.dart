@@ -1,9 +1,8 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/api/provider/core/provider.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
@@ -17,8 +16,7 @@ enum RippleKeyScheme {
   const RippleKeyScheme({required this.value, required this.name});
   static RippleKeyScheme fromValue(int? value) {
     return values.firstWhere((e) => e.value == value,
-        orElse: () =>
-            throw AppSerializationException(objectName: "RippleKeyScheme"));
+        orElse: () => throw AppInternalError.internalError("RippleKeyScheme"));
   }
 
   EllipticCurveTypes get curve {
@@ -32,18 +30,17 @@ enum RippleKeyScheme {
 class RippleNetworkParams extends NetworkCoinParams {
   final int networkId;
 
-  factory RippleNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.xrpNetworkParam);
+  factory RippleNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.xrpl.identifier);
     return RippleNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(2)),
-        chainType: ChainType.fromValue(values.elementAs(4)),
-        networkId: values.elementAs(5),
-        addressExplorer: values.elementAs(6),
-        transactionExplorer: values.elementAs(7));
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+        chainType: ChainType.fromValue(values.rawValueAt(1)),
+        networkId: values.rawValueAt(2),
+        addressExplorer: values.rawValueAt(3),
+        transactionExplorer: values.rawValueAt(4));
   }
-  RippleNetworkParams(
+  const RippleNetworkParams(
       {required super.token,
       required super.chainType,
       required this.networkId,
@@ -51,33 +48,27 @@ class RippleNetworkParams extends NetworkCoinParams {
       super.transactionExplorer});
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          chainType.name,
-          networkId,
-          addressExplorer,
-          transactionExplorer
-        ]),
-        CborTagsConst.xrpNetworkParam);
-  }
+  SerializationIdentifier get serializationIdentifier => NetworkType.xrpl.identifier;
 
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        networkId.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor()
+      ];
   int get identifier => networkId;
 
   @override
   NetworkCoinParams updateParams(
-      {List<APIProvider>? updateProviders,
-      Token? token,
+      {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
     return RippleNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         networkId: networkId,
         addressExplorer: addressExplorer,

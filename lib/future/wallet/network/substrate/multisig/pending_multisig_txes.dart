@@ -18,10 +18,7 @@ class SubstrateMultisigAddressTxesRouteArgument {
   final SubstrateMultisigCall? call;
   final StreamPageProgressController? controller;
   const SubstrateMultisigAddressTxesRouteArgument(
-      {required this.account,
-      required this.address,
-      this.call,
-      this.controller});
+      {required this.account, required this.address, this.call, this.controller});
 }
 
 class SubstrateMultisigAddressTxesView extends StatelessWidget {
@@ -31,14 +28,14 @@ class SubstrateMultisigAddressTxesView extends StatelessWidget {
   Widget build(BuildContext context) {
     final SubstrateMultisigAddressTxesRouteArgument? newMultisig =
         context.getNullArgruments();
-    return NetworkAccountControllerView<SubstrateClient,
-        ISubstrateMultiSigAddress, SubstrateChain>(
+    return NetworkAccountControllerView<SubstrateNetworkClient, ISubstrateMultiSigAddress,
+        SubstrateChain>(
       addressRequired: true,
       clientRequired: true,
       multisigAccount: true,
       account: newMultisig?.account,
       address: newMultisig?.address,
-      childBulder: (wallet, account, client, address, onAccountChanged) {
+      childBulder: (wallet, account, client, address) {
         return _SubstrateMutltisigAddressTxesView(
             args: newMultisig ??
                 SubstrateMultisigAddressTxesRouteArgument(
@@ -51,7 +48,7 @@ class SubstrateMultisigAddressTxesView extends StatelessWidget {
 
 class _SubstrateMutltisigAddressTxesView extends StatefulWidget {
   final SubstrateMultisigAddressTxesRouteArgument args;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
   const _SubstrateMutltisigAddressTxesView({
     required this.args,
     required this.client,
@@ -65,8 +62,8 @@ class _SubstrateMutltisigAddressTxesView extends StatefulWidget {
 class _SubstrateMutltisigAddressTxesViewState
     extends State<_SubstrateMutltisigAddressTxesView>
     with SafeState<_SubstrateMutltisigAddressTxesView> {
-  late final controller = _SubstrateMultisigTxesStateController(
-      args: widget.args, client: widget.client);
+  late final controller =
+      _SubstrateMultisigTxesStateController(args: widget.args, client: widget.client);
   @override
   void onInitOnce() {
     super.onInitOnce();
@@ -94,8 +91,7 @@ class _SubstrateMutltisigAddressTxesViewState
                 isEmpty: controller.txes.isEmpty,
                 itemBuilder: (context) {
                   return MultiSliver(children: [
-                    Text("transactions".tr,
-                        style: context.textTheme.titleMedium),
+                    Text("transactions".tr, style: context.textTheme.titleMedium),
                     WidgetConstant.height8,
                     SliverList.builder(
                       itemCount: controller.txes.length,
@@ -109,48 +105,38 @@ class _SubstrateMutltisigAddressTxesViewState
                                   message: tx.status.tr.tr,
                                   child: IconButton(
                                       onPressed: () {},
-                                      icon:
-                                          ConditionalWidgets<_MultisigTxStatus>(
-                                              enable: tx.status,
-                                              widgets: {
-                                            _MultisigTxStatus.inProgress:
-                                                (context) => Icon(Icons.padding,
-                                                    color: context
-                                                        .primaryContainer),
-                                            _MultisigTxStatus.newRequest:
-                                                (context) => Icon(
-                                                    Icons.new_label,
-                                                    color: context
-                                                        .primaryContainer),
-                                            _MultisigTxStatus.complete:
-                                                (context) => Icon(
-                                                    Icons.check_circle,
-                                                    color: context
-                                                        .primaryContainer),
+                                      icon: ConditionalWidgets<_MultisigTxStatus>(
+                                          enable: tx.status,
+                                          widgets: {
+                                            _MultisigTxStatus.inProgress: (context) =>
+                                                Icon(Icons.padding,
+                                                    color: context.primaryContainer),
+                                            _MultisigTxStatus.newRequest: (context) =>
+                                                Icon(Icons.new_label,
+                                                    color: context.primaryContainer),
+                                            _MultisigTxStatus.complete: (context) => Icon(
+                                                Icons.check_circle,
+                                                color: context.primaryContainer),
                                           })))),
                           onTapStackIcon: () {},
                           child: APPExpansionListTile(
                             title: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  OneLineTextWidget(
-                                      tx.callData.call.callHashHex,
-                                      style: context
-                                          .onPrimaryTextTheme.bodyMedium),
+                                  OneLineTextWidget(tx.callData.call.callHashHex,
+                                      style: context.onPrimaryTextTheme.bodyMedium),
                                   ConditionalWidget(
-                                    enable:
-                                        tx.status != _MultisigTxStatus.complete,
+                                    enable: tx.status != _MultisigTxStatus.complete,
                                     onActive: (context) => ConditionalWidget(
                                       enable: tx.isReady,
                                       onDeactive: (context) => Text(
-                                          "n_approvals_required".tr.replaceOne(
-                                              tx.requiredApprove.toString()),
-                                          style: context
-                                              .onPrimaryTextTheme.labelSmall),
+                                          "n_approvals_required"
+                                              .tr
+                                              .replaceOne(tx.requiredApprove.toString()),
+                                          style: context.onPrimaryTextTheme.labelSmall),
                                       onActive: (context) => Text(
                                           "ready_for_execution".tr,
-                                          style: context
-                                              .onPrimaryTextTheme.labelSmall),
+                                          style: context.onPrimaryTextTheme.labelSmall),
                                     ),
                                   ),
                                 ]),
@@ -164,27 +150,22 @@ class _SubstrateMutltisigAddressTxesViewState
                                       enable: tx.pendingTx != null,
                                       onActive: (context) {
                                         return Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text("latest_operation".tr,
                                                   style: context
-                                                      .primaryTextTheme
-                                                      .labelLarge),
+                                                      .primaryTextTheme.labelLarge),
                                               WidgetConstant.height8,
                                               TrackTransactionStatusView(
                                                   account: controller.account,
-                                                  txId: tx.pendingTx!
-                                                      .transaction.txId,
-                                                  transaction: tx
-                                                      .pendingTx!.transaction),
+                                                  txId: tx.pendingTx!.transaction.txId,
+                                                  transaction: tx.pendingTx!.transaction),
                                               WidgetConstant.height20,
                                             ]);
                                       },
                                     ),
                                     Text("multisig_call_hash".tr,
-                                        style: context
-                                            .primaryTextTheme.labelLarge),
+                                        style: context.primaryTextTheme.labelLarge),
                                     WidgetConstant.height8,
                                     ContainerWithBorder(
                                       child: LargeTextContainer(
@@ -194,20 +175,16 @@ class _SubstrateMutltisigAddressTxesViewState
                                     ConditionalWidget(
                                       enable: callData.call.callDataHex != null,
                                       onActive: (context) => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           WidgetConstant.height20,
                                           Text("multisig_call_data".tr,
-                                              style: context
-                                                  .primaryTextTheme.labelLarge),
+                                              style: context.primaryTextTheme.labelLarge),
                                           WidgetConstant.height8,
                                           ContainerWithBorder(
                                             child: LargeTextContainer(
-                                                color:
-                                                    context.onPrimaryContainer,
-                                                text:
-                                                    callData.call.callDataHex!),
+                                                color: context.onPrimaryContainer,
+                                                text: callData.call.callDataHex!),
                                           ),
                                         ],
                                       ),
@@ -221,28 +198,22 @@ class _SubstrateMutltisigAddressTxesViewState
                                                 WidgetConstant.height20,
                                                 Text("content".tr,
                                                     style: context
-                                                        .primaryTextTheme
-                                                        .bodyMedium),
+                                                        .primaryTextTheme.bodyMedium),
                                                 WidgetConstant.height8,
                                                 ContainerWithBorder(
-                                                    onRemoveIcon: Icon(
-                                                        Icons.open_in_full,
-                                                        color: context
-                                                            .onPrimaryContainer),
+                                                    onRemoveIcon: Icon(Icons.open_in_full,
+                                                        color:
+                                                            context.onPrimaryContainer),
                                                     onRemove: () {
                                                       context.openDialogPage(
                                                         '',
-                                                        child: (context) =>
-                                                            JsonView(
-                                                                text: callData
-                                                                    .content!,
-                                                                title: 'content'
-                                                                    .tr),
+                                                        child: (context) => JsonView(
+                                                            text: callData.content!,
+                                                            title: 'content'.tr),
                                                       );
                                                     },
                                                     child: Text("content".tr,
-                                                        style: context
-                                                            .onPrimaryTextTheme
+                                                        style: context.onPrimaryTextTheme
                                                             .bodyMedium)),
                                               ],
                                             )),
@@ -255,36 +226,32 @@ class _SubstrateMutltisigAddressTxesViewState
                                                   WidgetConstant.height20,
                                                   Text("operations".tr,
                                                       style: context
-                                                          .primaryTextTheme
-                                                          .titleMedium),
+                                                          .primaryTextTheme.titleMedium),
                                                   Text(
                                                       "substrate_select_multisig_operation_desc"
                                                           .tr,
                                                       style: context
-                                                          .primaryTextTheme
-                                                          .bodyMedium),
+                                                          .primaryTextTheme.bodyMedium),
                                                   WidgetConstant.height8,
-                                                  ...tx.allowMethods.map((m) =>
-                                                      ContainerWithBorder(
-                                                        onRemove: () {
-                                                          controller
-                                                              .onTapMethod(
+                                                  ...tx.allowMethods
+                                                      .map((m) => ContainerWithBorder(
+                                                            onRemove: () {
+                                                              controller.onTapMethod(
                                                                   tx: tx,
-                                                                  context:
-                                                                      context,
+                                                                  context: context,
                                                                   method: m);
-                                                        },
-                                                        onRemoveIcon: Icon(
-                                                            Icons.open_in_new,
-                                                            color: context
-                                                                .onPrimaryContainer),
-                                                        child: Text(
-                                                          m.name.camelCase,
-                                                          style: context
-                                                              .onPrimaryTextTheme
-                                                              .bodyMedium,
-                                                        ),
-                                                      ))
+                                                            },
+                                                            onRemoveIcon: Icon(
+                                                                Icons.open_in_new,
+                                                                color: context
+                                                                    .onPrimaryContainer),
+                                                            child: Text(
+                                                              m.name.camelCase,
+                                                              style: context
+                                                                  .onPrimaryTextTheme
+                                                                  .bodyMedium,
+                                                            ),
+                                                          ))
                                                 ]))
                                   ],
                                 ),
@@ -317,8 +284,7 @@ class _OnPickSigner extends StatelessWidget {
       sliver: MultiSliver(
         children: [
           Text(method.name.camelCase, style: context.textTheme.titleMedium),
-          Text("choose_a_signer_to_continue".tr,
-              style: context.textTheme.bodyMedium),
+          Text("choose_a_signer_to_continue".tr, style: context.textTheme.bodyMedium),
           WidgetConstant.height8,
           SliverList.separated(
             itemBuilder: (context, index) {
@@ -332,8 +298,7 @@ class _OnPickSigner extends StatelessWidget {
                       enable: signer.account != null,
                       onDeactive: (context) => TappedTooltipView(
                           tooltipWidget: ToolTipView(
-                              message:
-                                  "account_not_found_in_connected_wallet".tr,
+                              message: "account_not_found_in_connected_wallet".tr,
                               child: Icon(
                                 Icons.no_accounts,
                                 color: context.onPrimaryContainer,
@@ -354,18 +319,16 @@ class _OnPickSigner extends StatelessWidget {
   }
 }
 
-class _SubstrateMultisigTxesStateController
-    with DisposableMixin, StreamStateController {
+class _SubstrateMultisigTxesStateController with DisposableMixin, StreamStateController {
   List<MultisigCallPalletMethod> availableMethods = [];
   final SubstrateMultisigAddressTxesRouteArgument args;
   SubstrateMultisigCall? get newMultisig => args.call;
   SubstrateChain get account => args.account;
   ISubstrateMultiSigAddress get address => args.address;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
   PeriodicRunner<List<_MultisigTx>>? _periodicRunner;
   final Map<String, StreamSubscription> _onTxEvents = {};
-  _SubstrateMultisigTxesStateController(
-      {required this.client, required this.args});
+  _SubstrateMultisigTxesStateController({required this.client, required this.args});
   final StreamPageProgressController pageProgress =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
   Map<String, _MultisigTx> _txes = {};
@@ -373,8 +336,7 @@ class _SubstrateMultisigTxesStateController
 
   void _onPeriodicUpdated(PeriodicRunner<List<_MultisigTx>> runner) {
     if (runner.status.isSuccess) {
-      final runnetKeys =
-          runner.value.map((e) => e.callData.call.callHashHex).toList();
+      final runnetKeys = runner.value.map((e) => e.callData.call.callHashHex).toList();
       for (final i in runner.value) {
         final tx = _txes[i.callHash];
         if (tx == null) {
@@ -392,19 +354,19 @@ class _SubstrateMultisigTxesStateController
 
   Future<List<_MultisigTx>> _getMultisigs() async {
     final accountTxes =
-        await account.getMultisigs(address, newRequest: newMultisig);
-    return accountTxes.map((e) {
+        (await account.getAccountMultisigs(address, newRequest: newMultisig)).unwrap();
+    return await Future.wait(accountTxes.map((e) async {
       return _MultisigTx(
           callData: e,
           threshold: address.multiSignatureAddress.threshold,
-          signers: _buildSigners(e),
+          signers: await _buildSigners(e),
           status: e.multisig == null
               ? _MultisigTxStatus.newRequest
               : _MultisigTxStatus.inProgress);
-    }).toList();
+    }).toList());
   }
 
-  List<_Signer> _buildSigners(SubstrateMultisigCallData result) {
+  Future<List<_Signer>> _buildSigners(SubstrateMultisigCallData result) async {
     final threshold = address.multiSignatureAddress.threshold;
     final multisig = result.multisig;
     final approvals = multisig?.approvals ?? [];
@@ -428,8 +390,7 @@ class _SubstrateMultisigTxesStateController
     }
     return addresses.map((e) {
       final signed = approvals.any((a) => a.rawAddress == e.rawAddress);
-      final depositor =
-          multisig != null && multisig.depositor.rawAddress == e.rawAddress;
+      final depositor = multisig != null && multisig.depositor.rawAddress == e.rawAddress;
       final allowedMethods = methods.clone();
       if (depositor) {
         allowedMethods.add(MultisigCallPalletMethod.cancelAsMulti);
@@ -443,10 +404,8 @@ class _SubstrateMultisigTxesStateController
       if (signed && !thresholdReached) {
         allowedMethods.remove(MultisigCallPalletMethod.asMulti);
       }
-      final address = account.getReceiptAddress(e.address) ??
-          ReceiptAddress(view: e.address, networkAddress: e);
-      return _Signer(
-          allowMethods: allowedMethods, address: address, signed: signed);
+      final address = account.getOrCreateReceiptFromNetworkAddressSync(address: e);
+      return _Signer(allowMethods: allowedMethods, address: address, signed: signed);
     }).toList();
   }
 
@@ -455,12 +414,10 @@ class _SubstrateMultisigTxesStateController
       required _MultisigTx tx,
       required MultisigCallPalletMethod method}) async {
     final signers = tx.signers.where((e) => e.allowMethods.contains(method));
-    final signer =
-        await context.openSliverDialog<ReceiptAddress<BaseSubstrateAddress>>(
-            label: "signers".tr,
-            sliver: (context) => _OnPickSigner(
-                signers: signers.map((e) => e.address).toList(),
-                method: method));
+    final signer = await context.openSliverDialog<ReceiptAddress<BaseSubstrateAddress>>(
+        label: "signers".tr,
+        sliver: (context) => _OnPickSigner(
+            signers: signers.map((e) => e.address).toList(), method: method));
     if (signer == null || signer.account == null) return;
     final signerAddress = signer.account!.cast<ISubstrateAddress>();
     final operation = SubstrateTransactionMultisigOperation(
@@ -501,24 +458,22 @@ class _SubstrateMultisigTxesStateController
   Future<void> init() async {
     availableMethods = client.metadata.multisigMethods();
     if (availableMethods.isEmpty) {
-      pageProgress.errorText("unsupported_current_network_feature".tr,
-          backToIdle: false);
+      pageProgress.errorText("unsupported_current_network_feature".tr, backToIdle: false);
       return;
     }
     // client.metadata.transferTypes;
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       return _getMultisigs();
     });
-    if (result.hasError) {
-      pageProgress.errorText(result.localizationError, backToIdle: false);
+    if (result.isErr) {
+      pageProgress.errorText(result.unwrapErr().localizationError, backToIdle: false);
       return;
     }
-    _txes = {for (final i in result.result) i.callData.call.callHashHex: i};
+    _txes = {for (final i in result.unwrap()) i.callData.call.callHashHex: i};
     pageProgress.backToIdle();
-    _periodicRunner = PeriodicRunner(
-        onFetch: _getMultisigs, periodic: const Duration(minutes: 1));
-    _periodicRunner?.stream
-        .listen((event) => _onPeriodicUpdated(_periodicRunner!));
+    _periodicRunner =
+        PeriodicRunner(onFetch: _getMultisigs, periodic: const Duration(minutes: 1));
+    _periodicRunner?.stream.listen((event) => _onPeriodicUpdated(_periodicRunner!));
   }
 
   @override
@@ -619,12 +574,10 @@ class _Signer {
   final bool signed;
   final List<MultisigCallPalletMethod> allowMethods;
   const _Signer(
-      {required this.address,
-      required this.signed,
-      required this.allowMethods});
+      {required this.address, required this.signed, required this.allowMethods});
 }
 
-class _LatestTx with DisposableMixin {
+class _LatestTx {
   final SubstrateWalletTransaction transaction;
   final MultisigCallPalletMethod method;
   final ISubstrateAddress signer;
@@ -646,7 +599,6 @@ class _LatestTx with DisposableMixin {
     }
   }
 
-  @override
   void dispose() {
     _onAccountEvent?.cancel();
     _onAccountEvent = null;

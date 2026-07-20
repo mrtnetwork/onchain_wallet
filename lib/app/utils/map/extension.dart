@@ -1,9 +1,7 @@
-extension QuickImutableMap<K, V> on Map<K, V> {
-  Map<K, V> get imutable => Map<K, V>.unmodifiable(this);
-  Map<K, V>? get imutableAndNullOnEmpty =>
-      isEmpty ? null : Map<K, V>.unmodifiable(this);
-  Map<K, V> get withOutNullValue => {
+extension ExtQuickImutableMap<K, V> on Map<K, V> {
+  Map<K, V> get withoutNullValue => {
         for (final i in entries)
           if (i.value != null) i.key: i.value
       };
+  Map<K, V>? get nullOnEmpty => isEmpty ? null : this;
 }

@@ -20,7 +20,8 @@ class BCHCashTokenDetailsView extends StatelessWidget {
       children: [
         Text(cashToken.hasNFT ? "nft".tr : "ft".tr,
             style: context.textTheme.labelLarge?.copyWith(color: color)),
-        OneLineTextWidget(cashToken.category, style: color.bodyMedium(context)),
+        OneLineTextWidget(cashToken.category,
+            style: context.textTheme.bodyMedium?.copyWith(color: color)),
         if (cashToken.hasAmount)
           CoinAndMarketPriceView(
               balance: token.balance,

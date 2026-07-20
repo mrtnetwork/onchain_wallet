@@ -4,20 +4,21 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/cardano/cardano.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 
 class SetupCardanoMultisigAddress extends StatelessWidget {
   const SetupCardanoMultisigAddress({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<ADAClient?, ICardanoAddress?, ADAChain>(
-        childBulder: (wallet, account, client, address, onAccountChanged) {
+    return NetworkAccountControllerView<ADANetworkClient?, ICardanoAddress?, ADAChain>(
+        childBulder: (wallet, account, client, address) {
           return _SetupCardanoMultisigAddress(account: account);
         },
         addressRequired: false,
@@ -35,12 +36,10 @@ class _SetupCardanoMultisigAddress extends StatefulWidget {
       __SetupCardanoMultisigAddressState();
 }
 
-class __SetupCardanoMultisigAddressState
-    extends State<_SetupCardanoMultisigAddress>
+class __SetupCardanoMultisigAddressState extends State<_SetupCardanoMultisigAddress>
     with SafeState<_SetupCardanoMultisigAddress> {
   StreamSubscription<void>? listener;
-  late final _SetupCardanoMultisigForm form =
-      _SetupCardanoMultisigForm(widget.account);
+  late final _SetupCardanoMultisigForm form = _SetupCardanoMultisigForm(widget.account);
 
   @override
   void onInitOnce() {
@@ -71,8 +70,7 @@ class __SetupCardanoMultisigAddressState
                           body: Column(children: [
                             Text("multisig_address_desc".tr),
                             AlertTextContainer(
-                                message: "mutlisig_address_alert".tr,
-                                enableTap: false)
+                                message: "mutlisig_address_alert".tr, enableTap: false)
                           ])),
                     ),
                     SliverToBoxAdapter(
@@ -86,28 +84,22 @@ class __SetupCardanoMultisigAddressState
                                     ),
                                     WidgetConstant.height20,
                                     ConditionalWidget(
-                                        enable: form.generatedAddress
-                                                ?.rewardAddress !=
-                                            null,
-                                        onActive: (context) =>
-                                            ReceiptAddressView(
+                                        enable:
+                                            form.generatedAddress?.rewardAddress != null,
+                                        onActive: (context) => ReceiptAddressView(
                                               title: 'reward_address'.tr,
-                                              address: form.generatedAddress
-                                                  ?.rewardAddress,
+                                              address:
+                                                  form.generatedAddress?.rewardAddress,
                                             )),
                                     Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
+                                        mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           FixedElevatedButton(
                                               activePress: form.isReady,
-                                              padding: WidgetConstant
-                                                  .paddingVertical40,
+                                              padding: WidgetConstant.paddingVertical40,
                                               onPressed: () =>
-                                                  form.importToAccount(
-                                                      context.wallet),
-                                              child:
-                                                  Text("import_to_wallet".tr))
+                                                  form.importToAccount(context.wallet),
+                                              child: Text("import_to_wallet".tr))
                                         ])
                                   ]),
                           enable: form.generatedAddress == null,
@@ -121,8 +113,7 @@ class __SetupCardanoMultisigAddressState
                                     AppDropDownBottom<ADAAddressType>(
                                         items: {
                                           ADAAddressType.base: Text("base".tr),
-                                          ADAAddressType.reward:
-                                              Text("reward".tr),
+                                          ADAAddressType.reward: Text("reward".tr),
                                           ADAAddressType.enterprise:
                                               Text("enterprise".tr),
                                         },
@@ -135,25 +126,19 @@ class __SetupCardanoMultisigAddressState
                                     Text("fill_out_base_address_credential".tr),
                                     WidgetConstant.height8,
                                     Padding(
-                                      padding:
-                                          WidgetConstant.paddingHorizontal20,
+                                      padding: WidgetConstant.paddingHorizontal20,
                                       child: _CredentialView(
                                         account: form.account,
                                         pubKeys: form.addressPubKeys,
                                         threshold: form.addressWeight,
-                                        onSetupWeight:
-                                            form.onSetupAddressWeight,
-                                        onSetupAddress:
-                                            form.onUpdateAddressPubKey,
-                                        onSetupPublicKey:
-                                            form.onGenerateAddressPubKey,
+                                        onSetupWeight: form.onSetupAddressWeight,
+                                        onSetupAddress: form.onUpdateAddressPubKey,
+                                        onSetupPublicKey: form.onGenerateAddressPubKey,
                                         isReady: form.baseCredenticalIsReady,
                                         allowImportPublicKey:
                                             form.allowImportBasePublicKey,
-                                        onRemovePublicKey:
-                                            form.onRemoveAddressPublicKey,
-                                        credentialType:
-                                            form.addressCredentialType,
+                                        onRemovePublicKey: form.onRemoveAddressPublicKey,
+                                        credentialType: form.addressCredentialType,
                                         onChangeCredentialType:
                                             form.onChangeCredentialType,
                                       ),
@@ -166,8 +151,8 @@ class __SetupCardanoMultisigAddressState
                                                 children: [
                                                   WidgetConstant.height20,
                                                   Text("stake_credential".tr,
-                                                      style: context.textTheme
-                                                          .titleMedium),
+                                                      style:
+                                                          context.textTheme.titleMedium),
                                                   Text(
                                                       "fill_out_base_address_stake_credential"
                                                           .tr),
@@ -177,37 +162,33 @@ class __SetupCardanoMultisigAddressState
                                                         .paddingHorizontal20,
                                                     child: _CredentialView(
                                                         account: form.account,
-                                                        pubKeys:
-                                                            form.stakePubKeys,
-                                                        threshold:
-                                                            form.stakeWeight,
-                                                        onSetupWeight: form
-                                                            .onSetupStakeWeight,
-                                                        onSetupAddress: form
-                                                            .onUpdateStakePubKey,
-                                                        onSetupPublicKey: form
-                                                            .onGenerateStakePubKey,
-                                                        onRemovePublicKey: form
-                                                            .onRemoveStakePublicKey,
-                                                        isReady: form
-                                                            .satkeCredenticalIsReady,
+                                                        pubKeys: form.stakePubKeys,
+                                                        threshold: form.stakeWeight,
+                                                        onSetupWeight:
+                                                            form.onSetupStakeWeight,
+                                                        onSetupAddress:
+                                                            form.onUpdateStakePubKey,
+                                                        onSetupPublicKey:
+                                                            form.onGenerateStakePubKey,
+                                                        onRemovePublicKey:
+                                                            form.onRemoveStakePublicKey,
+                                                        isReady:
+                                                            form.satkeCredenticalIsReady,
                                                         allowImportPublicKey: form
                                                             .allowImportStakePublicKey,
-                                                        credentialType: form
-                                                            .stakeCredentialType,
-                                                        onChangeCredentialType:
-                                                            form.onChangeStakeCredentialType),
+                                                        credentialType:
+                                                            form.stakeCredentialType,
+                                                        onChangeCredentialType: form
+                                                            .onChangeStakeCredentialType),
                                                   ),
                                                 ])),
                                     ErrorTextContainer(error: form.error),
                                     Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
+                                        mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           FixedElevatedButton(
                                               activePress: form.isReady,
-                                              padding: WidgetConstant
-                                                  .paddingVertical40,
+                                              padding: WidgetConstant.paddingVertical40,
                                               onPressed: form.generateAddress,
                                               child: Text("review_address".tr))
                                         ])
@@ -255,9 +236,7 @@ class _CredentialView extends StatelessWidget {
       Text("credential_type".tr, style: context.textTheme.titleMedium),
       WidgetConstant.height8,
       AppDropDownBottom<CardanoCredentialType>(
-          items: {
-            for (final i in CardanoCredentialType.values) i: Text(i.name.tr)
-          },
+          items: {for (final i in CardanoCredentialType.values) i: Text(i.name.tr)},
           value: credentialType,
           onChanged: onChangeCredentialType,
           hint: "credential_type".tr),
@@ -285,8 +264,7 @@ class _CredentialView extends StatelessWidget {
                             title: PageTitleSubtitle(
                                 title: "threshold".tr,
                                 body: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text("threshhold_desc3".tr),
                                     ])),
@@ -296,9 +274,7 @@ class _CredentialView extends StatelessWidget {
                         )
                         .then(onSetupWeight);
                   },
-                  child: Text(
-                      threshold?.toString().to3Digits ??
-                          "tap_to_input_value".tr,
+                  child: Text(threshold?.toString().to3Digits ?? "tap_to_input_value".tr,
                       style: context.onPrimaryTextTheme.bodyMedium),
                 ),
                 WidgetConstant.height20
@@ -307,8 +283,7 @@ class _CredentialView extends StatelessWidget {
           isActive: hasThreshold,
           onActive: (context) =>
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("list_of_public_keys".tr,
-                    style: context.textTheme.titleMedium),
+                Text("list_of_public_keys".tr, style: context.textTheme.titleMedium),
                 Text("choose_public_key_or_generate_new_on".tr),
                 WidgetConstant.height8,
                 APPAnimated(
@@ -334,10 +309,9 @@ class _CredentialView extends StatelessWidget {
                                 separatorBuilder: (context, index) =>
                                     Divider(color: context.onPrimaryContainer),
                                 physics: WidgetConstant.noScrollPhysics,
-                                itemBuilder: (context, i) =>
-                                    _SelectedPubkeysView(
-                                        pubkey: pubKeys[i],
-                                        onRemovePublicKey: onRemovePublicKey)),
+                                itemBuilder: (context, i) => _SelectedPubkeysView(
+                                    pubkey: pubKeys[i],
+                                    onRemovePublicKey: onRemovePublicKey)),
                           ],
                         )),
                 APPAnimated(
@@ -367,8 +341,7 @@ class _CredentialView extends StatelessWidget {
                                       PublicKeyDerivationWithMode>(
                                     '',
                                     bodyBuilder: (c) => PublicKeyDerivationView(
-                                        controller: c,
-                                        coins: account.network.coins),
+                                        controller: c, coins: account.network.coins),
                                   )
                                   .then(onSetupPublicKey);
                             },
@@ -396,8 +369,7 @@ typedef _ONREMOVEPUBLICKEY = void Function(_CardanoMultisigPublicKeys);
 class _SelectedPubkeysView extends StatelessWidget {
   final _CardanoMultisigPublicKeys pubkey;
   final _ONREMOVEPUBLICKEY onRemovePublicKey;
-  const _SelectedPubkeysView(
-      {required this.pubkey, required this.onRemovePublicKey});
+  const _SelectedPubkeysView({required this.pubkey, required this.onRemovePublicKey});
 
   @override
   Widget build(BuildContext context) {
@@ -441,14 +413,11 @@ class _CardanoMultisigPublicKeys with Equality {
   final PublicKeyDerivationWithMode? publicKey;
   final ICardanoAddress? address;
   final String key;
-  final AddressDerivationIndex keyIndex;
+  final DerivationIndex keyIndex;
   const _CardanoMultisigPublicKeys(
-      {this.publicKey,
-      this.address,
-      required this.key,
-      required this.keyIndex});
+      {this.publicKey, this.address, required this.key, required this.keyIndex});
   @override
-  List get variabels => [key];
+  List get variables => [key];
 }
 
 typedef _ONSETUPWEIGHT = void Function(BigRational?);
@@ -469,12 +438,10 @@ class _CardanoGeneratedAddress {
 class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
   final ADAChain account;
   _SetupCardanoMultisigForm(this.account);
-  final StreamPageProgressController controller =
-      StreamPageProgressController();
+  final StreamPageProgressController controller = StreamPageProgressController();
   _CardanoGeneratedAddress? generatedAddress;
 
-  late final int maxThreshold =
-      CardanoUtils.maxMultisigThreshold.toBigInt().toInt();
+  late final int maxThreshold = CardanoUtils.maxMultisigThreshold.toBigInt().toInt();
   String? _error;
   String? get error => _error;
   BigRational? stakeWeight;
@@ -558,10 +525,8 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
   String? _getError() {
     if (baseCredenticalIsReady && satkeCredenticalIsReady) {
       if (isBaseAddress) return null;
-      final base = addressPubKeys.clone()
-        ..sort((k, v) => k.key.compareTo(v.key));
-      final stake = stakePubKeys.clone()
-        ..sort((k, v) => k.key.compareTo(v.key));
+      final base = addressPubKeys.clone()..sort((k, v) => k.key.compareTo(v.key));
+      final stake = stakePubKeys.clone()..sort((k, v) => k.key.compareTo(v.key));
       if (CompareUtils.iterableIsEqual(base, stake)) {
         return "ada_base_stake_key_same_error".tr;
       }
@@ -575,8 +540,7 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
     allowImportBasePublicKey = _allowImportBasePublicKey();
     allowImportStakePublicKey = _allowImportStakePublicKey();
     _error = _getError();
-    isReady =
-        _error == null && baseCredenticalIsReady && satkeCredenticalIsReady;
+    isReady = _error == null && baseCredenticalIsReady && satkeCredenticalIsReady;
     notify();
   }
 
@@ -625,7 +589,7 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
         key: CryptoKeyUtils.normalizePublicKeyHex(
             address.addressInfo.publicKeyHex!, address.coin.conf.type),
         address: address,
-        keyIndex: address.keyIndex);
+        keyIndex: address.derivationIndex);
     addressPubKeys.add(key);
     onStateUpdated();
   }
@@ -637,12 +601,11 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
     }
     final key = _CardanoMultisigPublicKeys(
         key: CryptoKeyUtils.normalizePublicKeyHex(
-            pubKeys.derivation.viewKey.comprossed,
-            pubKeys.derivation.key.curve),
+            pubKeys.derivation.viewKey.comprossed, pubKeys.derivation.key.curve),
         address: account.addresses.firstWhereOrNull((e) =>
             !e.multiSigAccount &&
-            StringUtils.hexEqual(pubKeys.derivation.viewKey.comprossed,
-                e.addressInfo.publicKeyHex!)),
+            StringUtils.hexEqual(
+                pubKeys.derivation.viewKey.comprossed, e.addressInfo.publicKeyHex!)),
         publicKey: pubKeys,
         keyIndex: pubKeys.derivation.index);
     addressPubKeys.add(key);
@@ -656,7 +619,7 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
         key: CryptoKeyUtils.normalizePublicKeyHex(
             address.addressInfo.publicKeyHex!, address.coin.conf.type),
         address: address,
-        keyIndex: address.keyIndex);
+        keyIndex: address.derivationIndex);
     stakePubKeys.add(key);
     onStateUpdated();
   }
@@ -670,13 +633,12 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
 
     final key = _CardanoMultisigPublicKeys(
         key: CryptoKeyUtils.normalizePublicKeyHex(
-            pubKeys.derivation.viewKey.comprossed,
-            pubKeys.derivation.key.curve),
+            pubKeys.derivation.viewKey.comprossed, pubKeys.derivation.key.curve),
         publicKey: pubKeys,
         address: account.addresses.firstWhereOrNull((e) =>
             !e.multiSigAccount &&
-            StringUtils.hexEqual(pubKeys.derivation.viewKey.comprossed,
-                e.addressInfo.publicKeyHex!)),
+            StringUtils.hexEqual(
+                pubKeys.derivation.viewKey.comprossed, e.addressInfo.publicKeyHex!)),
         keyIndex: pubKeys.derivation.index);
     stakePubKeys.add(key);
     onStateUpdated();
@@ -712,20 +674,20 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
       return;
     }
     controller.progressText("setup_address".tr);
-    final r = await MethodUtils.call(() async {
+    final r = await IResult.call(() async {
       return CardanoMultisigNewAddressParams(
           addressInfo: address.multiSigAddresInfo,
           coin: account.network.coins.elementAt(0));
     }, delay: APPConst.oneSecoundDuration);
-    if (r.hasError) {
-      controller.errorText(r.localizationError,
+    if (r.isErr) {
+      controller.errorText(r.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
-    final import = await wallet.wallet
-        .deriveNewAccount(newAccountParams: r.result, chain: account);
-    if (import.hasError) {
-      controller.errorText(import.localizationError,
+    final import = await wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: r.unwrap(), chain: account));
+    if (import.isErr) {
+      controller.errorText(import.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
@@ -734,7 +696,7 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
         progressWidget: SuccessWithButtonView(
           buttonWidget: ContainerWithBorder(
               margin: WidgetConstant.paddingVertical8,
-              child: AddressDetailsView(address: import.result)),
+              child: AddressDetailsView(address: import.unwrap())),
           buttonText: "generate_new_address".tr,
           onPressed: () {
             clearState();
@@ -748,20 +710,19 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
     final baseThreshold = addressWeight?.toBigInt().toInt();
     if (!isReady) return;
     controller.progressText("generating_new_addr".tr);
-    final address = await MethodUtils.call(() async {
+    final address = await IResult.call(() async {
       final List<CardanoMultiSigSignerDetails> signers = addressPubKeys
           .map((e) => CardanoMultiSigSignerDetails(
               publicKey: BytesUtils.fromHexString(e.key),
-              keyIndex: e.keyIndex.cast()))
+              derivationIndex: e.keyIndex.cast()))
           .toList();
       if (addressCredentialType.isScript && baseThreshold == null) {
         return null;
       }
       final credential = switch (addressCredentialType) {
-        CardanoCredentialType.script => CardanoMultiSignatureScript(
-            threshold: baseThreshold!, signers: signers),
-        CardanoCredentialType.publicKey =>
-          CardanoMultiSignatureKey(signer: signers.first)
+        CardanoCredentialType.script =>
+          CardanoMultiSignatureScript(threshold: baseThreshold!, signers: signers),
+        CardanoCredentialType.publicKey => CardanoMultiSignatureKey(signer: signers.first)
       };
       BaseCardanoMultiSignatureCredential? stakeCredential;
       if (isBaseAddress) {
@@ -771,11 +732,11 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
         final List<CardanoMultiSigSignerDetails> signers = stakePubKeys
             .map((e) => CardanoMultiSigSignerDetails(
                 publicKey: BytesUtils.fromHexString(e.key),
-                keyIndex: e.keyIndex.cast()))
+                derivationIndex: e.keyIndex.cast()))
             .toList();
         stakeCredential = switch (stakeCredentialType) {
-          CardanoCredentialType.script => CardanoMultiSignatureScript(
-              threshold: stakeThreshold!, signers: signers),
+          CardanoCredentialType.script =>
+            CardanoMultiSignatureScript(threshold: stakeThreshold!, signers: signers),
           CardanoCredentialType.publicKey =>
             CardanoMultiSignatureKey(signer: signers.first)
         };
@@ -784,8 +745,7 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
           addressType: addressType,
           credential: credential,
           stakeCredential: stakeCredential);
-      final address =
-          addressInfo.toAddress(account.network.coinParam.networkType);
+      final address = addressInfo.toAddress(account.network.coinParam.networkType);
       final rewardAddress = address.addressType == ADAAddressType.base
           ? address.cast<ADABaseAddress>().stakeAddress()
           : null;
@@ -793,17 +753,15 @@ class _SetupCardanoMultisigForm with DisposableMixin, StreamStateController {
           multiSigAddresInfo: addressInfo,
           rewardAddress: rewardAddress == null
               ? null
-              : ReceiptAddress(
-                  view: rewardAddress.address, networkAddress: address),
-          address:
-              ReceiptAddress(view: address.address, networkAddress: address));
+              : ReceiptAddress(view: rewardAddress.address, networkAddress: address),
+          address: ReceiptAddress(view: address.address, networkAddress: address));
     }, delay: APPConst.oneSecoundDuration);
-    if (address.hasError) {
-      controller.errorText(address.localizationError,
+    if (address.isErr) {
+      controller.errorText(address.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
       return;
     }
-    generatedAddress = address.result;
+    generatedAddress = address.unwrap();
     controller.backToIdle();
   }
 

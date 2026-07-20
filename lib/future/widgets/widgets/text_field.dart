@@ -89,8 +89,7 @@ class AppTextField extends StatefulWidget {
   State<AppTextField> createState() => AppTextFieldState();
 }
 
-class AppTextFieldState extends State<AppTextField>
-    with SafeState<AppTextField> {
+class AppTextFieldState extends State<AppTextField> with SafeState<AppTextField> {
   late TextDirection? direction = widget.textDirection;
   late TextEditingController controller;
   late bool obscureText = widget.obscureText;
@@ -145,7 +144,7 @@ class AppTextFieldState extends State<AppTextField>
     controller = widget.controller ?? TextEditingController();
     controller.addListener(listener);
     if (widget.controller == null && widget.initialValue != null) {
-      MethodUtils.after(() async {
+      MethodUtils.executeAfterDelay(() async {
         controller.text = widget.initialValue ?? "";
       });
     }
@@ -204,8 +203,7 @@ class AppTextFieldState extends State<AppTextField>
             helperText: widget.helperText,
             labelText: widget.label,
             border: OutlineInputBorder(
-                borderRadius: WidgetConstant.border8,
-                borderSide: BorderSide.none),
+                borderRadius: WidgetConstant.border8, borderSide: BorderSide.none),
             suffixIcon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -213,8 +211,7 @@ class AppTextFieldState extends State<AppTextField>
                   ObscureIcon(show: obscureText, onTap: onChaangeObscureText),
                 if (widget.pasteIcon && !widget.readOnly)
                   PasteTextIcon(
-                      onPaste: updateText,
-                      isSensitive: widget.isSensitive ?? false),
+                      onPaste: updateText, isSensitive: widget.isSensitive ?? false),
                 if (widget.suffixIcon != null) widget.suffixIcon!,
               ],
             ),

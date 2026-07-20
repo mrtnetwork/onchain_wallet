@@ -7,10 +7,7 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class RippleNFTokenView extends StatelessWidget {
   const RippleNFTokenView(
-      {required this.nft,
-      required this.address,
-      required this.account,
-      super.key});
+      {required this.nft, required this.address, required this.account, super.key});
   final RippleNFToken nft;
   final IXRPAddress address;
   final XRPChain account;
@@ -24,8 +21,8 @@ class RippleNFTokenView extends StatelessWidget {
           WidgetConstant.height8,
           ContainerWithBorder(
             backgroundColor: context.onPrimaryContainer,
-            child: CopyableTextWidget(
-                text: nft.nftokenId, color: context.primaryContainer),
+            child:
+                CopyableTextWidget(text: nft.nftokenId, color: context.primaryContainer),
           ),
           if (nft.uri != null) ...[
             Text("uri".tr, style: context.onPrimaryTextTheme.titleMedium),
@@ -37,34 +34,45 @@ class RippleNFTokenView extends StatelessWidget {
             ),
           ],
           Divider(color: context.onPrimaryContainer),
-          AppListTile(
-            title: const Text("NFTokenBurn"),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () {
+          ContainerWithBorder(
+            backgroundColor: context.colors.onPrimaryContainer,
+            onRemoveIcon: Icon(
+              Icons.open_in_new,
+              color: context.colors.primaryContainer,
+            ),
+            onRemove: () {
               final operation = RippleTransactionNFTokenBurnOperation(
-                  address: account.address,
+                  address: account.addressSync,
                   account: account,
                   walletProvider: context.wallet,
                   nftId: nft.nftokenId);
               context.to(PageRouter.transaction, argruments: operation);
             },
+            child: Text("NFTokenBurn", style: context.primaryTextTheme.bodyMedium),
           ),
-          AppListTile(
-            title: const Text("NFTokenCreateOffer"),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () {
+          ContainerWithBorder(
+            backgroundColor: context.colors.onPrimaryContainer,
+            onRemoveIcon: Icon(
+              Icons.open_in_new,
+              color: context.colors.primaryContainer,
+            ),
+            onRemove: () {
               final feild = RippleTransactionNFTokenCreateOfferOperation(
-                  address: account.address,
+                  address: account.addressSync,
                   account: account,
                   walletProvider: context.wallet,
                   nftId: nft.nftokenId);
               context.to(PageRouter.transaction, argruments: feild);
             },
+            child: Text("NFTokenCreateOffer", style: context.primaryTextTheme.bodyMedium),
           ),
-          AppListTile(
-            title: const Text("NFTokenCancelOffer"),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () {
+          ContainerWithBorder(
+            backgroundColor: context.colors.onPrimaryContainer,
+            onRemoveIcon: Icon(
+              Icons.open_in_new,
+              color: context.colors.primaryContainer,
+            ),
+            onRemove: () {
               final feild = RippleTransactionNFTokenCancelOfferOperation(
                   address: address,
                   account: account,
@@ -72,6 +80,7 @@ class RippleNFTokenView extends StatelessWidget {
                   nftId: nft.nftokenId);
               context.to(PageRouter.transaction, argruments: feild);
             },
+            child: Text("NFTokenCancelOffer", style: context.primaryTextTheme.bodyMedium),
           ),
         ],
       ),

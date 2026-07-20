@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:cosmos_sdk/cosmos_sdk.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/base/v1beta1/src/coin.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/tx/v1beta1/models.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/controllers/signer.dart';
@@ -12,28 +13,23 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'fee.dart';
 import 'memo.dart';
 
-abstract class CosmosTransactionStateController2
-    extends BaseCosmosTransactionController
+abstract class CosmosTransactionStateController2 extends BaseCosmosTransactionController
     with
         CosmosTransactionFeeController,
         CosmosTransactionMemoController,
         CosmosTransactionApiController,
         CosmosTransactionSignerController {
-  CosmosTransactionRequirment _transactionRequirment =
-      CosmosTransactionRequirment();
+  CosmosTransactionRequirment _transactionRequirment = CosmosTransactionRequirment();
 
   List<CW20Token> _tokens = [];
   List<CW20Token> get tokens => _tokens;
   late CW20Token _nativeToken;
   CW20Token get nativeToken => _nativeToken;
   @override
-  CosmosTransactionRequirment get transactionRequirment =>
-      _transactionRequirment;
+  CosmosTransactionRequirment get transactionRequirment => _transactionRequirment;
 
   CosmosTransactionStateController2(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   Future<void> estimateFee() async {
@@ -59,16 +55,15 @@ abstract class CosmosTransactionStateController2
   @override
   Future<ICosmosTransaction> buildTransaction({bool simulate = false}) async {
     final transaction = await buildTransactionData(simulate: simulate);
-    final txBody = TXBody(
-        messages: transaction.messages.map((e) => e.message).toList(),
+    final txBody = TxBody(
+        messages: transaction.messages.map((e) => e.message.toAny()).toList(),
         memo: transaction.memo);
     return ICosmosTransaction(
         account: address, transaction: txBody, transactionData: transaction);
   }
 
   @override
-  Future<ICosmosSignedTransaction> signTransaction(
-      ICosmosTransaction transaction,
+  Future<ICosmosSignedTransaction> signTransaction(ICosmosTransaction transaction,
       {bool fakeSignature = false}) async {
     final address = transaction.account;
     final txBody = transaction.transaction;
@@ -76,12 +71,11 @@ abstract class CosmosTransactionStateController2
     final feeDenom = transaction.transactionData.feeDenom;
     final authInfo = AuthInfo(
         signerInfos: [
-          address.signerInfo
-              .copyWith(sequence: transaction.transactionData.sequence)
+          address.signerInfo.copyWith(sequence: transaction.transactionData.sequence)
         ],
         fee: Fee(amount: [
           if (network.coinParam.networkType != CosmosNetworkTypes.thorAndForked)
-            Coin(denom: feeDenom, amount: fee.fee.balance),
+            Coin(denom: feeDenom, amount: "${fee.fee.balance}"),
         ], gasLimit: fee.gasLimit));
     final SignDoc signDoc = SignDoc(
         bodyBytes: txBody.toBuffer(),
@@ -106,10 +100,9 @@ abstract class CosmosTransactionStateController2
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required ICosmosSignedTransaction signedTransaction}) async {
-    final txId = await client.broadcastTransaction(
-        signedTransaction.finalTransactionData.toBuffer());
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    final txId = await client
+        .broadcastTransaction(signedTransaction.finalTransactionData.toBuffer());
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 
   @override
@@ -117,8 +110,9 @@ abstract class CosmosTransactionStateController2
       buildWalletTransaction(
           {required ICosmosSignedTransaction<ICosmosTransactionData> signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final payments = signedTx.transaction.transactionData.payments ?? [];
-    assert(payments.isNotEmpty);
+    final txData = signedTx.transaction.transactionData;
+    final payments = txData.payments ?? [];
+    final memo = txData.getWalletTxMemo();
     final outputs = payments.map((e) {
       final token = e.token.denom == network.coinParam.denom ? null : e.token;
       return CosmosWalletTransactionTransferOutput(
@@ -132,16 +126,14 @@ abstract class CosmosTransactionStateController2
     final totalNative = payments.fold<BigInt>(
         BigInt.zero,
         (p, e) =>
-            p +
-            (e.token.denom == network.coinParam.denom
-                ? e.amount
-                : BigInt.zero));
+            p + (e.token.denom == network.coinParam.denom ? e.amount : BigInt.zero));
     final transaction = CosmosWalletTransaction(
         txId: txId.txId,
         time: DateTime.now(),
         outputs: outputs,
-        totalOutput: WalletTransactionIntegerAmount(
-            amount: totalNative, network: network),
+        memos: [if (memo != null) memo],
+        totalOutput:
+            WalletTransactionIntegerAmount(amount: totalNative, network: network),
         network: network);
     return [IWalletTransaction(transaction: transaction, account: address)];
   }
@@ -149,21 +141,20 @@ abstract class CosmosTransactionStateController2
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required CosmosClient client,
+    required CosmosNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     _transactionRequirment = await getTransactionRequirment(owner: address);
     await initFee();
     _nativeToken = CW20Token.create(
-        balance: address.address.currencyBalance,
+        balance: address.addressData.currencyBalance,
         token: network.token,
         denom: network.coinParam.denom);
     _tokens = [
       _nativeToken,
-      ...address.tokens,
+      ...addressTokens,
     ].toImutableList;
     return this;
   }

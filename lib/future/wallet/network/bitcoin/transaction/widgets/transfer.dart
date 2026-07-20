@@ -1,6 +1,6 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/operations/transfer.dart';
@@ -32,15 +32,14 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
             child: ConditionalWidget(
               onDeactive: (context) => Text("tap_to_choose_utxos".tr),
               enable: form.hasUtxos,
-              onActive: (context) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CoinAndMarketPriceView(
-                        balance: form.totalUtxos.value,
-                        symbolColor: context.onPrimaryContainer,
-                        showTokenImage: true,
-                        style: context.onPrimaryTextTheme.titleMedium)
-                  ]),
+              onActive: (context) =>
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                CoinAndMarketPriceView(
+                    balance: form.totalUtxos.value,
+                    symbolColor: context.onPrimaryContainer,
+                    showTokenImage: true,
+                    style: context.onPrimaryTextTheme.titleMedium)
+              ]),
             ),
           );
         },
@@ -49,7 +48,7 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
       LiveFormWidgetList(
         field: form.recipients,
         onCreate: (context, field) =>
-            LiveWidgetAddNewTransferDetails<BitcoinBaseAddress>(
+            LiveWidgetAddNewTransferDetails<BitcoinNetworkAddress>(
                 onUpdateAddresses: form.onUpdateRecipients,
                 account: form.account,
                 isReady: field.hasValue,
@@ -70,24 +69,20 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
                   ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
                       child: ReceiptAddressDetailsView(
-                          address: value.recipient,
-                          color: context.primaryContainer)),
+                          address: value.recipient, color: context.primaryContainer)),
                   ContainerWithBorder(
                       onRemove: () {
                         final max = form.getMaxInput(value);
                         final min = form.getMinInput();
                         context
-                            .setupAmount(
-                                token: value.amount.token, max: max, min: min)
+                            .setupAmount(token: value.amount.token, max: max, min: min)
                             .then((amount) {
                           if (amount == null) return;
-                          form.onUpdateRecipientAmount(
-                              value, amount, amount == max);
+                          form.onUpdateRecipientAmount(value, amount, amount == max);
                         });
                       },
                       validate: value.hasAmount,
-                      onRemoveIcon:
-                          Icon(Icons.edit, color: context.primaryContainer),
+                      onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                       backgroundColor: context.onPrimaryContainer,
                       child: CoinAndMarketPriceView(
                           balance: value.amount,
@@ -136,24 +131,21 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
                                   onRemoveIcon: Icon(Icons.add_box,
                                       color: context.primaryContainer),
                                   child: Text("select_token_for_transfer".tr,
-                                      style:
-                                          context.primaryTextTheme.bodyMedium),
+                                      style: context.primaryTextTheme.bodyMedium),
                                   onRemove: () {
                                     context
                                         .openSliverDialog<BCHCashToken>(
                                             sliver: (context) =>
-                                                _SelectCashTokensView(
-                                                    cashToken),
+                                                _SelectCashTokensView(cashToken),
                                             label: 'choose_token'.tr)
-                                        .then((v) => form.onUpdateTransferToken(
-                                            value, v));
+                                        .then(
+                                            (v) => form.onUpdateTransferToken(value, v));
                                   },
                                 ));
                       },
                     ),
                   ),
-                  AlertTextContainer(
-                      message: value.status.warning, enableTap: false)
+                  AlertTextContainer(message: value.status.warning, enableTap: false)
                 ],
               ),
             );
@@ -187,16 +179,13 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
                         form.onUpdateRemainingAccount(v);
                       });
                     },
-                    onRemoveIcon:
-                        Icon(Icons.edit, color: context.primaryContainer),
+                    onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                     backgroundColor: context.onPrimaryContainer,
                     child: ReceiptAddressDetailsView(
-                        address: value.recipient,
-                        color: context.primaryContainer)),
+                        address: value.recipient, color: context.primaryContainer)),
                 ContainerWithBorder(
                     validate: !value.amount.isNegative,
-                    onRemoveIcon:
-                        Icon(Icons.edit, color: context.primaryContainer),
+                    onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                     backgroundColor: context.onPrimaryContainer,
                     child: CoinAndMarketPriceView(
                         balance: value.amount,
@@ -217,8 +206,7 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
                     field: form.rbf,
                     builder: (context, field, value) {
                       return ContainerWithBorder(
-                          child: Switch(
-                              value: value, onChanged: form.onUpdateRBF));
+                          child: Switch(value: value, onChanged: form.onUpdateRBF));
                     },
                   ),
                 ],
@@ -230,15 +218,12 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
               onRemove: () {
                 form.onRemoveMemo(value);
               },
-              onRemoveIcon:
-                  Icon(Icons.remove_circle, color: context.onPrimaryContainer),
-              child: Text(value.memo,
-                  style: context.onPrimaryTextTheme.bodyMedium)),
+              onRemoveIcon: Icon(Icons.remove_circle, color: context.onPrimaryContainer),
+              child: Text(value.memo, style: context.onPrimaryTextTheme.bodyMedium)),
           onCreate: (context, field) {
             if (form.canAddNewMemo) {
               return ContainerWithBorder(
-                  onRemoveIcon:
-                      Icon(Icons.add_box, color: context.onPrimaryContainer),
+                  onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
                   onRemove: () {
                     context
                         .openSliverBottomSheet<String>("transaction_memo".tr,
@@ -246,8 +231,7 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
                                 title: PageTitleSubtitle(
                                     title: "setup_memo".tr,
                                     body: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text("memo_desc1".tr),
                                       ],
@@ -274,20 +258,17 @@ class BitcoinTransactionTransferTokenWidget extends StatelessWidget {
               isDense: false,
               items: {
                 for (final i in TransactionOrdering.values)
-                  i: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(i.name.tr, style: context.textTheme.labelLarge),
-                        Text(i.desc.tr, style: context.textTheme.bodySmall),
-                      ])
+                  i: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(i.name.tr, style: context.textTheme.labelLarge),
+                    Text(i.desc.tr, style: context.textTheme.bodySmall),
+                  ])
               },
             ),
           );
         },
       ),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form),
     ]);
   }
@@ -304,8 +285,7 @@ class _SelectCashTokensView extends StatelessWidget {
       sliver: MultiSliver(
         children: [
           AlertTextContainer(
-              message: "assets_balance_not_supported_desc".tr,
-              enableTap: false),
+              message: "assets_balance_not_supported_desc".tr, enableTap: false),
           SliverList.builder(
               itemBuilder: (context, index) {
                 final token = cashtokens.tokenRemains[index];
@@ -331,8 +311,7 @@ class _CashTokenTransferForm extends StatelessWidget {
   final BitcoinTransactionTransferOperation controller;
   final BitcoinTransferDetails transfer;
   BitcoinCashCashTokenTransfer get token => transfer.token!;
-  const _CashTokenTransferForm(
-      {required this.controller, required this.transfer});
+  const _CashTokenTransferForm({required this.controller, required this.transfer});
 
   @override
   Widget build(BuildContext context) {
@@ -354,10 +333,9 @@ class _CashTokenTransferForm extends StatelessWidget {
                   reverse: context.colors.primaryContainer,
                   onUpdateAmount: token.isImmutable
                       ? null
-                      : (amount, max) => controller.onUpdateTrasferTokenAmount(
-                          transfer, amount),
-                  onUpdateAmountMax: () => controller
-                      .remainingCashTokenAmount.value
+                      : (amount, max) =>
+                          controller.onUpdateTrasferTokenAmount(transfer, amount),
+                  onUpdateAmountMax: () => controller.remainingCashTokenAmount.value
                       .getTokenRemainAmount(token),
                   field: token.tokenAmount))),
       ConditionalWidget(
@@ -370,8 +348,8 @@ class _CashTokenTransferForm extends StatelessWidget {
                       color: context.colors.onPrimaryContainer,
                       builder: (context, field, value) {
                         return ContainerWithBorder(
-                          onRemoveIcon: Icon(Icons.edit,
-                              color: context.colors.onSecondary),
+                          onRemoveIcon:
+                              Icon(Icons.edit, color: context.colors.onSecondary),
                           onRemove: token.isImmutable
                               ? null
                               : () {
@@ -380,10 +358,8 @@ class _CashTokenTransferForm extends StatelessWidget {
                                         "update_commitment".tr,
                                         child: StringWriterView(
                                           defaultValue: value,
-                                          maxLength:
-                                              RippleConst.maxDomainLength,
-                                          customForm:
-                                              token.onValidateCommitment,
+                                          maxLength: RippleConst.maxDomainLength,
+                                          customForm: token.onValidateCommitment,
                                           title: PageTitleSubtitle(
                                               title: "commitment".tr,
                                               body: Column(
@@ -432,13 +408,10 @@ class _CashTokenTransferForm extends StatelessWidget {
                             enable: !token.isImmutable,
                             onDeactive: (context) => Text(value?.name ?? "",
                                 style: context.primaryTextTheme.bodyMedium),
-                            onActive: (context) => AppDropDownBottom(
-                                items: {
-                                  for (final i in CashTokenCapability.values)
-                                    i: Text(i.name.tr)
-                                },
-                                value: value,
-                                onChanged: token.onUpdateCapability),
+                            onActive: (context) => AppDropDownBottom(items: {
+                              for (final i in CashTokenCapability.values)
+                                i: Text(i.name.tr)
+                            }, value: value, onChanged: token.onUpdateCapability),
                           ),
                         );
                       },

@@ -1,7 +1,8 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../utils/utils.dart';
 import '../base.dart';
-import 'solana.dart';
 import 'wallet_standard.dart';
 
 @JS("cardano")
@@ -47,8 +48,7 @@ class ADAJSConst {
   static const String submitUnsignedTx = "cardano_submitUnsignedTx";
   static const String getCompletedTx = "cardano_getCompletedTx";
 
-  static JSArray<JSString> defaultAccountFeatures(
-          List<int>? publicKey, bool isReward) =>
+  static JSArray<JSString> defaultAccountFeatures(List<int>? publicKey, bool isReward) =>
       [
         if (!isReward) ...[
           if (publicKey == null) "cardano:getScript".toJS,
@@ -164,8 +164,7 @@ extension type JSWalletCardanoCIP104Extension(JSAny _) implements JSAny {
   factory JSWalletCardanoCIP104Extension.setup({
     required JSFunction getAccountPub,
   }) {
-    return JSWalletCardanoCIP104Extension(JSObject())
-      ..getAccountPub = getAccountPub;
+    return JSWalletCardanoCIP104Extension(JSObject())..getAccountPub = getAccountPub;
   }
 }
 
@@ -193,8 +192,7 @@ extension type JSWalletCardanoCIP106Extension(JSAny _) implements JSAny {
 }
 
 @JS()
-extension type JSADAWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSADAWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSADAWalletAccount.setup(
       {required String address,
       required List<int>? publicKey,
@@ -203,10 +201,8 @@ extension type JSADAWalletAccount._(JSObject _)
     return JSADAWalletAccount._(JSObject())
       ..address = address
       ..chains = [chain.toJS].toJS
-      ..features =
-          ADAJSConst.defaultAccountFeatures(publicKey, isRewardAddress).freez
-      ..publicKey =
-          publicKey == null ? null : APPJSUint8Array.fromList(publicKey);
+      ..features = ADAJSConst.defaultAccountFeatures(publicKey, isRewardAddress).freez
+      ..publicKey = publicKey == null ? null : APPJSUint8Array.fromList(publicKey);
   }
 }
 
@@ -217,8 +213,7 @@ extension type JSADAPaginate._(JSObject _) implements JSAny {
 }
 
 @JS()
-extension type JSWalletStandardADAGetNetworkIdFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetNetworkIdFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetNetworkIdFeature.setup(
       {required JSFunction getNetworkId,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -254,8 +249,7 @@ extension type JSWalletStandardADAGetUtxosFeature(JSAny _) implements JSAny {
   external set getUtxos(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADAGetAddressUtxosFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetAddressUtxosFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetAddressUtxosFeature.setup(
       {required JSFunction getAddressUtxos,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -268,8 +262,7 @@ extension type JSWalletStandardADAGetAddressUtxosFeature(JSAny _)
 }
 
 @JS()
-extension type JSWalletStandardADAGetCollateralFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetCollateralFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetCollateralFeature.setup(
       {required JSFunction getCollateral,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -282,8 +275,7 @@ extension type JSWalletStandardADAGetCollateralFeature(JSAny _)
 }
 
 @JS()
-extension type JSWalletStandardADAGetUsedAddressesFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetUsedAddressesFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetUsedAddressesFeature.setup(
       {required JSFunction getUsedAddresses,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -295,8 +287,7 @@ extension type JSWalletStandardADAGetUsedAddressesFeature(JSAny _)
   external set getUsedAddresses(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADAGetUnusedAddressesFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetUnusedAddressesFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetUnusedAddressesFeature.setup(
       {required JSFunction getUnusedAddresses,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -308,8 +299,7 @@ extension type JSWalletStandardADAGetUnusedAddressesFeature(JSAny _)
   external set getUnusedAddresses(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADAGetChangeAddressFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetChangeAddressFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetChangeAddressFeature.setup(
       {required JSFunction getChangeAddress,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -322,8 +312,7 @@ extension type JSWalletStandardADAGetChangeAddressFeature(JSAny _)
 }
 
 @JS()
-extension type JSWalletStandardADAGetRewardAddressesFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetRewardAddressesFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetRewardAddressesFeature.setup(
       {required JSFunction getRewardAddresses,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -360,8 +349,7 @@ extension type JSWalletStandardADASignTxsFeature(JSAny _) implements JSAny {
   external set signTxs(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADAGetAccountPubFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetAccountPubFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetAccountPubFeature.setup(
       {required JSFunction getAccountPub,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -373,8 +361,7 @@ extension type JSWalletStandardADAGetAccountPubFeature(JSAny _)
   external set getAccountPub(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADAGetScriptRequirementsFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADAGetScriptRequirementsFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADAGetScriptRequirementsFeature.setup(
       {required JSFunction getScriptRequirements,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -386,8 +373,7 @@ extension type JSWalletStandardADAGetScriptRequirementsFeature(JSAny _)
   external set getScriptRequirements(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADASubmitUnsignedTxFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADASubmitUnsignedTxFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADASubmitUnsignedTxFeature.setup(
       {required JSFunction submitUnsignedTx,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -459,8 +445,7 @@ extension type JSWalletStandardADASubmitTxsFeature(JSAny _) implements JSAny {
   external set submitTxs(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardADASignTransactionFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardADASignTransactionFeature(JSAny _) implements JSAny {
   factory JSWalletStandardADASignTransactionFeature.setup(
       {required JSFunction signTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -557,9 +542,7 @@ extension type JSADASignDataResponse._(JSObject _) implements JSAny {
   external JSString get pubKey;
   external set pubKey(JSString _);
   factory JSADASignDataResponse.setup(
-      {required String signature,
-      required String key,
-      required String pubKey}) {
+      {required String signature, required String key, required String pubKey}) {
     return JSADASignDataResponse._(JSObject())
       ..signature = signature.toJS
       ..key = key.toJS

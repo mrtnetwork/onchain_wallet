@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/stream/live.dart';
+import 'package:on_chain_wallet/app/utils/method/result.dart';
 import 'package:on_chain_wallet/app/utils/sync/cached_object.dart';
 
 enum FetchObjectStatus {
@@ -16,8 +16,7 @@ enum FetchObjectStatus {
   bool get canRetry => isIdle || isFailed;
 }
 
-class FetchObject<T extends Object?>
-    with DisposableMixin, StreamStateController {
+class FetchObject<T extends Object?> with DisposableMixin, StreamStateController {
   FetchObject(this.onFetch, {FetchObjectStatus status = FetchObjectStatus.idle})
       : _status = status;
   final ONFETCHCACHEDOBJECT<T> onFetch;
@@ -42,7 +41,7 @@ class FetchObject<T extends Object?>
         _status = FetchObjectStatus.success;
       } catch (e) {
         _error = e;
-        _errorMessage = MethodResult.findErrorMessage(e);
+        _errorMessage = ResultErr.from(e).localizationError;
         _status = FetchObjectStatus.failed;
       } finally {
         notify();

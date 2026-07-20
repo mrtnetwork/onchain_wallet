@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 
 class ImportCustomKeyToWalletView extends StatefulWidget {
   const ImportCustomKeyToWalletView({required this.keypair, super.key});
   final ImportCustomKeys keypair;
 
   @override
-  State<ImportCustomKeyToWalletView> createState() =>
-      ImportCustomKeyToWalletViewState();
+  State<ImportCustomKeyToWalletView> createState() => ImportCustomKeyToWalletViewState();
 }
 
-class ImportCustomKeyToWalletViewState
-    extends State<ImportCustomKeyToWalletView> with SafeState {
+class ImportCustomKeyToWalletViewState extends State<ImportCustomKeyToWalletView>
+    with SafeState {
   bool showKeys = false;
   late final String keyType = widget.keypair.coin.conf.type.name.camelCase;
 
@@ -52,8 +51,7 @@ class ImportCustomKeyToWalletViewState
               FixedElevatedButton(
                 padding: WidgetConstant.paddingVertical40,
                 onPressed: () {
-                  context.to(PageRouter.importAccount,
-                      argruments: widget.keypair);
+                  context.to(PageRouter.importAccount, argruments: widget.keypair);
                 },
                 child: Text("import_to_wallet".tr),
               ),

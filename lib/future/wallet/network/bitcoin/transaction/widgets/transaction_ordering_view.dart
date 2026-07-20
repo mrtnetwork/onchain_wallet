@@ -1,12 +1,13 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
+import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/widgets/cash_token_info.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/crypto/utils/bitcoin/bitcoin.dart';
-import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
+import 'package:on_chain_wallet/crypto/networks/bitcoin/bitcoin.dart';
 
 class TransactionOrderingView extends StatefulWidget {
   const TransactionOrderingView(
@@ -16,34 +17,55 @@ class TransactionOrderingView extends StatefulWidget {
       required this.network,
       required this.controller});
   final List<UtxoWithAddress> inputs;
-  final List<BitcoinBaseOutput> outputs;
+  final List<IBitcoinOutput> outputs;
   final WalletBitcoinNetwork network;
   final ScrollController controller;
 
   @override
-  State<TransactionOrderingView> createState() =>
-      _TransactionOrderingViewState();
+  State<TransactionOrderingView> createState() => _TransactionOrderingViewState();
 }
 
-class _TransactionOrderingViewState extends State<TransactionOrderingView> {
-  late final List<_OutputWithKey> outputs = widget.outputs
-      .where((element) => element is! BitcoinBurnableOutput)
-      .map((e) => _OutputWithKey._(e, widget.network))
-      .toList();
-  late final List<_InputsWithKey> inputs = widget.inputs
-      .map((e) => _InputsWithKey(item: e, network: widget.network))
-      .toList();
+class _TransactionOrderingViewState extends State<TransactionOrderingView>
+    with SafeState<TransactionOrderingView> {
+  List<IBitcoinOutput> burnableOutputs = [];
+  List<_OutputWithKey> outputs = [];
+  List<_InputsWithKey> inputs = [];
 
   void ordering() {
     final orderedInputs = inputs.map((e) => e.item).toList();
-    final List<BitcoinBaseOutput> orderedOutputs = [
+    final List<IBitcoinOutput> orderedOutputs = [
       ...outputs.map((e) => e.output),
-      ...widget.outputs.whereType<BitcoinBurnableOutput>()
+      ...burnableOutputs
     ];
     context.pop((orderedInputs, orderedOutputs));
   }
 
   void onUpdate() => setState(() {});
+
+  @override
+  void safeDispose() {
+    super.safeDispose();
+    burnableOutputs = [];
+    outputs = [];
+    inputs = [];
+  }
+
+  @override
+  void onInitOnce() {
+    super.onInitOnce();
+    final outs = widget.outputs;
+    burnableOutputs = outs
+        .where((element) =>
+            switch (element.output) { BitcoinBurnableOutput() => true, _ => false })
+        .toImutableList;
+    outputs = outs
+        .where((element) => !burnableOutputs.contains(element))
+        .map((e) => _OutputWithKey._(e, widget.network))
+        .toList();
+    inputs = widget.inputs
+        .map((e) => _InputsWithKey(item: e, network: widget.network))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +84,8 @@ class _TransactionOrderingViewState extends State<TransactionOrderingView> {
           ]),
         ),
         body: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(
-              scrollbars: false, physics: const ClampingScrollPhysics()),
+          behavior: ScrollConfiguration.of(context)
+              .copyWith(scrollbars: false, physics: const ClampingScrollPhysics()),
           child: NestedScrollView(
               controller: widget.controller,
               headerSliverBuilder: (c, e) => [],
@@ -103,7 +125,7 @@ class _InputOrdering extends StatelessWidget {
     return ReorderableListView(
       scrollController: controller,
       buildDefaultDragHandles: false,
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         if (newIndex > oldIndex) newIndex--;
         final item = inputs.removeAt(oldIndex);
         inputs.insert(newIndex, item);
@@ -120,12 +142,11 @@ class _InputOrdering extends StatelessWidget {
               enableTap: false,
               onRemoveIcon: ReorderableDragStartListener(
                   index: index,
-                  child:
-                      Icon(Icons.touch_app, color: context.onPrimaryContainer)),
+                  child: Icon(Icons.touch_app, color: context.onPrimaryContainer)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(input.item.ownerDetails.address.type.value.tr,
+                  Text(input.item.ownerDetails.address.type.name,
                       style: context.onPrimaryTextTheme.labelLarge),
                   OneLineTextWidget(
                       input.item.ownerDetails.address
@@ -163,7 +184,7 @@ class _OutputOrdering extends StatelessWidget {
   Widget build(BuildContext context) {
     return ReorderableListView(
       scrollController: controller,
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         if (newIndex > oldIndex) newIndex--;
         final item = outputs.removeAt(oldIndex);
         outputs.insert(newIndex, item);
@@ -180,8 +201,7 @@ class _OutputOrdering extends StatelessWidget {
             enableTap: false,
             onRemoveIcon: ReorderableDragStartListener(
                 index: index,
-                child:
-                    Icon(Icons.touch_app, color: context.onPrimaryContainer)),
+                child: Icon(Icons.touch_app, color: context.onPrimaryContainer)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -189,17 +209,15 @@ class _OutputOrdering extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
-                        child: output.output is BitcoinSpendableBaseOutput
+                        child: output.output.output is BitcoinSpendableBaseOutput
                             ? Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   OneLineTextWidget(output.addressView!,
-                                      style: context
-                                          .onPrimaryTextTheme.bodyMedium),
+                                      style: context.onPrimaryTextTheme.bodyMedium),
                                   CoinAndMarketPriceView(
                                       balance: output.value,
-                                      style: context
-                                          .onPrimaryTextTheme.titleMedium,
+                                      style: context.onPrimaryTextTheme.titleMedium,
                                       symbolColor: context.onPrimaryContainer),
                                 ],
                               )
@@ -212,8 +230,7 @@ class _OutputOrdering extends StatelessWidget {
                 if (output.token != null) ...[
                   Divider(color: context.colors.onPrimaryContainer),
                   BCHCashTokenDetailsView(
-                      token: output.token!,
-                      color: context.colors.onPrimaryContainer),
+                      token: output.token!, color: context.colors.onPrimaryContainer),
                 ],
               ],
             ),
@@ -232,33 +249,29 @@ class _OutputWithKey<T> {
       this.script,
       this.token})
       : key = GlobalKey();
-  factory _OutputWithKey._(
-      BitcoinBaseOutput output, WalletBitcoinNetwork network) {
-    if (output is BitcoinScriptOutput) {
-      return _OutputWithKey(
+  factory _OutputWithKey._(IBitcoinOutput output, WalletBitcoinNetwork network) {
+    return switch (output.output) {
+      BitcoinScriptOutput out => _OutputWithKey(
           output: output,
           value: IntegerBalance.zero(network.token),
           addressView: null,
-          script: BTCUtils.opReturnToView(output.script));
-    }
-    if (output is BitcoinTokenOutput) {
-      return _OutputWithKey(
+          script: BTCUtils.opReturnToView(out.script)),
+      BitcoinTokenOutput out => _OutputWithKey(
           output: output,
-          addressView:
-              output.address.toAddress(network.coinParam.transacationNetwork),
-          token: BCHCashToken(cashToken: output.token),
-          value: IntegerBalance.token(output.value, network.token));
-    }
-    output as BitcoinOutput;
-    return _OutputWithKey(
-        output: output,
-        addressView:
-            output.address.toAddress(network.coinParam.transacationNetwork),
-        value: IntegerBalance.token(output.value, network.token));
+          addressView: out.address.toAddress(network.coinParam.transacationNetwork),
+          token: BCHCashToken(cashToken: out.token),
+          value: IntegerBalance.token(out.value, network.token)),
+      BitcoinOutput out => _OutputWithKey(
+          output: output,
+          addressView: out.address.toAddress(network.coinParam.transacationNetwork),
+          value: IntegerBalance.token(out.value, network.token)),
+      _ => throw AppInternalError.internalError("_OutputWithKey",
+          reason: "Unexpected bitcoin output.")
+    };
   }
   final GlobalKey key;
   final String? addressView;
-  final BitcoinBaseOutput output;
+  final IBitcoinOutput output;
   final IntegerBalance value;
   final String? script;
   final BCHCashToken? token;

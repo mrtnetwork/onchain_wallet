@@ -1,42 +1,40 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 final class SubstrateNewAddressParams
-    extends NewAccountParams<ISubstrateAddress> {
-  @override
-  bool get isMultiSig => false;
+    extends NewDerivableAccountParams<ISubstrateAddress> {
   @override
   CryptoCoins get coin => deriveIndex.currencyCoin;
 
   @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
 
-  const SubstrateNewAddressParams._({required this.deriveIndex}) : super._();
-  factory SubstrateNewAddressParams(
-      {required AddressDerivationIndex deriveIndex}) {
+  const SubstrateNewAddressParams._({required this.deriveIndex});
+  factory SubstrateNewAddressParams({required DerivableIndex deriveIndex}) {
     return SubstrateNewAddressParams._(deriveIndex: deriveIndex);
   }
 
-  factory SubstrateNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory SubstrateNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.substrateNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.substrateNewAddressParams.tag);
     return SubstrateNewAddressParams(
-      deriveIndex:
-          AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
+      deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
     );
   }
 
   @override
   ISubstrateAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+    WalletNetwork network,
+    CryptoPublicKeyData? publicKey,
+    String? id,
+    IAppDatabaseApi? database,
+  ) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletSubstrateNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "SubstrateNewAddressParams.toAccount");
     }
     final keyBytes = publicKey.normalizedComprossedBytes.asImmutableBytes;
@@ -49,28 +47,21 @@ final class SubstrateNewAddressParams
         publicKey: keyBytes,
         network: network,
         address: address,
+        database: database,
         coin: coin,
         identifier: NewAccountParams.toIdentifier(address.address),
-        keyIndex: deriveIndex);
+        derivationIndex: deriveIndex,
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([deriveIndex.toCbor()]), type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [deriveIndex.toCbor()];
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.substrateNewAddressParams;
+  NewAccountParamsType get type => NewAccountParamsType.substrateNewAddressParams;
 }
 
 final class SubstrateMultiSigNewAddressParams
-    implements SubstrateNewAddressParams {
-  @override
-  final AddressDerivationIndex deriveIndex;
-  @override
-  bool get isMultiSig => true;
+    extends NewAccountParams<ISubstrateAddress> {
   @override
   final CryptoCoins coin;
   final SubstrateMultisigAccountInfo multiSignatureAddress;
@@ -80,65 +71,56 @@ final class SubstrateMultiSigNewAddressParams
     required this.multiSignatureAddress,
     required this.coin,
     required this.address,
-  }) : deriveIndex = MultiSigAddressIndex();
+  });
 
   factory SubstrateMultiSigNewAddressParams(
       {required SubstrateMultisigAccountInfo multiSignatureAddress,
       required CryptoCoins coin,
       required BaseSubstrateAddress address}) {
     return SubstrateMultiSigNewAddressParams._(
-        multiSignatureAddress: multiSignatureAddress,
-        coin: coin,
-        address: address);
+        multiSignatureAddress: multiSignatureAddress, coin: coin, address: address);
   }
 
   factory SubstrateMultiSigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.substrateMultisigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.substrateMultisigNewAddressParams.tag);
     return SubstrateMultiSigNewAddressParams(
-        coin: CustomCoins.getSerializationCoin(values.elementAs(0)),
-        multiSignatureAddress: SubstrateMultisigAccountInfo.deserialize(
-            object: values.elementAs(1)),
-        address: BaseSubstrateAddress(values.elementAs(2)));
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(0)),
+        multiSignatureAddress:
+            SubstrateMultisigAccountInfo.deserialize(object: values.rawValueAt(1)),
+        address: BaseSubstrateAddress(values.rawValueAt(2)));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          coin.toCbor(),
-          multiSignatureAddress.toCbor(),
-          CborStringValue(address.address),
-        ]),
-        type.tag);
-  }
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        multiSignatureAddress.toCbor(),
+        CborStringValue(address.address),
+      ];
+  @override
+  NewAccountParamsType get type => NewAccountParamsType.substrateMultisigNewAddressParams;
 
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.substrateMultisigNewAddressParams;
-
-  @override
-  ISubstrateAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  ISubstrateAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (network is! WalletSubstrateNetwork ||
         network.coinParam.substrateChainType.isEthereum) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "SubstrateNewAddressParams.toAccount");
     }
 
     return ISubstrateMultiSigAddress._newAccount(
         network: network,
         address: address.type.isSubstrate
-            ? address
-                .cast<SubstrateAddress>()
-                .toSS58(network.coinParam.ss58Format)
+            ? address.cast<SubstrateAddress>().toSS58(network.coinParam.ss58Format)
             : address,
         coin: coin,
         identifier: NewAccountParams.toIdentifier(address.address),
-        multiSignatureAddress: multiSignatureAddress);
+        multiSignatureAddress: multiSignatureAddress,
+        id: id,
+        database: database);
   }
 }

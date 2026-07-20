@@ -73,16 +73,19 @@ mixin BitcoinTransactionFeeController on BtocinTransactionApiController {
     _cancelabe.cancel();
     await _lock.run(() async {
       txFee.setPending();
-      final size = await MethodUtils.call(() async {
+      final size = await IResult.call(() async {
         return await simulateFee();
       });
-      if (size.isCancel) return;
-      if (size.hasError) {
+      if (size.err()?.canceled() ?? false) {
+        return;
+      }
+      if (size.isErr) {
         setFees();
         return;
       }
-      txFee.onUpdateTransactionSize(size.result.$1);
-      setFees(transactionSize: size.result.$1, feeRate: size.result.$2);
+      final feeData = size.unwrap();
+      txFee.onUpdateTransactionSize(feeData.$1);
+      setFees(transactionSize: feeData.$1, feeRate: feeData.$2);
     });
   }
 
@@ -91,6 +94,5 @@ mixin BitcoinTransactionFeeController on BtocinTransactionApiController {
     super.dispose();
     _cancelabe.cancel();
     txFee.dispose();
-    appLogger.debug(functionName: "dispose", runtime: runtimeType, msg: "Fee");
   }
 }

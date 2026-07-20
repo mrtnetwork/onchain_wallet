@@ -1,6 +1,5 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/operations/send_transaction.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/operations/sign_message.dart';
@@ -11,16 +10,16 @@ import 'package:on_chain_wallet/wallet/api/client/client.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/solana.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import 'transaction.dart';
 
-abstract class Web3SolanaStateController<RESPONSE, CLIENT extends SolanaClient?,
+abstract class Web3SolanaStateController<RESPONSE, CLIENT extends SolanaNetworkClient?,
         T extends Web3SolanaRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         SolAddress,
         WalletSolanaNetwork,
-        SolanaClient,
+        SolanaNetworkClient,
         CLIENT,
         ISolanaAddress,
         SolanaChain,
@@ -29,19 +28,10 @@ abstract class Web3SolanaStateController<RESPONSE, CLIENT extends SolanaClient?,
         Web3SolanaRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         SolanaWalletTransaction> {
-  Web3SolanaStateController(
-      {required super.walletProvider, required super.request});
+  Web3SolanaStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3SolanaRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3SolanaStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3SolanaRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3SolanaRequestMethods.signMessage:
       case Web3SolanaRequestMethods.signIn:
@@ -59,17 +49,15 @@ abstract class Web3SolanaStateController<RESPONSE, CLIENT extends SolanaClient?,
   }
 }
 
-abstract class BaseWeb3SolanaTransactionStateController<
-        RESPONSE,
-        T extends Web3SolanaRequestParam<RESPONSE>,
-        E extends IWeb3SolanaTransactionData>
+abstract class BaseWeb3SolanaTransactionStateController<RESPONSE,
+        T extends Web3SolanaRequestParam<RESPONSE>, E extends IWeb3SolanaTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
         SolAddress,
-        ISolanaAddress,
-        SolanaClient,
-        SolanaClient,
         WalletSolanaNetwork,
+        ISolanaAddress,
+        SolanaNetworkClient,
+        SolanaNetworkClient,
         SolanaChain,
         Web3SolanaChainAccount,
         T,
@@ -104,8 +92,7 @@ class IWeb3SolanaTransactionRawData extends IWeb3SolanaTransactionData {
 
 class IWeb3SolanaTransaction<TXDATA extends IWeb3SolanaTransactionData>
     extends ITransaction<TXDATA, ISolanaAddress> {
-  const IWeb3SolanaTransaction(
-      {required super.account, required super.transactionData});
+  const IWeb3SolanaTransaction({required super.account, required super.transactionData});
 }
 
 class IWeb3SolanaSignedTransaction<TXDATA extends IWeb3SolanaTransactionData>

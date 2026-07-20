@@ -31,8 +31,7 @@ class TransactionAmountView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title ?? "transfer_amount".tr,
-            style: context.textTheme.titleMedium),
+        Text(title ?? "transfer_amount".tr, style: context.textTheme.titleMedium),
         if (subtitle != null) LargeTextView([subtitle!.tr], maxLine: 2),
         WidgetConstant.height8,
         ContainerWithBorder(

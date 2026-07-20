@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
 class OneLineTextWidget extends StatelessWidget {
   const OneLineTextWidget(this.text,
@@ -61,8 +61,7 @@ class _ObscureTextViewState extends State<ObscureTextView> {
                   overflow: TextOverflow.ellipsis,
                   style: widget.style,
                 )),
-                IconButton(
-                    onPressed: show, icon: const Icon(Icons.remove_red_eye))
+                IconButton(onPressed: show, icon: const Icon(Icons.remove_red_eye))
               ],
             ),
     );

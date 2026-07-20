@@ -7,9 +7,9 @@ class StellarConst {
   static const int stellarBase32SecretKeyLength = 56;
   static const int newAccountReserveStroopMultiply = 2;
   static const int stellarPubkeyHintLength = 4;
-  static final BigInt maxFee = BigInt.from(maxUint32);
-  static final BigInt maxIssueAmount = maxInt64;
-  static final BigRational maxIssueAmountRational = BigRational(maxIssueAmount);
+  static BigInt get maxFee => BigInt.from(BinaryOps.maxUint32);
+  static BigInt get maxIssueAmount => BinaryOps.maxInt64;
+  static BigRational get maxIssueAmountRational => BigRational(maxIssueAmount);
   static const Duration maxmimumTimeBound = Duration(days: 21);
   static const Duration defaultTimeBound = Duration(minutes: 1);
   static const mainnetPassphrase =

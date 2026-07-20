@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart' show APPConst, PlatformUtils;
-import 'package:on_chain_wallet/app/models/models/typedef.dart' show StringVoid;
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class PasteTextIcon extends StatefulWidget {
@@ -22,14 +21,14 @@ class PasteTextIcon extends StatefulWidget {
   State<PasteTextIcon> createState() => PasteTextIconState();
 }
 
-class PasteTextIconState extends State<PasteTextIcon> with SafeState {
+class PasteTextIconState extends State<PasteTextIcon> with SafeState<PasteTextIcon> {
   bool inPaste = false;
   void onTap() async {
     if (inPaste) return;
     inPaste = true;
-    setState(() {});
+    updateState(() {});
     try {
-      final data = await PlatformUtils.readClipboard();
+      final data = (await context.appContextOrNull?.platformUtls.readClipboard())?.ok();
       if (!mounted) return;
       final String txt = data ?? "";
       if (txt.isEmpty) {
@@ -39,20 +38,20 @@ class PasteTextIconState extends State<PasteTextIcon> with SafeState {
         return;
       }
       widget.onPaste(txt);
-      _resetClipoard(txt);
+      if (widget.isSensitive) _resetClipoard(txt, context.appContext);
       await Future.delayed(APPConst.oneSecoundDuration);
     } finally {
       inPaste = false;
-      setState(() {});
+      updateState(() {});
     }
   }
 
-  void _resetClipoard(String txt) {
-    if (!widget.isSensitive) return;
-    MethodUtils.after(() async {
-      final data = await PlatformUtils.readClipboard();
-      if (data != txt) return;
-      PlatformUtils.writeClipboard('');
+  static void _resetClipoard(String txt, AppContext? context) {
+    if (context == null) return;
+    MethodUtils.executeAfterDelay(() async {
+      final data = await context.platformUtls.readClipboard();
+      if (data.ok() != txt) return;
+      context.platformUtls.writeClipboard('');
     }, duration: APPConst.tenSecoundDuration);
   }
 

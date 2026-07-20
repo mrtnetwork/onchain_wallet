@@ -1,4 +1,3 @@
-import 'package:blockchain_utils/exception/exception/rpc_error.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:on_chain/ethereum/src/address/evm_address.dart';
@@ -6,26 +5,25 @@ import 'package:on_chain/ethereum/src/transaction/eth_transaction.dart';
 import 'package:on_chain/solidity/address/core.dart';
 import 'package:on_chain/solidity/contract/contract_abi.dart';
 import 'package:on_chain/tron/src/address/tron_address.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
-import 'package:on_chain_wallet/app/utils/platform/utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
-import 'package:on_chain_wallet/crypto/utils/solidity/solidity.dart';
+import 'package:on_chain_wallet/crypto/networks/solidity/solidity.dart';
+import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ethereum/params/models/send_transaction.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ethereum/params/models/send_transaction.dart';
 
 mixin SolidityWeb3TransactionApiController {
-  EthereumClient get solidityClient;
+  EthereumClientMethods get solidityClient;
+  WalletProvider get walletProvider;
 
   Future<Web3EthereumTransactionRequestInfos> getWeb3TransactionInfos(
-      {required IEthAddress from,
+      {required IEthereumAddress from,
       required Web3EthreumSendTransaction transaction,
       required EthereumChain chain}) async {
-    final ReceiptAddress<ETHAddress>? destination = transaction.to != null
-        ? chain.getReceiptAddress(transaction.to!.address) ??
-            ReceiptAddress<ETHAddress>(
-                view: transaction.to!.address, networkAddress: transaction.to!)
-        : null;
+    final to = transaction.to;
+    final ReceiptAddress<ETHAddress>? destination =
+        to != null ? chain.getOrCreateReceiptFromNetworkAddressSync(address: to) : null;
     EthereumTransactionDataInfo? contractInfos;
     ETHTransactionType? type = transaction.transactionType;
     if (type == null) {
@@ -38,8 +36,7 @@ mixin SolidityWeb3TransactionApiController {
       type = ETHTransactionType.eip1559;
     }
     if (transaction.to != null) {
-      final bool isSmartContract =
-          await solidityClient.isContract(transaction.to!);
+      final bool isSmartContract = await solidityClient.isContract(transaction.to!);
       if (!isSmartContract) {
         return Web3EthereumTransactionRequestInfos(
             transaction: transaction,
@@ -80,12 +77,14 @@ mixin SolidityWeb3TransactionApiController {
           required String dataHex,
           required List<int> selector,
           required SolidityContractInterface? interface}) async {
+    assert(chain.network.type == NetworkType.ethereum ||
+        chain.network.type == NetworkType.tron);
     if (contract == null || interface == SolidityContractInterface.erc20) {
       final token = await _getAccountERC20Token(account, contractAddress);
       if (token != null) {
         if (BytesUtils.bytesEqual(
             selector, SolidityContractUtils.erc20Transfer.selector)) {
-          final decodeTransfer = MethodUtils.nullOnException(() {
+          final decodeTransfer = MethodUtils.fallbackOnException(() {
             final decode = SolidityContractUtils.decodeErc20Transfer(data);
             if (chain.network.type == NetworkType.tron) {
               return (decode.a.toTronAddress(), decode.b);
@@ -93,10 +92,11 @@ mixin SolidityWeb3TransactionApiController {
             return (decode.a.toEthereumAddress(), decode.b);
           });
           if (decodeTransfer != null) {
-            final to = chain.getReceiptAddress(decodeTransfer.$1.toString()) ??
-                ReceiptAddress<NETWORKADDRESS>(
-                    view: decodeTransfer.$1.toString(),
-                    networkAddress: decodeTransfer.$1 as NETWORKADDRESS);
+            final to = chain.getOrCreateReceiptFromNetworkAddressSync(
+                address: switch (chain.network.type) {
+              NetworkType.ethereum => decodeTransfer.$1.toEthereumAddress(),
+              _ => decodeTransfer.$1.toTronAddress(),
+            });
             return SolidityERC20TransferMethodInfo<NETWORKADDRESS>(
                 selector: selector,
                 token: token,
@@ -106,15 +106,15 @@ mixin SolidityWeb3TransactionApiController {
           }
         }
         if (contract == null) {
-          final contractJson = await PlatformUtils.loadAssetText(
-              SolidityContractInterface.erc20.getContractAssetPath!);
-          contract = ContractABI.fromJson(StringUtils.toJson<List>(contractJson)
+          final contractJson = await walletProvider.context.platformUtls
+              .loadAssetText(SolidityContractInterface.erc20.getContractAssetPath!);
+          contract = ContractABI.fromJson(StringUtils.toJson<List>(contractJson.unwrap())
               .map((e) => Map<String, dynamic>.from(e))
               .toList());
         }
       }
     }
-    final method = MethodUtils.nullOnException(() {
+    final method = MethodUtils.fallbackOnException(() {
       final method = contract?.findFunctionFromSelector(selector);
       final decodeInput = method?.decodeInput(data);
       if (decodeInput != null) {
@@ -123,8 +123,7 @@ mixin SolidityWeb3TransactionApiController {
       }
       return null;
     });
-    return method ??
-        SolidityUnknownMethodInfo(selector: selector, dataHex: dataHex);
+    return method ?? SolidityUnknownMethodInfo(selector: selector, dataHex: dataHex);
   }
 
   Future<SolidityToken?> _getAccountERC20Token(
@@ -132,15 +131,13 @@ mixin SolidityWeb3TransactionApiController {
     final token = await solidityClient.getErc20Details(contractAddress);
     if (token == null) return null;
     final balance = await solidityClient.provider
-        .request(RPCERC20TokenBalance(contractAddress.toHex(), account));
+        .request(RPCERC20TokenBalance(contractAddress.toSolidityHex(), account));
     if (contractAddress is TronAddress) {
       return TronTRC20Token.create(
           balance: balance, token: token, contractAddress: contractAddress);
     }
     return ETHERC20Token.create(
-        balance: balance,
-        token: token,
-        contractAddress: contractAddress as ETHAddress);
+        balance: balance, token: token, contractAddress: contractAddress as ETHAddress);
   }
 
   Future<(ContractABI, SolidityContractInterface)?> _detectContractAbi({
@@ -150,22 +147,22 @@ mixin SolidityWeb3TransactionApiController {
     SolidityContractInterface interface = SolidityContractInterface.none;
     for (final i in SolidityContractInterface.values) {
       try {
-        final support = await solidityClient.provider.request(
-            RPCDetectContactInterface(
-                interface: i, contractAddress: contractAddress, from: from));
+        final support = await solidityClient.provider.request(RPCDetectContactInterface(
+            interface: i, contractAddress: contractAddress, from: from));
         if (support) {
           interface = i;
           break;
         }
-      } on RPCError catch (_) {
+      } on APIError catch (_) {
         break;
       } catch (_) {}
     }
     final assetPath = interface.getContractAssetPath;
     if (assetPath == null) return null;
-    final contractJson = await PlatformUtils.loadAssetText(assetPath);
+    final contractJson =
+        await walletProvider.context.platformUtls.loadAssetText(assetPath);
     return (
-      ContractABI.fromJson(StringUtils.toJson<List>(contractJson)
+      ContractABI.fromJson(StringUtils.toJson<List>(contractJson.unwrap())
           .map((e) => Map<String, dynamic>.from(e))
           .toList()),
       interface
@@ -183,8 +180,8 @@ mixin SolidityWeb3TransactionApiController {
     if (selector == null) {
       return SolidityUnknownMethodInfo(selector: data, dataHex: dataHex);
     }
-    final contract = await _detectContractAbi(
-        contractAddress: contractAddress, from: account);
+    final contract =
+        await _detectContractAbi(contractAddress: contractAddress, from: account);
     return __getTransactionContractInfo<NETWORKADDRESS>(
         contract: contract?.$1,
         contractAddress: contractAddress,

@@ -16,8 +16,7 @@ class StellarTransactionChangeTrustOperationWidget extends StatelessWidget {
         allowNativeAssets: false,
         allowCreateAsset: true,
         onSelectAsset: (asset) => form.onUpdateAsset(asset),
-        account: form.controller.account,
-        accountInfo: form.controller.accountData,
+        controller: form.controller,
         onAssetPicked: (context, field, value) {
           return LiveFormWidgetAmount(
               onUpdateAmount: (amount, max) => form.onUpdateLimit(amount),

@@ -1,7 +1,7 @@
 import 'package:on_chain_wallet/future/wallet/network/substrate/transaction/controllers/fee.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/transaction/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/web3/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/substrate/params/core/request.dart';
+import 'package:on_chain_wallet/web3/web3/networks/substrate/params/core/request.dart';
 
 abstract class Web3SubstrateTransactionStateController<
         RESPONSE,

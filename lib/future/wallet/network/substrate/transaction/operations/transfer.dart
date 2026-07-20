@@ -52,8 +52,7 @@ class SubstrateTransactionTransferOperation
     return null;
   }
 
-  void onUpdateRecipients(
-      List<ReceiptAddress<BaseSubstrateAddress>> addressess) {
+  void onUpdateRecipients(List<ReceiptAddress<BaseSubstrateAddress>> addressess) {
     SubstrateTransferToken token = nativeToken;
     final requestToken = _transferToken;
     if (requestToken != null) {
@@ -102,11 +101,9 @@ class SubstrateTransactionTransferOperation
     return remain;
   }
 
-  void onUpdateToken(
-      SubstrateTransferDetails recipient, SubstrateTokenDetails? token) {
+  void onUpdateToken(SubstrateTransferDetails recipient, SubstrateTokenDetails? token) {
     if (token == null) return;
-    final correctToken =
-        tokens.firstWhereOrNull((e) => e.tokenDetails == token);
+    final correctToken = tokens.firstWhereOrNull((e) => e.tokenDetails == token);
     if (correctToken == null || correctToken == recipient.token) return;
     // _lockedMax = max ? recipient : null;
     recipient.onUpdateToken(correctToken);
@@ -114,16 +111,15 @@ class SubstrateTransactionTransferOperation
     estimateFee();
   }
 
-  void onUpdateTransferMethod(SubstrateTransferDetails recipient,
-      SubstrateCallPalletTransferMethod? method) {
+  void onUpdateTransferMethod(
+      SubstrateTransferDetails recipient, SubstrateCallPalletTransferMethod? method) {
     if (method == null || method == recipient.method) return;
     recipient.onUpdateTransferMethod(method);
     onStateUpdated();
     estimateFee();
   }
 
-  void onUpdateAmount(
-      SubstrateTransferDetails recipient, BigInt amount, bool max) {
+  void onUpdateAmount(SubstrateTransferDetails recipient, BigInt amount, bool max) {
     if (recipient.token.isNativeAsset) {
       _lockedMax = max ? recipient : null;
     }
@@ -154,15 +150,14 @@ class SubstrateTransactionTransferOperation
     final feeToken = this.feeToken.value;
     final internalAsset = token?.tokenDetails.internalAsset;
     final bool isNativeAsset = token?.isNativeAsset ?? true;
-    final balance = token?.tokenDetails.balance.value.balance ??
-        address.address.currencyBalance;
+    final balance =
+        token?.tokenDetails.balance.value.balance ?? address.addressData.currencyBalance;
     final assetToken = token?.token ?? network.token;
     List<SubstrateTransferDetails> sameTransfers;
     if (token != null) {
       sameTransfers = recipients.value.where((e) => e.token == token).toList();
     } else {
-      sameTransfers =
-          recipients.value.where((e) => e.token.isNativeAsset).toList();
+      sameTransfers = recipients.value.where((e) => e.token.isNativeAsset).toList();
     }
     bool keepAlive = sameTransfers.any((e) => e.method?.keepAlive ?? false);
     BigInt total =
@@ -184,8 +179,7 @@ class SubstrateTransactionTransferOperation
         final minBalance = IntegerBalance.token(existentialDeposit, assetToken);
         return TransactionStateStatus.error(
             error: "substrate_keep_alive_min_desc".tr.replaceOne(
-                PriceUtils.priceWithCoinName(
-                    minBalance.viewPrice, assetToken.symbol)));
+                PriceUtils.priceWithCoinName(minBalance.viewPrice, assetToken.symbol)));
       }
     }
     return null;
@@ -227,8 +221,7 @@ class SubstrateTransactionTransferOperation
   }
 
   @override
-  Future<ISubstrateTransaction> buildTransaction(
-      {bool simulate = false}) async {
+  Future<ISubstrateTransaction> buildTransaction({bool simulate = false}) async {
     final transactionData = await buildTransactionData(simulate: simulate);
     BigInt nonce = BigInt.zero;
     if (!simulate) {
@@ -237,8 +230,7 @@ class SubstrateTransactionTransferOperation
     final blockInfo = await finalizeBlockWithEra();
     final List<int> genesis = metadata.genesisBytes();
     final call = await _toCalls();
-    final messageBytes =
-        call.encodeCall(extrinsic: metadata.metadataWithExtrinsic());
+    final messageBytes = call.encodeCall(extrinsic: metadata.metadataWithExtrinsic());
     final extrinsic = DynamicExtrinsicBuilder(
         era: blockInfo.era,
         nonce: nonce,
@@ -249,22 +241,16 @@ class SubstrateTransactionTransferOperation
         mortality: blockInfo.blockHashBytes,
         metadataFields: metadata.extrinsic);
     final extraFields = extrinsic.encodeExtrinsicPayload(metadata.metadata);
-    final List<int> encodeBytes =
-        [...messageBytes, ...extraFields].asImmutableBytes;
+    final List<int> encodeBytes = [...messageBytes, ...extraFields].asImmutableBytes;
     final extrinsicInfo = ExtrinsicPayloadInfo(
-        serializedExtrinsic: encodeBytes,
-        method: messageBytes,
-        extrinsic: extrinsic);
+        serializedExtrinsic: encodeBytes, method: messageBytes, extrinsic: extrinsic);
 
     return ISubstrateTransaction(
-        account: address,
-        transactionData: transactionData,
-        payload: extrinsicInfo);
+        account: address, transactionData: transactionData, payload: extrinsicInfo);
   }
 
   @override
-  Future<ISubstrateTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ISubstrateTransactionData> buildTransactionData({bool simulate = false}) async {
     final payments = recipients.value
         .map((e) => ISubstrateTransactionDataTokenTransfer(
             recipient: e.recipient.networkAddress,
@@ -272,18 +258,14 @@ class SubstrateTransactionTransferOperation
             token: e.token.tokenDetails.asset))
         .toList();
     return ISubstrateTransactionData(
-        fee: txFee.fee,
-        payment: payments,
-        feeAssetConfig: feeToken.value?.feeConfig);
+        fee: txFee.fee, payment: payments, feeAssetConfig: feeToken.value?.feeConfig);
   }
 
   @override
-  Future<
-      List<
-          IWalletTransaction<SubstrateWalletTransaction,
-              ISubstrateAddress>>> buildWalletTransaction(
-      {required ISubstrateSignedTransaction signedTx,
-      required SubmitSubstrateTransactionSuccess txId}) async {
+  Future<List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>>
+      buildWalletTransaction(
+          {required ISubstrateSignedTransaction signedTx,
+          required SubmitSubstrateTransactionSuccess txId}) async {
     final destinations = signedTx.transaction.transactionData.payment ?? [];
     final outputs = destinations
         .map((e) => SubstrateWalletTransactionTransferOutput(
@@ -302,8 +284,8 @@ class SubstrateTransactionTransferOperation
       final nativeAmount =
           destinations.where((e) => e.token == null).map((e) => e.amount).sum;
       if (nativeAmount > BigInt.zero) {
-        totalOutput = WalletTransactionIntegerAmount(
-            amount: nativeAmount, network: network);
+        totalOutput =
+            WalletTransactionIntegerAmount(amount: nativeAmount, network: network);
       }
     }
     final transaction = SubstrateWalletTransaction(
@@ -314,13 +296,12 @@ class SubstrateTransactionTransferOperation
         totalOutput: totalOutput,
         extrinsics: signedTx.finalTransactionData.serializeHex());
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   @override
-  TransactionStateController cloneController(ISubstrateAddress address) {
+  Future<TransactionStateController> cloneController(ISubstrateAddress address) async {
     return SubstrateTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -336,7 +317,7 @@ class SubstrateTransactionTransferOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required SubstrateClient client,
+    required SubstrateNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
@@ -356,21 +337,19 @@ class SubstrateTransactionTransferOperation
               .tr
               .replaceOne(network.networkName));
         }
-        await evmChain.init(client: false);
-        final address = evmChain.addresses.firstWhereOrNull((e) =>
-            StringUtils.hexEqual(
-                e.networkAddress.address, this.address.networkAddress.address));
+        await evmChain.initAsMainNetwork();
+        final address = evmChain.addresses.firstWhereOrNull((e) => StringUtils.hexEqual(
+            e.networkAddress.address, this.address.networkAddress.address));
         if (address == null) {
-          throw AppException("missing_ethereum_account"
-              .tr
-              .replaceOne(evmChain.network.networkName));
+          throw AppException(
+              "missing_ethereum_account".tr.replaceOne(evmChain.network.networkName));
         }
-        await address.init();
         final contractAddress = ETHAddress(
             MoonbeamNetworkControllerUtils.formatAssetIdToERC20(
                     transferToken.assetIdentifier.toString())
                 .address);
-        final token = address.tokens.firstWhere(
+        final tokens = (await address.getAccountTokens()).unwrap();
+        final token = tokens.firstWhere(
           (e) => e.contractAddress == contractAddress,
           orElse: () {
             return ETHERC20Token.create(
@@ -387,22 +366,19 @@ class SubstrateTransactionTransferOperation
       }
     }
 
-    await super.initForm(
-        client: client, context: context, updateAccount: updateAccount);
+    await super.initForm(client: client, context: context, updateAccount: updateAccount);
     if (!client.metadata.supportNativeTransfer) {
       throw AppException("substrate_disable_transfer_option_desc");
     }
     final existentialDeposit = metadata.existentialDeposit;
     if (existentialDeposit != null) {
-      _existentialDeposit =
-          IntegerBalance.token(existentialDeposit, network.token);
+      _existentialDeposit = IntegerBalance.token(existentialDeposit, network.token);
     }
     return this;
   }
 
   @override
-  TransactionOperations get operation =>
-      SubstrateTransactionOperations.transfer;
+  TransactionOperations get operation => SubstrateTransactionOperations.transfer;
 
   @override
   void dispose() {

@@ -17,17 +17,15 @@ class SubstrateMetadataRuntimeApiView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<SubstrateClient, ISubstrateAddress,
+    return NetworkAccountControllerView<SubstrateNetworkClient, ISubstrateAddress,
             SubstrateChain>(
         addressRequired: true,
         clientRequired: true,
         account: account,
         title: 'runtime_apis'.tr,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
+        childBulder: (wallet, account, client, address) =>
             SubstrateMetadataRuntimeApiWidget(
-                account: account,
-                scrollController: scrollController,
-                client: client));
+                account: account, scrollController: scrollController, client: client));
   }
 }
 
@@ -40,7 +38,7 @@ class SubstrateMetadataRuntimeApiWidget extends StatefulWidget {
       required this.scrollController,
       required this.client});
   final SubstrateChain account;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
   final ScrollController? scrollController;
 
   @override
@@ -58,7 +56,7 @@ class _SubstrateMetadataRuntimeApiWidgetState
   @override
   SubstrateChain get account => widget.account;
   @override
-  SubstrateClient get client => widget.client;
+  SubstrateNetworkClient get client => widget.client;
   Map<RuntimeApiInfo, Text> items = {};
   bool get canPop => page == _APIPage.select;
   late RuntimeApiInfo api;
@@ -87,8 +85,7 @@ class _SubstrateMetadataRuntimeApiWidgetState
   void init() {
     final apis = metadata.metadataInfos.apis;
     if (!metadata.supportRuntimeApi || apis == null) {
-      progressKey.errorText("unsupported_current_network_feature".tr,
-          backToIdle: false);
+      progressKey.errorText("unsupported_current_network_feature".tr, backToIdle: false);
       return;
     }
     this.apis = metadata.metadataInfos.apis!;
@@ -126,17 +123,17 @@ class _SubstrateMetadataRuntimeApiWidgetState
     if (hasError) return;
     progressKey.progressText("retrieving_data_please_wait".tr);
 
-    final r = await MethodUtils.call(() async {
+    final r = await IResult.call(() async {
       return client.runtimeCall(
           methodName: field.method.name,
           apiName: field.apiName,
           inputs: field.forms.map((e) => e.getResult()).toList());
     });
-    if (r.hasError) {
-      progressKey.errorText(r.localizationError,
+    if (r.isErr) {
+      progressKey.errorText(r.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
-      _result = r.result;
+      _result = r.unwrap();
       _showResult = true;
       progressKey.success();
     }
@@ -164,27 +161,22 @@ class _SubstrateMetadataRuntimeApiWidgetState
       },
       child: StreamPageProgress(
         controller: progressKey,
-        initialWidget:
-            ProgressWithTextView(text: 'retrieving_data_please_wait'.tr),
+        initialWidget: ProgressWithTextView(text: 'retrieving_data_please_wait'.tr),
         builder: (context) => UnfocusableChild(
           child: CustomScrollView(
             controller: widget.scrollController,
             slivers: [
               SliverConstraintsBoxView(
                 padding: WidgetConstant.paddingHorizontal20,
-                sliver:
-                    APPSliverAnimatedSwitcher<_APIPage>(enable: page, widgets: {
+                sliver: APPSliverAnimatedSwitcher<_APIPage>(enable: page, widgets: {
                   _APIPage.select: (context) => MultiSliver(children: [
                         SliverPinnedHeaderSurface(
                             elevation: APPConst.elevation,
                             child: AppDropDownBottom(
-                                items: items,
-                                onChanged: onChangePallet,
-                                value: api)),
+                                items: items, onChanged: onChangePallet, value: api)),
                         SliverPadding(
                           padding: WidgetConstant.paddingHorizontal20,
-                          sliver:
-                              APPSliverAnimatedSwitcher(enable: api, widgets: {
+                          sliver: APPSliverAnimatedSwitcher(enable: api, widgets: {
                             api: (context) => SliverList.builder(
                                   itemBuilder: (context, index) {
                                     final method = api.methods![index];
@@ -205,8 +197,7 @@ class _SubstrateMetadataRuntimeApiWidgetState
                           }),
                         )
                       ]),
-                  _APIPage.api: (context) =>
-                      _RuntimeApiFieldsWidget(state: this)
+                  _APIPage.api: (context) => _RuntimeApiFieldsWidget(state: this)
                 }),
               )
             ],
@@ -230,9 +221,7 @@ class _RuntimeApiFieldsWidget extends StatelessWidget {
                 SliverToBoxAdapter(child: Text("inputs_not_needed".tr)),
               for (final form in state.field!.forms)
                 SubstrateMetadataValidatorView(
-                    validator: form,
-                    account: state.account,
-                    metadata: state.metadata),
+                    validator: form, account: state.account, metadata: state.metadata),
               SliverToBoxAdapter(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

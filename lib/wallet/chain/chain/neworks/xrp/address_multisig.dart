@@ -1,64 +1,60 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-class RippleMultiSigSignerDetails with Equality, CborSerializable {
+class RippleMultiSigSignerDetails with Equality, AppSerialization {
   const RippleMultiSigSignerDetails._(
-      {required this.publicKey, required this.weight, required this.keyIndex});
+      {required this.publicKey, required this.weight, required this.derivationIndex});
 
   factory RippleMultiSigSignerDetails(
       {required List<int> publicKey,
-      required Bip32AddressIndex keyIndex,
+      required Bip32DerivationIndex derivationIndex,
       required int weight}) {
     return RippleMultiSigSignerDetails._(
         publicKey: BytesUtils.toHexString(publicKey),
         weight: weight,
-        keyIndex: keyIndex);
+        derivationIndex: derivationIndex);
   }
   factory RippleMultiSigSignerDetails.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.rippleMultiSigSignerAddress);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.rippleMultiSigSignerAddress);
 
-    final List<int> publicKey = cbor.elementAs(0);
-    final int weight = cbor.elementAs(1);
-    final keyIndex =
-        Bip32AddressIndex.deserialize(obj: cbor.elementAsCborTag(2));
+    final List<int> publicKey = cbor.rawValueAt(0);
+    final int weight = cbor.rawValueAt(1);
+    final derivationIndex =
+        Bip32DerivationIndex.deserialize(object: cbor.objectAt<CborTagValue>(2));
     return RippleMultiSigSignerDetails(
-        publicKey: publicKey, weight: weight, keyIndex: keyIndex);
+        publicKey: publicKey, weight: weight, derivationIndex: derivationIndex);
   }
 
   final String publicKey;
   final int weight;
 
-  final Bip32AddressIndex keyIndex;
-  String get path => keyIndex.toString();
+  final Bip32DerivationIndex derivationIndex;
+  String get path => derivationIndex.toString();
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          CborBytesValue(BytesUtils.fromHexString(publicKey)),
-          weight,
-          keyIndex.toCbor()
-        ]),
-        CborTagsConst.rippleMultiSigSignerAddress);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.rippleMultiSigSignerAddress;
   @override
-  List get variabels => [publicKey, weight, keyIndex];
+  List<CborObject?> get serializationItems => [
+        CborBytesValue(BytesUtils.fromHexString(publicKey)),
+        weight.toCbor(),
+        derivationIndex.toCbor()
+      ];
+  @override
+  List get variables => [publicKey, weight, derivationIndex];
 }
 
-class RippleMultiSignatureAddress with Equality, CborSerializable {
+class RippleMultiSignatureAddress with Equality, AppSerialization {
   final List<RippleMultiSigSignerDetails> signers;
 
   final int threshold;
   final bool isRegular;
 
   RippleMultiSignatureAddress._(
-      {required this.signers,
-      required this.threshold,
-      required this.isRegular});
+      {required this.signers, required this.threshold, required this.isRegular});
 
   factory RippleMultiSignatureAddress(
       {required int threshold,
@@ -67,8 +63,10 @@ class RippleMultiSignatureAddress with Equality, CborSerializable {
     final sumWeight = signers.fold(0, (sum, signer) => sum + signer.weight);
 
     if (sumWeight < threshold) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "RippleMultiSignatureAddress");
+      throw WalletExceptionConst.invalidAccountData("RippleMultiSignatureAddress");
+    }
+    if (isRegularKey && (threshold != 1 || signers.length != 1)) {
+      throw WalletExceptionConst.invalidAccountData("RippleMultiSignatureAddress");
     }
 
     /// make sure signers is sorted because of account identifier
@@ -79,33 +77,31 @@ class RippleMultiSignatureAddress with Equality, CborSerializable {
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          CborSerializable.fromDynamic(signers.map((e) => e.toCbor()).toList()),
-          threshold,
-          CborBoleanValue(isRegular)
-        ]),
-        CborTagsConst.rippleMultiSignaturAddress);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.rippleMultiSignaturAddress;
+  @override
+  List<CborObject?> get serializationItems => [
+        AppSerialization.listFromObjects(signers.map((e) => e.toCbor()).toList()),
+        threshold.toCbor(),
+        CborBoleanValue(isRegular)
+      ];
   factory RippleMultiSignatureAddress.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.rippleMultiSignaturAddress);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.rippleMultiSignaturAddress);
     final List<RippleMultiSigSignerDetails> signers = cbor
-        .elementAsListOf<CborTagValue>(0)
+        .listAt<CborTagValue>(0)
         .map<RippleMultiSigSignerDetails>(
-            (e) => RippleMultiSigSignerDetails.deserialize(obj: e))
+            (e) => RippleMultiSigSignerDetails.deserialize(object: e))
         .toList();
-    final int threshHold = cbor.elementAs(1);
-    final bool isRegularKey = cbor.elementAs(2);
+    final int threshHold = cbor.rawValueAt(1);
+    final bool isRegularKey = cbor.rawValueAt(2);
     return RippleMultiSignatureAddress._(
         signers: signers, threshold: threshHold, isRegular: isRegularKey);
   }
 
   @override
-  List get variabels => [threshold, signers];
+  List get variables => [threshold, signers];
 }

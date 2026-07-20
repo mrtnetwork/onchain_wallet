@@ -1,6 +1,5 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/helper/helper.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/web3/operations/send_transaction.dart';
@@ -13,39 +12,27 @@ import 'package:on_chain_wallet/wallet/api/client/client.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/bitcoin.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
-abstract class Web3BitcoinStateController<
-    RESPONSE,
-    CLIENT extends BitcoinClient?,
-    T extends BaseWeb3BitcoinRequestParam<RESPONSE, IBitcoinAddress,
-        Web3BitcoinChainAccount>> extends Web3StateController<
-    RESPONSE,
-    BitcoinBaseAddress,
-    WalletBitcoinNetwork,
-    BitcoinClient,
-    CLIENT,
-    IBitcoinAddress,
-    BitcoinChain,
-    Web3BitcoinChainAccount,
-    T,
-    BaseWeb3BitcoinRequest<RESPONSE, IBitcoinAddress, Web3BitcoinChainAccount,
-        T>,
-    Web3RequestResponseData<RESPONSE>,
-    BitcoinWalletTransaction> {
-  Web3BitcoinStateController(
-      {required super.walletProvider, required super.request});
+abstract class Web3BitcoinStateController<RESPONSE, CLIENT extends BitcoinNetworkClient?,
+        T extends BaseWeb3BitcoinRequestParam<RESPONSE, Web3BitcoinChainAccount>>
+    extends Web3StateController<
+        RESPONSE,
+        BitcoinNetworkAddress,
+        WalletBitcoinNetwork,
+        BitcoinNetworkClient,
+        CLIENT,
+        IBitcoinAddress,
+        BitcoinChain,
+        Web3BitcoinChainAccount,
+        T,
+        BaseWeb3BitcoinRequest<RESPONSE, Web3BitcoinChainAccount, T>,
+        Web3RequestResponseData<RESPONSE>,
+        BitcoinWalletTransaction> {
+  Web3BitcoinStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! BaseWeb3BitcoinRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3BitcoinStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required BaseWeb3BitcoinRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3BitcoinRequestMethods.signMessage:
       case Web3BitcoinRequestMethods.signPersonalMessage:
@@ -69,23 +56,21 @@ abstract class Web3BitcoinStateController<
 
 abstract class BaseWeb3BitcoinTransactionStateController<
         RESPONSE,
-        T extends BaseWeb3BitcoinRequestParam<RESPONSE, IBitcoinAddress,
-            Web3BitcoinChainAccount>,
+        T extends BaseWeb3BitcoinRequestParam<RESPONSE, Web3BitcoinChainAccount>,
         E extends IWeb3BitcoinTransactionData,
         TRANSACTION extends IWeb3BitcoinTransaction<E>,
         SIGNEDTX extends IWeb3BitcoinSignedTransaction<TRANSACTION, Object>>
     extends Web3TransactionStateController<
         RESPONSE,
-        BitcoinBaseAddress,
-        IBitcoinAddress,
-        BitcoinClient,
-        BitcoinClient,
+        BitcoinNetworkAddress,
         WalletBitcoinNetwork,
+        IBitcoinAddress,
+        BitcoinNetworkClient,
+        BitcoinNetworkClient,
         BitcoinChain,
         Web3BitcoinChainAccount,
         T,
-        BaseWeb3BitcoinRequest<RESPONSE, IBitcoinAddress,
-            Web3BitcoinChainAccount, T>,
+        BaseWeb3BitcoinRequest<RESPONSE, Web3BitcoinChainAccount, T>,
         E,
         TRANSACTION,
         SIGNEDTX,
@@ -143,8 +128,7 @@ class IWeb3BitcoinSendTransactionData extends IWeb3BitcoinTransactionData {
         outputs = outputs.immutable;
 }
 
-abstract class IWeb3BitcoinTransaction<
-        TXDATA extends IWeb3BitcoinTransactionData>
+abstract class IWeb3BitcoinTransaction<TXDATA extends IWeb3BitcoinTransactionData>
     extends ITransaction<TXDATA, IBitcoinAddress> {
   final List<IBitcoinAddress> accounts;
   IWeb3BitcoinTransaction(
@@ -157,9 +141,7 @@ abstract class IWeb3BitcoinTransaction<
 class IWeb3BitcoinPsbtTransaction
     extends IWeb3BitcoinTransaction<IWeb3BitcoinSignPsbtTransactionData> {
   IWeb3BitcoinPsbtTransaction(
-      {required super.account,
-      required super.transactionData,
-      required super.accounts});
+      {required super.account, required super.transactionData, required super.accounts});
 }
 
 class IWeb3BitcoinPaymentTransaction
@@ -189,9 +171,8 @@ class IWeb3BitcoinSignedPSBTTransaction
       required super.finalTransactionData});
 }
 
-class IWeb3BitcoinSignedPaymentTransaction
-    extends IWeb3BitcoinSignedTransaction<IWeb3BitcoinPaymentTransaction,
-        BtcTransaction> {
+class IWeb3BitcoinSignedPaymentTransaction extends IWeb3BitcoinSignedTransaction<
+    IWeb3BitcoinPaymentTransaction, BtcTransaction> {
   IWeb3BitcoinSignedPaymentTransaction(
       {required super.transaction,
       required super.signatures,

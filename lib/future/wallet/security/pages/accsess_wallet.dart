@@ -3,15 +3,17 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/future/state_managment/lifecycle/lifecycle.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 import 'login.dart';
 
-typedef ONACCESSCREDENTIALWIDGET<RESPONSE extends WalletCredentialResponse>
-    = Widget Function(RESPONSE credential);
+typedef ONACCESSCREDENTIALWIDGET<RESPONSE extends WalletCredentialResponse> = Widget
+    Function(RESPONSE credential);
 
 class AccessWalletView<RESPONSE extends WalletCredentialResponse,
     REQUEST extends WalletCredential<RESPONSE>> extends StatefulWidget {
@@ -45,43 +47,11 @@ class _AccessWalletViewState<RESPONSE extends WalletCredentialResponse,
     extends State<AccessWalletView<RESPONSE, REQUEST>>
     with SafeState<AccessWalletView<RESPONSE, REQUEST>> {
   late final WalletProvider walletProvider;
-  late final MainWallet wallet;
+  late final IMainWallet wallet;
   late final bool platformCredential;
-  ScaffoldMessengerState? key;
-  StreamSubscription<dynamic>? _walletStatus;
-  StreamValue<int?> lockTime = StreamValue(null);
-  AppLifecycleListener? _lifeCycle;
+  late final AppLifecycle _lifeCycle =
+      AppLifecycle(onLostFocus: _onPause, onLostTimeout: const Duration(seconds: 10));
   RESPONSE? credentials;
-  static const int reminingWalletTimeAlert = kDebugMode ? 50 : 15;
-
-  ScaffoldFeatureController<MaterialBanner, MaterialBannerClosedReason>?
-      controller;
-  void onUpdateWalletTimer(dynamic _) {
-    final time = walletProvider.wallet.reminingWalletTime;
-
-    if (time == null || time > reminingWalletTimeAlert) {
-      controller?.close();
-      controller = null;
-      lockTime.value = time;
-    } else {
-      lockTime.value = time;
-      controller ??= key?.showMaterialBanner(MaterialBanner(
-          actions: [
-            ElevatedButton(
-                onPressed: () {
-                  walletProvider.wallet.onWalletIntraction();
-                },
-                child: Text("keep_unlock".tr))
-          ],
-          content: APPStreamBuilder(
-            value: lockTime,
-            builder: (context, value) {
-              return Text(
-                  "wallet_lock_timer_desc".tr.replaceOne(value.toString()));
-            },
-          )));
-    }
-  }
 
   void _onPause() {
     if (kDebugMode) return;
@@ -103,7 +73,7 @@ class _AccessWalletViewState<RESPONSE extends WalletCredentialResponse,
     }
   }
 
-  void listener(WalletActionEvent status) {
+  void listener(WalletEvent status) {
     if (status.walletStatus != WStatus.unlock) {
       credentials = null;
       context.backToCurrent();
@@ -118,46 +88,35 @@ class _AccessWalletViewState<RESPONSE extends WalletCredentialResponse,
     updateState();
   }
 
-  StreamSubscription<WalletActionEvent>? _onWalletStatus;
+  StreamSubscription<WalletEvent>? _onWalletStatus;
   void init() {
-    key = ScaffoldMessenger.maybeOf(context);
     walletProvider = context.wallet;
     wallet = walletProvider.wallet.wallet;
-    platformCredential = widget.request.type.allowPlatformCredential &&
-        wallet.platformCredential != null;
+    platformCredential =
+        widget.request.type.allowPlatformCredential && wallet.platformCredential != null;
     _onWalletStatus = walletProvider.wallet.status.stream.listen(listener);
     listener(walletProvider.wallet.status.value);
     switch (widget.request.type) {
       case WalletCredentialType.mnemonic:
       case WalletCredentialType.importedKey:
       case WalletCredentialType.accountKey:
-        _lifeCycle = AppLifecycleListener(onHide: _onPause);
+        _lifeCycle.init();
         break;
       default:
     }
-    _walletStatus =
-        Stream.periodic(const Duration(seconds: 1)).listen(onUpdateWalletTimer);
   }
 
   @override
-  void dispose() {
-    super.dispose();
+  void safeDispose() {
+    super.safeDispose();
     final verificationId = credentials?.verificationId;
     if (verificationId != null) {
-      walletProvider.wallet.expireCredential(verificationId);
+      walletProvider.wallet
+          .doAction(WalletActionRemoveCredential(credential: verificationId));
     }
-    _walletStatus?.cancel();
-    _walletStatus = null;
     _onWalletStatus?.cancel();
     _onWalletStatus = null;
-    _lifeCycle?.dispose();
-    lockTime.dispose();
-    MethodUtils.after(() async {
-      controller?.close();
-    });
-    MethodUtils.after(() async {
-      key?.clearSnackBars();
-    });
+    _lifeCycle.dispose();
   }
 
   PreferredSizeWidget? appBar() {

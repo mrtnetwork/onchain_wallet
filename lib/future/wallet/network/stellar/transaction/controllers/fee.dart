@@ -55,8 +55,7 @@ mixin StellarTransactionFeeController
   List<StellarTransactionFee> _buildFees(
       StellarFeeStatsResponse feeStats, int operations) {
     return [TxFeeTypes.slow, TxFeeTypes.normal, TxFeeTypes.high]
-        .map((e) =>
-            _calculateFee(mode: e, feeStats: feeStats, operations: operations))
+        .map((e) => _calculateFee(mode: e, feeStats: feeStats, operations: operations))
         .toList();
   }
 
@@ -83,7 +82,8 @@ mixin StellarTransactionFeeController
   }
 
   Stream<StellarFetchedFeeStats> _fetchGasFee({int operations = 1}) {
-    final controller = StreamController<StellarFetchedFeeStats>();
+    final controller = SafeStreamController<StellarFetchedFeeStats>(
+        name: "StellarTransactionFeeController");
     bool isClosed = false;
     Future<void> poll() async {
       if (isClosed) return;
@@ -100,19 +100,18 @@ mixin StellarTransactionFeeController
       }
 
       if (!isClosed) {
-        await Future.delayed(Duration(
-            seconds:
-                feeState == null ? 3 : network.coinParam.averageBlockTime));
+        await Future.delayed(
+            Duration(seconds: feeState == null ? 3 : network.coinParam.averageBlockTime));
         poll();
       }
     }
 
-    controller.onListen = poll;
-    controller.onCancel = () {
+    controller.onListenListener(poll);
+    controller.onCancelListener(() {
       isClosed = true;
-    };
+    });
 
-    return controller.stream;
+    return controller.stream();
   }
 
   Future<void> initFee() async {

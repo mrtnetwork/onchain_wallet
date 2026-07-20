@@ -1,5 +1,5 @@
 import 'dart:js_interop';
-import '../../models.dart';
+import 'package:on_chain_bridge/web/api/types/types.dart';
 import 'wallet_standard.dart';
 
 class BitcoinJSConstant {
@@ -16,12 +16,10 @@ class BitcoinJSConstant {
   static const String signTransactionRequestName = "bitcoin_signTransaction";
   static const String sendTransactionRequestName = "bitcoin_sendTransaction";
   static const String getAccountAddresses = "bitcoin_getAccountAddresses";
-  static const String signPersonalMessageRequestName =
-      "bitcoin_signPersonalMessage";
+  static const String signPersonalMessageRequestName = "bitcoin_signPersonalMessage";
 }
 
-extension type JSBitcoinWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSBitcoinWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSBitcoinWalletAccount.setup(
       {required String address,
       required List<int> publicKey,

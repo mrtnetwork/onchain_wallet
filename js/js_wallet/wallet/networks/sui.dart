@@ -1,30 +1,27 @@
 import 'dart:js_interop';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/sui/sui.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/networks.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/sui/sui.dart';
+import 'package:on_chain_wallet/web3/web3/networks/networks.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
 import 'package:on_chain/on_chain.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import '../../js_wallet.dart';
 import '../../models/models/networks/sui.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../core/network_handler.dart';
 
-class SuiWeb3JSStateAddress extends Web3JSStateAddress<SuiAddress,
-    Web3SuiChainAccount, JSSuiWalletAccount, Web3ChainDefaultIdnetifier> {
+class SuiWeb3JSStateAddress extends Web3JSStateAddress<SuiAddress, Web3SuiChainAccount,
+    JSSuiWalletAccount, Web3ChainDefaultIdnetifier> {
   const SuiWeb3JSStateAddress(
       {required super.chainaccount,
       required super.jsAccount,
       required super.networkIdentifier});
 }
 
-class SuiWeb3JSStateAccount extends Web3JSStateAccount<
-    SuiAddress,
-    Web3SuiChainAccount,
-    JSSuiWalletAccount,
-    Web3ChainDefaultIdnetifier,
-    SuiWeb3JSStateAddress> {
+class SuiWeb3JSStateAccount extends Web3JSStateAccount<SuiAddress, Web3SuiChainAccount,
+    JSSuiWalletAccount, Web3ChainDefaultIdnetifier, SuiWeb3JSStateAddress> {
   SuiWeb3JSStateAccount._({
     required super.state,
     required super.chains,
@@ -34,8 +31,7 @@ class SuiWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory SuiWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return SuiWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return SuiWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory SuiWeb3JSStateAccount(Web3SuiChainAuthenticated? authenticated) {
     if (authenticated == null) {
@@ -82,10 +78,16 @@ class SuiWeb3JSStateHandler extends Web3JSStateHandler<
         Web3SuiChainAccount,
         JSSuiWalletAccount,
         Web3ChainDefaultIdnetifier,
+        SuiWeb3JSStateAddress,
         SuiWeb3JSStateAccount>
     with
-        SuiWeb3StateHandler<JSSuiWalletAccount, SuiWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        SuiWeb3StateHandler<
+            JSSuiWalletAccount,
+            SuiWeb3JSStateAddress,
+            SuiWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   SuiWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
 
@@ -101,12 +103,10 @@ class SuiWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3SuiRequestMethods.signAndExecuteTransaction:
       case Web3SuiRequestMethods.signTransactionBlock:
       case Web3SuiRequestMethods.signAndExecuteTransactionBlock:
-        return toSignTransactionRequest(
-            params: params, state: state, method: method!);
+        return toSignTransactionRequest(params: params, state: state, method: method!);
       case Web3SuiRequestMethods.signMessage:
       case Web3SuiRequestMethods.signPersonalMessage:
-        return toSignMessageRequest(
-            params: params, state: state, method: method!);
+        return toSignMessageRequest(params: params, state: state, method: method!);
       default:
         throw Web3RequestExceptionConst.methodDoesNotSupport;
     }
@@ -131,37 +131,32 @@ class SuiWeb3JSStateHandler extends Web3JSStateHandler<
             bytes: transaction.transactionAsBase64,
             signature: transaction.signatureAsBase64));
       case Web3SuiRequestMethods.signMessage:
-        final signedMessage = Web3SuiSignMessageResponse.deserialize(
-            bytes: response.resultAsList<int>());
+        final signedMessage =
+            Web3SuiSignMessageResponse.deserialize(bytes: response.resultAsList<int>());
         return WalletMessageResponse.success(JSSuiSignMessageResponse.setup(
             messageBytes: signedMessage.messageAsBase64,
             signature: signedMessage.signatureAsBase64));
       case Web3SuiRequestMethods.signPersonalMessage:
-        final signedMessage = Web3SuiSignMessageResponse.deserialize(
-            bytes: response.resultAsList<int>());
-        return WalletMessageResponse.success(
-            JSSuiSignPrsonalMessageResponse.setup(
-                bytes: signedMessage.messageAsBase64,
-                signature: signedMessage.signatureAsBase64));
+        final signedMessage =
+            Web3SuiSignMessageResponse.deserialize(bytes: response.resultAsList<int>());
+        return WalletMessageResponse.success(JSSuiSignPrsonalMessageResponse.setup(
+            bytes: signedMessage.messageAsBase64,
+            signature: signedMessage.signatureAsBase64));
 
       case Web3SuiRequestMethods.signTransactionBlock:
         final transaction = Web3SuiSignTransactionResponse.deserialize(
             bytes: response.resultAsList<int>());
-        return WalletMessageResponse.success(
-            JSSuiSignTransactionBlockResponse.setup(
-                transactionBlockBytes: transaction.transactionAsBase64,
-                signature: transaction.signatureAsBase64));
+        return WalletMessageResponse.success(JSSuiSignTransactionBlockResponse.setup(
+            transactionBlockBytes: transaction.transactionAsBase64,
+            signature: transaction.signatureAsBase64));
       case Web3SuiRequestMethods.signAndExecuteTransaction:
-        final transaction =
-            Web3SuiSignAndExecuteTransactionResponse.deserialize(
-                bytes: response.resultAsList<int>());
-        return WalletMessageResponse.success(
-            JSSuiSignAndExecuteTransactionResponse.setup(
-                digest: transaction.digest, effects: transaction.effects));
+        final transaction = Web3SuiSignAndExecuteTransactionResponse.deserialize(
+            bytes: response.resultAsList<int>());
+        return WalletMessageResponse.success(JSSuiSignAndExecuteTransactionResponse.setup(
+            digest: transaction.digest, effects: transaction.effects));
       case Web3SuiRequestMethods.signAndExecuteTransactionBlock:
-        final transaction =
-            Web3SuiSignAndExecuteTransactionResponse.deserialize(
-                bytes: response.resultAsList<int>());
+        final transaction = Web3SuiSignAndExecuteTransactionResponse.deserialize(
+            bytes: response.resultAsList<int>());
         final jsResponse = JSSuiSignAndExecuteTransactionBlockResponse(
             transaction.excuteResponse.jsify() ?? JSObject());
         jsResponse.digest = transaction.digest;
@@ -170,12 +165,12 @@ class SuiWeb3JSStateHandler extends Web3JSStateHandler<
       default:
         break;
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  SuiWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  SuiWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return SuiWeb3JSStateAccount.init();
     return SuiWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

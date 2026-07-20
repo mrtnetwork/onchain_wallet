@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/account/state.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
@@ -14,16 +14,15 @@ class BitcoinMultisigAccountInfoView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "multisig_address_infos".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<BitcoinClient?, IBitcoinAddress,
+        return NetworkAccountControllerView<BitcoinNetworkClient?, IBitcoinAddress,
             BitcoinChain>(
           addressRequired: true,
           clientRequired: false,
-          childBulder: (wallet, account, client, address, onAccountChanged) {
+          childBulder: (wallet, account, client, address) {
             return _BitcoinMultisigAccountInfoView(account);
           },
         );
@@ -52,19 +51,19 @@ class __BitcoinMultisigAccountInfoViewState
   late final String script;
 
   Future<void> _init() async {
-    if (!account.haveAddress || !account.address.multiSigAccount) {
+    if (!account.haveAddress || !account.addressSync.multiSigAccount) {
       progressKey.errorText("invalid_account".tr);
       return;
     }
-    final BitcoinMultiSigBase address = account.address as BitcoinMultiSigBase;
+    final BitcoinMultiSigBase address = account.addressSync as BitcoinMultiSigBase;
     threshold = address.multiSignatureAddress.threshold;
     keyInfos = address.multiSignatureAddress.signers
         .map((e) => _BitcoinMultisigAccountInfo(
             weight: e.weight,
             address:
-                addresses.firstWhereOrNull((i) => i.keyIndex == e.keyIndex),
+                addresses.firstWhereOrNull((i) => i.derivationIndex == e.derivationIndex),
             publicKey: e.publicKey,
-            keyIndex: e.keyIndex))
+            keyIndex: e.derivationIndex))
         .toList();
     script = address.multiSignatureAddress.multiSigScript.script.join(" ");
     progressKey.backToIdle();
@@ -73,7 +72,7 @@ class __BitcoinMultisigAccountInfoViewState
   @override
   void onInitOnce() {
     super.onInitOnce();
-    MethodUtils.after(() => _init());
+    MethodUtils.executeAfterDelay(() => _init());
   }
 
   @override
@@ -85,8 +84,7 @@ class __BitcoinMultisigAccountInfoViewState
   @override
   Widget build(BuildContext context) {
     return StreamPageProgress(
-      initialWidget:
-          ProgressWithTextView(text: "retrieve_account_informations".tr),
+      initialWidget: ProgressWithTextView(text: "retrieve_account_informations".tr),
       controller: progressKey,
       builder: (context) {
         return CustomScrollView(slivers: [
@@ -101,27 +99,21 @@ class __BitcoinMultisigAccountInfoViewState
                     child: AddressDetailsView(address: address),
                   ),
                   WidgetConstant.height20,
-                  Text("locking_script".tr,
-                      style: context.textTheme.titleMedium),
+                  Text("locking_script".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
-                      onRemoveIcon:
-                          Icon(Icons.edit, color: context.onPrimaryContainer),
+                      onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                       child: CopyableTextWidget(
-                          text: script,
-                          maxLines: 3,
-                          color: context.onPrimaryContainer)),
+                          text: script, maxLines: 3, color: context.onPrimaryContainer)),
                   WidgetConstant.height20,
                   Text("threshold".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
-                      onRemoveIcon:
-                          Icon(Icons.edit, color: context.onPrimaryContainer),
+                      onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                       child: Text(threshold.toString(),
                           style: context.onPrimaryTextTheme.titleMedium)),
                   WidgetConstant.height20,
-                  Text("list_of_public_keys".tr,
-                      style: context.textTheme.titleMedium),
+                  Text("list_of_public_keys".tr, style: context.textTheme.titleMedium),
                   WidgetConstant.height8,
                   ListView.separated(
                       shrinkWrap: true,
@@ -129,8 +121,7 @@ class __BitcoinMultisigAccountInfoViewState
                       itemBuilder: (context, index) {
                         return _ShowAddressView(account: keyInfos[index]);
                       },
-                      separatorBuilder: (context, index) =>
-                          WidgetConstant.divider,
+                      separatorBuilder: (context, index) => WidgetConstant.divider,
                       itemCount: keyInfos.length)
                 ],
               )))
@@ -143,7 +134,7 @@ class __BitcoinMultisigAccountInfoViewState
 class _BitcoinMultisigAccountInfo {
   final IBitcoinAddress? address;
   final String publicKey;
-  final AddressDerivationIndex keyIndex;
+  final DerivationIndex keyIndex;
   final int weight;
   const _BitcoinMultisigAccountInfo(
       {required this.address,
@@ -166,8 +157,7 @@ class _ShowAddressView extends StatelessWidget {
           ContainerWithBorder(
             backgroundColor: context.onPrimaryContainer,
             child: AddressDetailsView(
-                address: account.address!,
-                color: context.colors.primaryContainer),
+                address: account.address!, color: context.colors.primaryContainer),
           ),
           WidgetConstant.height20
         ],

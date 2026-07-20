@@ -4,23 +4,26 @@ import 'package:blockchain_utils/bip/slip/slip44/slip44.dart';
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ethereum/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/ethereum/utils.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/http_authenticated.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/api/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
 class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
-  final StreamPageProgressController pageProgressKey =
-      StreamPageProgressController();
+  final INetApi netApi;
+  EthereumAddNewChainFrom(this.netApi);
+  final StreamPageProgressController pageProgressKey = StreamPageProgressController();
   final GlobalKey<AppTextFieldState> uriFieldKey = GlobalKey();
   final GlobalKey<AppTextFieldState> explorerFieldKey = GlobalKey();
   final GlobalKey<FormState> formKey = GlobalKey();
   final GlobalKey<AppTextFieldState> transactionFieldKey = GlobalKey();
   final GlobalKey<HTTPServiceProviderFieldsState> rpcKey = GlobalKey();
   final buttonKey = GlobalKey();
-  List<EthereumAPIProvider> _existsProviders = [];
-  List<EthereumAPIProvider> get existsProviders => _existsProviders;
+  List<DefaultAPIProvider> _existsProviders = [];
+  List<DefaultAPIProvider> get existsProviders => _existsProviders;
   ChainType chainType = ChainType.mainnet;
   bool isManualCoinType = false;
   bool _editableChainId = true;
@@ -36,7 +39,7 @@ class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
   String explorerTransaction = "";
   APPImage? image;
 
-  EthereumAPIProvider? selectedProvider;
+  DefaultAPIProvider? selectedProvider;
 
   void onChangeSymbol(String v) {
     symbol = v;
@@ -72,7 +75,8 @@ class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
     this.chainId = chainId;
   }
 
-  void onChangeCoinType(int v) {
+  void onChangeCoinType(int? v) {
+    if (v == null) return;
     if (v != coinType) {
       isManualCoinType = true;
     }
@@ -80,7 +84,7 @@ class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
   }
 
   void onChangeRpcUrl(String v) {
-    if (selectedProvider != null && v != selectedProvider?.callUrl) {
+    if (selectedProvider != null && v != selectedProvider?.url) {
       selectedProvider = null;
       notify();
     }
@@ -89,9 +93,7 @@ class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
   String? validateCoinType(String? v) {
     if (v?.trim().isEmpty ?? true) return null;
     final parse = int.tryParse(v ?? "");
-    if (parse == null ||
-        parse < 0 ||
-        parse > Bip32KeyDataConst.keyIndexMaxVal) {
+    if (parse == null || parse < 0 || parse > Bip32KeyDataConst.keyIndexMaxVal) {
       return "slip_44_desc".tr;
     }
     return null;
@@ -127,8 +129,8 @@ class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
     return null;
   }
 
-  void onTapProvider(EthereumAPIProvider provider) async {
-    rpcUrl = RPCURL(url: provider.callUrl, auth: provider.auth);
+  void onTapProvider(DefaultAPIProvider provider) async {
+    rpcUrl = RPCURL(url: provider.url, auth: provider.auth);
     selectedProvider = provider;
     notify();
     buttonKey.ensureKeyVisible();
@@ -157,38 +159,39 @@ class EthereumAddNewChainFrom with DisposableMixin, StreamStateController {
     explorerTransaction = blockExplorerUrls?.firstOrNull ?? '';
     image = iconUrls?.map((e) => APPImage.network(e)).firstOrNull;
     final validRpcs =
-        rpcUrls?.where((e) => ServiceProtocol.isValid(e)).toList();
+        rpcUrls?.where((e) => ServicePorotocolUtils.isHttoOrWebsocket(e)).toList();
     _existsProviders = validRpcs
-            ?.map((e) => EthereumAPIProvider(
-                uri: e, identifier: APIUtils.getProviderIdentifier()))
+            ?.map((e) => DefaultAPIProvider.create(
+                url: e, service: APIProviderServices.ethereumJsonRpc))
             .toList() ??
         [];
     _existsChainIds = existsChainIds.immutable;
   }
 
-  Future<(EthereumNetworkParams, EthereumAPIProvider)?> buildNetwork() async {
+  Future<(EthereumNetworkParams, DefaultAPIProvider)?> buildNetwork() async {
     if (!isReady()) return null;
     final rpcUrl = rpcKey.currentState?.getEndpoint();
     if (rpcUrl == null) return null;
-    final provider = EthereumAPIProvider(
-        uri: rpcUrl.url,
-        identifier: APIUtils.getProviderIdentifier(),
-        auth: rpcUrl.auth);
+    final provider = DefaultAPIProvider.create(
+        url: rpcUrl.url, service: APIProviderServices.ethereumJsonRpc, auth: rpcUrl.auth);
     final chain = chainId;
-    final client = APIUtils.buildEthereumProvider(provider: provider);
-    final info = await client.getNetworkInfo();
-    final params = EthereumNetworkParams(
-        transactionExplorer: explorerTransaction.nullOnEmpty,
-        addressExplorer: explorerAddressLink.nullOnEmpty,
-        token: Token(
-            name: networkName, symbol: symbol, decimal: EthereumUtils.decimal),
-        // providers: [],
-        chainId: chain,
-        supportEIP1559: info.$2,
-        defaultNetwork: false,
-        chainType: chainType,
-        bip32CoinType: coinType);
-    return (params, provider);
+
+    final client = EthereumClient.fromProviders(provider: provider, netApi: netApi);
+    try {
+      final info = await client.getNetworkInfo();
+      final params = EthereumNetworkParams(
+          transactionExplorer: explorerTransaction.nullOnEmpty,
+          addressExplorer: explorerAddressLink.nullOnEmpty,
+          token: Token(name: networkName, symbol: symbol, decimal: EthereumUtils.decimal),
+          chainId: chain,
+          supportEIP1559: info.$2,
+          defaultNetwork: false,
+          chainType: chainType,
+          bip32CoinType: coinType);
+      return (params, provider);
+    } finally {
+      client.dispose();
+    }
   }
 
   @override

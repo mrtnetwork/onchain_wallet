@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../utils/utils.dart';
 import '../../models.dart';
 import 'wallet_standard.dart';
@@ -16,12 +18,9 @@ class StellarJSConst {
   static const String signMessage = "stellar_signMessage";
 }
 
-extension type JSStellarWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSStellarWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSStellarWalletAccount.setup(
-      {required String address,
-      required List<int> publicKey,
-      required String chain}) {
+      {required String address, required List<int> publicKey, required String chain}) {
     return JSStellarWalletAccount._(JSObject())
       ..address = address
       ..chains = [chain.toJS].toJS
@@ -31,19 +30,15 @@ extension type JSStellarWalletAccount._(JSObject _)
 }
 
 extension type JSStellarWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSStellarWalletStandardConnect.setup(
-      List<JSStellarWalletAccount> accounts) {
-    return JSStellarWalletStandardConnect._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSStellarWalletStandardConnect.setup(List<JSStellarWalletAccount> accounts) {
+    return JSStellarWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSStellarWalletAccount> get accounts;
   external set accounts(JSArray<JSStellarWalletAccount> _);
 }
 extension type JSStellarWalletConnectResponse._(JSObject _) implements JSAny {
-  factory JSStellarWalletConnectResponse.setup(
-      List<JSStellarWalletAccount> accounts) {
-    return JSStellarWalletConnectResponse._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSStellarWalletConnectResponse.setup(List<JSStellarWalletAccount> accounts) {
+    return JSStellarWalletConnectResponse._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSStellarWalletAccount> get accounts;
   external set accounts(JSArray<JSStellarWalletAccount> _);
@@ -75,8 +70,7 @@ extension type StellarWalletAdapterStellarSignTransactionFeature(JSAny _)
   external set signTransaction(JSFunction _);
 }
 @JS()
-extension type StellarWalletAdapterStellarSignMessageFeature(JSAny _)
-    implements JSAny {
+extension type StellarWalletAdapterStellarSignMessageFeature(JSAny _) implements JSAny {
   factory StellarWalletAdapterStellarSignMessageFeature.setup(
       {required JSFunction signMessage,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -90,8 +84,7 @@ extension type StellarWalletAdapterStellarSignMessageFeature(JSAny _)
 @JS()
 extension type JSStellarWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSStellarWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSStellarWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;
@@ -140,8 +133,7 @@ extension type JSStellarSignMessageParams._(JSObject _) implements JSAny {
   static const List<String> properties = ['message'];
 }
 @JS()
-extension type JSADAWalletStandardSignTransactionParams(JSAny _)
-    implements JSAny {
+extension type JSADAWalletStandardSignTransactionParams(JSAny _) implements JSAny {
   external APPJSUint8Array get transaction;
   external JSStellarWalletAccount? account;
 }
@@ -149,8 +141,7 @@ extension type JSADAWalletStandardSignTransactionParams(JSAny _)
 extension type JSADASignTransactionResponse(JSAny _) implements JSAny {
   factory JSADASignTransactionResponse.setup(List<List<int>> witnesses) {
     return JSADASignTransactionResponse(JSObject())
-      ..witness =
-          witnesses.map((e) => APPJSUint8Array.fromList(e)).toList().toJS;
+      ..witness = witnesses.map((e) => APPJSUint8Array.fromList(e)).toList().toJS;
   }
   external JSArray<APPJSUint8Array> get witnesses;
   external set witness(JSArray<APPJSUint8Array> _);

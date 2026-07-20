@@ -3,19 +3,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
-
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/qr_code_scanner/state/barcode_scanner.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_bridge/web/web.dart';
 import 'dart:ui_web' as ui_web;
 
-State<BarcodeScannerView> barcodeScannerState() =>
-    _WebBarcodeScannerViewState();
+State<BarcodeScannerView> barcodeScannerState() => _WebBarcodeScannerViewState();
 
-class _WebBarcodeScannerViewState extends State<BarcodeScannerView>
-    with SafeState {
+class _WebBarcodeScannerViewState extends State<BarcodeScannerView> with SafeState {
   late bool isSecure;
   String id = "barcode_scanner_camera";
   bool supported = false;
@@ -29,16 +26,15 @@ class _WebBarcodeScannerViewState extends State<BarcodeScannerView>
   HTMLVideoElement? videoElement;
   StreamSubscription<String>? onData;
 
-  Future<HTMLVideoElement> _loadVide() async {
-    stream ??= await jsWindow.navigator.mediaDevices
-        .getUserMedia_(video: true, audio: false);
+  Future<HTMLVideoElement> _loadVideo() async {
+    stream ??=
+        await jsWindow.navigator.mediaDevices.getUserMedia_(video: true, audio: false);
     final String id = DateTime.now().microsecondsSinceEpoch.toString();
     final HTMLVideoElement videoElement = jsWindow.document.createVideoElement()
       ..id = id
       ..autoplay = true
       ..srcObject = stream;
-    ui_web.platformViewRegistry
-        .registerViewFactory(id, (int viewId) => videoElement);
+    ui_web.platformViewRegistry.registerViewFactory(id, (int viewId) => videoElement);
     return videoElement;
   }
 
@@ -60,8 +56,8 @@ class _WebBarcodeScannerViewState extends State<BarcodeScannerView>
                 children: [
                   IconButton(
                       onPressed: () {
-                        progressKey.progress(ProgressWithTextView(
-                            text: "getting_scanner_ready".tr));
+                        progressKey.progress(
+                            ProgressWithTextView(text: "getting_scanner_ready".tr));
                         init();
                       },
                       icon: const Icon(Icons.camera))
@@ -74,30 +70,37 @@ class _WebBarcodeScannerViewState extends State<BarcodeScannerView>
   }
 
   Future<void> init() async {
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       supported = jsWindow.barcode != null;
-      final stream = await _loadVide();
+      final stream = await _loadVideo();
       final detector = BarcodeDetector(null);
       return (stream, detector);
     });
-    if (result.hasError) {
-      _dispose();
-      if (!supported) {
-        progressKey.errorText("barcode_scanner_not_supported_browser".tr,
-            backToIdle: false);
-      } else {
-        progressKey.errorText(result.localizationError, backToIdle: false);
-      }
-    } else {
-      id = result.result.$1.id ?? id;
-      videoElement = result.result.$1;
-      progressKey.backToIdle();
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (closed) return;
-      onData = result.result.$2.stream(result.result.$1).listen((v) {
-        detectBarcode(v);
-      });
-    }
+    result.fold(
+      onOk: (value) async {
+        id = value.$1.id ?? id;
+        videoElement = value.$1;
+        progressKey.backToIdle();
+        Future.delayed(
+          const Duration(milliseconds: 500),
+          () {
+            if (closed) return;
+            onData = value.$2.stream(value.$1).listen((v) {
+              detectBarcode(v);
+            });
+          },
+        );
+      },
+      onErr: (error) {
+        _dispose();
+        if (!supported) {
+          progressKey.errorText("barcode_scanner_not_supported_browser".tr,
+              backToIdle: false);
+        } else {
+          progressKey.errorText(error.localizationError, backToIdle: false);
+        }
+      },
+    );
   }
 
   @override
@@ -134,8 +137,8 @@ class _WebBarcodeScannerViewState extends State<BarcodeScannerView>
                     child: Container(
                       key: globalKey,
                       child: StreamPageProgress(
-                        initialWidget: ProgressWithTextView(
-                            text: "getting_scanner_ready".tr),
+                        initialWidget:
+                            ProgressWithTextView(text: "getting_scanner_ready".tr),
                         controller: progressKey,
                         builder: (c) => HtmlElementView(viewType: id),
                       ),

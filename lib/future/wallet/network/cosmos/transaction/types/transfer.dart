@@ -1,4 +1,6 @@
 import 'package:cosmos_sdk/cosmos_sdk.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/base/v1beta1/models.dart';
+import 'package:cosmos_sdk/proto_messages/ibc/applications/transfer/v1/src/tx.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
@@ -9,6 +11,10 @@ import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart'
 import 'package:on_chain_wallet/wallet/models/networks/cosmos/models/network_types.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/cw20.dart';
+import 'package:cosmos_sdk/proto_messages/thorchain/types/src/msg_send.dart'
+    as thorchain_tx;
+import 'package:cosmos_sdk/proto_messages/cosmos/bank/v1beta1/src/tx.dart' as cosmos_tx;
 
 class CosmosTransferDetails with DisposableMixin, StreamStateController {
   CW20Token _token;
@@ -40,24 +46,25 @@ class CosmosTransferDetails with DisposableMixin, StreamStateController {
     notify();
   }
 
-  ServiceMessage toMessage(
+  ICosmosProtoServiceMessage toMessage(
       CosmosBaseAddress from, WalletCosmosNetwork network) {
+    final amount = "${this.amount.balance}";
     if (network.coinParam.networkType != CosmosNetworkTypes.thorAndForked) {
-      return MsgSend(
-          fromAddress: from,
-          toAddress: recipient.networkAddress,
-          amount: [Coin(amount: amount.balance, denom: token.denom)]);
+      return cosmos_tx.MsgSend(
+          fromAddress: from.address,
+          toAddress: recipient.networkAddress.address,
+          amount: [Coin(amount: amount, denom: token.denom)]);
     }
-    return ThorchainMsgSend(
-        fromAddress: from,
-        toAddress: recipient.networkAddress,
-        amount: [Coin(amount: amount.balance, denom: token.denom)]);
+    return thorchain_tx.MsgSend(
+        fromAddress: from.toBytes(),
+        toAddress: recipient.networkAddress.toBytes(),
+        amount: [Coin(amount: amount, denom: token.denom)]);
   }
 }
 
 class CosmosIbcTransferForm with DisposableMixin, StreamStateController {
   final StreamValue<TransactionStateStatus> stateStatus =
-      StreamValue(TransactionStateStatus.error());
+      StreamValue(TransactionStateStatus.error(), name: "CosmosIbcTransferForm");
   final CosmosTransactionIbcTransferOperation controller;
   List<CosmosChain> get destinationChains => controller.ibcDestinationChains;
   final _ibcChannelRegex = RegExp(CosmosConst.ibcChannelRegex);
@@ -70,8 +77,7 @@ class CosmosIbcTransferForm with DisposableMixin, StreamStateController {
     value: DateTime.now().toLocal().add(const Duration(minutes: 30)),
   );
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: 'amount'.tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
     onValidateError: (field, value) {
@@ -86,8 +92,8 @@ class CosmosIbcTransferForm with DisposableMixin, StreamStateController {
 
   final LiveFormField<String?, String?> memo =
       LiveFormField(title: "setup_memo".tr, value: null, optional: true);
-  final LiveFormField<String?, String> channelId = LiveFormField(
-      title: "channel_id".tr, subtitle: "ibc_channel_desc".tr, value: null);
+  final LiveFormField<String?, String> channelId =
+      LiveFormField(title: "channel_id".tr, subtitle: "ibc_channel_desc".tr, value: null);
   late final LiveFormField<CW20Token, CW20Token> token = LiveFormField(
       title: "transfer_token".tr,
       subtitle: "select_token_for_transfer".tr,
@@ -100,8 +106,7 @@ class CosmosIbcTransferForm with DisposableMixin, StreamStateController {
   }
 
   BigInt _getMaxInput() {
-    final token =
-        controller.tokens.firstWhereOrNull((e) => e == this.token.value);
+    final token = controller.tokens.firstWhereOrNull((e) => e == this.token.value);
     if (token == null) return BigInt.zero;
     final total = controller.transfers.value
         .where((e) => e.transfer.token == token)
@@ -194,8 +199,7 @@ class CosmosIbcTransferForm with DisposableMixin, StreamStateController {
   }
 
   void onUpdateRecipient(ReceiptAddress<CosmosBaseAddress>? address) {
-    if (address == null ||
-        address.networkAddress == recipient.value?.networkAddress) {
+    if (address == null || address.networkAddress == recipient.value?.networkAddress) {
       return;
     }
     recipient.setValue(address);
@@ -243,12 +247,12 @@ class CosmosIbcTransfer {
       required this.memo,
       required this.timeout});
 
-  ServiceMessage toMessage(
+  ICosmosProtoServiceMessage toMessage(
       CosmosBaseAddress from, WalletCosmosNetwork network) {
     BigInt timeout = BigInt.from(this.timeout.millisecondsSinceEpoch);
     timeout = timeout * BigInt.from(1000000);
     return MsgTransfer(
-        token: Coin(amount: amount.balance, denom: token.denom),
+        token: Coin(amount: "${amount.balance}", denom: token.denom),
         memo: memo,
         receiver: address.networkAddress.address,
         sender: from.address,

@@ -26,21 +26,21 @@ class RippleConst {
   static const int rippleTranactionHashLength = 64;
   static const int maxEmailHashLength = 32;
   static const int maxWalletLocatorLength = 64;
-  static const int maxRippleTag = mask32;
-  static final BigRational max32UnsignedRational =
+  static const int maxRippleTag = BinaryOps.mask32;
+  static BigRational get max32UnsignedRational =>
       BigRational.from(maxRippleTag);
-  static final BigRational maxNftTokenTransferRate =
+  static BigRational get maxNftTokenTransferRate =>
       BigRational.from(NFTTokenConst.maxTransferFee);
 
-  static final BigRational rippleAccountTransferRateMax =
+  static BigRational get rippleAccountTransferRateMax =>
       BigRational.from(AccountSetConst.maxTransferRate);
-  static final BigRational rippleAccountTransferRateMin =
+  static BigRational get rippleAccountTransferRateMin =>
       BigRational.from(AccountSetConst.minTransferRate);
-  static final BigRational rippleAccountSetTickSizeMax =
+  static BigRational get rippleAccountSetTickSizeMax =>
       BigRational.from(AccountSetConst.maxTickSize);
-  static final BigRational rippleAccountSetTickSizeMin =
+  static BigRational get rippleAccountSetTickSizeMin =>
       BigRational.from(AccountSetConst.minTickSize);
 
-  static final RegExp currencyCodeRegex =
+  static RegExp get currencyCodeRegex =>
       RegExp(r'^[A-Za-z0-9?@#$%^&*<>(){}[\]]{3}$');
 }

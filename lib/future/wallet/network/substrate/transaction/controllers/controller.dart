@@ -14,8 +14,7 @@ import 'fee.dart';
 import 'memo.dart';
 import 'signer.dart';
 
-abstract class SubstrateTransactionStateController<
-        T extends ISubstrateTransactionData>
+abstract class SubstrateTransactionStateController<T extends ISubstrateTransactionData>
     extends BaseSubstrateTransactionController<T>
     with
         SubstrateTransactionApiController,
@@ -31,7 +30,7 @@ abstract class SubstrateTransactionStateController<
             version: XCMVersion.v4,
             excutionPallet: SubtrateMetadataPallet.balances),
         asset: null,
-        balance: address.address.balance,
+        balance: address.addressData.balance,
       ),
       transferMethod: metadata.nativeTransferMethods);
   SubstrateTransferToken get nativeToken => _nativeToken;
@@ -44,12 +43,10 @@ abstract class SubstrateTransactionStateController<
   bool get supportBatch => client.metadata.supportBatch;
 
   SubstrateTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
-  late final LiveFormField<SubstrateTransferToken?, SubstrateTransferToken?>
-      feeToken = LiveFormField(
+  late final LiveFormField<SubstrateTransferToken?, SubstrateTransferToken?> feeToken =
+      LiveFormField(
           optional: false,
           value: null,
           title: "transaction_fee_token".tr,
@@ -77,13 +74,6 @@ abstract class SubstrateTransactionStateController<
     estimateFee();
   }
 
-  // @override
-  // Future<T> buildTransactionData(
-  //     {bool simulate = false}) async {
-  //   return ISubstrateTransactionData(
-  //       fee: txFee.fee, feeAssetConfig: feeToken.value?.feeConfig);
-  // }
-
   Future<ExtrinsicInfo> createSignedExtrinsic({
     required ExtrinsicPayloadInfo transaction,
     required List<int> signature,
@@ -104,8 +94,7 @@ abstract class SubstrateTransactionStateController<
         signer: address,
         fakeSignature: fakeSignature);
     final extrinsic = await createSignedExtrinsic(
-        transaction: transaction.payload,
-        signature: signedTransaction.signatures[0]);
+        transaction: transaction.payload, signature: signedTransaction.signatures[0]);
     return ISubstrateSignedTransaction<T>(
         transaction: transaction,
         signatures: signedTransaction.signatures,
@@ -126,18 +115,16 @@ abstract class SubstrateTransactionStateController<
   @override
   Future<SubmitSubstrateTransactionSuccess<T>> submitTransaction(
       {required ISubstrateSignedTransaction<T> signedTransaction}) async {
-    final txId = await client.broadcastTransaction(
-        signedTransaction.finalTransactionData.serialize());
+    final txId = await client
+        .broadcastTransaction(signedTransaction.finalTransactionData.serialize());
     return SubmitSubstrateTransactionSuccess(
-        txId: txId.txId,
-        block: txId.block,
-        signedTransaction: signedTransaction);
+        txId: txId.txId, block: txId.block, signedTransaction: signedTransaction);
   }
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required SubstrateClient client,
+    required SubstrateNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
@@ -146,39 +133,35 @@ abstract class SubstrateTransactionStateController<
         client: client,
         updateAccount: updateAccount,
         updateTokens: true);
-    final bool isTransfer =
-        operation == SubstrateTransactionOperations.transfer;
+    final bool isTransfer = operation == SubstrateTransactionOperations.transfer;
     final metadataWithExtrinsic = client.metadata.metadataWithExtrinsic();
     final controller = client.metadata.controller;
     List<SubstrateTransferToken> transferAssets = [];
     XCMVersionedLocation? baseFeeLocation;
     final natvieMethods =
         SubstrateNetworkControllerLocalAssetTransferBuilder.transferMethods(
-            metadata: metadataWithExtrinsic,
-            asset: controller?.defaultNativeAsset)
+            metadata: metadataWithExtrinsic, asset: controller?.defaultNativeAsset)
           ..removeWhere((e) => e.isTransferAll);
     if (controller != null && client.metadata.supportTransferLocalToken) {
       final assets = await controller.getAccountAssets(
           address: address.networkAddress,
-          knownAssetIds: address.tokens.map((e) => e.assetIdentifier).toList());
+          knownAssetIds: addressTokens.map((e) => e.assetIdentifier).toList());
 
       baseFeeLocation = metadata.chargeAssetTxPaymentNativeLocation();
       _nativeToken = SubstrateTransferToken(
           tokenDetails: SubstrateTokenDetails(
               internalAsset: controller.defaultNativeAsset,
               asset: null,
-              balance: address.address.balance),
+              balance: address.addressData.balance),
           transferMethod: natvieMethods);
       transferAssets.add(_nativeToken);
       for (final i in assets.assets) {
         if (i.identifier == null || i.type.isNative) continue;
-        final accountAsset = address.tokens
-            .firstWhereOrNull((a) => i.identifierEqual(a.assetIdentifier));
+        final accountAsset =
+            addressTokens.firstWhereOrNull((a) => i.identifierEqual(a.assetIdentifier));
         if (accountAsset == null) continue;
         final SubstrateFeeConfig? fee = () {
-          if (i.chargeAssetTxPayment &&
-              i.location != null &&
-              baseFeeLocation != null) {
+          if (i.chargeAssetTxPayment && i.location != null && baseFeeLocation != null) {
             final location = i.getAssetId(
                 reserveNetwork: controller.network,
                 version: controller.network.defaultXcmVersion);

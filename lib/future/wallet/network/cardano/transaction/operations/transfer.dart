@@ -12,9 +12,7 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class ADATransactionTransferOperation extends ADATransactionStateController {
   ADATransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   ADATransferDetails? _lockedMax;
   @override
   Token get transferToken => network.token;
@@ -32,10 +30,8 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
           title: "remaining_amount".tr,
           subtitle: "remaining_amount_and_receiver".tr,
           value: ADARemainTransferDetails(
-              recipient: account.getReceiptAddress(address.viewAddress) ??
-                  ReceiptAddress(
-                      view: address.viewAddress,
-                      networkAddress: address.networkAddress),
+              recipient:
+                  account.getOrCreateReceiptFromNetworkAddressSync(account: address),
               token: network.token),
           optional: false);
 
@@ -46,12 +42,12 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
 
   void _onReceiptsUpdated() {
     final totalOutput = totalUtxos.value.balance;
-    BigInt totalAmounts = recipients.value.fold(BigInt.zero,
-        (previousValue, element) => previousValue + element.amount.balance);
-    totalAmounts = deposit.fold(totalAmounts,
-        (previousValue, element) => previousValue + element.fee.balance);
-    totalAmounts = refund.fold(totalAmounts,
-        (previousValue, element) => previousValue - element.fee.balance);
+    BigInt totalAmounts = recipients.value.fold(
+        BigInt.zero, (previousValue, element) => previousValue + element.amount.balance);
+    totalAmounts = deposit.fold(
+        totalAmounts, (previousValue, element) => previousValue + element.fee.balance);
+    totalAmounts = refund.fold(
+        totalAmounts, (previousValue, element) => previousValue - element.fee.balance);
     remainingAmount.value
         .updateBalance(totalOutput - totalAmounts - txFee.fee.fee.balance);
 
@@ -61,8 +57,7 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
   @override
   void onSelectedUtxosChanged(List<CardanoAccountUtxo> utxos) {
     _utxos = utxos;
-    final assets =
-        _utxos.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.multiAsset);
+    final assets = _utxos.fold<MultiAsset>(MultiAsset.empty, (p, c) => p + c.multiAsset);
 
     for (final i in recipients.value) {
       i.onRemoveAssets();
@@ -78,17 +73,14 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
     _lockedMax = null;
     final recipients = addressess
         .map((e) => ADATransferDetails(
-            recipient: e,
-            token: network.token,
-            protocolParams: latestEpochParams))
+            recipient: e, token: network.token, protocolParams: latestEpochParams))
         .toList();
     this.recipients.addValues(recipients);
     onStateUpdated();
     estimateFee();
   }
 
-  void onUpdateRecipientAmount(
-      ADATransferDetails recipient, BigInt amount, bool max) {
+  void onUpdateRecipientAmount(ADATransferDetails recipient, BigInt amount, bool max) {
     _lockedMax = max ? recipient : null;
     recipient.onUpdateBalance(amount);
     _onReceiptsUpdated();
@@ -118,9 +110,7 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
 
   void onUpdateRemainingAccount(ICardanoAddress? address) {
     if (address == null || address.isRewardAddress) return;
-    final recipient = account.getReceiptAddress(address.viewAddress) ??
-        ReceiptAddress(
-            view: address.viewAddress, networkAddress: address.networkAddress);
+    final recipient = account.getOrCreateReceiptFromNetworkAddressSync(account: address);
     remainingAmount.value.updateRecipientAddress(recipient);
     remainingAmount.notify();
   }
@@ -143,8 +133,8 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
     estimateFee();
   }
 
-  void onUpdateTrasferAssetAmount(ADATransferDetails recipient,
-      ADATransferAssetDetails asset, BigInt amount) {
+  void onUpdateTrasferAssetAmount(
+      ADATransferDetails recipient, ADATransferAssetDetails asset, BigInt amount) {
     remainingAmount.value.onUpdateTransferAssetAmount(recipient, asset, amount);
     remainingAmount.notify();
     onStateUpdated();
@@ -274,13 +264,12 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
       bool isRewardOfBaseAddress = address.rewardAddress == i;
       if (!address.multiSigAccount) continue;
       final mAccount = address as ICardanoMultiSigAddress;
-      final BaseCardanoMultiSignatureCredential? cred =
-          switch (isRewardOfBaseAddress) {
+      final BaseCardanoMultiSignatureCredential? cred = switch (isRewardOfBaseAddress) {
         true => mAccount.addressInfo.stakeCredential,
         false => mAccount.addressInfo.credential
       };
       if (cred == null) {
-        throw WalletExceptionConst.invalidAccountDeta("buildNativeScripts");
+        throw WalletExceptionConst.invalidAccountData("buildNativeScripts");
       }
       if (cred.type == CardanoCredentialType.script) {
         final script = cred as CardanoMultiSignatureScript;
@@ -294,8 +283,7 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
   }
 
   @override
-  Future<IADATransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IADATransactionData> buildTransactionData({bool simulate = false}) async {
     final remain = remainingAmount.value.toOutput();
     final nativeScript = buildNativeScripts(addresses: [
       ..._utxos.map((e) => e.address.networkAddress),
@@ -337,11 +325,9 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
       buildWalletTransaction(
           {required IADASignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
-    List<IWalletTransaction<ADAWalletTransaction, ICardanoAddress>>
-        transactions = [];
+    List<IWalletTransaction<ADAWalletTransaction, ICardanoAddress>> transactions = [];
     final transactionData = signedTx.transaction.transactionData;
-    final signers =
-        transactionData.utxos.map((e) => e.address).toSet().toList();
+    final signers = transactionData.utxos.map((e) => e.address).toSet().toList();
     for (final i in signers) {
       final totalAmount = signedTx.transaction.transactionData.utxos
           .where((e) => e.address == i)
@@ -352,8 +338,8 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
               txId: txId.txId,
               time: DateTime.now(),
               outputs: [],
-              totalOutput: WalletTransactionIntegerAmount(
-                  amount: totalAmount, network: network),
+              totalOutput:
+                  WalletTransactionIntegerAmount(amount: totalAmount, network: network),
               network: network),
           account: i);
       transactions.add(transaction);
@@ -362,7 +348,7 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
   }
 
   @override
-  TransactionStateController cloneController(ICardanoAddress address) {
+  Future<TransactionStateController> cloneController(ICardanoAddress address) async {
     return ADATransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -378,12 +364,11 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required ADAClient client,
+    required ADANetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     remainingAmount.value.onUpdateProtocolParams(latestEpochParams);
     return this;
   }
@@ -398,6 +383,5 @@ class ADATransactionTransferOperation extends ADATransactionStateController {
   }
 
   @override
-  List<LiveFormField<Object?, Object?>> get fields =>
-      [recipients, remainingAmount];
+  List<LiveFormField<Object?, Object?>> get fields => [recipients, remainingAmount];
 }

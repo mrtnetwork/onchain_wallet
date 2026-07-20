@@ -1,12 +1,11 @@
 part of 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
-typedef STREAMBUILER<T> = Widget Function(BuildContext context, T value);
+typedef CbStreamBuilder<T> = Widget Function(BuildContext context, T value);
 
 class APPStreamBuilder<T> extends StatelessWidget {
   final StreamValue<T> value;
-  final STREAMBUILER<T> builder;
-  const APPStreamBuilder(
-      {required this.value, required this.builder, super.key});
+  final CbStreamBuilder<T> builder;
+  const APPStreamBuilder({required this.value, required this.builder, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,17 +18,14 @@ class APPStreamBuilder<T> extends StatelessWidget {
   }
 }
 
-typedef STREAMWIDGETNOTIFY<T> = bool Function(T value);
+typedef CbStreamNotify<T> = bool Function(T value);
 
 class APPStreamWidget<T> extends StatefulWidget {
   final StreamValue<T> stream;
-  final STREAMBUILER<T> builder;
-  final STREAMWIDGETNOTIFY<T>? allowNotify;
+  final CbStreamBuilder<T> builder;
+  final CbStreamNotify<T>? allowNotify;
   const APPStreamWidget(
-      {required this.builder,
-      required this.stream,
-      this.allowNotify,
-      super.key});
+      {required this.builder, required this.stream, this.allowNotify, super.key});
 
   @override
   State<APPStreamWidget> createState() => _ChainStreamBuilderState<T>();
@@ -37,11 +33,11 @@ class APPStreamWidget<T> extends StatefulWidget {
 
 class _ChainStreamBuilderState<T> extends State<APPStreamWidget<T>>
     with SafeState<APPStreamWidget<T>> {
-  // DefaultChainNotify? lastProgressNotify;
   late StreamValue<T> stream = widget.stream;
   StreamSubscription<T>? _subscription;
   void onChainNotify(T value) {
-    if (widget.allowNotify?.call(value) ?? true) {
+    final allowNotify = widget.allowNotify;
+    if (allowNotify == null || allowNotify(value)) {
       updateState();
     }
   }

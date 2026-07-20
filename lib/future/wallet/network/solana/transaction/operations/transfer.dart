@@ -9,17 +9,15 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 class SolanaTransactionTransferOperation
     extends SolanaTransactionTransferStateController2 {
   SolanaTransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   SolanaTransferDetails? _lockedMax;
   @override
   Token get transferToken => network.token;
 
   BigInt getMaxInput(SolanaTransferDetails recipient) {
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    final max = address.address.currencyBalance -
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final max = address.addressData.currencyBalance -
         total +
         recipient.amount.balance -
         txFee.fee.fee.balance;
@@ -27,8 +25,7 @@ class SolanaTransactionTransferOperation
     return max;
   }
 
-  void onUpdateAmount(
-      SolanaTransferDetails recipient, BigInt amount, bool max) {
+  void onUpdateAmount(SolanaTransferDetails recipient, BigInt amount, bool max) {
     _lockedMax = max ? recipient : null;
     recipient.updateBalance(amount);
     onStateUpdated();
@@ -56,8 +53,8 @@ class SolanaTransactionTransferOperation
   @override
   Future<void> estimateFee({BigInt? accountBalance, BigInt? totalTxLamports}) {
     return super.estimateFee(
-        totalTxLamports: recipients.value
-            .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance));
+        totalTxLamports:
+            recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance));
   }
 
   @override
@@ -66,12 +63,11 @@ class SolanaTransactionTransferOperation
     if (!status.isReady) return status;
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    final r = address.address.currencyBalance - total - txFee.fee.fee.balance;
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final r = address.addressData.currencyBalance - total - txFee.fee.fee.balance;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, network.token),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token),
           warning: simulateError);
     }
     return TransactionStateStatus.ready(warning: simulateError);
@@ -82,36 +78,34 @@ class SolanaTransactionTransferOperation
       buildWalletTransaction(
           {required ISolanaSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final payments = signedTx.transaction.transactionData.payment
-            ?.where((e) => e.token == null) ??
-        [];
+    final payments =
+        signedTx.transaction.transactionData.payment?.where((e) => e.token == null) ?? [];
     if (payments.isEmpty) {
       return super.buildWalletTransaction(signedTx: signedTx, txId: txId);
     }
+    final memo = signedTx.transaction.transactionData.getWalletTxMemo();
     final outputs = payments
         .map((e) => SolanaWalletTransactionTransferOutput(
             to: e.recipient,
-            amount: WalletTransactionIntegerAmount(
-                amount: e.amount, network: network)))
+            amount: WalletTransactionIntegerAmount(amount: e.amount, network: network)))
         .toList();
 
-    final total = outputs.fold<BigInt>(
-        BigInt.zero, (p, c) => p + c.amount.amount.balance);
+    final total =
+        outputs.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.amount.balance);
     final transaction = SolanaWalletTransaction(
         txId: txId.txId,
+        memos: [if (memo != null) memo],
         outputs: outputs,
-        totalOutput:
-            WalletTransactionIntegerAmount(amount: total, network: network),
+        totalOutput: WalletTransactionIntegerAmount(amount: total, network: network),
         network: network);
     return [IWalletTransaction(transaction: transaction, account: address)];
   }
 
   @override
-  Future<ISolanaTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ISolanaTransactionData> buildTransactionData({bool simulate = false}) async {
     final blockhash = await getTransactionBlockHash(simulate: simulate);
-    final instructions = (await Future.wait(recipients.value.map((e) =>
-            e.instruction(owner: address.networkAddress, client: client))))
+    final instructions = (await Future.wait(recipients.value
+            .map((e) => e.instruction(owner: address.networkAddress, client: client))))
         .expand((e) => e)
         .toList();
     return ISolanaTransactionData(
@@ -128,7 +122,7 @@ class SolanaTransactionTransferOperation
   }
 
   @override
-  TransactionStateController cloneController(ISolanaAddress address) {
+  Future<TransactionStateController> cloneController(ISolanaAddress address) async {
     return SolanaTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

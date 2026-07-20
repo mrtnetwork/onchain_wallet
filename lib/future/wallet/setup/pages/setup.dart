@@ -20,8 +20,7 @@ class SubWalletSetupPageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       onAccsess: (_) {
         return WalletSetupPageWidget(type: APPWalletType.subwallet);
@@ -32,8 +31,7 @@ class SubWalletSetupPageView extends StatelessWidget {
 
 // enum _Wallet
 class WalletSetupPageWidget extends StatefulWidget {
-  const WalletSetupPageWidget(
-      {super.key, this.type = APPWalletType.mainwallet});
+  const WalletSetupPageWidget({super.key, this.type = APPWalletType.mainwallet});
   final APPWalletType type;
   @override
   State<WalletSetupPageWidget> createState() => _WalletSetupPageWidgetState();
@@ -47,8 +45,8 @@ class _WalletSetupPageWidgetState extends State<WalletSetupPageWidget>
   @override
   void onInitOnce() {
     super.onInitOnce();
-    controller = SetupWalletStateController(
-        walletProvider: context.wallet, type: widget.type);
+    controller =
+        SetupWalletStateController(walletProvider: context.wallet, type: widget.type);
     listener = controller.stream.listen((_) => updateState());
   }
 
@@ -78,13 +76,10 @@ class _WalletSetupPageWidgetState extends State<WalletSetupPageWidget>
                       widgets: {
                         WalletStupPage.main: (context) => ConditionalWidget(
                               enable: controller.type.isMainWallet,
-                              onActive: (context) =>
-                                  _OnSetupWalletPassword(controller),
-                              onDeactive: (context) =>
-                                  _SetupSubWalletOptions(controller),
+                              onActive: (context) => _OnSetupWalletPassword(controller),
+                              onDeactive: (context) => _SetupSubWalletOptions(controller),
                             ),
-                        WalletStupPage.mainWalletSetting: (context) =>
-                            SliverToBoxAdapter(
+                        WalletStupPage.mainWalletSetting: (context) => SliverToBoxAdapter(
                               child: _MainWalletSettingsView(controller),
                             )
                       }),
@@ -149,8 +144,7 @@ class _OnSetupWalletPassword extends StatelessWidget {
               onTap: () async {
                 return controller.onSetupMainWalletPassword(
                   (allowType, mode) async {
-                    return context.toPage<GeneratedMnemonic>(
-                        ExistsMnemonicView(),
+                    return context.toPage<GeneratedMnemonic>(ExistsMnemonicView(),
                         argruments: allowType);
                   },
                   () {
@@ -171,8 +165,7 @@ class _OnSetupWalletPassword extends StatelessWidget {
               onTap: () async {
                 return controller.onSetupMainWalletPassword(
                   (allowType, mode) async {
-                    return context.toPage<GeneratedMnemonic>(
-                        SetupMnemonicView(),
+                    return context.toPage<GeneratedMnemonic>(SetupMnemonicView(),
                         argruments: allowType);
                   },
                   () {
@@ -193,13 +186,28 @@ class _OnSetupWalletPassword extends StatelessWidget {
               onTap: () async {
                 return controller.onRestoreMainWalletPassword(
                   (password) async {
-                    return context.toPage<WalletRestoreV2>(
+                    return context.toPage<VerifiedMainWalletBackup>(
                         RestoreWalletBackupView(),
                         argruments: password);
                   },
                 );
               },
-            )
+            ),
+            // const Divider(),
+            // AppListTile(
+            //   title: Text("external_wallet".tr),
+            //   leading: const Icon(Icons.wallet),
+            //   subtitle: Text("connect_to_external_wallet".tr),
+            //   trailing: const Icon(Icons.arrow_forward),
+            //   onTap: () async {
+            //     return controller.onConnectToExternalWallet(
+            //       (password) async {
+            //         return context.toPage<ExternalWalletData>(ExternalWalletParingView(),
+            //             argruments: password);
+            //       },
+            //     );
+            //   },
+            // )
           ],
         ),
       ),
@@ -212,13 +220,12 @@ class _MainWalletSettingsView extends StatefulWidget {
   final SetupWalletStateController controller;
 
   @override
-  State<_MainWalletSettingsView> createState() =>
-      __MainWalletSettingsViewState();
+  State<_MainWalletSettingsView> createState() => __MainWalletSettingsViewState();
 }
 
 class __MainWalletSettingsViewState extends State<_MainWalletSettingsView>
     with SafeState<_MainWalletSettingsView> {
-  MainWallet get wallet => widget.controller.mainWallet!;
+  IMainWallet get wallet => widget.controller.mainWallet!;
   // late List<String> walletIds;
   Future<void> setup(WalletUpdateInfosData walletInfos) async {
     await widget.controller.onSetupMainWallet(walletInfos);
@@ -226,15 +233,14 @@ class __MainWalletSettingsViewState extends State<_MainWalletSettingsView>
 
   @override
   Widget build(BuildContext context) {
-    return UpdateWalletInfosWidget(
-        wallet: wallet, onUpdate: (update) => setup(update));
+    return UpdateWalletInfosWidget(wallet: wallet, onUpdate: (update) => setup(update));
   }
 }
 
 class _SetupSubWalletOptions extends StatelessWidget {
   final SetupWalletStateController controller;
   const _SetupSubWalletOptions(this.controller);
-  MainWallet get mainWallet => controller.mainWallet!;
+  IMainWallet get mainWallet => controller.mainWallet!;
   @override
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
@@ -252,8 +258,7 @@ class _SetupSubWalletOptions extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(mainWallet.name, style: context.textTheme.labelLarge),
-                  Text(mainWallet.created.toString(),
-                      style: context.textTheme.bodySmall)
+                  Text(mainWallet.created.toString(), style: context.textTheme.bodySmall)
                 ],
               ),
             ),
@@ -275,8 +280,7 @@ class _SetupSubWalletOptions extends StatelessWidget {
               onTap: () {
                 controller.onSetupSubWallet(
                   (allowType, mode) async {
-                    return context.toPage<GeneratedMnemonic>(
-                        ExistsMnemonicView(),
+                    return context.toPage<GeneratedMnemonic>(ExistsMnemonicView(),
                         argruments: allowType);
                   },
                   () {
@@ -297,8 +301,7 @@ class _SetupSubWalletOptions extends StatelessWidget {
               onTap: () {
                 controller.onSetupSubWallet(
                   (allowType, mode) async {
-                    return context.toPage<GeneratedMnemonic>(
-                        SetupMnemonicView(),
+                    return context.toPage<GeneratedMnemonic>(SetupMnemonicView(),
                         argruments: allowType);
                   },
                   () {

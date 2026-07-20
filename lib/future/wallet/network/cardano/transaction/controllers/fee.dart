@@ -32,18 +32,18 @@ mixin ADATransactionFeeController
     await _lock.run(() async {
       txFee.setPending();
 
-      final fee = await MethodUtils.call(() async => await simulateFee());
-      if (fee.isCancel) return;
-      if (fee.hasError) {
+      final fee = await IResult.call(() async => await simulateFee());
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
         txFee.setDefaultFees([
           ADATransactionFee(
               type: TxFeeTypes.normal,
               fee: IntegerBalance.zero(network.token),
-              error: fee.localizationError)
+              error: fee.unwrapErr().localizationError)
         ]);
         return;
       }
-      txFee.setDefaultFees([fee.result]);
+      txFee.setDefaultFees([fee.unwrap()]);
     });
   }
 

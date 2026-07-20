@@ -1,7 +1,8 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:on_chain/solana/solana.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -20,37 +21,31 @@ enum SolanaTransactionOperations implements TransactionOperations {
 
 class SolanaTransactionFee extends DefaultTransactionFee {
   SolanaTransactionFee({required super.fee, super.error});
-  factory SolanaTransactionFee.defaultFee(
-      {required Token feeToken, String? error}) {
+  factory SolanaTransactionFee.defaultFee({required Token feeToken, String? error}) {
     return SolanaTransactionFee(
         error: error,
-        fee: IntegerBalance.token(
-            SolanaConst.solanaDefaultTxFeePerSignature, feeToken));
+        fee: IntegerBalance.token(SolanaConst.solanaDefaultTxFeePerSignature, feeToken));
   }
 }
 
-class SolanaTransactionFeeData
-    extends TransactionDefaultFeeData<SolanaTransactionFee> {
+class SolanaTransactionFeeData extends TransactionDefaultFeeData<SolanaTransactionFee> {
   SolanaTransactionFeeData({required super.select, required super.feeToken});
 }
 
-abstract class BaseSolanaTransactionController
-    extends TransactionStateController<
-        SolanaSPLToken,
-        ISolanaAddress,
-        SolanaClient,
-        WalletSolanaNetwork,
-        SolanaChain,
-        ISolanaTransactionData,
-        ISolanaTransaction,
-        ISolanaSignedTransaction,
-        SolanaWalletTransaction,
-        SubmitTransactionSuccess<ISolanaSignedTransaction>,
-        SolanaTransactionFeeData> {
+abstract class BaseSolanaTransactionController extends TransactionStateController<
+    SolanaSPLToken,
+    WalletSolanaNetwork,
+    ISolanaAddress,
+    SolanaNetworkClient,
+    SolanaChain,
+    ISolanaTransactionData,
+    ISolanaTransaction,
+    ISolanaSignedTransaction,
+    SolanaWalletTransaction,
+    SubmitTransactionSuccess<ISolanaSignedTransaction>,
+    SolanaTransactionFeeData> {
   BaseSolanaTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class ISolanaTransactionData extends ITransactionData {
@@ -67,6 +62,16 @@ class ISolanaTransactionData extends ITransactionData {
       List<ISolanaTransactionDataTokenTransfer>? payment})
       : instructions = instructions.immutable,
         payment = payment?.immutable;
+  WalletTransactionMemo? getWalletTxMemo() {
+    final memo = this.memo;
+    if (memo == null) return null;
+    return WalletTransactionMemo.from(
+        memo,
+        switch (StringUtils.isHexBytes(memo)) {
+          true => WalletTransactionMemoType.binary,
+          false => WalletTransactionMemoType.string,
+        });
+  }
 }
 
 class ISolanaTransactionDataTokenTransfer {
@@ -77,8 +82,7 @@ class ISolanaTransactionDataTokenTransfer {
       {required this.recipient, required this.amount, required this.token});
 }
 
-class ISolanaTransaction
-    extends ITransaction<ISolanaTransactionData, ISolanaAddress> {
+class ISolanaTransaction extends ITransaction<ISolanaTransactionData, ISolanaAddress> {
   final SolanaTransaction transaction;
   const ISolanaTransaction(
       {required super.account,
@@ -177,7 +181,7 @@ class SolanaTransferDetails extends TransferOutputDetails<SolAddress> {
 
   Future<List<TransactionInstruction>> instruction(
       {required SolAddress owner,
-      required SolanaClient client,
+      required SolanaNetworkClient client,
       SolanaSPLToken? token}) async {
     final instructions = await _lock.run(() async {
       SolAddress? pda;
@@ -195,12 +199,10 @@ class SolanaTransferDetails extends TransferOutputDetails<SolAddress> {
               }
             } else if (exist.mint != token.mint) {
               status = SolanaAccountStatus.error;
-              throw AppException(
-                  "spl_token_invalid_associated_account_address");
+              throw AppException("spl_token_invalid_associated_account_address");
             }
           } else {
-            final account =
-                await client.getAccountInfo(recipient.networkAddress);
+            final account = await client.getAccountInfo(recipient.networkAddress);
             if (account == null) {
               status = SolanaAccountStatus.uninitialized;
             }
@@ -241,5 +243,5 @@ class SolanaTransferDetails extends TransferOutputDetails<SolAddress> {
   }
 
   @override
-  List get variabels => [recipient];
+  List get variables => [recipient];
 }

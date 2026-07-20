@@ -1,43 +1,24 @@
 part of 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
-abstract class Core {}
-
-abstract class BaseController extends Core {}
-
-mixin ListenableX {
-  final Map<String, DynamicVoid> _listeners = {};
-  final Set<DynamicVoid> _noneIdsListeners = {};
-  void addListener(String? id, DynamicVoid callBack) {
-    if (id == null) {
-      _noneIdsListeners.add(callBack);
-      return;
-    }
-    _listeners[id] = callBack;
-  }
-
-  void removeListener(String? id, DynamicVoid callBack) {
-    if (id != null) {
-      _listeners.remove(id);
-      return;
-    }
-    _noneIdsListeners.remove(callBack);
-  }
-
-  void notify([String? id]) {
-    if (id != null) {
-      _listeners[id]?.call();
-      return;
-    }
-    for (final DynamicVoid i in [..._noneIdsListeners]) {
-      i();
-    }
-  }
-}
-
-abstract class Disposable extends BaseController with ListenableX {
+abstract class Disposable {
   bool _inited = false;
   bool _deleted = false;
   bool get deleted => _deleted;
+  final Set<DynamicVoid> _listeners = {};
+  void _addListener(DynamicVoid callBack) {
+    _listeners.add(callBack);
+  }
+
+  void _removeListener(DynamicVoid callBack) {
+    _listeners.remove(callBack);
+  }
+
+  void notify() {
+    for (final DynamicVoid i in [..._listeners]) {
+      i();
+    }
+  }
+
   void close() {}
   void _close() {
     try {

@@ -1,3 +1,4 @@
+import 'package:blockchain_utils/service/models/params.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/http_authenticated.dart';
@@ -62,7 +63,7 @@ class _ImportNewNetwork extends StatelessWidget {
             NumberTextField(
                 label: "decimals".tr,
                 defaultValue: controller.decimal,
-                onChange: controller.onChangeDecimals,
+                onChangeValue: controller.onChangeDecimals,
                 validator: controller.onValidateDecimals,
                 max: APPSubstrateConst.maxDecimals,
                 maxWidth: null,

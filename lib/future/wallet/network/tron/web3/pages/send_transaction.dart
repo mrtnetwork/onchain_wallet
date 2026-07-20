@@ -5,7 +5,7 @@ import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/pages/send_t
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/widgets/widgets/fee.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/web3/operations/send_transaction.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/web3_request_page_builder.dart';
@@ -31,8 +31,7 @@ class Web3TronSignTransactionStateView extends StatelessWidget {
       Text("tron_transaction_type".tr),
       WidgetConstant.height8,
       ContainerWithBorder(
-        child:
-            Text(info.type.name, style: context.onPrimaryTextTheme.bodyMedium),
+        child: Text(info.type.name, style: context.onPrimaryTextTheme.bodyMedium),
       ),
       WidgetConstant.height20,
       ConditionalWidget(
@@ -59,8 +58,7 @@ class Web3TronSignTransactionStateView extends StatelessWidget {
           enable: info.type != TransactionContractType.transferContract,
           onActive: (context) =>
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _TransactionTypeWidgets(
-                    info: info, network: controller.network),
+                _TransactionTypeWidgets(info: info, network: controller.network),
                 WidgetConstant.height20,
               ])),
       TronTransactionFeeDataView(controller: controller),
@@ -95,10 +93,9 @@ class Web3TronSignTransactionStateView extends StatelessWidget {
       Text("transaction_id".tr, style: context.textTheme.titleMedium),
       WidgetConstant.height8,
       ContainerWithBorder(
-          child: Text(transactionData.txId,
-              style: context.onPrimaryTextTheme.bodyMedium)),
-      Web3StateAcceptRequestView(
-          controller: controller, title: "sign_transaction".tr),
+          child:
+              Text(transactionData.txId, style: context.onPrimaryTextTheme.bodyMedium)),
+      Web3StateAcceptRequestView(controller: controller, title: "sign_transaction".tr),
     ]);
   }
 }
@@ -129,10 +126,7 @@ class _TransactionTypeWidgets extends StatelessWidget {
 
 class _TransferAssetView extends StatelessWidget {
   const _TransferAssetView(
-      {required this.info,
-      this.tokenTitle,
-      this.tokenSubtitle,
-      this.valueSubtitle});
+      {required this.info, this.tokenTitle, this.tokenSubtitle, this.valueSubtitle});
   final Web3TronTransferAssetInfo info;
   final String? tokenTitle;
   final String? tokenSubtitle;
@@ -142,8 +136,7 @@ class _TransferAssetView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(tokenTitle ?? "token_transfer".tr,
-            style: context.textTheme.titleMedium),
+        Text(tokenTitle ?? "token_transfer".tr, style: context.textTheme.titleMedium),
         if (tokenSubtitle != null) Text(tokenSubtitle!.tr),
         WidgetConstant.height8,
         AccountTokenDetailsView(
@@ -152,9 +145,7 @@ class _TransferAssetView extends StatelessWidget {
             radius: APPConst.circleRadius25),
         WidgetConstant.height20,
         TransactionAmountView(
-            amount: info.amount,
-            token: info.token.token,
-            subtitle: valueSubtitle)
+            amount: info.amount, token: info.token.token, subtitle: valueSubtitle)
       ],
     );
   }
@@ -215,8 +206,7 @@ class _UnknownContractInfo extends StatelessWidget {
         ContainerWithBorder(
           padding: EdgeInsets.zero,
           child: APPExpansionListTile(
-            title: Text("information".tr,
-                style: context.onPrimaryTextTheme.bodyMedium),
+            title: Text("information".tr, style: context.onPrimaryTextTheme.bodyMedium),
             children: List.generate(data.length, (index) {
               final key = data.keys.elementAt(index);
               final value = data[key];
@@ -228,8 +218,7 @@ class _UnknownContractInfo extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(key.camelCase,
-                            style: context.onPrimaryTextTheme.labelLarge),
+                        Text(key.camelCase, style: context.onPrimaryTextTheme.labelLarge),
                         ContainerWithBorder(
                           backgroundColor: context.onPrimaryContainer,
                           constraints: null,
@@ -282,8 +271,7 @@ class _TriggerSmartContractInfo extends StatelessWidget {
             child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(data.localizationName.tr,
-                style: context.onPrimaryTextTheme.bodyMedium),
+            Text(data.localizationName.tr, style: context.onPrimaryTextTheme.bodyMedium),
             if (data.selector != null)
               Text(data.selector!, style: context.onPrimaryTextTheme.bodyMedium)
           ],

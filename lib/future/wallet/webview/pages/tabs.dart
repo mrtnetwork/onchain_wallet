@@ -45,37 +45,34 @@ class WebViewTabsView extends StatelessWidget {
                         children: [
                           IconButton(
                               onPressed: () => controller.removeTab(view),
-                              icon: Icon(Icons.delete,
-                                  color: context.onPrimaryContainer)),
+                              icon:
+                                  Icon(Icons.delete, color: context.onPrimaryContainer)),
                           IconButton(
                               onPressed: () => controller.switchTab(view),
                               icon: Icon(Icons.open_in_new_outlined,
                                   color: context.onPrimaryContainer)),
                         ],
                       ),
-                      child: Row(
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        CircleAPPImageView(
+                          view.tab.value.image,
+                          radius: APPConst.circleRadius25,
+                          onProgress: (c) => const Icon(Icons.travel_explore_rounded),
+                        ),
+                        WidgetConstant.width8,
+                        Expanded(
+                            child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircleAPPImageView(
-                              view.tab.value.image,
-                              radius: APPConst.circleRadius25,
-                              onProgress: (c) =>
-                                  const Icon(Icons.travel_explore_rounded),
-                            ),
-                            WidgetConstant.width8,
-                            Expanded(
-                                child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (title != null)
-                                  OneLineTextWidget(title,
-                                      style: context.textTheme.labelLarge),
-                                OneLineTextWidget(view.tab.value.url,
-                                    style: context.textTheme.bodySmall),
-                              ],
-                            ))
-                          ]),
+                            if (title != null)
+                              OneLineTextWidget(title,
+                                  style: context.textTheme.labelLarge),
+                            OneLineTextWidget(view.tab.value.url,
+                                style: context.textTheme.bodySmall),
+                          ],
+                        ))
+                      ]),
                     );
                   },
                 ),

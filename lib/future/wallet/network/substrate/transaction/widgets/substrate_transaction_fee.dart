@@ -4,8 +4,7 @@ import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/json/json/widgets.dart';
 
-typedef ONSELECTSUBSTRATEFEETOKEN = void Function(
-    SubstrateTransferToken? token);
+typedef ONSELECTSUBSTRATEFEETOKEN = void Function(SubstrateTransferToken? token);
 
 class SubstrateTransactionFeeWidget extends StatelessWidget {
   const SubstrateTransactionFeeWidget(
@@ -75,12 +74,10 @@ class SubstrateTransactionFeeWidget extends StatelessWidget {
                                       tooltipWidget: ToolTipView(
                                           message: "xcm_deliveries_fee".tr,
                                           child: Icon(Icons.help,
-                                              color:
-                                                  context.primaryContainer))),
+                                              color: context.primaryContainer))),
                                   child: CoinAndMarketPriceView(
                                       balance: fee.fee.xcmDeliveriesFee!,
-                                      style:
-                                          context.primaryTextTheme.titleMedium,
+                                      style: context.primaryTextTheme.titleMedium,
                                       symbolColor: context.primaryContainer,
                                       showTokenImage: true),
                                 ),
@@ -88,8 +85,7 @@ class SubstrateTransactionFeeWidget extends StatelessWidget {
                                   backgroundColor: context.onPrimaryContainer,
                                   child: CoinAndMarketPriceView(
                                       balance: fee.fee.fee,
-                                      style:
-                                          context.primaryTextTheme.titleMedium,
+                                      style: context.primaryTextTheme.titleMedium,
                                       symbolColor: context.primaryContainer,
                                       showTokenImage: true),
                                 )
@@ -105,8 +101,7 @@ class SubstrateTransactionFeeWidget extends StatelessWidget {
                           // ,
                           ConditionalWidget(
                               enable: fee.fee.description != null,
-                              onActive: (context) => Text(
-                                  fee.fee.description ?? '',
+                              onActive: (context) => Text(fee.fee.description ?? '',
                                   style: context.onPrimaryTextTheme.bodySmall)),
                           ConditionalWidget(
                             enable: !fee.fee.dryRunSuccess,
@@ -117,8 +112,7 @@ class SubstrateTransactionFeeWidget extends StatelessWidget {
                               oTapError: () => context.openDialogPage(
                                 '',
                                 child: (context) => JsonView(
-                                    text: fee.fee.dryRunInfo,
-                                    title: 'content'.tr),
+                                    text: fee.fee.dryRunInfo, title: 'content'.tr),
                               ),
                             ),
                             onDeactive: (context) => ErrorTextContainer(

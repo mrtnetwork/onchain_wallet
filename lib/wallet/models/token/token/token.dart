@@ -1,16 +1,13 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/models/models/image.dart';
-import 'package:on_chain_wallet/app/serialization/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/utils/string/utils.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/wallet/models/token/coingecko/coin.dart';
 
 class _TokenConst {
   static const String unknowTokenName = "Unknown";
 }
 
-abstract class APPToken with CborSerializable, Equality {
+abstract class APPToken with AppSerialization, Equality {
   final String name;
   final String symbol;
   final String nameView;
@@ -28,29 +25,26 @@ abstract class APPToken with CborSerializable, Equality {
 
 class Token extends APPToken {
   final int decimal;
-  factory Token.deserialize({List<int>? bytes, CborObject? obj}) {
+  factory Token.deserialize({List<int>? bytes, CborObject? object}) {
     try {
-      final CborListValue cbor = CborSerializable.cborTagValue(
-          cborBytes: bytes, object: obj, tags: CborTagsConst.token);
-      final String name = cbor.elementAs(0);
-      final String symbol = cbor.elementAs(1);
-      final int decimal = cbor.elementAs(2);
-      final APPImage? image = cbor.elemetMybeAs<APPImage, CborTagValue>(
-          3, (e) => APPImage.deserialize(obj: e));
-      final CoingeckoCoin? market =
-          cbor.elemetMybeAs<CoingeckoCoin, CborTagValue>(
-              4, (e) => CoingeckoCoin.fromCborBytesOrObject(obj: e));
+      final CborListValue cbor = AppSerialization.decodeTaggedValue(
+          cborBytes: bytes,
+          cborObject: object,
+          identifier: AppSerializationIdentifier.token);
+      final String name = cbor.rawValueAt(0);
+      final String symbol = cbor.rawValueAt(1);
+      final int decimal = cbor.rawValueAt(2);
+      final APPImage? image = cbor.maybeObjectAt<APPImage, CborTagValue>(
+          3, (e) => APPImage.deserialize(object: e));
+      final CoingeckoCoin? market = cbor.maybeObjectAt<CoingeckoCoin, CborTagValue>(
+          4, (e) => CoingeckoCoin.deserialize(object: e));
       return Token(
-          name: name,
-          symbol: symbol,
-          decimal: decimal,
-          assetLogo: image,
-          market: market);
+          name: name, symbol: symbol, decimal: decimal, assetLogo: image, market: market);
     } catch (e) {
       throw WalletExceptionConst.invalidTokenInformation;
     }
   }
-  const Token._(
+  const Token.unsafe(
       {required super.name,
       required super.symbol,
       required super.nameView,
@@ -71,7 +65,7 @@ class Token extends APPToken {
     symbol ??= name;
     final String nameView = StrUtils.substring(name, length: 20);
     final String symbolView = StrUtils.substring(symbol, length: 5);
-    return Token._(
+    return Token.unsafe(
         name: name,
         symbol: symbol,
         assetLogo: assetLogo,
@@ -96,20 +90,7 @@ class Token extends APPToken {
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          name,
-          symbol,
-          decimal,
-          assetLogo?.toCbor() ?? const CborNullValue(),
-          market?.toCbor() ?? const CborNullValue()
-        ]),
-        CborTagsConst.token);
-  }
-
-  @override
-  List get variabels => [name, symbol, decimal];
+  List get variables => [name, symbol, decimal];
 
   String? get marketUri {
     return market?.marketUri;
@@ -119,20 +100,33 @@ class Token extends APPToken {
   String toString() {
     return "Token: $name";
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier => AppSerializationIdentifier.token;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        name.toCbor(),
+        symbol.toCbor(),
+        decimal.toCbor(),
+        assetLogo?.toCbor(),
+        market?.toCbor()
+      ];
 }
 
 class NonDecimalToken extends APPToken {
-  factory NonDecimalToken.deserialize({List<int>? bytes, CborObject? obj}) {
+  factory NonDecimalToken.deserialize({List<int>? bytes, CborObject? object}) {
     try {
-      final CborListValue cbor = CborSerializable.cborTagValue(
-          cborBytes: bytes, object: obj, tags: CborTagsConst.decimalToken);
-      final String name = cbor.elementAs(0);
-      final String symbol = cbor.elementAs(1);
-      final APPImage? image = cbor.elemetMybeAs<APPImage, CborTagValue>(
-          2, (e) => APPImage.deserialize(obj: e));
-      final CoingeckoCoin? market =
-          cbor.elemetMybeAs<CoingeckoCoin, CborTagValue>(
-              3, (e) => CoingeckoCoin.fromCborBytesOrObject(obj: e));
+      final CborListValue cbor = AppSerialization.decodeTaggedValue(
+          cborBytes: bytes,
+          cborObject: object,
+          identifier: AppSerializationIdentifier.decimalToken);
+      final String name = cbor.rawValueAt(0);
+      final String symbol = cbor.rawValueAt(1);
+      final APPImage? image = cbor.maybeObjectAt<APPImage, CborTagValue>(
+          2, (e) => APPImage.deserialize(object: e));
+      final CoingeckoCoin? market = cbor.maybeObjectAt<CoingeckoCoin, CborTagValue>(
+          3, (e) => CoingeckoCoin.deserialize(object: e));
 
       return NonDecimalToken(
           name: name, symbol: symbol, assetLogo: image, market: market);
@@ -176,19 +170,7 @@ class NonDecimalToken extends APPToken {
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          name,
-          symbol,
-          assetLogo?.toCbor() ?? const CborNullValue(),
-          market?.toCbor() ?? const CborNullValue()
-        ]),
-        CborTagsConst.decimalToken);
-  }
-
-  @override
-  List get variabels => [name, symbol];
+  List get variables => [name, symbol];
 
   String? get marketUri {
     return market?.marketUri;
@@ -198,4 +180,12 @@ class NonDecimalToken extends APPToken {
   String toString() {
     return "Token: $name";
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.decimalToken;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [name.toCbor(), symbol.toCbor(), assetLogo?.toCbor(), market?.toCbor()];
 }

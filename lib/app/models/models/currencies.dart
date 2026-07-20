@@ -1,6 +1,6 @@
 // ignore_for_file: constant_identifier_names
 
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/app/utils/list/extension.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
 enum Currency {
@@ -80,7 +80,8 @@ enum Currency {
   }
 
   static Currency? fromName(String? name) {
-    return MethodUtils.nullOnException(() => values.firstWhere(
-        (element) => element.name.toLowerCase() == name?.toLowerCase()));
+    if (name == null) return null;
+    name = name.toLowerCase();
+    return values.firstWhereOrNull((element) => element.name.toLowerCase() == name);
   }
 }

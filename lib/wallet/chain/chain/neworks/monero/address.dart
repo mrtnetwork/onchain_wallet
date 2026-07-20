@@ -1,101 +1,108 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class IMoneroAddress extends ChainAccount<MoneroAddress, TokenCore,
-    NFTCore, MoneroWalletTransaction> {
-  factory IMoneroAddress._newAccount(
-      {required WalletMoneroNetwork network,
-      required MoneroAddress address,
-      required MoneroViewAccountDetails addressDetails,
-      required AddressDerivationIndex keyIndex,
-      required CryptoCoins coin,
-      required String identifier}) {
-    final balance =
-        ChainAccountBalance(address: address.address, network: network);
+final class IMoneroAddress extends ChainAccount<MoneroAddress, TokenCore, NFTCore,
+    MoneroWalletTransaction, WalletMoneroNetwork> {
+  factory IMoneroAddress._newAccount({
+    required WalletMoneroNetwork network,
+    required MoneroAddress address,
+    required MoneroAccountIndex addressDetails,
+    required DerivationIndex derivationIndex,
+    required IAppDatabaseApi? database,
+    required CryptoCoins coin,
+    required String identifier,
+    required String? id,
+    required int? activationHeight,
+  }) {
     return IMoneroAddress._(
         coin: coin,
-        address: balance,
+        address: address.address,
         identifier: identifier,
-        keyIndex: keyIndex,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: address,
-        network: network.value,
-        addrDetails: addressDetails);
+        network: network,
+        index: addressDetails,
+        id: id,
+        activationHeight: activationHeight);
   }
 
-  factory IMoneroAddress.deserialize(WalletMoneroNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.moneroAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
-    final keyIndex =
-        AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(1));
-    final addrDetails = MoneroViewAccountDetails.deserialize(
-        object: values.elementAsCborTag(2));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(3));
-    final networkAddress = MoneroAddress(address.toAddress);
-    final int networkId = values.elementAs(4);
+  factory IMoneroAddress.deserialize(
+      {required WalletMoneroNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.moneroAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final derivationIndex =
+        DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
+    final index =
+        MoneroAccountIndex.deserialize(object: values.objectAt<CborTagValue>(2));
+    final networkAddress = MoneroAddress.deserializeIAddress(bytes: values.rawValueAt(3));
+    final int networkId = values.rawValueAt(4);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String? name = values.elementAs(5);
-    final String identifier = values.elementAs(6);
+    final String identifier = values.rawValueAt(5);
+    final int? activationHeight = values.rawValueAt(6);
     return IMoneroAddress._(
         coin: coin,
-        address: address,
-        keyIndex: keyIndex.cast(),
+        address: networkAddress.address,
+        database: database,
+        derivationIndex: derivationIndex.cast(),
         networkAddress: networkAddress,
-        network: network.value,
-        accountName: name,
-        addrDetails: addrDetails,
-        identifier: identifier);
+        network: network,
+        index: index,
+        identifier: identifier,
+        id: id,
+        activationHeight: activationHeight);
   }
   IMoneroAddress._(
-      {required super.keyIndex,
+      {required super.derivationIndex,
+      required super.database,
       required super.coin,
       required super.networkAddress,
       required super.address,
       required super.network,
-      required this.addrDetails,
+      required this.index,
       required super.identifier,
-      super.accountName});
+      required super.id,
+      required this.activationHeight});
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          keyIndex.toCbor(),
-          addrDetails.toCbor(),
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          identifier
-        ]),
-        CborTagsConst.moneroAccount);
-  }
-
-  final MoneroViewAccountDetails addrDetails;
-
-  MoneroAddress get primaryAddress => addrDetails.viewKey.primaryAddress;
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.moneroAccount;
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        derivationIndex.toCbor(),
+        index.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        identifier.toCbor()
+      ];
+  final MoneroAccountIndex index;
+  final int? activationHeight;
 
   @override
-  List get variabels => [addrDetails, keyIndex, network];
+  List get variables => [index, derivationIndex, network.value];
 
   @override
   String get type => networkAddress.type.name;
-
   @override
   MoneroNewAddressParams toAccountParams() {
-    return MoneroNewAddressParams(
-        deriveIndex: keyIndex,
-        major: addrDetails.index.major,
-        minor: addrDetails.index.minor,
-        addrDetails: addrDetails,
-        coin: coin,
-        network: addrDetails.viewKey.network);
+    return switch (derivationIndex) {
+      Bip32DerivationIndex dIndex => MoneroNewAddressParams(
+          deriveIndex: dIndex,
+          major: index.index.major,
+          minor: index.index.minor,
+          activeHeight: activationHeight,
+          coin: coin,
+          network: network.coinParam.network),
+      _ => throw AppCryptoExceptionConst.invalidDerivationKey
+    };
   }
-
-  @override
-  List<int>? get publicKey => addrDetails.viewKey.viewPrivateKey;
 }

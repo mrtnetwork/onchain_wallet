@@ -1,12 +1,11 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/address/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/address/utils.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/token/coingecko/coin.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
-// import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
 
 class APPSwapUtils {
@@ -28,9 +27,8 @@ class APPSwapUtils {
         symbol: asset.symbol,
         decimal: asset.decimal,
         assetLogo: APPImage.network(asset.logoUrl),
-        market: asset.coingeckoId == null
-            ? null
-            : CoingeckoCoin(apiId: asset.coingeckoId!));
+        market:
+            asset.coingeckoId == null ? null : CoingeckoCoin(apiId: asset.coingeckoId!));
   }
 
   static APPSwapFee swapFeeToAppSwapFee(SwapFee fee) {
@@ -51,18 +49,15 @@ class APPSwapAssets with Equality {
   // final IntegerBalance amount;
   final WalletNetwork network;
   final Token token;
-  const APPSwapAssets(
-      {required this.asset, required this.network, required this.token});
+  const APPSwapAssets({required this.asset, required this.network, required this.token});
   factory APPSwapAssets.fromAsset(
       {required BaseSwapAsset asset, required WalletNetwork network}) {
     return APPSwapAssets(
-        asset: asset,
-        network: network,
-        token: APPSwapUtils.swapAssetToToken(asset));
+        asset: asset, network: network, token: APPSwapUtils.swapAssetToToken(asset));
   }
 
   @override
-  List get variabels => [asset];
+  List get variables => [asset];
 }
 
 class RouteBpsPriceDetails {
@@ -119,8 +114,8 @@ class APPSwapRoutes {
 
   void toggleSorting() {
     final routes = _routes.clone();
-    routes.sort((a, b) =>
-        a.route.expectedAmount.amount.compareTo(b.route.expectedAmount.amount));
+    routes.sort(
+        (a, b) => a.route.expectedAmount.amount.compareTo(b.route.expectedAmount.amount));
     _routes = routes.immutable;
     _route.notify();
   }
@@ -131,16 +126,15 @@ class APPSwapRoutes {
     required this.sourceChain,
     required this.destChain,
   })  : _routes = routes.immutable,
-        _route = StreamValue(route),
+        _route = StreamValue(route, name: "APPSwapRoutes"),
         _tolerance = route.route.tolerance,
-        _maxTolerance =
-            IntUtils.max(50, route.route.tolerance.ceil()).toDouble();
+        _maxTolerance = IntUtils.max(50, route.route.tolerance.ceil()).toDouble();
   factory APPSwapRoutes(
       {required List<SwapRouteWithBps> routes,
       required Chain sourceChain,
       required Chain destChain}) {
-    routes.sort((a, b) =>
-        a.route.expectedAmount.amount.compareTo(b.route.expectedAmount.amount));
+    routes.sort(
+        (a, b) => a.route.expectedAmount.amount.compareTo(b.route.expectedAmount.amount));
     return APPSwapRoutes._(
         routes: routes,
         route: routes.last,
@@ -165,8 +159,7 @@ class APPSwapRoutes {
     routes[index] = newRoute;
     _routes = routes.immutable;
     _tolerance = newRoute.route.tolerance;
-    _maxTolerance =
-        IntUtils.max(50, newRoute.route.tolerance.ceil()).toDouble();
+    _maxTolerance = IntUtils.max(50, newRoute.route.tolerance.ceil()).toDouble();
     _route.value = newRoute;
   }
 
@@ -224,8 +217,7 @@ class APPSwapRoute {
     if (destChain.network != destAsset.network) {
       throw WalletExceptionConst.invalidSwapInformation;
     }
-    if (sources.isEmpty ||
-        sources.any((e) => e.network != sourceChain.network.value)) {
+    if (sources.isEmpty || sources.any((e) => e.network != sourceChain.network)) {
       throw WalletExceptionConst.invalidSwapInformation;
     }
     if (!BlockchainAddressUtils.isValidNetworkAddress(
@@ -235,10 +227,8 @@ class APPSwapRoute {
     if (transaction.operations.isEmpty ||
         transaction.route != route.route ||
         transaction.params.destinationAddress != destAddress.view ||
-        !sources.any(
-            (e) => e.address.address == transaction.params.sourceAddress) ||
-        transaction.operations
-            .any((e) => e.network != sourceAsset.asset.network)) {
+        !sources.any((e) => e.address == transaction.params.sourceAddress) ||
+        transaction.operations.any((e) => e.network != sourceAsset.asset.network)) {
       throw WalletExceptionConst.invalidSwapInformation;
     }
     return APPSwapRoute._(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/context.dart';
 import 'package:on_chain_wallet/future/state_managment/typdef/typedef.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/widget_constant.dart';
@@ -20,7 +20,7 @@ class ToolTipView extends StatelessWidget {
       this.padding = const EdgeInsets.all(10),
       this.selectableTooltip = false,
       this.backgroundColor,
-      this.waitDuration = const Duration(seconds: 2),
+      this.waitDuration = const Duration(milliseconds: 700),
       this.textStyle});
 
   ToolTipView setKey(GlobalKey<TooltipState>? toolTipKey) {
@@ -78,8 +78,7 @@ class ToolTipView extends StatelessWidget {
                     message!,
                     style: textStyle ??
                         theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onTertiaryContainer
-                                .wOpacity(0.8)),
+                            color: theme.colorScheme.onTertiaryContainer.wOpacity(0.8)),
                   ))),
       margin: margin,
       padding: padding,

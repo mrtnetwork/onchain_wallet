@@ -1,4 +1,3 @@
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/web3/operations/send_transaction.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/web3/operations/sign_message.dart';
@@ -10,7 +9,7 @@ import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/others.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/xrp.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
 
 enum XRPWeb3SigningMode {
@@ -20,13 +19,13 @@ enum XRPWeb3SigningMode {
   bool get isFull => this == full;
 }
 
-abstract class Web3XRPStateController<RESPONSE, CLIENT extends XRPClient?,
+abstract class Web3XRPStateController<RESPONSE, CLIENT extends XRPNetworkClient?,
         T extends Web3XRPRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
-        XRPAddress,
+        XRPBaseAddress,
         WalletXRPNetwork,
-        XRPClient,
+        XRPNetworkClient,
         CLIENT,
         IXRPAddress,
         XRPChain,
@@ -35,19 +34,10 @@ abstract class Web3XRPStateController<RESPONSE, CLIENT extends XRPClient?,
         Web3XRPRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         XRPWalletTransaction> {
-  Web3XRPStateController(
-      {required super.walletProvider, required super.request});
+  Web3XRPStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3XRPRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3XRPStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3XRPRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3XRPRequestMethods.signMessage:
         return Web3XRPSignMessageStateController(
@@ -62,17 +52,15 @@ abstract class Web3XRPStateController<RESPONSE, CLIENT extends XRPClient?,
   }
 }
 
-abstract class BaseWeb3XRPTransactionStateController<
-        RESPONSE,
-        T extends Web3XRPRequestParam<RESPONSE>,
-        E extends IWeb3XRPTransactionData>
+abstract class BaseWeb3XRPTransactionStateController<RESPONSE,
+        T extends Web3XRPRequestParam<RESPONSE>, E extends IWeb3XRPTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
-        XRPAddress,
-        IXRPAddress,
-        XRPClient,
-        XRPClient,
+        XRPBaseAddress,
         WalletXRPNetwork,
+        IXRPAddress,
+        XRPNetworkClient,
+        XRPNetworkClient,
         XRPChain,
         Web3XRPChainAccount,
         T,
@@ -111,13 +99,11 @@ class IWeb3XRPTransactionRawData extends IWeb3XRPTransactionData {
 
 class IWeb3XRPTransaction<TXDATA extends IWeb3XRPTransactionData>
     extends ITransaction<TXDATA, IXRPAddress> {
-  const IWeb3XRPTransaction(
-      {required super.account, required super.transactionData});
+  const IWeb3XRPTransaction({required super.account, required super.transactionData});
 }
 
 class IWeb3XRPSignedTransaction<TXDATA extends IWeb3XRPTransactionData>
-    extends ISignedTransaction<IWeb3XRPTransaction<TXDATA>,
-        SubmittableTransaction> {
+    extends ISignedTransaction<IWeb3XRPTransaction<TXDATA>, SubmittableTransaction> {
   IWeb3XRPSignedTransaction(
       {required super.transaction,
       required super.signatures,
@@ -134,9 +120,8 @@ abstract class XRPWeb3TransactionInfo {
 }
 
 class XRPWeb3TransactionInfoPayment extends XRPWeb3TransactionInfo {
-  final ReceiptAddress<XRPAddress> recipient;
+  final ReceiptAddress<XRPBaseAddress> recipient;
   final BalanceCore amount;
-  const XRPWeb3TransactionInfoPayment(
-      {required this.recipient, required this.amount})
+  const XRPWeb3TransactionInfoPayment({required this.recipient, required this.amount})
       : super(type: SubmittableTransactionType.payment);
 }

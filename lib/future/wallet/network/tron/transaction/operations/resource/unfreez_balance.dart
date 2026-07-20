@@ -14,20 +14,15 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 class TronTransactionUnFreezeBalanceV2ContractOperation
     extends TronTransactionStateController2<UnfreezeBalanceV2Contract> {
   TronTransactionUnFreezeBalanceV2ContractOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
-
-  TronAccountInfo? get accountInfo => address.accountInfo;
+      {required super.walletProvider, required super.account, required super.address});
 
   late final IntegerBalance stackedBalance = IntegerBalance.zero(network.token);
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
-          title: "unfreeze_balance".tr,
-          subtitle: "trx_unstake_amount".tr,
-          value: IntegerBalance.zero(network.token, allowNegative: false),
-          optional: false);
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
+      title: "unfreeze_balance".tr,
+      subtitle: "trx_unstake_amount".tr,
+      value: IntegerBalance.zero(network.token, allowNegative: false),
+      optional: false);
 
   final LiveFormField<ResourceCode, ResourceCode> resource = LiveFormField(
       title: "resource".tr,
@@ -83,7 +78,7 @@ class TronTransactionUnFreezeBalanceV2ContractOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
     return TronTransactionUnFreezeBalanceV2ContractOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -106,8 +101,7 @@ class TronTransactionUnFreezeBalanceV2ContractOperation
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     _setResourceAmount(resource.value);
     return this;
   }

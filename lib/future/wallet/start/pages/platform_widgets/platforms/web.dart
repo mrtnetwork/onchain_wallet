@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_bridge/web/api/chrome/api/core.dart';
-import 'package:on_chain_wallet/app/constant/global/state.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/controller/extension/models/models.dart';
 import 'package:on_chain_wallet/future/wallet/controller/wallet/cross/web.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
@@ -27,7 +24,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     final extension = wallet.wallet as ExtentionWallet;
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -68,8 +65,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
                         context.openDialogPage(
                           "",
                           child: (context) {
-                            return AccessWalletView<
-                                WalletCredentialResponseLogin,
+                            return AccessWalletView<WalletCredentialResponseLogin,
                                 WalletCredentialLogin>(
                               request: WalletCredentialLogin.instance,
                               onWalletAccess: (_) {},
@@ -78,8 +74,8 @@ class _AppbarExtentionWidget extends StatelessWidget {
                         );
                       },
                       trailing: const Icon(Icons.lock_open),
-                      title: Text("unlock_wallet".tr,
-                          style: context.textTheme.labelMedium),
+                      title:
+                          Text("unlock_wallet".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (wallet.wallet.isUnlock)
@@ -89,8 +85,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
                         wallet.wallet.lock();
                       },
                       trailing: const Icon(Icons.lock),
-                      title: Text("lock_wallet".tr,
-                          style: context.textTheme.labelMedium),
+                      title: Text("lock_wallet".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (wallet.wallet.isOpen)
@@ -100,8 +95,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
                         context.to(PageRouter.setting);
                       },
                       trailing: const Icon(Icons.settings),
-                      title: Text("settings".tr,
-                          style: context.textTheme.labelMedium),
+                      title: Text("settings".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (wallet.walletPage.inSwap)
@@ -110,14 +104,16 @@ class _AppbarExtentionWidget extends StatelessWidget {
                       onTap: () {
                         wallet.swap?.updateSettings((controller) {
                           return context.openSliverDialog(
-                              widget: (context) =>
-                                  SelectSwapProvidersView(controller),
+                              widget: (context) => SelectSwapProvidersView(controller),
                               label: 'swap_settings'.tr);
-                        });
+                        }).then((e) => e.watch(
+                              onErr: (error) =>
+                                  context.showAlert(error.localizationError),
+                            ));
                       },
                       trailing: const Icon(Icons.swap_horiz_outlined),
-                      title: Text("swap_settings".tr,
-                          style: context.textTheme.labelMedium),
+                      title:
+                          Text("swap_settings".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (extension.context.context.isAction) ...[
@@ -125,8 +121,8 @@ class _AppbarExtentionWidget extends StatelessWidget {
                     value: ExtensionWalletContextType.popup,
                     child: AppListTile(
                       trailing: const Icon(Icons.open_in_new),
-                      title: Text("open_as_popup".tr,
-                          style: context.textTheme.labelMedium),
+                      title:
+                          Text("open_as_popup".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                   PopupMenuItem<ExtensionWalletContextType>(
@@ -171,7 +167,7 @@ class _AppbarWebWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     if (!wallet.wallet.isOpen) return WidgetConstant.sizedBox;
 
     return Row(
@@ -192,8 +188,7 @@ class _AppbarWebWidget extends StatelessWidget {
                         context.openDialogPage(
                           "",
                           child: (context) {
-                            return AccessWalletView<
-                                WalletCredentialResponseLogin,
+                            return AccessWalletView<WalletCredentialResponseLogin,
                                 WalletCredentialLogin>(
                               request: WalletCredentialLogin.instance,
                               onWalletAccess: (_) {},
@@ -202,8 +197,8 @@ class _AppbarWebWidget extends StatelessWidget {
                         );
                       },
                       trailing: const Icon(Icons.lock_open),
-                      title: Text("unlock_wallet".tr,
-                          style: context.textTheme.labelMedium),
+                      title:
+                          Text("unlock_wallet".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (wallet.wallet.isUnlock)
@@ -213,8 +208,7 @@ class _AppbarWebWidget extends StatelessWidget {
                         wallet.wallet.lock();
                       },
                       trailing: const Icon(Icons.lock),
-                      title: Text("lock_wallet".tr,
-                          style: context.textTheme.labelMedium),
+                      title: Text("lock_wallet".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (wallet.wallet.isOpen)
@@ -224,8 +218,7 @@ class _AppbarWebWidget extends StatelessWidget {
                         context.to(PageRouter.setting);
                       },
                       trailing: const Icon(Icons.settings),
-                      title: Text("settings".tr,
-                          style: context.textTheme.labelMedium),
+                      title: Text("settings".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
                 if (wallet.walletPage.inSwap)
@@ -234,14 +227,16 @@ class _AppbarWebWidget extends StatelessWidget {
                       onTap: () {
                         wallet.swap?.updateSettings((controller) {
                           return context.openSliverDialog(
-                              widget: (context) =>
-                                  SelectSwapProvidersView(controller),
+                              widget: (context) => SelectSwapProvidersView(controller),
                               label: 'swap_settings'.tr);
-                        });
+                        }).then((e) => e.watch(
+                              onErr: (error) =>
+                                  context.showAlert(error.localizationError),
+                            ));
                       },
                       trailing: const Icon(Icons.swap_horiz_outlined),
-                      title: Text("swap_settings".tr,
-                          style: context.textTheme.labelMedium),
+                      title:
+                          Text("swap_settings".tr, style: context.textTheme.labelMedium),
                     ),
                   ),
               ];

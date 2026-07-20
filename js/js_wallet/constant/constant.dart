@@ -10,14 +10,14 @@ class JSWalletConstant {
   static const String rdns = "com.mrtnetwork.wallet";
   static const String version = "0.4.0";
 
-  static final requestAuthEvent = WalletEvent(
+  static final requestAuthEvent = JSWalletEventDart(
       clientId: "",
       data: [],
       requestId: "0",
       type: WalletEventTypes.tabId,
       target: WalletEventTarget.external);
 
-  static final openExtension = WalletEvent(
+  static final openExtension = JSWalletEventDart(
       clientId: "content_script",
       data: const [],
       requestId: "0",

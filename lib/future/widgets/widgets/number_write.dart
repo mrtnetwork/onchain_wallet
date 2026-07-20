@@ -1,8 +1,7 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/widgets.dart';
 import 'package:on_chain_wallet/app/core.dart' show APPConst;
-import 'package:on_chain_wallet/app/models/models/typedef.dart'
-    show NullStringString;
+import 'package:on_chain_wallet/app/models/models/typedef.dart' show NullStringString;
 import 'package:on_chain_wallet/future/text_field/input_formaters.dart';
 import 'button.dart';
 import 'constraints_box_view.dart';
@@ -44,37 +43,30 @@ class NumberWriteView extends StatefulWidget {
 class _NumberWriteViewState extends State<NumberWriteView> with SafeState {
   final GlobalKey<AppTextFieldState> textFieldKey =
       GlobalKey(debugLabel: "_NumberWriteViewState");
-  final GlobalKey<FormState> formKey =
-      GlobalKey(debugLabel: "_NumberWriteViewState_1");
+  final GlobalKey<FormState> formKey = GlobalKey(debugLabel: "_NumberWriteViewState_1");
   late String text = widget.defaultValue?.toString() ?? "0";
   void onChange(String v) {
     text = v;
   }
 
   String? validator(String? v) {
-    final val = BigRational.tryParseDecimaal(v ?? "");
+    final val = BigRational.tryParse(v ?? "");
     if (val == null) {
       return "enter_valid_number".tr;
     }
     if (widget.regExp != null) {
       if (!widget.regExp!.hasMatch(v!)) {
-        return "regular_exception_validate_desc"
-            .tr
-            .replaceOne(widget.regExp!.pattern);
+        return "regular_exception_validate_desc".tr.replaceOne(widget.regExp!.pattern);
       }
     }
     if (widget.min != null) {
       if (val < widget.min!) {
-        return "minium_numnber_validator"
-            .tr
-            .replaceOne(widget.min!.toString().to3Digits);
+        return "minium_numnber_validator".tr.replaceOne(widget.min!.toString().to3Digits);
       }
     }
     if (widget.max != null) {
       if (val > widget.max!) {
-        return "maximum_number_validator"
-            .tr
-            .replaceOne(widget.max!.toString().to3Digits);
+        return "maximum_number_validator".tr.replaceOne(widget.max!.toString().to3Digits);
       }
     }
     return null;
@@ -86,7 +78,7 @@ class _NumberWriteViewState extends State<NumberWriteView> with SafeState {
 
   void onPressed() {
     if (!formKey.ready()) return;
-    final parse = BigRational.tryParseDecimaal(text);
+    final parse = BigRational.tryParse(text);
 
     if (context.mounted && parse != null) {
       context.pop(parse);

@@ -25,8 +25,7 @@ class _HistoriesPageState extends State<WebViewHistoriesView> with SafeState {
   late final List<WebViewTab> _tabs = List<WebViewTab>.from(widget.items);
   late List<WebViewTab> filteredTabs = List<WebViewTab>.from(widget.items);
   Map<DateTime, List<WebViewTab>> items = {};
-  static Map<DateTime, List<WebViewTab>> groupVisitsByDate(
-      List<WebViewTab> visits) {
+  static Map<DateTime, List<WebViewTab>> groupVisitsByDate(List<WebViewTab> visits) {
     final Map<DateTime, List<WebViewTab>> groupedVisits = {};
     for (final visit in visits) {
       final DateTime dateKey = visit.lastVisit.toOnlyDate();
@@ -69,13 +68,10 @@ class _HistoriesPageState extends State<WebViewHistoriesView> with SafeState {
     final accept = await context.openSliverDialog(
       routeName: PageRouter.webviewRemoveHistory,
       widget: (context) => DialogTextView(
-        text: widget.isHistory
-            ? "remove_all_histories".tr
-            : "remove_bookmarks".tr,
+        text: widget.isHistory ? "remove_all_histories".tr : "remove_bookmarks".tr,
         buttonWidget: DialogDoubleButtonView(),
       ),
-      label:
-          widget.isHistory ? 'remove_histories'.tr : 'remove_all_bookmarks'.tr,
+      label: widget.isHistory ? 'remove_histories'.tr : 'remove_all_bookmarks'.tr,
     );
     if (accept != true) return;
     if (widget.isHistory) {
@@ -93,7 +89,7 @@ class _HistoriesPageState extends State<WebViewHistoriesView> with SafeState {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    MethodUtils.after(() async {
+    MethodUtils.executeAfterDelay(() async {
       items = groupVisitsByDate(_tabs);
       progressKey.backToIdle();
     });
@@ -189,37 +185,30 @@ class _HistoriesPageState extends State<WebViewHistoriesView> with SafeState {
                                 CircleAPPImageView(
                                   tab.image,
                                   radius: APPConst.circleRadius12,
-                                  onError: (c) => Icon(
-                                      Icons.travel_explore_rounded,
+                                  onError: (c) => Icon(Icons.travel_explore_rounded,
                                       color: context.onPrimaryContainer),
-                                  onProgress: (c) => Icon(
-                                      Icons.travel_explore_rounded,
+                                  onProgress: (c) => Icon(Icons.travel_explore_rounded,
                                       color: context.onPrimaryContainer),
                                 ),
                                 WidgetConstant.width8,
                                 Expanded(
                                     child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                       Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
+                                        mainAxisAlignment: MainAxisAlignment.end,
                                         children: [
                                           Text(
                                             tab.lastVisit.toTimeOnlyStr(),
-                                            style: context
-                                                .onPrimaryTextTheme.bodySmall,
+                                            style: context.onPrimaryTextTheme.bodySmall,
                                           )
                                         ],
                                       ),
                                       if (haveTitle)
                                         OneLineTextWidget(tab.viewTitle!,
-                                            style: context
-                                                .onPrimaryTextTheme.labelLarge),
+                                            style: context.onPrimaryTextTheme.labelLarge),
                                       OneLineTextWidget(tab.url,
-                                          style: context
-                                              .onPrimaryTextTheme.bodySmall),
+                                          style: context.onPrimaryTextTheme.bodySmall),
                                     ])),
                               ],
                             ),

@@ -1,11 +1,12 @@
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
-import 'package:on_chain_wallet/crypto/utils/substrate/substrate.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/networks/substrate/substrate.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/signing/signing.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 
 mixin SubstrateTransactionSignerController on DisposableMixin {
   WalletProvider get walletProvider;
@@ -20,18 +21,18 @@ mixin SubstrateTransactionSignerController on DisposableMixin {
       signature = SubstrateUtils.createFakeSignature(signer.coin.conf.type);
     } else {
       final sig = await walletProvider.wallet.signTransaction(
-          request: WalletSigningRequest<List<int>>(
+          params: WalletActionSign(
+              request: WalletSigningRequest<List<int>>(
         addresses: [signer],
         network: network,
         sign: (generateSignature) async {
           final signature = await generateSignature(GlobalSignRequest.substrate(
-              digest: payloadBytes, index: signer.keyIndex));
+              digest: payloadBytes, index: signer.derivationIndex.cast()));
           return signature.signature;
         },
-      ));
-      signature = sig.result;
+      )));
+      signature = sig.unwrap();
     }
-    return SubstrateSignedTransaction(
-        signatures: [signature], payload: payloadBytes);
+    return SubstrateSignedTransaction(signatures: [signature], payload: payloadBytes);
   }
 }

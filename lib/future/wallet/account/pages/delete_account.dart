@@ -12,8 +12,7 @@ class DeleteAccountView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Chain account = context.getArgruments();
-    return AccessWalletView<WalletCredentialResponseVerify,
-            WalletCredentialVerify>(
+    return AccessWalletView<WalletCredentialResponseVerify, WalletCredentialVerify>(
         request: WalletCredentialVerify(),
         onAccsess: (credential) {
           return _DeleteAccountView(account: account);
@@ -34,20 +33,17 @@ class _DeleteAccountView extends StatefulWidget {
 
 class __DeleteAccountViewState extends State<_DeleteAccountView>
     with SafeState<_DeleteAccountView> {
-  final StreamPageProgressController progressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController progressKey = StreamPageProgressController();
   bool deleted = false;
 
   void deleteAccount(bool? accept) async {
     if (accept != true) return;
     progressKey.progressText("remove_account_pls_wait".tr);
-    final result = await MethodUtils.call(
-        () async => await widget.account.removeAccount(widget.account.address));
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
-    } else {
-      progressKey.successText("account_deleted".tr, backToIdle: false);
-    }
+    final result = await widget.account.removeAccount(widget.account.addressSync);
+    result.watch(
+      onErr: (error) => progressKey.errorText(error.localizationError),
+      onOk: (value) => progressKey.successText("account_deleted".tr, backToIdle: false),
+    );
   }
 
   @override
@@ -103,12 +99,13 @@ class __DeleteAccountViewState extends State<_DeleteAccountView>
                               Text("backup_private_key_desc".tr)
                             ],
                           )),
-                      Text("address_details".tr,
-                          style: context.textTheme.titleMedium),
+                      Text("address_details".tr, style: context.textTheme.titleMedium),
                       WidgetConstant.height8,
                       ContainerWithBorder(
                           child: AddressDetailsView(
-                              address: widget.account.address)),
+                        address: widget.account.addressSync,
+                        chain: widget.account,
+                      )),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -120,8 +117,7 @@ class __DeleteAccountViewState extends State<_DeleteAccountView>
                                   context
                                       .openSliverDialog<bool>(
                                         widget: (p0) => DialogTextView(
-                                            buttonWidget:
-                                                DialogDoubleButtonView(
+                                            buttonWidget: DialogDoubleButtonView(
                                               firstButtonLabel: "remove".tr,
                                               secoundButtonLabel: "cancel".tr,
                                             ),
@@ -136,8 +132,7 @@ class __DeleteAccountViewState extends State<_DeleteAccountView>
                                       )
                                       .then(deleteAccount);
                                 },
-                                icon: Icon(Icons.delete,
-                                    color: context.colors.error)),
+                                icon: Icon(Icons.delete, color: context.colors.error)),
                           )
                         ],
                       )

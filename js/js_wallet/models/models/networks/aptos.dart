@@ -1,9 +1,9 @@
 import 'dart:js_interop';
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/aptos/aptos.dart';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/aptos/aptos.dart';
 import 'wallet_standard.dart';
-import '../../models.dart';
 
 class AptosJSConstant {
   static const String version = '1.0.0';
@@ -21,8 +21,7 @@ class AptosJSConstant {
   static const String requestAccountRequestName = "aptos_requestAccounts";
   static const String signTransaction = "aptos_signTransaction";
   static const String signMessageRequestName = "aptos_signMessage";
-  static const String secondarySignerAddressesRequiredKeys =
-      "secondarySignerAddresses";
+  static const String secondarySignerAddressesRequiredKeys = "secondarySignerAddresses";
   static const String changeNetworkRequestName = "wallet_switchAptosChain";
 }
 
@@ -60,25 +59,20 @@ extension type AptosWalletAdapterFeatures(JSAny _) implements JSAny {
   @JS("aptos:network")
   external set network(AptosWalletAdapterStandardGetNetworkFeature _);
   @JS("aptos:onAccountChange")
-  external set onAccountChange(
-      AptosWalletAdapterStandardOnAccountChangeFeature _);
+  external set onAccountChange(AptosWalletAdapterStandardOnAccountChangeFeature _);
   @JS("aptos:onNetworkChange")
-  external set onNetworkChange(
-      AptosWalletAdapterStandardOnNetworkChangeFeature _);
+  external set onNetworkChange(AptosWalletAdapterStandardOnNetworkChangeFeature _);
   @JS("aptos:signTransaction")
-  external set signTransaction(
-      AptosWalletAdapterStandardSignTransactionFeature _);
+  external set signTransaction(AptosWalletAdapterStandardSignTransactionFeature _);
   @JS("aptos:signMessage")
   external set signMessage(AptosWalletAdapterStandardSignMessageFeature _);
   @JS("aptos:changeNetwork")
   external set changeNetwork(AptosWalletAdapterStandardChangeNetworkFeature _);
 }
 @JS()
-extension type AptosWalletAdapterStandardChangeNetworkFeature(JSAny _)
-    implements JSAny {
+extension type AptosWalletAdapterStandardChangeNetworkFeature(JSAny _) implements JSAny {
   factory AptosWalletAdapterStandardChangeNetworkFeature.setup(
-      {required JSFunction changeNetwork,
-      String version = AptosJSConstant.version}) {
+      {required JSFunction changeNetwork, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardChangeNetworkFeature(JSObject())
       ..changeNetwork = changeNetwork
       ..version = version;
@@ -87,8 +81,7 @@ extension type AptosWalletAdapterStandardChangeNetworkFeature(JSAny _)
   external set changeNetwork(JSFunction _);
 }
 @JS()
-extension type AptosWalletAdapterStandardConnectFeature(JSAny _)
-    implements JSAny {
+extension type AptosWalletAdapterStandardConnectFeature(JSAny _) implements JSAny {
   factory AptosWalletAdapterStandardConnectFeature.setup(
       {required JSFunction connect, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardConnectFeature(JSObject())
@@ -99,11 +92,9 @@ extension type AptosWalletAdapterStandardConnectFeature(JSAny _)
   external set connect(JSFunction _);
 }
 @JS()
-extension type AptosWalletAdapterStandardDisconnectFeature(JSAny _)
-    implements JSAny {
+extension type AptosWalletAdapterStandardDisconnectFeature(JSAny _) implements JSAny {
   factory AptosWalletAdapterStandardDisconnectFeature.setup(
-      {required JSFunction disconnect,
-      String version = AptosJSConstant.version}) {
+      {required JSFunction disconnect, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardDisconnectFeature(JSObject())
       ..disconnect = disconnect
       ..version = version;
@@ -112,8 +103,7 @@ extension type AptosWalletAdapterStandardDisconnectFeature(JSAny _)
   external set disconnect(JSFunction _);
 }
 @JS()
-extension type AptosWalletAdapterStandardAccountFeature(JSAny _)
-    implements JSAny {
+extension type AptosWalletAdapterStandardAccountFeature(JSAny _) implements JSAny {
   factory AptosWalletAdapterStandardAccountFeature.setup(
       {required JSFunction account, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardAccountFeature(JSObject())
@@ -124,8 +114,7 @@ extension type AptosWalletAdapterStandardAccountFeature(JSAny _)
   external set account(JSFunction _);
 }
 @JS()
-extension type AptosWalletAdapterStandardGetNetworkFeature(JSAny _)
-    implements JSAny {
+extension type AptosWalletAdapterStandardGetNetworkFeature(JSAny _) implements JSAny {
   factory AptosWalletAdapterStandardGetNetworkFeature.setup(
       {required JSFunction network, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardGetNetworkFeature(JSObject())
@@ -139,8 +128,7 @@ extension type AptosWalletAdapterStandardGetNetworkFeature(JSAny _)
 extension type AptosWalletAdapterStandardOnAccountChangeFeature(JSAny _)
     implements JSAny {
   factory AptosWalletAdapterStandardOnAccountChangeFeature.setup(
-      {required JSFunction onAccountChange,
-      String version = AptosJSConstant.version}) {
+      {required JSFunction onAccountChange, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardOnAccountChangeFeature(JSObject())
       ..onAccountChange = onAccountChange
       ..version = version;
@@ -152,8 +140,7 @@ extension type AptosWalletAdapterStandardOnAccountChangeFeature(JSAny _)
 extension type AptosWalletAdapterStandardOnNetworkChangeFeature(JSAny _)
     implements JSAny {
   factory AptosWalletAdapterStandardOnNetworkChangeFeature.setup(
-      {required JSFunction onNetworkChange,
-      String version = AptosJSConstant.version}) {
+      {required JSFunction onNetworkChange, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardOnNetworkChangeFeature(JSObject())
       ..onNetworkChange = onNetworkChange
       ..version = version;
@@ -165,8 +152,7 @@ extension type AptosWalletAdapterStandardOnNetworkChangeFeature(JSAny _)
 extension type AptosWalletAdapterStandardSignTransactionFeature(JSAny _)
     implements JSAny {
   factory AptosWalletAdapterStandardSignTransactionFeature.setup(
-      {required JSFunction signTransaction,
-      String version = AptosJSConstant.version}) {
+      {required JSFunction signTransaction, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardSignTransactionFeature(JSObject())
       ..signTransaction = signTransaction
       ..version = version;
@@ -175,11 +161,9 @@ extension type AptosWalletAdapterStandardSignTransactionFeature(JSAny _)
   external set signTransaction(JSFunction _);
 }
 @JS("aptos:signMessage")
-extension type AptosWalletAdapterStandardSignMessageFeature(JSAny _)
-    implements JSAny {
+extension type AptosWalletAdapterStandardSignMessageFeature(JSAny _) implements JSAny {
   factory AptosWalletAdapterStandardSignMessageFeature.setup(
-      {required JSFunction signMessage,
-      String version = AptosJSConstant.version}) {
+      {required JSFunction signMessage, String version = AptosJSConstant.version}) {
     return AptosWalletAdapterStandardSignMessageFeature(JSObject())
       ..signMessage = signMessage
       ..version = version;
@@ -188,8 +172,7 @@ extension type AptosWalletAdapterStandardSignMessageFeature(JSAny _)
   external set signMessage(JSFunction _);
 }
 
-extension type JSAptosPublicKey._(JSObject _)
-    implements JSAptosSerializableObject {
+extension type JSAptosPublicKey._(JSObject _) implements JSAptosSerializableObject {
   factory JSAptosPublicKey.setup(
       {required List<int> publicKey, required String publicKeyHex}) {
     return JSAptosPublicKey._(JSObject())
@@ -197,8 +180,7 @@ extension type JSAptosPublicKey._(JSObject _)
       ..dataHex = publicKeyHex;
   }
 }
-extension type JSAptosWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSAptosWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSAptosWalletAccount.setup(
       {required String address,
       required JSAptosPublicKey publicKey,
@@ -281,8 +263,7 @@ extension type JSAptosSignMessageParams(JSAny _) implements JSAny {
   external String get nonce;
   static List<String> get requiredKey => ["message", "nonce"];
 }
-extension type JSAptosSignMessageResponse(JSAny _)
-    implements JSAptosSerializableObject {
+extension type JSAptosSignMessageResponse(JSAny _) implements JSAptosSerializableObject {
   factory JSAptosSignMessageResponse.setup(
       {required List<int> signatureBytes,
       required String signatureHex,
@@ -398,7 +379,9 @@ enum JSAptosWalletStandardUserResponseStatus {
   bool get isRejected => this == rejected;
   static JSAptosWalletStandardUserResponseStatus fromName(String? name) {
     return values.firstWhere((e) => e.name == name,
-        orElse: () => throw Web3RequestExceptionConst.internalError);
+        orElse: () => throw Web3RequestExceptionConst.internalErr(
+            "JSAptosWalletStandardUserResponseStatus",
+            details: {"name": name}));
   }
 }
 

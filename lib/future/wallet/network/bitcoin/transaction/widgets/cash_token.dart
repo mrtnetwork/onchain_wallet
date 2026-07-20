@@ -20,154 +20,129 @@ class LiveFormWidgeCashTokenRemain<T extends Object> extends StatelessWidget {
         value: controller.remainingCashTokenAmount.value.notifier,
         builder: (context, _) {
           final value = controller.remainingCashTokenAmount.value;
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // WidgetConstant.height20,
-                APPAnimated(
-                    isActive: value.tokenRemains.isNotEmpty,
-                    onActive: (context) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              WidgetConstant.height20,
-                              Text(field.title,
-                                  style: context.textTheme.titleMedium),
-                              if (subtitle != null) Text(subtitle),
-                              WidgetConstant.height8,
-                              ContainerWithBorder(
-                                iconAlginment: CrossAxisAlignment.start,
-                                enableTap: false,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ContainerWithBorder(
-                                        onRemove: () {
-                                          context
-                                              .selectOrSwitchAccount<
-                                                      IBitcoinAddress>(
-                                                  account: controller.account,
-                                                  showMultiSig: true)
-                                              .then((v) {
-                                            if (v == null) return;
-                                            controller
-                                                .onUpdateRemainingTokenAccount(
-                                                    v);
-                                          });
-                                        },
-                                        onRemoveIcon: Icon(Icons.edit,
-                                            color: context.primaryContainer),
-                                        backgroundColor:
-                                            context.onPrimaryContainer,
-                                        child: ReceiptAddressDetailsView(
-                                            address: value.recipient,
-                                            color: context.primaryContainer)),
-                                    ListView.builder(
-                                      physics: WidgetConstant.noScrollPhysics,
-                                      itemBuilder: (context, index) {
-                                        final token = value.tokenRemains[index];
-                                        return ContainerWithBorder(
-                                          backgroundColor:
-                                              context.colors.onPrimaryContainer,
-                                          child: APPExpansionListTile(
-                                            color: context
-                                                .colors.onPrimaryContainer,
-                                            reverse:
-                                                context.colors.primaryContainer,
-                                            title: CashTokenDetailsView(
-                                              token.token,
-                                              balance: token.tokenAmount,
-                                            ),
-                                            children: [
-                                              Container(
-                                                  padding:
-                                                      WidgetConstant.padding10,
-                                                  decoration: BoxDecoration(
-                                                      color: context.colors
-                                                          .primaryContainer,
-                                                      borderRadius:
-                                                          WidgetConstant
-                                                              .border8),
-                                                  child: _RemainCashTokenView(
-                                                      token: token,
-                                                      controller: controller,
-                                                      transfer: value))
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                      itemCount: value.tokenRemains.length,
-                                      shrinkWrap: true,
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ])),
-                APPAnimated(
-                    isActive: value.burns.isNotEmpty,
-                    onActive: (context) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          WidgetConstant.height20,
-                          Text("burn".tr, style: context.textTheme.titleMedium),
-                          Text("tokens_burn_in_transaction_desc".tr),
-                          WidgetConstant.height8,
-                          ListView.builder(
-                            physics: WidgetConstant.noScrollPhysics,
-                            itemBuilder: (context, index) {
-                              final token = value.burns[index];
-                              return ContainerWithBorder(
-                                enableTap: false,
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // WidgetConstant.height20,
+            APPAnimated(
+                isActive: value.tokenRemains.isNotEmpty,
+                onActive: (context) =>
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      WidgetConstant.height20,
+                      Text(field.title, style: context.textTheme.titleMedium),
+                      if (subtitle != null) Text(subtitle),
+                      WidgetConstant.height8,
+                      ContainerWithBorder(
+                        iconAlginment: CrossAxisAlignment.start,
+                        enableTap: false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ContainerWithBorder(
                                 onRemove: () {
-                                  controller.onRemoveBurn(token);
+                                  context
+                                      .selectOrSwitchAccount<IBitcoinAddress>(
+                                          account: controller.account, showMultiSig: true)
+                                      .then((v) {
+                                    if (v == null) return;
+                                    controller.onUpdateRemainingTokenAccount(v);
+                                  });
                                 },
-                                onRemoveIcon: Icon(Icons.remove_circle,
-                                    color: context.colors.onPrimaryContainer),
-                                backgroundColor:
-                                    context.colors.primaryContainer,
-                                child: ConditionalWidget(
-                                    enable: !token.isImmutable &&
-                                        token.cashToken.hasAmount,
-                                    onDeactive: (context) =>
-                                        CashTokenDetailsView(
-                                          token.cashToken,
-                                          balance: token.viewAmount,
-                                          color:
-                                              context.colors.onPrimaryContainer,
-                                        ),
-                                    onActive: (context) => APPExpansionListTile(
-                                          color:
-                                              context.colors.onPrimaryContainer,
-                                          reverse:
-                                              context.colors.primaryContainer,
-                                          title: CashTokenDetailsView(
-                                            token.cashToken,
-                                            balance: token.burn,
-                                          ),
-                                          children: [
-                                            Container(
-                                                padding:
-                                                    WidgetConstant.padding10,
-                                                decoration: BoxDecoration(
-                                                    color: context.colors
-                                                        .primaryContainer,
-                                                    borderRadius:
-                                                        WidgetConstant.border8),
-                                                child: _BurnCashTokenView(
-                                                    token: token,
-                                                    controller: controller,
-                                                    transfer: value))
-                                          ],
-                                        )),
-                              );
+                                onRemoveIcon:
+                                    Icon(Icons.edit, color: context.primaryContainer),
+                                backgroundColor: context.onPrimaryContainer,
+                                child: ReceiptAddressDetailsView(
+                                    address: value.recipient,
+                                    color: context.primaryContainer)),
+                            ListView.builder(
+                              physics: WidgetConstant.noScrollPhysics,
+                              itemBuilder: (context, index) {
+                                final token = value.tokenRemains[index];
+                                return ContainerWithBorder(
+                                  backgroundColor: context.colors.onPrimaryContainer,
+                                  child: APPExpansionListTile(
+                                    color: context.colors.onPrimaryContainer,
+                                    reverse: context.colors.primaryContainer,
+                                    title: CashTokenDetailsView(
+                                      token.token,
+                                      balance: token.tokenAmount,
+                                    ),
+                                    children: [
+                                      Container(
+                                          padding: WidgetConstant.padding10,
+                                          decoration: BoxDecoration(
+                                              color: context.colors.primaryContainer,
+                                              borderRadius: WidgetConstant.border8),
+                                          child: _RemainCashTokenView(
+                                              token: token,
+                                              controller: controller,
+                                              transfer: value))
+                                    ],
+                                  ),
+                                );
+                              },
+                              itemCount: value.tokenRemains.length,
+                              shrinkWrap: true,
+                            )
+                          ],
+                        ),
+                      ),
+                    ])),
+            APPAnimated(
+                isActive: value.burns.isNotEmpty,
+                onActive: (context) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      WidgetConstant.height20,
+                      Text("burn".tr, style: context.textTheme.titleMedium),
+                      Text("tokens_burn_in_transaction_desc".tr),
+                      WidgetConstant.height8,
+                      ListView.builder(
+                        physics: WidgetConstant.noScrollPhysics,
+                        itemBuilder: (context, index) {
+                          final token = value.burns[index];
+                          return ContainerWithBorder(
+                            enableTap: false,
+                            onRemove: () {
+                              controller.onRemoveBurn(token);
                             },
-                            itemCount: value.burns.length,
-                            shrinkWrap: true,
-                          )
-                        ],
-                      );
-                    })
-              ]);
+                            onRemoveIcon: Icon(Icons.remove_circle,
+                                color: context.colors.onPrimaryContainer),
+                            backgroundColor: context.colors.primaryContainer,
+                            child: ConditionalWidget(
+                                enable: !token.isImmutable && token.cashToken.hasAmount,
+                                onDeactive: (context) => CashTokenDetailsView(
+                                      token.cashToken,
+                                      balance: token.viewAmount,
+                                      color: context.colors.onPrimaryContainer,
+                                    ),
+                                onActive: (context) => APPExpansionListTile(
+                                      color: context.colors.onPrimaryContainer,
+                                      reverse: context.colors.primaryContainer,
+                                      title: CashTokenDetailsView(
+                                        token.cashToken,
+                                        balance: token.burn,
+                                      ),
+                                      children: [
+                                        Container(
+                                            padding: WidgetConstant.padding10,
+                                            decoration: BoxDecoration(
+                                                color: context.colors.primaryContainer,
+                                                borderRadius: WidgetConstant.border8),
+                                            child: _BurnCashTokenView(
+                                                token: token,
+                                                controller: controller,
+                                                transfer: value))
+                                      ],
+                                    )),
+                          );
+                        },
+                        itemCount: value.burns.length,
+                        shrinkWrap: true,
+                      )
+                    ],
+                  );
+                })
+          ]);
         },
       )
     ]);
@@ -239,8 +214,8 @@ class _RemainCashTokenView extends StatelessWidget {
                       WidgetConstant.height8,
                       ContainerWithBorder(
                         backgroundColor: context.colors.onPrimaryContainer,
-                        onRemoveIcon: Icon(Icons.edit,
-                            color: context.colors.primaryContainer),
+                        onRemoveIcon:
+                            Icon(Icons.edit, color: context.colors.primaryContainer),
                         child: Text(
                           token.token.commitment ?? "",
                           style: context.primaryTextTheme.bodyMedium,
@@ -275,8 +250,7 @@ class _RemainCashTokenView extends StatelessWidget {
               } else {
                 context
                     .setupAmount(
-                        token: token.tokenAmount.token,
-                        max: token.tokenAmount.balance)
+                        token: token.tokenAmount.token, max: token.tokenAmount.balance)
                     .then((amount) {
                   if (amount == null) return;
                   controller.onUpdateBurnToken(token, amount: amount);

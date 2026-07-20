@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/sync/fetch_object.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
@@ -33,21 +33,17 @@ class FetchObjectWidget<T extends Object?> extends StatelessWidget {
               : null,
           onRemoveWidget: APPAnimated(
               isActive: object.status.isFailed,
-              onActive: (context) => Icon(Icons.refresh,
-                  color: context.colors.onPrimaryContainer)),
-          child: APPAnimatedSwitcher<FetchObjectStatus>(
-              enable: object.status,
-              widgets: {
-                FetchObjectStatus.idle: (context) =>
-                    onIdle?.call(context) ?? WidgetConstant.sizedBox,
-                FetchObjectStatus.pending: (context) => Shimmer(
-                    enable: false,
-                    onActive: (_, context) => onPending(context)),
-                FetchObjectStatus.failed: (context) =>
-                    onError(context, object.error!, object.errorMessage!),
-                FetchObjectStatus.success: (context) =>
-                    builder(context, object.value as T),
-              }),
+              onActive: (context) =>
+                  Icon(Icons.refresh, color: context.colors.onPrimaryContainer)),
+          child: APPAnimatedSwitcher<FetchObjectStatus>(enable: object.status, widgets: {
+            FetchObjectStatus.idle: (context) =>
+                onIdle?.call(context) ?? WidgetConstant.sizedBox,
+            FetchObjectStatus.pending: (context) =>
+                Shimmer(enable: false, onActive: (_, context) => onPending(context)),
+            FetchObjectStatus.failed: (context) =>
+                onError(context, object.error!, object.errorMessage!),
+            FetchObjectStatus.success: (context) => builder(context, object.value as T),
+          }),
         );
       },
     );

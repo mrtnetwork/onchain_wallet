@@ -1,11 +1,9 @@
-import 'package:on_chain_wallet/app/utils/string/utils.dart';
-import 'package:on_chain_wallet/app/localization/localization.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-extension Translate on String {
-  static Map<APPLocale, Map<String, String>> get localization =>
-      Localization.languages;
+extension ExtTranslate on String {
+  static Map<APPLocale, Map<String, String>> get localization => Localization.languages;
   // static Locale get language => ThemeController.locale;
-  String get tr => localization[APPLocale.en]?[this] ?? this;
+  String get tr => find;
 
   String replaceOne(String replace) {
     return replaceAll("___1__", replace);

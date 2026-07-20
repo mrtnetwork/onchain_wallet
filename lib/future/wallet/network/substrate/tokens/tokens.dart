@@ -3,34 +3,30 @@ import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/substrate.dart';
 
 class ManageSubstrateAccountToken extends StatefulWidget {
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
   final SubstrateChain account;
   final ISubstrateAddress address;
   const ManageSubstrateAccountToken(
-      {super.key,
-      required this.client,
-      required this.account,
-      required this.address});
+      {super.key, required this.client, required this.account, required this.address});
 
   @override
-  State<ManageSubstrateAccountToken> createState() =>
-      _ManageSubstrateAccountTokenState();
+  State<ManageSubstrateAccountToken> createState() => _ManageSubstrateAccountTokenState();
 }
 
-class _ManageSubstrateAccountTokenState
-    extends State<ManageSubstrateAccountToken>
+class _ManageSubstrateAccountTokenState extends State<ManageSubstrateAccountToken>
     with
         SafeState<ManageSubstrateAccountToken>,
-        ManageAccountTokenState<ManageSubstrateAccountToken, SubstrateClient,
+        ManageAccountTokenState<ManageSubstrateAccountToken, SubstrateNetworkClient,
             SubstrateToken, ISubstrateAddress, SubstrateChain> {
   @override
   SubstrateChain get account => widget.account;
   bool disableLocalTransfer = true;
 
   @override
-  SubstrateClient get client => widget.client;
+  SubstrateNetworkClient get client => widget.client;
   @override
   void init() {
     if (client.metadata.controller == null) {
@@ -39,12 +35,7 @@ class _ManageSubstrateAccountTokenState
       return;
     }
     disableLocalTransfer = !client.metadata.supportTransferLocalToken;
-    listener = client.getAccountTokensStream(address.networkAddress).listen(
-        onNewToken,
-        onError: onError,
-        onDone: onDone,
-        cancelOnError: true);
-    wallet = context.wallet;
+    super.init();
   }
 
   @override
@@ -58,7 +49,7 @@ class _ManageSubstrateAccountTokenState
         builder: (context) => ChainStreamBuilder(
           account: account,
           allowNotify: [DefaultChainNotify.token],
-          builder: (context, value, _) => CustomScrollView(
+          builder: (context, _) => CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
                 child: ConditionalWidget(
@@ -72,44 +63,41 @@ class _ManageSubstrateAccountTokenState
                 itemBuilder: (context) => SliverConstraintsBoxView(
                   padding: WidgetConstant.paddingHorizontal20,
                   sliver: SliverList.separated(
-                      separatorBuilder: (context, index) =>
-                          WidgetConstant.divider,
+                      separatorBuilder: (context, index) => WidgetConstant.divider,
                       itemBuilder: (context, index) {
                         final token = tokens.elementAt(index);
-                        final bool exist = address.tokens.contains(token.token);
+
+                        final bool exist = addressTokens.contains(token.object.token);
                         return APPStreamBuilder(
-                          value: token.notifier,
+                          value: token.object.notifier,
                           builder: (context, value) => Shimmer(
-                              onActive: (enable, context) =>
-                                  AccountTokenDetailsView(
-                                      error: token.status.isFailed
-                                          ? "update_unknown_token_metadata_desc"
-                                              .tr
-                                          : null,
-                                      onTapError: () {},
-                                      onSelect: () {
-                                        context.openSliverDialog(
+                              onActive: (enable, context) => AccountTokenDetailsView(
+                                  error: token.object.status.isFailed
+                                      ? "update_unknown_token_metadata_desc".tr
+                                      : null,
+                                  onTapError: () {},
+                                  onSelect: () {
+                                    context
+                                        .openSliverDialog<bool>(
                                             widget: (ctx) => DialogTextView(
-                                                buttonWidget:
-                                                    AsyncDialogDoubleButtonView(
-                                                  firstButtonPressed: () =>
-                                                      onTap(token),
-                                                ),
+                                                buttonWidget: DialogDoubleButtonView(),
                                                 text: exist
-                                                    ? "remove_token_from_account"
-                                                        .tr
-                                                    : "add_token_to_your_account"
-                                                        .tr),
+                                                    ? "remove_token_from_account".tr
+                                                    : "add_token_to_your_account".tr),
                                             label: exist
                                                 ? "remove_token".tr
-                                                : "add_token".tr);
-                                      },
-                                      onSelectIcon: APPCheckBox(
-                                          value: exist,
-                                          ignoring: true,
-                                          onChanged: (value) {}),
-                                      token: token.token),
-                              enable: !token.status.isPending),
+                                                : "add_token".tr)
+                                        .then((v) {
+                                      if (v == null) return;
+                                      onTap(token);
+                                    });
+                                  },
+                                  onSelectIcon: APPCheckBox(
+                                      value: exist,
+                                      ignoring: true,
+                                      onChanged: (value) {}),
+                                  token: token.object.token),
+                              enable: !token.object.status.isPending),
                         );
                       },
                       addAutomaticKeepAlives: false,

@@ -5,7 +5,6 @@ export 'contact/contact.dart';
 export 'networks/networks.dart';
 export 'others/others.dart';
 export 'signing/signing.dart';
-export 'status/status.dart';
 export 'access/wallet_access.dart';
 export 'transaction/transaction.dart';
 export 'swap/swap.dart';

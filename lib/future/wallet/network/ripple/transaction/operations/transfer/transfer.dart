@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -18,9 +18,7 @@ class RippleTransactionPaymentOperation
   final CachedObject<List<RippleIssueToken>> tokens = CachedObject();
   RipplePickedAsset _token = RipplePickedAsset.xrp();
   RippleTransactionPaymentOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionPaymentOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -37,11 +35,11 @@ class RippleTransactionPaymentOperation
     return instance;
   }
 
-  late final LiveFormField<StreamValue<BalanceCore>, StreamValue<BalanceCore>>
-      token = LiveFormField(
+  late final LiveFormField<StreamValue<BalanceCore>, StreamValue<BalanceCore>> token =
+      LiveFormField(
     title: "token".tr,
     optional: false,
-    value: address.address.balance,
+    value: address.addressData.balance,
   );
   late final LiveFormField<BalanceCore, BalanceCore> amount = LiveFormField(
     title: "transfer_amount".tr,
@@ -53,8 +51,8 @@ class RippleTransactionPaymentOperation
       return "field_is_required".tr.replaceOne(field.title.tr);
     },
   );
-  late final LiveFormField<ReceiptAddress<XRPAddress>?,
-      ReceiptAddress<XRPAddress>> recipient = LiveFormField(
+  late final LiveFormField<ReceiptAddress<XRPBaseAddress>?,
+      ReceiptAddress<XRPBaseAddress>> recipient = LiveFormField(
     title: "recipient".tr,
     subtitle: "receiver_address_desc".tr,
     optional: false,
@@ -62,7 +60,7 @@ class RippleTransactionPaymentOperation
     onValidateError: (field, value) {
       if (value == null) return null;
       if (_token.type.isNative &&
-          value.networkAddress.address == address.networkAddress.address) {
+          value.networkAddress.classicAddress == address.networkAddress.classicAddress) {
         return "send_to_self_not_allowed".tr;
       }
       return null;
@@ -85,14 +83,16 @@ class RippleTransactionPaymentOperation
     if (token.type.isNative) {
       if (_token.type.isNative) return;
       final currentAmount = this.token.value;
-      this.token.setValue(address.address.balance);
+      this.token.setValue(address.addressData.balance);
       amount.setValue(IntegerBalance.zero(network.token));
       currentAmount.dispose();
     } else {
       if (_token.issueToken == token.issueToken) return;
-      final updateToken = DecimalBalance.fromRational(token.issueToken!.token,
-          token.issueToken?.currencyBalance ?? BigRational.zero);
-      this.token.setValue(StreamValue(updateToken));
+      final updateToken = DecimalBalance.fromRational(
+          token.issueToken!.token, token.issueToken?.currencyBalance ?? BigRational.zero);
+      this
+          .token
+          .setValue(StreamValue(updateToken, name: "RippleTransactionPaymentOperation"));
       amount.setValue(DecimalBalance.zero(token.issueToken!.token));
     }
     _token = token;
@@ -100,7 +100,7 @@ class RippleTransactionPaymentOperation
     estimateFee();
   }
 
-  void onUpdateRecipient(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateRecipient(ReceiptAddress<XRPBaseAddress>? address) {
     if (address == null) return;
     recipient.setValue(address);
     onStateUpdated();
@@ -146,7 +146,7 @@ class RippleTransactionPaymentOperation
   dynamic getMaxInput() {
     final nativeToken = _token.type.isNative;
     if (nativeToken) {
-      final max = address.address.currencyBalance - txFee.fee.fee.balance;
+      final max = address.addressData.currencyBalance - txFee.fee.fee.balance;
       if (max.isNegative) return BigInt.zero;
       return max;
     }
@@ -168,8 +168,7 @@ class RippleTransactionPaymentOperation
     } else {
       if (token.type.isAccountToken) {
         final issueToken = token.issueToken!;
-        final BigRational tokenAmount =
-            issueToken.balance.balance - amount.value.balance;
+        final BigRational tokenAmount = issueToken.balance.balance - amount.value.balance;
         if (tokenAmount.isNegative) {
           return TransactionStateStatus.insufficient(
               DecimalBalance.fromRational(issueToken.token, tokenAmount),
@@ -177,10 +176,9 @@ class RippleTransactionPaymentOperation
         }
       }
     }
-    final r = address.address.currencyBalance - total - txFee.fee.fee.balance;
+    final r = address.addressData.currencyBalance - total - txFee.fee.fee.balance;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, network.token),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token),
           warning: simulateError);
     }
     return TransactionStateStatus.ready(warning: simulateError);
@@ -214,7 +212,7 @@ class RippleTransactionPaymentOperation
                 currency: token.issueToken!.assetCode,
                 issuer: token.issuer!,
                 value: (amount.value.balance as BigRational).toDecimal()),
-        account: address.networkAddress.toAddress(),
+        account: address.networkAddress.address,
         sourceTag: address.networkAddress.tag,
         fee: txFee.fee.fee.balance,
         flags: [flag.value?.id ?? 0]);
@@ -224,8 +222,7 @@ class RippleTransactionPaymentOperation
   @override
   Future<List<IWalletTransaction<XRPWalletTransaction, IXRPAddress>>>
       buildWalletTransaction(
-          {required IXRPSignedTransaction<IXRPTransactionData<Payment>>
-              signedTx,
+          {required IXRPSignedTransaction<IXRPTransactionData<Payment>> signedTx,
           required SubmitTransactionSuccess txId}) async {
     final payment = signedTx.transaction.transactionData.payment;
     final token = payment?.token;
@@ -233,27 +230,22 @@ class RippleTransactionPaymentOperation
       return super.buildWalletTransaction(signedTx: signedTx, txId: txId);
     }
     final WalletTransactionAmount txAmount = token.type.isNative
-        ? WalletTransactionIntegerAmount(
-            amount: payment.amount, network: network)
+        ? WalletTransactionIntegerAmount(amount: payment.amount, network: network)
         : WalletTransactionDecimalsAmount(
             amount: (payment.amount as BigRational).toDecimal(),
             token: token.issueToken!.token,
             tokenIdentifier: token.issuer!);
-    final output = XRPWalletTransactionTransferOutput(
-        to: payment.recipient, amount: txAmount);
+    final output =
+        XRPWalletTransactionTransferOutput(to: payment.recipient, amount: txAmount);
     final transaction = XRPWalletTransaction(
-        txId: txId.txId,
-        network: network,
-        outputs: [output],
-        totalOutput: txAmount);
+        txId: txId.txId, network: network, outputs: [output], totalOutput: txAmount);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionPaymentOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -264,8 +256,7 @@ class RippleTransactionPaymentOperation
   }
 
   @override
-  SubmittableTransactionType get transactionType =>
-      SubmittableTransactionType.payment;
+  SubmittableTransactionType get transactionType => SubmittableTransactionType.payment;
   @override
   List<LiveFormField<Object?, Object>> get fields =>
       [token, recipient, amount, invoiceId, flag];
@@ -273,12 +264,11 @@ class RippleTransactionPaymentOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required XRPClient client,
+    required XRPNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     tokens
         .get(onFetch: () async => client.accountTokens(address))
         .catchError((_) => <RippleIssueToken>[]);

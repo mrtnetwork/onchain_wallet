@@ -1,780 +1,569 @@
-import 'package:on_chain_bridge/platform_interface.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/http/models/auth.dart';
-import 'package:on_chain_wallet/crypto/types/networks.dart';
+import 'package:bitcoin_base/bitcoin_base.dart';
+import 'package:blockchain_utils/service/models/params.dart';
+import 'package:on_chain_bridge/models/models.dart';
+import 'package:on_chain_wallet/network/constants/constants.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
+import 'package:on_chain_wallet/wallet/api/types/types.dart';
 import 'package:on_chain_wallet/wallet/models/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/tron/models/chain_type.dart'
     show TronChainType;
-import 'package:ton_dart/ton_dart.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
 class ProvidersConst {
+  static const List<String> supportedElectrumVersion = ["1", "3"];
+
+  static const String userAgent = "OnChain/0.8.0";
   static const String tonApiName = "Ton API";
   static const String aptosGraphQlName = "Aptos GraphQL";
-  static TronAPIProvider getTronDefaultProvider(TronChainType chain) {
-    return switch (chain) {
-      TronChainType.mainnet => TronAPIProvider(
-          identifier: "${defaultidentifierName}60",
-          httpNodeUri: "https://api.trongrid.io",
-          solidityProvider: EthereumAPIProvider(
-            identifier: "${defaultidentifierName}61",
-            uri: "https://api.trongrid.io/jsonrpc",
-          )),
-      TronChainType.nile => TronAPIProvider(
-          identifier: "${defaultidentifierName}64",
-          httpNodeUri: "https://nile.trongrid.io",
-          solidityProvider: EthereumAPIProvider(
-              identifier: "${defaultidentifierName}65",
-              uri: "https://nile.trongrid.io/jsonrpc")),
-      TronChainType.shasta => TronAPIProvider(
-          identifier: "${defaultidentifierName}62",
-          httpNodeUri: "https://api.shasta.trongrid.io",
-          solidityProvider: EthereumAPIProvider(
-            identifier: "${defaultidentifierName}63",
-            uri: "https://api.shasta.trongrid.io/jsonrpc",
-          )),
-    };
-  }
-
-  static List<APIProviderServiceInfo> networkSupportServices(
-      WalletNetwork network) {
-    return switch (network.type) {
-      NetworkType.bitcoinAndForked || NetworkType.bitcoinCash => [
-          APIProviderServiceInfo(name: "Electrum")
-        ],
-      NetworkType.cardano => [
-          APIProviderServiceInfo(
-              name: "Blockfrost", url: "https://blockfrost.io/"),
-        ],
-      NetworkType.ethereum => [
-          APIProviderServiceInfo(
-              name: "JSON RPC",
-              url: "https://ethereum.org/en/developers/docs/apis/json-rpc/"),
-        ],
-      NetworkType.solana => [
-          APIProviderServiceInfo(
-              name: "JSON RPC", url: "https://solana.com/docs/rpc"),
-        ],
-      NetworkType.substrate => [
-          APIProviderServiceInfo(
-              name: "JSON RPC",
-              url: "https://wiki.polkadot.network/docs/maintain-endpoints"),
-        ],
-      NetworkType.ton => [
-          APIProviderServiceInfo(
-              name: TonApiType.tonCenter.name, url: "https://toncenter.com/"),
-          APIProviderServiceInfo(
-              name: TonApiType.tonApi.name, url: "https://tonapi.io/"),
-        ],
-      NetworkType.cosmos => [
-          APIProviderServiceInfo(
-              name: "Tendermint", url: "https://docs.tendermint.com/v0.34/rpc/")
-        ],
-      NetworkType.xrpl => [
-          APIProviderServiceInfo(
-              name: "JSON RPC",
-              url: "https://xrpl.org/docs/references/http-websocket-apis")
-        ],
-      NetworkType.stellar => [
-          APIProviderServiceInfo(
-              name: "Horizon",
-              url: "https://developers.stellar.org/docs/data/horizon")
-        ],
-      NetworkType.monero => [
-          APIProviderServiceInfo(
-              name: "Daemon RPC",
-              url: "https://docs.getmonero.org/rpc-library/monerod-rpc/")
-        ],
-      NetworkType.tron => [
-          APIProviderServiceInfo(
-              name: "Fullnode",
-              url: "https://developers.tron.network/docs/nodes-and-clients"),
-        ],
-      NetworkType.aptos => [
-          APIProviderServiceInfo(
-              name: "Aptos Node",
-              url:
-                  "https://aptos.dev/en/build/apis/fullnode-rest-api-reference"),
-          APIProviderServiceInfo(
-              name: aptosGraphQlName,
-              url: "https://aptos.dev/en/build/indexer"),
-        ],
-      NetworkType.sui => [
-          APIProviderServiceInfo(
-              name: "Sui Node", url: "https://docs.sui.io/sui-api-ref"),
-        ],
-      _ => throw AppExceptionConst.internalError("ProvidersConst"),
-    };
+  static ({DefaultAPIProvider solidity, DefaultAPIProvider node})
+      getOrDefaultTronDefaultProvider(
+    TronChainType chain,
+    List<DefaultAPIProvider> providers,
+  ) {
+    final solidity = providers.firstWhere(
+      (e) => e.service == APIProviderServices.ethereumJsonRpc,
+      orElse: () {
+        return _providers[chain.id]!
+            .firstWhere((e) => e.service == APIProviderServices.ethereumJsonRpc);
+      },
+    );
+    final node = providers.firstWhere(
+      (e) => e.service == APIProviderServices.tron,
+      orElse: () {
+        return _providers[chain.id]!
+            .firstWhere((e) => e.service == APIProviderServices.tron);
+      },
+    );
+    return (solidity: solidity, node: node);
   }
 
   static const String defaultidentifierName = "default-";
-  static final Map<int, List<APIProvider>> _providers =
-      Map<int, List<APIProvider>>.unmodifiable({
-    0: <APIProvider>[
-      BitcoinExplorerAPIProviderConst.mempool,
-      BitcoinExplorerAPIProviderConst.blockCypher,
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}0",
-          url: "142.93.6.38:50002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}1",
-          url: "wss://bitcoin.aranguren.org:50004",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}3",
-          url: "104.248.139.211:50002",
-          protocol: ServiceProtocol.ssl),
+  static const Map<int, List<DefaultAPIProvider>> _providers = {
+    0: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultMempool(
+        url: BtcApiConst.mempoolMainBaseURL,
+      ),
+      DefaultAPIProvider.defaultBlockCypher(
+        url: BtcApiConst.blockCypherMainBaseURL,
+      ),
+      DefaultAPIProvider.defaultElectrum(
+          url: "142.93.6.38:50002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://bitcoin.aranguren.org:50004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "104.248.139.211:50002", protocol: ServiceProtocol.ssl),
     ],
-    1: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}4",
-          url: "wss://testnet.aranguren.org:51004",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}5",
-          url: "testnet.aranguren.org:51002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}6",
-          url: "blockstream.info:700",
-          protocol: ServiceProtocol.ssl),
-      BitcoinExplorerAPIProviderConst.mempool,
+    1: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://testnet.aranguren.org:51004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "testnet.aranguren.org:51002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultMempool(
+        url: BtcApiConst.mempoolBaseURL,
+      ),
     ],
-    5: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}tbtc4",
-          url: "testnet4-electrumx.wakiyamap.dev:51002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}tbtc4_1",
-          url: "testnet4-electrumx.wakiyamap.dev:51001",
-          protocol: ServiceProtocol.tcp),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}tbtc4_2",
-          url: "wss://blackie.c3-soft.com:57012",
-          protocol: ServiceProtocol.websocket),
+    5: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "testnet4-electrumx.wakiyamap.dev:51002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "testnet4-electrumx.wakiyamap.dev:51001", protocol: ServiceProtocol.tcp),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://blackie.c3-soft.com:57012", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultMempool(
+        url: BtcApiConst.mempoolTestnet4BaseURL,
+      ),
     ],
-    2: <APIProvider>[
-      BitcoinExplorerAPIProviderConst.blockCypher,
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}7",
-          url: "wss://electrum.qortal.link:50004",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}8",
-          url: "wss://46.101.3.154:50004",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}9",
-          url: "46.101.3.154:50002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}10",
-          url: "backup.electrum-ltc.org:443",
-          protocol: ServiceProtocol.ssl),
+    2: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultBlockCypher(
+        url: BtcApiConst.blockCypherLitecoinBaseUri,
+      ),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://electrum.qortal.link:50004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://46.101.3.154:50004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "46.101.3.154:50002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "backup.electrum-ltc.org:443", protocol: ServiceProtocol.ssl),
     ],
-    7: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}11",
-          url: "electrum-ltc.bysh.me:51002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}12",
-          url: "electrum.ltc.xurious.com:51002",
-          protocol: ServiceProtocol.ssl),
+    7: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum-ltc.bysh.me:51002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.ltc.xurious.com:51002", protocol: ServiceProtocol.ssl),
     ],
-    3: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}13",
-          url: "electrum.qortal.link:54002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}14",
-          url: "wss://electrum.qortal.link:54004",
-          protocol: ServiceProtocol.websocket),
-      BitcoinExplorerAPIProviderConst.blockCypher
+    3: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.qortal.link:54002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://electrum.qortal.link:54004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultBlockCypher(
+        url: BtcApiConst.blockCypherDogeBaseUri,
+      ),
     ],
-    8: <APIProvider>[],
-    9: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}15",
-          url: "electrumx.bitcoinsv.io:50002",
-          protocol: ServiceProtocol.ssl),
+    8: <DefaultAPIProvider>[],
+    9: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrumx.bitcoinsv.io:50002", protocol: ServiceProtocol.ssl),
     ],
-    4: <APIProvider>[
-      BitcoinExplorerAPIProviderConst.blockCypher,
+    4: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultBlockCypher(
+        url: BtcApiConst.blockCypherDashBaseUri,
+      ),
     ],
-    10: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}16",
+    10: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
           url: "wss://electrum.imaginary.cash:50004",
           protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}17",
-          url: "electrum.imaginary.cash:50002",
-          protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.imaginary.cash:50002", protocol: ServiceProtocol.ssl),
 
       ///
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}18",
-          url: "wss://bch.loping.net:50004",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}19",
-          url: "bch.loping.net:50002",
-          protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://bch.loping.net:50004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "bch.loping.net:50002", protocol: ServiceProtocol.ssl),
     ],
-    11: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}0",
-          url: "ws://cbch.loping.net:62103",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}1",
-          url: "ws://cbch.loping.net:62104",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}3",
-          url: "cbch.loping.net:62102",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}21",
-          url: "chipnet.imaginary.cash:50002",
-          protocol: ServiceProtocol.ssl)
+    11: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "ws://cbch.loping.net:62103", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "ws://cbch.loping.net:62104", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "cbch.loping.net:62102", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "chipnet.imaginary.cash:50002", protocol: ServiceProtocol.ssl)
     ],
-    12: <APIProvider>[
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}22",
-          url: "electrum.pepeblocks.com:50002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}24",
-          url: "electrum.pepeblocks.com:50001",
-          protocol: ServiceProtocol.tcp),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}24",
+    12: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.pepeblocks.com:50002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.pepeblocks.com:50001", protocol: ServiceProtocol.tcp),
+      DefaultAPIProvider.defaultElectrum(
           url: "wss://electrum.pepeblocks.com:50004",
           protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}25",
-          url: "electrum.pepelum.site:50002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}26",
-          url: "electrum.pepelum.site:50001",
-          protocol: ServiceProtocol.tcp),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}27",
-          url: "wss://electrum.pepelum.site:50004",
-          protocol: ServiceProtocol.websocket),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}25",
-          url: "electrum.pepe.tips:50002",
-          protocol: ServiceProtocol.ssl),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}26",
-          url: "electrum.pepe.tips:50001",
-          protocol: ServiceProtocol.tcp),
-      ElectrumAPIProvider(
-          identifier: "${defaultidentifierName}27",
-          url: "wss://electrum.pepe.tips:50004",
-          protocol: ServiceProtocol.websocket)
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.pepelum.site:50002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.pepelum.site:50001", protocol: ServiceProtocol.tcp),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://electrum.pepelum.site:50004", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.pepe.tips:50002", protocol: ServiceProtocol.ssl),
+      DefaultAPIProvider.defaultElectrum(
+          url: "electrum.pepe.tips:50001", protocol: ServiceProtocol.tcp),
+      DefaultAPIProvider.defaultElectrum(
+          url: "wss://electrum.pepe.tips:50004", protocol: ServiceProtocol.websocket)
     ],
-    30: <APIProvider>[
-      RippleAPIProvider(
-          identifier: "${defaultidentifierName}28",
-          uri: "https://xrplcluster.com/"),
-      RippleAPIProvider(
-          identifier: "${defaultidentifierName}29",
-          uri: "wss://xrplcluster.com/"),
-    ],
-    31: <APIProvider>[
-      RippleAPIProvider(
-        identifier: "${defaultidentifierName}30",
-        uri: "https://s.altnet.rippletest.net:51234/",
+    30: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultRipple(
+        url: "https://xrplcluster.com/",
+        protocol: ServiceProtocol.http,
       ),
-      RippleAPIProvider(
-        identifier: "${defaultidentifierName}31",
-        uri: "wss://s.altnet.rippletest.net:51233",
+      DefaultAPIProvider.defaultRipple(
+        url: "wss://xrplcluster.com/",
+        protocol: ServiceProtocol.websocket,
       ),
     ],
-    32: <APIProvider>[
-      RippleAPIProvider(
-        identifier: "${defaultidentifierName}32",
-        uri: "https://s.devnet.rippletest.net:51234/",
+    31: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultRipple(
+        url: "https://s.altnet.rippletest.net:51234/",
+        protocol: ServiceProtocol.http,
       ),
-      RippleAPIProvider(
-        identifier: "${defaultidentifierName}33",
-        uri: "wss://s.devnet.rippletest.net:51233",
+      DefaultAPIProvider.defaultRipple(
+        url: "wss://s.altnet.rippletest.net:51233",
+        protocol: ServiceProtocol.websocket,
       ),
     ],
-    33: <APIProvider>[
-      const SolanaAPIProvider(
-        httpNodeUri: "https://api.mainnet-beta.solana.com",
-        identifier: "${defaultidentifierName}34",
+    32: <DefaultAPIProvider>[
+      DefaultAPIProvider.defaultRipple(
+        url: "https://s.devnet.rippletest.net:51234/",
+        protocol: ServiceProtocol.http,
+      ),
+      DefaultAPIProvider.defaultRipple(
+        url: "wss://s.devnet.rippletest.net:51233",
+        protocol: ServiceProtocol.websocket,
+      ),
+    ],
+    33: <DefaultAPIProvider>[
+      DefaultAPIProvider.solanaDefault(
+        url: "https://api.mainnet-beta.solana.com",
       )
     ],
-    34: <APIProvider>[
-      const SolanaAPIProvider(
-        httpNodeUri: "https://api.testnet.solana.com",
-        identifier: "${defaultidentifierName}35",
+    34: <DefaultAPIProvider>[
+      DefaultAPIProvider.solanaDefault(
+        url: "https://api.testnet.solana.com",
       )
     ],
-    35: <APIProvider>[
-      const SolanaAPIProvider(
-        httpNodeUri: "https://api.devnet.solana.com",
-        identifier: "${defaultidentifierName}200",
+    35: <DefaultAPIProvider>[
+      DefaultAPIProvider.solanaDefault(
+        url: "https://api.devnet.solana.com",
       )
     ],
-    50: <APIProvider>[
-      CardanoAPIProvider(
-        uri: "https://cardano-mainnet.blockfrost.io/api/v0/",
-        identifier: "${defaultidentifierName}36",
-        serviceName: "blockfrost",
-        websiteUri: "blockfrost.io",
-        auth: const BasicProviderAuthenticated(
+    50: <DefaultAPIProvider>[
+      DefaultAPIProvider.blockfrostDefault(
+        url: "https://cardano-mainnet.blockfrost.io/api/v0/",
+        auth: BasicProviderAuthenticated.unsafe(
             type: ProviderAuthType.header,
             key: "project_id",
             value: "mainnetolePdeWQLX8TrfG9V6RVaAshQi4pWzbU"),
       )
     ],
-    51: <APIProvider>[
-      CardanoAPIProvider(
-          uri: "https://cardano-preprod.blockfrost.io/api/v0/",
-          identifier: "${defaultidentifierName}37",
-          serviceName: "blockfrost",
-          websiteUri: "blockfrost.io",
-          auth: const BasicProviderAuthenticated(
+    51: <DefaultAPIProvider>[
+      DefaultAPIProvider.blockfrostDefault(
+          url: "https://cardano-preprod.blockfrost.io/api/v0/",
+          auth: BasicProviderAuthenticated.unsafe(
               type: ProviderAuthType.header,
               key: "project_id",
               value: "preprodMVwzqm4PuBDBSfEULoMzoj5QZcy5o3z5"))
     ],
-    100: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}38",
-        uri: "wss://ethereum.publicnode.com",
-      ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}39",
-        uri: "https://ethereum.publicnode.com",
-      ),
+    100: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "wss://ethereum.publicnode.com", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://ethereum.publicnode.com", protocol: ServiceProtocol.http),
     ],
-    101: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}40",
-        uri: "https://ethereum-sepolia.publicnode.com",
-      ),
+    101: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://ethereum-sepolia.publicnode.com", protocol: ServiceProtocol.http),
     ],
-    102: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}41",
-        uri: "https://polygon-bor.publicnode.com",
-      )
+    102: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://polygon-bor.publicnode.com", protocol: ServiceProtocol.http)
     ],
-    103: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}42",
-        uri: "https://polygon-mumbai-bor.publicnode.com",
-      ),
+    103: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://polygon-mumbai-bor.publicnode.com",
+          protocol: ServiceProtocol.http),
     ],
-    104: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}43",
-        uri: "https://bsc.publicnode.com",
+    104: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://bsc.publicnode.com", protocol: ServiceProtocol.http),
+    ],
+    105: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://bsc-testnet.publicnode.com", protocol: ServiceProtocol.http),
+    ],
+    200: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://cosmos-rpc.publicnode.com:443",
       ),
     ],
-    105: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}44",
-        uri: "https://bsc-testnet.publicnode.com",
+    206: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://rpc.testnet.osmosis.zone/",
       ),
     ],
-    200: <APIProvider>[
-      CosmosAPIProvider(
-        identifier: "${defaultidentifierName}45",
-        uri: "https://cosmos-rpc.publicnode.com:443",
+    207: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://rpc.osmosis.zone/",
       ),
     ],
-    206: <APIProvider>[
-      CosmosAPIProvider(
-        identifier: "${defaultidentifierName}46",
-        uri: "https://rpc.testnet.osmosis.zone/",
+    201: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://rpc.provider-sentry-02.ics-testnet.polypore.xyz",
       ),
     ],
-    207: <APIProvider>[
-      CosmosAPIProvider(
-        identifier: "${defaultidentifierName}47",
-        uri: "https://rpc.osmosis.zone/",
+    202: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://tendermint.mayachain.info",
       ),
     ],
-    201: <APIProvider>[
-      CosmosAPIProvider(
-        identifier: "${defaultidentifierName}48",
-        uri: "https://rpc.provider-sentry-02.ics-testnet.polypore.xyz",
+    203: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://rpc.thorchain.liquify.com/",
       ),
     ],
-    202: <APIProvider>[
-      CosmosAPIProvider(
-          identifier: "${defaultidentifierName}49",
-          uri: "https://tendermint.mayachain.info"),
+    204: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://kujira-testnet-rpc.polkachu.com/",
+      ),
     ],
-    203: <APIProvider>[
-      CosmosAPIProvider(
-          identifier: "${defaultidentifierName}50",
-          uri: "https://rpc.thorchain.liquify.com/"),
+    205: <DefaultAPIProvider>[
+      DefaultAPIProvider.tendermintDefault(
+        url: "https://rpc.cosmos.directory/kujira",
+      ),
     ],
-    204: <APIProvider>[
-      CosmosAPIProvider(
-          identifier: "${defaultidentifierName}51",
-          uri: "https://kujira-testnet-rpc.polkachu.com/"),
-    ],
-    205: <APIProvider>[
-      CosmosAPIProvider(
-          identifier: "${defaultidentifierName}52",
-          uri: "https://rpc.cosmos.directory/kujira"),
-    ],
-    300: <APIProvider>[
-      TonAPIProvider(
-          identifier: "${defaultidentifierName}53",
-          serviceName: "TonAPI",
-          websiteUri: "https://tonapi.io",
-          uri: "https://tonapi.io",
-          apiType: TonApiType.tonApi),
-      TonAPIProvider(
-          identifier: "${defaultidentifierName}54",
-          serviceName: "TonCenter",
-          websiteUri: "https://toncenter.io",
-          uri: "https://toncenter.com",
-          apiType: TonApiType.tonCenter,
-          auth: const BasicProviderAuthenticated(
+    300: <DefaultAPIProvider>[
+      DefaultAPIProvider.tonDefault(
+          url: "https://tonapi.io",
+          service: APIProviderServices.tonApi,
+          requestCooldown: NetworkConst.hightRequestCooldown),
+      DefaultAPIProvider.tonDefault(
+          url: "https://toncenter.com",
+          service: APIProviderServices.tonCenter,
+          auth: BasicProviderAuthenticated.unsafe(
               type: ProviderAuthType.header,
               key: "X-API-Key",
-              value:
-                  "cc8597229bb486a012f29743732b56c2331aff7f87c3d2cb84d456a04213b3ac")),
+              value: "cc8597229bb486a012f29743732b56c2331aff7f87c3d2cb84d456a04213b3ac")),
     ],
-    301: <APIProvider>[
-      TonAPIProvider(
-          identifier: "${defaultidentifierName}55",
-          serviceName: "TonAPI",
-          websiteUri: "https://tonapi.io",
-          uri: "https://testnet.tonapi.io",
-          apiType: TonApiType.tonApi),
-      TonAPIProvider(
-          identifier: "${defaultidentifierName}56",
-          serviceName: "TonCenter",
-          websiteUri: "https://toncenter.io",
-          uri: "https://testnet.toncenter.com",
-          apiType: TonApiType.tonCenter,
-          auth: const BasicProviderAuthenticated(
+    301: <DefaultAPIProvider>[
+      DefaultAPIProvider.tonDefault(
+          url: "https://testnet.tonapi.io",
+          service: APIProviderServices.tonApi,
+          requestCooldown: NetworkConst.hightRequestCooldown),
+      DefaultAPIProvider.tonDefault(
+          url: "https://testnet.toncenter.com",
+          service: APIProviderServices.tonCenter,
+          auth: BasicProviderAuthenticated.unsafe(
               type: ProviderAuthType.header,
               key: "X-API-Key",
-              value:
-                  "d3800f756738ac7b39599914b8a84465960ff869f555c2317664c9a62529baf3")),
+              value: "d3800f756738ac7b39599914b8a84465960ff869f555c2317664c9a62529baf3")),
     ],
-    400: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}57",
-          uri: "https://rpc.polkadot.io"),
+    400: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.http, url: "https://rpc.polkadot.io"),
     ],
-    401: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}401",
-          uri: "wss://polkadot-asset-hub-rpc.polkadot.io"),
+    401: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://polkadot-asset-hub-rpc.polkadot.io"),
     ],
-    402: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}402",
-          uri: "wss://polkadot-bridge-hub-rpc.polkadot.io"),
+    402: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://polkadot-bridge-hub-rpc.polkadot.io"),
     ],
 
     ///
-    450: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}58",
-          uri: "https://kusama-rpc.polkadot.io"),
+    450: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.http, url: "https://kusama-rpc.polkadot.io"),
     ],
-    451: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}59",
-          uri: "wss://westend-rpc.polkadot.io"),
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}60",
-          uri: "https://westend-rpc.polkadot.io"),
+    451: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://westend-rpc.polkadot.io"),
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.http, url: "https://westend-rpc.polkadot.io"),
     ],
-    452: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}452",
-          uri: "wss://westmint-rpc.dwellir.com:443"),
+    452: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://westmint-rpc.dwellir.com:443"),
     ],
-    453: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}453",
-          uri: "wss://kusama-asset-hub-rpc.polkadot.io"),
+    453: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://kusama-asset-hub-rpc.polkadot.io"),
     ],
-    454: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}454",
-          uri: "wss://kusama-bridge-hub-rpc.polkadot.io"),
+    454: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://kusama-bridge-hub-rpc.polkadot.io"),
     ],
-    455: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}455",
-          uri: "wss://westend-bridge-hub-rpc.polkadot.io:443"),
+    455: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://westend-bridge-hub-rpc.polkadot.io:443"),
     ],
-    461: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}461",
-          uri: "wss://moonbase-rpc.dwellir.com"),
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}461/2",
-          uri: "wss://moonbeam-alpha.api.onfinality.io:443/public-ws"),
+    461: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://moonbase-rpc.dwellir.com"),
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://moonbeam-alpha.api.onfinality.io:443/public-ws"),
     ],
-    460: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}460",
-          uri: "wss://moonbeam-rpc.dwellir.com"),
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}460/2",
-          uri: "wss://moonbeam.api.onfinality.io/public"),
+    460: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://moonbeam-rpc.dwellir.com"),
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://moonbeam.api.onfinality.io/public"),
     ],
-    462: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}462",
-          uri: "wss://moonriver-rpc.dwellir.com"),
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}462/2",
-          uri: "wss://moonriver.api.onfinality.io/public"),
+    462: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://moonriver-rpc.dwellir.com"),
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://moonriver.api.onfinality.io/public"),
     ],
-    463: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}463",
-          uri: "wss://astar-rpc.dwellir.com"),
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}463/2",
-          uri: "wss://astar.api.onfinality.io/public"),
+    463: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://astar-rpc.dwellir.com"),
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://astar.api.onfinality.io/public"),
     ],
-    464: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}462",
-          uri: "wss://centrifuge-rpc.dwellir.com"),
+    464: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://centrifuge-rpc.dwellir.com"),
     ],
-    465: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}465",
-          uri: "wss://acala-rpc-0.aca-api.network"),
+    465: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://acala-rpc-0.aca-api.network"),
     ],
-    466: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}466",
-          uri: "wss://rpc-pdot.chainflip.io:443"),
+    466: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://rpc-pdot.chainflip.io:443"),
     ],
-    467: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}1",
-          uri: "wss://assethub.perseverance.chainflip.io"),
+    467: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://assethub.perseverance.chainflip.io"),
     ],
-    468: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}1",
-          uri: "wss://hydration.ibp.network"),
+    468: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket, url: "wss://hydration.ibp.network"),
     ],
-    469: <APIProvider>[
-      SubstrateAPIProvider(
-          identifier: "${defaultidentifierName}1",
-          uri: "wss://bifrost-polkadot.dotters.network"),
+    469: <DefaultAPIProvider>[
+      DefaultAPIProvider.substateDefault(
+          protocol: ServiceProtocol.websocket,
+          url: "wss://bifrost-polkadot.dotters.network"),
     ],
 
     /// wss%3A%2F%2Ffullnode.centrifuge.io
-    600: <APIProvider>[
-      const StellarAPIProvider(
-          identifier: "${defaultidentifierName}600",
-          horizonUrl: "https://horizon.stellar.org",
-          sorobanUrl: "https://soroban-rpc.mainnet.stellar.gateway.fm"),
-    ],
-    601: <APIProvider>[
-      const StellarAPIProvider(
-          identifier: "${defaultidentifierName}601",
-          horizonUrl: "https://horizon-testnet.stellar.org",
-          sorobanUrl: "https://soroban-testnet.stellar.org"),
-    ],
-    700: <APIProvider>[
-      const MoneroAPIProvider(
-          identifier: "${defaultidentifierName}700A",
-          httpNodeUri: "http://node.xmr.rocks:18089"),
-      const MoneroAPIProvider(
-          identifier: "${defaultidentifierName}700",
-          httpNodeUri: "http://node.tools.rino.io:18081"),
-    ],
-    701: <APIProvider>[
-      const MoneroAPIProvider(
-          identifier: "${defaultidentifierName}704",
-          httpNodeUri: "http://3.10.182.182:38081"),
-      const MoneroAPIProvider(
-          identifier: "${defaultidentifierName}701",
-          httpNodeUri: "http://stagenet.tools.rino.io:38081"),
-      const MoneroAPIProvider(
-          identifier: "${defaultidentifierName}702",
-          httpNodeUri: "http://singapore.node.xmr.pm:38081"),
-      const MoneroAPIProvider(
-          identifier: "${defaultidentifierName}703",
-          httpNodeUri: "https://stagenet.xmr.ditatompel.com"),
-    ],
-    1001: <APIProvider>[
-      TronAPIProvider(
-          identifier: "${defaultidentifierName}60",
-          httpNodeUri: "https://api.trongrid.io",
-          solidityProvider: EthereumAPIProvider(
-            identifier: "${defaultidentifierName}61",
-            uri: "https://api.trongrid.io/jsonrpc",
-          )),
-    ],
-    1002: <APIProvider>[
-      TronAPIProvider(
-          identifier: "${defaultidentifierName}62",
-          httpNodeUri: "https://api.shasta.trongrid.io",
-          solidityProvider: EthereumAPIProvider(
-            identifier: "${defaultidentifierName}63",
-            uri: "https://api.shasta.trongrid.io/jsonrpc",
-          )),
-    ],
-    1003: <APIProvider>[
-      TronAPIProvider(
-          identifier: "${defaultidentifierName}64",
-          httpNodeUri: "https://nile.trongrid.io",
-          solidityProvider: EthereumAPIProvider(
-              identifier: "${defaultidentifierName}65",
-              uri: "https://nile.trongrid.io/jsonrpc")),
-    ],
-    106: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}66",
-        uri: "https://api.avax.network/ext/bc/C/rpc",
+    600: <DefaultAPIProvider>[
+      DefaultAPIProvider.stellarDefault(
+        url: "https://horizon.stellar.org",
+        service: APIProviderServices.horizon,
       ),
+      DefaultAPIProvider.stellarDefault(
+          service: APIProviderServices.stellarRpc,
+          url: "https://soroban-rpc.mainnet.stellar.gateway.fm"),
     ],
-    107: <APIProvider>[
-      EthereumAPIProvider(
-          identifier: "${defaultidentifierName}69x",
-          uri: "wss://arbitrum-one-rpc.publicnode.com"),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}68",
-        uri: "https://arb1.arbitrum.io/rpc",
+    601: <DefaultAPIProvider>[
+      DefaultAPIProvider.stellarDefault(
+        url: "https://horizon-testnet.stellar.org",
+        service: APIProviderServices.horizon,
       ),
-      EthereumAPIProvider(
-          identifier: "${defaultidentifierName}69 ",
-          uri: "https://arbitrum-one-rpc.publicnode.com"),
+      DefaultAPIProvider.stellarDefault(
+          service: APIProviderServices.stellarRpc,
+          url: "https://soroban-testnet.stellar.org"),
     ],
-    108: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}72",
-        uri: "wss://base-rpc.publicnode.com",
+    700: <DefaultAPIProvider>[
+      DefaultAPIProvider.moneroDefault(url: "http://node.xmr.rocks:18089"),
+      DefaultAPIProvider.moneroDefault(url: "http://node.tools.rino.io:18081"),
+    ],
+    701: <DefaultAPIProvider>[
+      DefaultAPIProvider.moneroDefault(url: "http://3.10.182.182:38081"),
+      DefaultAPIProvider.moneroDefault(url: "http://stagenet.tools.rino.io:38081"),
+      DefaultAPIProvider.moneroDefault(url: "http://singapore.node.xmr.pm:38081"),
+      DefaultAPIProvider.moneroDefault(url: "https://stagenet.xmr.ditatompel.com"),
+    ],
+    702: <DefaultAPIProvider>[
+      DefaultAPIProvider.moneroDefault(url: "http://127.0.0.1:18081"),
+    ],
+    1001: <DefaultAPIProvider>[
+      DefaultAPIProvider.tronDefault(
+        url: "https://api.trongrid.io",
       ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}1",
-        uri: "https://base-rpc.publicnode.com",
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://api.trongrid.io/jsonrpc", protocol: ServiceProtocol.http),
+    ],
+    1002: <DefaultAPIProvider>[
+      DefaultAPIProvider.tronDefault(
+        url: "https://api.shasta.trongrid.io",
       ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}70",
-        uri: "https://mainnet.base.org",
-      )
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://api.shasta.trongrid.io/jsonrpc", protocol: ServiceProtocol.http),
     ],
-    109: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}70",
-        uri: "https://mainnet.optimism.io",
+    1003: <DefaultAPIProvider>[
+      DefaultAPIProvider.tronDefault(
+        url: "https://nile.trongrid.io",
       ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}71",
-        uri: "https://optimism-rpc.publicnode.com",
-      )
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://nile.trongrid.io/jsonrpc", protocol: ServiceProtocol.http),
     ],
-    110: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}1",
-        uri: "wss://arbitrum-sepolia-rpc.publicnode.com",
-      ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}2",
-        uri: "https://arbitrum-sepolia-rpc.publicnode.com",
-      ),
+    106: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://api.avax.network/ext/bc/C/rpc", protocol: ServiceProtocol.http),
     ],
-    111: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}1",
-        uri: "wss://wss.api.moonbeam.network",
-      ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}2",
-        uri: "https://moonbeam-rpc.publicnode.com",
-      ),
+    107: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "wss://arbitrum-one-rpc.publicnode.com",
+          protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://arb1.arbitrum.io/rpc", protocol: ServiceProtocol.http),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://arbitrum-one-rpc.publicnode.com", protocol: ServiceProtocol.http),
     ],
-    112: <APIProvider>[
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}1",
-        uri: "wss://moonriver-rpc.publicnode.com",
-      ),
-      EthereumAPIProvider(
-        identifier: "${defaultidentifierName}2",
-        uri: "https://rpc.api.moonriver.moonbeam.network",
-      ),
+    108: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "wss://base-rpc.publicnode.com", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://base-rpc.publicnode.com", protocol: ServiceProtocol.http),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://mainnet.base.org", protocol: ServiceProtocol.http)
     ],
-    800: <APIProvider>[
-      SuiAPIProvider(
-          identifier: "${defaultidentifierName}800_1",
-          fullNodeUri: "https://fullnode.mainnet.sui.io:443"),
-      SuiAPIProvider(
-          identifier: "${defaultidentifierName}800_2",
-          fullNodeUri: "https://sui-rpc.publicnode.com")
+    109: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://mainnet.optimism.io", protocol: ServiceProtocol.http),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://optimism-rpc.publicnode.com", protocol: ServiceProtocol.http)
     ],
-    801: <APIProvider>[
-      SuiAPIProvider(
-          identifier: "${defaultidentifierName}801",
-          fullNodeUri: "https://fullnode.devnet.sui.io:443")
+    110: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "wss://arbitrum-sepolia-rpc.publicnode.com",
+          protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://arbitrum-sepolia-rpc.publicnode.com",
+          protocol: ServiceProtocol.http),
     ],
-    802: <APIProvider>[
-      SuiAPIProvider(
-          identifier: "${defaultidentifierName}802",
-          fullNodeUri: "https://fullnode.testnet.sui.io:443")
+    111: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "wss://wss.api.moonbeam.network", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://moonbeam-rpc.publicnode.com", protocol: ServiceProtocol.http),
     ],
-    810: <APIProvider>[
-      AptosAPIProvider(
-          identifier: "${defaultidentifierName}810_1",
-          fullNodeUri: "https://api.mainnet.aptoslabs.com/v1/",
-          type: AptosAPIProviderType.fullnode),
-      AptosAPIProvider(
-          identifier: "${defaultidentifierName}811_1",
-          fullNodeUri: "https://api.mainnet.aptoslabs.com/v1/graphql",
-          type: AptosAPIProviderType.graphQl),
+    112: <DefaultAPIProvider>[
+      DefaultAPIProvider.ethereumDefault(
+          url: "wss://moonriver-rpc.publicnode.com", protocol: ServiceProtocol.websocket),
+      DefaultAPIProvider.ethereumDefault(
+          url: "https://rpc.api.moonriver.moonbeam.network",
+          protocol: ServiceProtocol.http),
     ],
-    811: <APIProvider>[
-      AptosAPIProvider(
-          identifier: "${defaultidentifierName}811_1",
-          fullNodeUri: "https://api.testnet.aptoslabs.com/v1/",
-          type: AptosAPIProviderType.fullnode),
-      AptosAPIProvider(
-          identifier: "${defaultidentifierName}811_1",
-          fullNodeUri: "https://api.testnet.aptoslabs.com/v1/graphql",
-          type: AptosAPIProviderType.graphQl),
+    800: <DefaultAPIProvider>[
+      DefaultAPIProvider.suiDefault(url: "https://fullnode.mainnet.sui.io:443"),
+      DefaultAPIProvider.suiDefault(url: "https://sui-rpc.publicnode.com")
     ],
-    812: <APIProvider>[
-      AptosAPIProvider(
-          identifier: "${defaultidentifierName}812_1",
-          fullNodeUri: "https://api.devnet.aptoslabs.com/v1/",
-          type: AptosAPIProviderType.fullnode),
-      AptosAPIProvider(
-          identifier: "${defaultidentifierName}812_1",
-          fullNodeUri: "https://api.devnet.aptoslabs.com/v1/graphql",
-          type: AptosAPIProviderType.graphQl),
+    801: <DefaultAPIProvider>[
+      DefaultAPIProvider.suiDefault(url: "https://fullnode.devnet.sui.io:443")
     ],
-  });
+    802: <DefaultAPIProvider>[
+      DefaultAPIProvider.suiDefault(url: "https://fullnode.testnet.sui.io:443")
+    ],
+    810: <DefaultAPIProvider>[
+      DefaultAPIProvider.aptosDefault(
+          url: "https://api.mainnet.aptoslabs.com/v1/",
+          service: APIProviderServices.aptos),
+      DefaultAPIProvider.aptosDefault(
+          url: "https://api.mainnet.aptoslabs.com/v1/graphql",
+          service: APIProviderServices.graphQl),
+    ],
+    811: <DefaultAPIProvider>[
+      DefaultAPIProvider.aptosDefault(
+          url: "https://api.testnet.aptoslabs.com/v1/",
+          service: APIProviderServices.aptos),
+      DefaultAPIProvider.aptosDefault(
+          url: "https://api.testnet.aptoslabs.com/v1/graphql",
+          service: APIProviderServices.graphQl),
+    ],
+    812: <DefaultAPIProvider>[
+      DefaultAPIProvider.aptosDefault(
+          url: "https://api.devnet.aptoslabs.com/v1/",
+          service: APIProviderServices.aptos),
+      DefaultAPIProvider.aptosDefault(
+          url: "https://api.devnet.aptoslabs.com/v1/graphql",
+          service: APIProviderServices.graphQl),
+    ],
+    900: <DefaultAPIProvider>[
+      DefaultAPIProvider.zcashDefault(url: "https://zec.rocks"),
+    ],
+    901: <DefaultAPIProvider>[
+      DefaultAPIProvider.zcashDefault(url: "https://testnet.zec.rocks"),
+    ],
+    902: <DefaultAPIProvider>[
+      DefaultAPIProvider.zcashDefault(url: "http://localhost:9067"),
+    ]
+  };
 
-  static List<T> getDefaultProvider<T extends APIProvider>(
-      WalletNetwork network) {
+  static List<T> getDefaultProvider<T extends DefaultAPIProvider>({
+    required WalletNetwork network,
+    required AppPlatform platform,
+  }) {
     final providers = _providers[network.value] ?? [];
     return providers
         .whereType<T>()
-        .where((element) =>
-            element.protocol.platforms.contains(PlatformInterface.appPlatform))
+        .where((element) => element.protocol.platforms.contains(platform))
         .toList();
   }
 }

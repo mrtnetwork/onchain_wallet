@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:on_chain_bridge/dev/dev.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/controller/tabs/tabs.dart';
+import 'package:on_chain_wallet/future/wallet/controller/impls/tabs.dart';
+import 'package:on_chain_wallet/future/wallet/swap/controller/controller/storage.dart';
 import 'package:on_chain_wallet/marketcap/prices/live_currency.dart';
-import 'package:on_chain_wallet/repository/core/repository.dart';
+import 'package:on_chain_wallet/repository/repository.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
 import 'dest_controller.dart';
 import 'source_controller.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
 typedef ONREVIEWTX = Future<void> Function(APPSwapRoute);
 
@@ -29,16 +32,16 @@ enum SwapPage {
   bool get inReview => this == review;
 }
 
-typedef ONUPDATEPROVIDERS = Future<APPSwapSettings?> Function(
-    SwapStateController);
+typedef ONUPDATEPROVIDERS = Future<APPSwapSettings?> Function(SwapStateController);
 
 class SwapStateController
     with
         DisposableMixin,
         StreamStateController,
         SwapSourceController,
-        SwapDestinationController,
-        BaseRepository {
+        SwapDestinationController {
+  final SwapControllerStorage storage;
+  final INetApi netApi;
   APPSwapSettings _settings = APPSwapSettings();
   APPSwapSettings get settings => _settings;
 
@@ -48,8 +51,12 @@ class SwapStateController
   @override
   List<Chain> get chains => _chains;
   SwapStateController(
-      {required this.liveCurrencies, required List<Chain> chains})
-      : _chains = chains.immutable;
+      {required this.liveCurrencies,
+      required List<Chain> chains,
+      required IAppDatabaseApi database,
+      required this.netApi})
+      : _chains = chains.immutable,
+        storage = SwapControllerStorage(database);
   late AppSwapServiceApi _api;
   final _lock = SafeAtomicLock();
   final Cancelable _cancelable = Cancelable();
@@ -67,7 +74,7 @@ class SwapStateController
   String? get txError => _txError;
 
   StreamSubscription? _timeoutListener;
-  final StreamValue<int> _timeout = StreamValue(60);
+  final StreamValue<int> _timeout = StreamValue(60, name: "SwapStateController");
   StreamValue<int> get timeout => _timeout;
 
   void _resetTimeout() {
@@ -116,13 +123,12 @@ class SwapStateController
   }
 
   @override
-  Future<void> onSelectReceiptAddress(
-      ONSELECTDESTACCOUNT onSelectDestAccount) async {
+  Future<void> onSelectReceiptAddress(ONSELECTDESTACCOUNT onSelectDestAccount) async {
     await super.onSelectReceiptAddress(onSelectDestAccount);
     notify();
     final route = currentRoute;
     if (route?.provider.service != SwapServiceType.swapKit) return;
-    final source = sourceAddresses.firstOrNull?.address.address;
+    final source = sourceAddresses.firstOrNull?.address;
     final destination = destinationAddress?.view;
     if (source == null || destination == null) return;
     if (route?.route.value.route.quote.sourceAddress == source &&
@@ -160,15 +166,12 @@ class SwapStateController
         .whereType<IntegerBalance>();
     if (fees.isNotEmpty && fees.length == route.fees.length) {
       totalFee = fees.fold<IntegerBalance>(
-          IntegerBalance.token(BigInt.zero, fees.first.token),
-          (p, c) => p += c);
+          IntegerBalance.token(BigInt.zero, fees.first.token), (p, c) => p += c);
     }
     final amoutOut = getTokenPrice(route.quote.amount.amountString,
         APPSwapUtils.swapAssetToToken(route.quote.sourceAsset));
-    final destToken =
-        APPSwapUtils.swapAssetToToken(route.quote.destinationAsset);
-    final amountIn =
-        getTokenPrice(route.expectedAmount.amountString, destToken);
+    final destToken = APPSwapUtils.swapAssetToToken(route.quote.destinationAsset);
+    final amountIn = getTokenPrice(route.expectedAmount.amountString, destToken);
     RouteBpsPriceDetails? bps;
     if (amountIn != null && amoutOut != null) {
       IntegerBalance change = amountIn - amoutOut;
@@ -191,8 +194,8 @@ class SwapStateController
         route: route,
         bps: bps,
         totalFee: totalFee,
-        worstCaseAmount: IntegerBalance.token(
-            route.worstCaseAmount.amount, destToken, immutable: true),
+        worstCaseAmount: IntegerBalance.token(route.worstCaseAmount.amount, destToken,
+            immutable: true),
         fees: route.fees.map(APPSwapUtils.swapFeeToAppSwapFee).toList(),
         amount: IntegerBalance.token(route.expectedAmount.amount, destToken,
             immutable: true));
@@ -204,8 +207,7 @@ class SwapStateController
       required Chain destChain}) {
     final r = routes.map(_buildRoute).whereType<SwapRouteWithBps>().toList();
     if (r.isEmpty) return null;
-    return APPSwapRoutes(
-        routes: r, sourceChain: sourceChain, destChain: destChain);
+    return APPSwapRoutes(routes: r, sourceChain: sourceChain, destChain: destChain);
   }
 
   Future<void> _createRoute(
@@ -216,11 +218,11 @@ class SwapStateController
       required String amount,
       String? sourceAddress,
       String? destinationAddress}) async {
-    sourceAddress ??= sourceAddresses.firstOrNull?.address.address;
+    sourceAddress ??= sourceAddresses.firstOrNull?.address;
     destinationAddress ??= this.destinationAddress?.view;
     await _lock.run(() async {
       _cleanRoute();
-      final r = await MethodUtils.call(() async {
+      final r = await IResult.call(() async {
         _status = SwapRouteStatus.pending;
         notify();
         return await _api.findAppRoute(
@@ -231,22 +233,21 @@ class SwapStateController
           destinationAddress: destinationAddress,
         );
       }, cancelable: _cancelable);
-      if (r.isCancel) return;
-      if (r.hasError) {
-        _errors = [RouteError(error: r.localizationError)];
+      if (r.err()?.canceled() ?? false) return;
+      if (r.isErr) {
+        _errors = [RouteError(error: r.unwrapErr().localizationError)];
       } else {
         _currentRoute = _buildRoutes(
-            routes:
-                r.result.map((e) => e.route).whereType<SwapRoute>().toList(),
+            routes: r.unwrap().map((e) => e.route).whereType<SwapRoute>().toList(),
             destChain: destChain,
             sourceChain: sourceChain);
         _timeoutListener = _currentRoute?.timeout.listen(_onRouteTimeout);
 
-        _errors = r.result
+        _errors = r
+            .unwrap()
             .where((e) => !e.hasRoute)
             .map((e) => RouteError(
-                error: MethodResult.findErrorMessage(e.error!).tr,
-                provider: e.provider))
+                error: ResultErr.from(e.error!).localizationError, provider: e.provider))
             .toList();
         if (_currentRoute != null) {
         } else {
@@ -289,6 +290,7 @@ class SwapStateController
 
   Future<void> createSwapTransaction({required ONREVIEWTX onPage}) async {
     if (!formKey.ready()) return;
+    Logg.log("start here!");
     final route = currentRoute?.route;
     final sourceAddress = sourceAddresses;
     final destinationAddress = this.destinationAddress;
@@ -309,9 +311,9 @@ class SwapStateController
     _page = SwapPage.review;
     notify();
     final r = await _lock.run(() async {
-      return MethodUtils.call(() async {
+      return IResult.call(() async {
         final transaction = await _api.builSwapTransaction(
-            sourceAddress: sourceAddress.first.address.address,
+            sourceAddress: sourceAddress.first.address,
             destinationAddress: destinationAddress.view,
             swapRoute: route.value.route);
         final s = APPSwapRoute(
@@ -326,63 +328,50 @@ class SwapStateController
         await onPage(s);
       }, delay: APPConst.animationDuraion);
     });
-    if (r.hasError) {
-      _txError = r.localizationError;
+    if (r.isErr) {
+      _txError = r.unwrapErr().localizationError;
     }
     _page = SwapPage.swap;
     notify();
   }
 
-  Future<APPSwapSettings> _readSwapSettings() async {
-    final data = await queryStorageData(
-        storage: APPDatabaseConst.appSwapStorage,
-        storageId: APPDatabaseConst.defaultStorageId);
-    if (data == null) return APPSwapSettings();
-    return APPSwapSettings.deserialize(bytes: data);
-  }
-
-  Future<void> _writeSwapSettings() async {
-    await insertStorage(
-        storage: APPDatabaseConst.appSwapStorage,
-        storageId: APPDatabaseConst.defaultStorageId,
-        value: _settings);
-  }
-
-  Future<void> updateSettings(ONUPDATEPROVIDERS onUpdate) async {
+  Future<IResult<void>> updateSettings(ONUPDATEPROVIDERS onUpdate) async {
     final setting = await onUpdate(this);
-    if (setting == null || _settings == setting) return;
+    if (setting == null || _settings == setting) return ResultOk.okVoid;
     _settings = setting;
-    await _writeSwapSettings();
-    _status = SwapRouteStatus.init;
-    _cleanRoute();
-    cleanDestinationState();
-    cleanSourceState();
-    notify();
-    await MethodUtils.after(initSwap, duration: APPConst.animationDuraion);
-    await initSwap();
+    final result = await storage.storageSaveSwapSettings(settings);
+    return result.mapAsync((_) async {
+      _settings = settings;
+      _status = SwapRouteStatus.init;
+      _cleanRoute();
+      cleanDestinationState();
+      cleanSourceState();
+      notify();
+      await initSwap();
+    });
   }
 
   Future<void> initSwap() async {
     amountController.addListener(_listenChangeAmount);
     await _lock.run(() async {
-      _settings = await _readSwapSettings();
+      final settings = await storage.storageGetSwapSettings();
+      settings.map((settings) => _settings = settings);
       final networks = _chains.map((e) => e.network).toList();
       switch (_settings.chainType) {
         case ChainType.mainnet:
           _api = await AppSwapServiceApi.loadApi(
               DefaultSwapServiceApiParams(
-                  services: _settings.swapProviders
-                      .map((e) => e.service)
-                      .toSet()
-                      .toList(),
+                  services:
+                      _settings.swapProviders.map((e) => e.service).toSet().toList(),
                   swapKitServiceProviders: SwapConstants.supportProviders
                       .whereType<SwapKitSwapServiceProvider>()
-                      .toList()),
+                      .toList(),
+                  netApi: netApi),
               networks);
           break;
         case ChainType.testnet:
           _api = await AppSwapServiceApi.loadApi(
-              DefaultSwapServiceApiParams.testnet(), networks);
+              DefaultSwapServiceApiParams.testnet(netApi), networks);
           break;
       }
 
@@ -413,7 +402,4 @@ class SwapStateController
     _chains = [];
     _cleanRoute();
   }
-
-  @override
-  String get tableId => APPDatabaseConst.mainTableName;
 }

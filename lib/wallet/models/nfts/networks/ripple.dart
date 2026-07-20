@@ -1,17 +1,17 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/wallet/models/nfts/core/core.dart';
 
-class RippleNFToken with Equality implements NFTCore {
-  factory RippleNFToken.deserialize({List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: NFTType.ripple.tag);
-    final int flags = cbor.elementAs(0);
-    final String nftokenId = cbor.elementAs(1);
-    final int nftokenTaxon = cbor.elementAs(2);
-    final String issuer = cbor.elementAs(3);
-    final int serial = cbor.elementAs(4);
-    final String? uri = cbor.elementAs(5);
+class RippleNFToken extends NFTCore with Equality {
+  factory RippleNFToken.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NFTType.ripple.tag);
+    final int flags = cbor.rawValueAt(0);
+    final String nftokenId = cbor.rawValueAt(1);
+    final int nftokenTaxon = cbor.rawValueAt(2);
+    final String issuer = cbor.rawValueAt(3);
+    final int serial = cbor.rawValueAt(4);
+    final String? uri = cbor.rawValueAt(5);
 
     return RippleNFToken(
         flags: flags,
@@ -29,19 +29,6 @@ class RippleNFToken with Equality implements NFTCore {
     required this.serial,
     required this.uri,
   });
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          flags,
-          nftokenId,
-          nftokenTaxon,
-          issuer,
-          serial,
-          uri ?? const CborNullValue()
-        ]),
-        type.tag);
-  }
 
   @override
   final String? uri;
@@ -52,11 +39,24 @@ class RippleNFToken with Equality implements NFTCore {
   final int nftokenTaxon;
 
   @override
-  List get variabels => [uri, nftokenId, flags, issuer, serial, nftokenTaxon];
+  List get variables => [uri, nftokenId, flags, issuer, serial, nftokenTaxon];
 
   @override
   NFTType get type => NFTType.ripple;
 
   @override
   String get identifier => nftokenId;
+
+  @override
+  SerializationIdentifier get serializationIdentifier => type.tag;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        flags.toCbor(),
+        nftokenId.toCbor(),
+        nftokenTaxon.toCbor(),
+        issuer.toCbor(),
+        serial.toCbor(),
+        uri?.toCbor()
+      ];
 }

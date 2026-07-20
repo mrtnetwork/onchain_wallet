@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/client_info.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/core/request/web_request.dart';
+import 'package:on_chain_wallet/web3/web3/core/request/web_request.dart';
 
 class Web3PermissionAppbarActionView extends StatelessWidget {
   const Web3PermissionAppbarActionView({required this.request, super.key});
@@ -54,8 +54,7 @@ class Web3PermissionAppbarActionView extends StatelessWidget {
                   ),
                 ),
               ),
-          child: CircleTokenImageView(network.token,
-              radius: APPConst.circleRadius12)),
+          child: CircleTokenImageView(network.token, radius: APPConst.circleRadius12)),
     );
   }
 }

@@ -1,19 +1,17 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/app/utils/extensions/numbers.dart';
-import 'package:on_chain_wallet/crypto/coins/custom_coins/coins.dart';
+import 'package:monero_dart/monero_dart.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/constant/chain/const.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
 import 'package:on_chain_wallet/wallet/models/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/tron/models/chain_type.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
-abstract class WalletNetwork<PARAMS extends NetworkCoinParams>
-    with Equality, CborSerializable {
+sealed class WalletNetwork<PARAMS extends NetworkCoinParams>
+    with Equality, AppSerialization {
   const WalletNetwork();
   abstract final int value;
   abstract final PARAMS coinParam;
@@ -28,75 +26,71 @@ abstract class WalletNetwork<PARAMS extends NetworkCoinParams>
   String get networkSymbol => token.symbol;
   List<CryptoCoins> get coins;
   bool get supportImportNetwork => false;
-  bool get supportWeb3 => false;
+  bool get supportWeb3;
   bool get allowSwap => false;
   String? get accountExplorer => ChainConst.getAddressExplorer(value);
   String? get txExplorer => ChainConst.getTxExplorer(value);
   Object get identifier;
-  int get blockInterval => 60;
 
   String get caip;
   String get wsIdentifier;
   String? getAccountExplorer(String? address) {
     if (address == null) return null;
-    return accountExplorer?.replaceAll(
-        NetworkCoinParamsConst.addrArgs, address);
+    return accountExplorer?.replaceAll(NetworkCoinParamsConst.addrArgs, address);
   }
 
   String? getTransactionExplorer(String txId) {
     return txExplorer?.replaceAll(NetworkCoinParamsConst.txIdArgs, txId);
   }
 
-  T toNetwork<T extends WalletNetwork>() {
+  T cast<T extends WalletNetwork>() {
     if (this is! T) throw WalletExceptionConst.incorrectNetwork;
     return this as T;
   }
 
-  static WalletNetwork fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final toCborTag = (obj ?? CborObject.fromCbor(bytes!)) as CborTagValue;
-    final network = NetworkType.fromTag(toCborTag.tags);
+  static WalletNetwork deserialize({List<int>? bytes, CborObject? object}) {
+    final CborTagValue toCborTag =
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
+    final network = NetworkType.fromTags(toCborTag.tags);
     switch (network) {
       case NetworkType.bitcoinAndForked:
-        return WalletBitcoinNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletBitcoinNetwork.deserialize(object: toCborTag);
       case NetworkType.bitcoinCash:
-        return WalletBitcoinCashNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletBitcoinCashNetwork.deserialize(object: toCborTag);
       case NetworkType.xrpl:
-        return WalletXRPNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletXRPNetwork.deserialize(object: toCborTag);
       case NetworkType.ethereum:
-        return WalletEthereumNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletEthereumNetwork.deserialize(object: toCborTag);
+      case NetworkType.zcash:
+        return WalletZcashNetwork.deserialize(object: toCborTag);
       case NetworkType.solana:
-        return WalletSolanaNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletSolanaNetwork.deserialize(object: toCborTag);
       case NetworkType.cardano:
-        return WalletCardanoNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletCardanoNetwork.deserialize(object: toCborTag);
       case NetworkType.cosmos:
-        return WalletCosmosNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletCosmosNetwork.deserialize(object: toCborTag);
       case NetworkType.ton:
-        return WalletTonNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletTonNetwork.deserialize(object: toCborTag);
       case NetworkType.tron:
-        return WalletTronNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletTronNetwork.deserialize(object: toCborTag);
       case NetworkType.substrate:
-        return WalletSubstrateNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletSubstrateNetwork.deserialize(object: toCborTag);
       case NetworkType.stellar:
-        return WalletStellarNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletStellarNetwork.deserialize(object: toCborTag);
       case NetworkType.monero:
-        return WalletMoneroNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletMoneroNetwork.deserialize(object: toCborTag);
       case NetworkType.aptos:
-        return WalletAptosNetwork.fromCborBytesOrObject(obj: toCborTag);
+        return WalletAptosNetwork.deserialize(object: toCborTag);
       case NetworkType.sui:
-        return WalletSuiNetwork.fromCborBytesOrObject(obj: toCborTag);
-      default:
-        throw UnimplementedError("network does not exist.");
+        return WalletSuiNetwork.deserialize(object: toCborTag);
     }
   }
 
-  // List<APIProvider> getAllProviders() {
-  //   return [
-  // ...ProvidersConst.getDefaultProvider(this),
-  // ...coinParam.providers.where((element) =>
-  //     element.protocol.platforms.contains(PlatformInterface.appPlatform)),
-  //   ];
-  // }
+  @override
+  List<CborObject?> get serializationItems => [value.toCbor(), coinParam.toCbor()];
+
+  @override
+  SerializationIdentifier get serializationIdentifier => type.identifier;
 }
 
 class WalletBitcoinNetwork extends WalletNetwork<BitcoinParams> {
@@ -109,15 +103,16 @@ class WalletBitcoinNetwork extends WalletNetwork<BitcoinParams> {
   @override
   bool get allowSwap => true;
   @override
-  String get caip => ChainConst.buildCaip2(type, genesisBlock);
+  String get caip => ChainConst.buildCaip2(type, identifier);
   @override
   String get wsIdentifier => coinParam.transacationNetwork.identifier;
-  factory WalletBitcoinNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.bitconNetwork);
-    return WalletBitcoinNetwork(cbor.elementAs(0),
-        BitcoinParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)));
+  factory WalletBitcoinNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.bitconNetwork);
+    return WalletBitcoinNetwork(cbor.rawValueAt(0),
+        BitcoinParams.deserialize(object: cbor.objectAt<CborTagValue>(1)));
   }
 
   const WalletBitcoinNetwork(this.value, this.coinParam);
@@ -132,48 +127,37 @@ class WalletBitcoinNetwork extends WalletNetwork<BitcoinParams> {
 
   CryptoCoins findCoinFromBitcoinAddressType(BitcoinAddressType type) {
     if (type.isP2sh) {
-      return coins
-          .firstWhere((element) => element.proposal == BipProposal.bip49);
+      return coins.firstWhere((element) => element.proposal == CoinProposal.bip49);
     }
     switch (type) {
       case P2pkhAddressType.p2pkh:
       case P2pkhAddressType.p2pkhwt:
       case PubKeyAddressType.p2pk:
-        return coins
-            .firstWhere((element) => element.proposal == BipProposal.bip44);
+        return coins.firstWhere((element) => element.proposal == CoinProposal.bip44);
       case SegwitAddressType.p2wsh:
       case SegwitAddressType.p2wpkh:
-        return coins
-            .firstWhere((element) => element.proposal == BipProposal.bip84);
+        return coins.firstWhere((element) => element.proposal == CoinProposal.bip84);
       default:
-        return coins
-            .firstWhere((element) => element.proposal == BipProposal.bip86);
+        return coins.firstWhere((element) => element.proposal == CoinProposal.bip86);
     }
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.bitconNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
 
   @override
   WalletBitcoinNetwork copyWith({int? value, BitcoinParams? coinParam}) {
-    return WalletBitcoinNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletBitcoinNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
-  String get genesisBlock => ChainConst.getDefaultGenesisBlock(value);
-
   @override
-  Object get identifier => genesisBlock;
+  String get identifier => switch (coinParam.transacationNetwork) {
+        BitcoinSVNetwork.testnet => ChainConst.zeroBlockHash,
+        _ => ChainConst.getDefaultGenesisBlock(value),
+      };
 }
 
 class WalletBitcoinCashNetwork extends WalletBitcoinNetwork {
@@ -184,8 +168,7 @@ class WalletBitcoinCashNetwork extends WalletBitcoinNetwork {
   String get wsIdentifier => caip;
   @override
   WalletBitcoinCashNetwork copyWith({int? value, BitcoinParams? coinParam}) {
-    return WalletBitcoinCashNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletBitcoinCashNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   const WalletBitcoinCashNetwork(super.value, super.coinParam);
@@ -195,20 +178,14 @@ class WalletBitcoinCashNetwork extends WalletBitcoinNetwork {
   @override
   NetworkType get type => NetworkType.bitcoinCash;
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.bitcoinCashNetwork);
-  }
-
-  factory WalletBitcoinCashNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.bitcoinCashNetwork);
+  factory WalletBitcoinCashNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.bitcoinCashNetwork);
     return WalletBitcoinCashNetwork(
-      cbor.elementAs(0),
-      BitcoinParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      BitcoinParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 }
@@ -221,26 +198,20 @@ class WalletXRPNetwork extends WalletNetwork<RippleNetworkParams> {
   @override
   bool get supportWeb3 => true;
   @override
-  String get caip =>
-      ChainConst.buildCaip2(type, coinParam.networkId.toString());
+  String get caip => ChainConst.buildCaip2(type, coinParam.networkId.toString());
 
   @override
   String get wsIdentifier => caip;
   const WalletXRPNetwork(this.value, this.coinParam);
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.xrpNetwork);
-  }
 
-  factory WalletXRPNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.xrpNetwork);
+  factory WalletXRPNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.xrpNetwork);
     return WalletXRPNetwork(
-      cbor.elementAs(0),
-      RippleNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      RippleNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 
@@ -253,7 +224,7 @@ class WalletXRPNetwork extends WalletNetwork<RippleNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -287,21 +258,20 @@ class WalletEthereumNetwork extends WalletNetwork<EthereumNetworkParams> {
   String get wsIdentifier => "ethereum:${coinParam.chainId}";
 
   const WalletEthereumNetwork(this.value, this.coinParam);
-  factory WalletEthereumNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.evmNetwork);
+  factory WalletEthereumNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.evmNetwork);
     return WalletEthereumNetwork(
-      cbor.elementAs(0),
-      EthereumNetworkParams.fromCborBytesOrObject(
-          obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      EthereumNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
   @override
   WalletEthereumNetwork copyWith(
       {int? value, EthereumNetworkParams? coinParam, int? slip44}) {
-    return WalletEthereumNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletEthereumNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   @override
@@ -313,15 +283,9 @@ class WalletEthereumNetwork extends WalletNetwork<EthereumNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
+  List get variables => [value];
   @override
   bool get supportImportNetwork => true;
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.evmNetwork);
-  }
 
   @override
   bool get supportCustomNode => true;
@@ -370,13 +334,14 @@ class WalletTronNetwork extends WalletNetwork<TronNetworkParams> {
   @override
   String get wsIdentifier => caip;
 
-  factory WalletTronNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.tvmNetwork);
+  factory WalletTronNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.tvmNetwork);
     return WalletTronNetwork(
-      cbor.elementAs(0),
-      TronNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      TronNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
   @override
@@ -388,13 +353,7 @@ class WalletTronNetwork extends WalletNetwork<TronNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.tvmNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -425,19 +384,19 @@ class WalletSolanaNetwork extends WalletNetwork<SolanaNetworkParams> {
   @override
   bool get supportWeb3 => true;
   const WalletSolanaNetwork(this.value, this.coinParam);
-  factory WalletSolanaNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.solanaNetwork);
+  factory WalletSolanaNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.solanaNetwork);
     return WalletSolanaNetwork(
-      cbor.elementAs(0),
-      SolanaNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      SolanaNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
   @override
   WalletSolanaNetwork copyWith({int? value, SolanaNetworkParams? coinParam}) {
-    return WalletSolanaNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletSolanaNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   @override
@@ -449,14 +408,7 @@ class WalletSolanaNetwork extends WalletNetwork<SolanaNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.solanaNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -476,13 +428,14 @@ class WalletCardanoNetwork extends WalletNetwork<CardanoNetworkParams> {
   @override
   final CardanoNetworkParams coinParam;
   const WalletCardanoNetwork(this.value, this.coinParam);
-  factory WalletCardanoNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.cardanoNetwork);
+  factory WalletCardanoNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cardanoNetwork);
     return WalletCardanoNetwork(
-      cbor.elementAs(0),
-      CardanoNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      CardanoNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 
@@ -494,26 +447,19 @@ class WalletCardanoNetwork extends WalletNetwork<CardanoNetworkParams> {
         Bip44Coins.cardanoByronIcarus,
         Cip1852Coins.cardanoIcarus,
         Cip1852Coins.cardanoLedger,
-        CustomCoins.byronLegacy
+        Cip0019Coins.byronLegacy
       ] else ...[
         Bip44Coins.cardanoByronIcarusTestnet,
         Bip44Coins.cardanoByronLedgerTestnet,
         Cip1852Coins.cardanoIcarusTestnet,
         Cip1852Coins.cardanoLedgerTestnet,
-        CustomCoins.byronLegacyTestnet
+        Cip0019Coins.byronLegacyTestnet
       ]
     ];
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.cardanoNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -523,8 +469,7 @@ class WalletCardanoNetwork extends WalletNetwork<CardanoNetworkParams> {
 
   @override
   WalletCardanoNetwork copyWith({int? value, CardanoNetworkParams? coinParam}) {
-    return WalletCardanoNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletCardanoNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   @override
@@ -535,6 +480,9 @@ class WalletCardanoNetwork extends WalletNetwork<CardanoNetworkParams> {
 
   @override
   String get wsIdentifier => caip;
+
+  @override
+  bool get supportWeb3 => true;
 }
 
 class WalletCosmosNetwork extends WalletNetwork<CosmosNetworkParams> {
@@ -550,13 +498,14 @@ class WalletCosmosNetwork extends WalletNetwork<CosmosNetworkParams> {
   @override
   String get wsIdentifier => caip;
   const WalletCosmosNetwork(this.value, this.coinParam);
-  factory WalletCosmosNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.cosmosNetwork);
+  factory WalletCosmosNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cosmosNetwork);
     return WalletCosmosNetwork(
-      cbor.elementAs(0),
-      CosmosNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      CosmosNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 
@@ -566,14 +515,7 @@ class WalletCosmosNetwork extends WalletNetwork<CosmosNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.cosmosNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -585,8 +527,7 @@ class WalletCosmosNetwork extends WalletNetwork<CosmosNetworkParams> {
 
   @override
   WalletCosmosNetwork copyWith({int? value, CosmosNetworkParams? coinParam}) {
-    return WalletCosmosNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletCosmosNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   @override
@@ -609,13 +550,14 @@ class WalletTonNetwork extends WalletNetwork<TonNetworkParams> {
   bool get supportWeb3 => true;
 
   const WalletTonNetwork(this.value, this.coinParam);
-  factory WalletTonNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.tonNetwork);
+  factory WalletTonNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.tonNetwork);
     return WalletTonNetwork(
-      cbor.elementAs(0),
-      TonNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      TonNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 
@@ -628,14 +570,7 @@ class WalletTonNetwork extends WalletNetwork<TonNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.tonNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -648,10 +583,10 @@ class WalletTonNetwork extends WalletNetwork<TonNetworkParams> {
   }
 
   @override
-  Object get identifier => coinParam.identifier;
+  Object get identifier => coinParam.chainId.id;
 
   @override
-  String get caip => ChainConst.buildCaip2(type, coinParam.chain.id.toString());
+  String get caip => ChainConst.buildCaip2(type, coinParam.chainId.id.toString());
 
   @override
   String get wsIdentifier => caip;
@@ -663,14 +598,13 @@ class WalletSubstrateNetwork extends WalletNetwork<SubstrateNetworkParams> {
   @override
   final SubstrateNetworkParams coinParam;
   const WalletSubstrateNetwork(this.value, this.coinParam);
-  factory WalletSubstrateNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.substrateNetwork);
-    return WalletSubstrateNetwork(
-        cbor.elementAs(0),
-        SubstrateNetworkParams.fromCborBytesOrObject(
-            obj: cbor.elementAsCborTag(1)));
+  factory WalletSubstrateNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.substrateNetwork);
+    return WalletSubstrateNetwork(cbor.rawValueAt(0),
+        SubstrateNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)));
   }
 
   @override
@@ -688,10 +622,7 @@ class WalletSubstrateNetwork extends WalletNetwork<SubstrateNetworkParams> {
           ],
         SubstrateKeyAlgorithm.sr25519 => [SubstrateCoins.genericSr25519],
         SubstrateKeyAlgorithm.ethereum => [
-            if (coinParam.mainnet)
-              Bip44Coins.ethereum
-            else
-              Bip44Coins.ethereumTestnet,
+            if (coinParam.mainnet) Bip44Coins.ethereum else Bip44Coins.ethereumTestnet,
           ],
       };
       coins.addAll(keys);
@@ -700,14 +631,7 @@ class WalletSubstrateNetwork extends WalletNetwork<SubstrateNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.substrateNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -716,10 +640,8 @@ class WalletSubstrateNetwork extends WalletNetwork<SubstrateNetworkParams> {
   NetworkType get type => NetworkType.substrate;
 
   @override
-  WalletSubstrateNetwork copyWith(
-      {int? value, SubstrateNetworkParams? coinParam}) {
-    return WalletSubstrateNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+  WalletSubstrateNetwork copyWith({int? value, SubstrateNetworkParams? coinParam}) {
+    return WalletSubstrateNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   String get genesisBlock =>
@@ -749,20 +671,20 @@ class WalletStellarNetwork extends WalletNetwork<StellarNetworkParams> {
   bool get supportWeb3 => true;
 
   @override
-  String get caip =>
-      ChainConst.buildCaip2(type, coinParam.stellarChainType.name);
+  String get caip => ChainConst.buildCaip2(type, coinParam.stellarChainType.name);
 
   @override
   String get wsIdentifier => caip;
 
   const WalletStellarNetwork(this.value, this.coinParam);
-  factory WalletStellarNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.stellarNetwork);
+  factory WalletStellarNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.stellar);
     return WalletStellarNetwork(
-      cbor.elementAs(0),
-      StellarNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      StellarNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 
@@ -775,14 +697,7 @@ class WalletStellarNetwork extends WalletNetwork<StellarNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.stellarNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => false;
@@ -791,8 +706,7 @@ class WalletStellarNetwork extends WalletNetwork<StellarNetworkParams> {
 
   @override
   WalletStellarNetwork copyWith({int? value, StellarNetworkParams? coinParam}) {
-    return WalletStellarNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletStellarNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   @override
@@ -806,16 +720,17 @@ class WalletMoneroNetwork extends WalletNetwork<MoneroNetworkParams> {
   final MoneroNetworkParams coinParam;
 
   @override
-  bool get supportWeb3 => true;
+  bool get supportWeb3 => coinParam.network != MoneroNetwork.testnet;
 
   const WalletMoneroNetwork(this.value, this.coinParam);
-  factory WalletMoneroNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.moneroNetwork);
+  factory WalletMoneroNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.monero);
     return WalletMoneroNetwork(
-      cbor.elementAs(0),
-      MoneroNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      MoneroNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
 
@@ -828,14 +743,7 @@ class WalletMoneroNetwork extends WalletNetwork<MoneroNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.moneroNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -844,8 +752,7 @@ class WalletMoneroNetwork extends WalletNetwork<MoneroNetworkParams> {
 
   @override
   WalletMoneroNetwork copyWith({int? value, MoneroNetworkParams? coinParam}) {
-    return WalletMoneroNetwork(
-        value ?? this.value, coinParam ?? this.coinParam);
+    return WalletMoneroNetwork(value ?? this.value, coinParam ?? this.coinParam);
   }
 
   String get genesisBlock => ChainConst.getDefaultGenesisBlock(value);
@@ -873,13 +780,14 @@ class WalletAptosNetwork extends WalletNetwork<AptosNetworkParams> {
   @override
   String get wsIdentifier => coinParam.aptosChainType.identifier;
   const WalletAptosNetwork(this.value, this.coinParam);
-  factory WalletAptosNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.aptosNetwork);
+  factory WalletAptosNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.aptos);
     return WalletAptosNetwork(
-      cbor.elementAs(0),
-      AptosNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      AptosNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
   @override
@@ -897,14 +805,7 @@ class WalletAptosNetwork extends WalletNetwork<AptosNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.aptosNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -925,13 +826,12 @@ class WalletSuiNetwork extends WalletNetwork<SuiNetworkParams> {
   @override
   String get caip => ChainConst.buildCaip2(type, coinParam.suiChain.name);
   const WalletSuiNetwork(this.value, this.coinParam);
-  factory WalletSuiNetwork.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.suiNetwork);
+  factory WalletSuiNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: AppSerializationIdentifier.sui);
     return WalletSuiNetwork(
-      cbor.elementAs(0),
-      SuiNetworkParams.fromCborBytesOrObject(obj: cbor.elementAsCborTag(1)),
+      cbor.rawValueAt(0),
+      SuiNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)),
     );
   }
   @override
@@ -949,14 +849,7 @@ class WalletSuiNetwork extends WalletNetwork<SuiNetworkParams> {
   }
 
   @override
-  List get variabels => [value];
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([value, coinParam.toCbor()]),
-        CborTagsConst.suiNetwork);
-  }
+  List get variables => [value];
 
   @override
   bool get supportCustomNode => true;
@@ -968,4 +861,77 @@ class WalletSuiNetwork extends WalletNetwork<SuiNetworkParams> {
 
   @override
   String get wsIdentifier => coinParam.suiChain.identifier;
+}
+
+class WalletZcashNetwork extends WalletNetwork<ZcashNetworkParams> {
+  @override
+  final int value;
+  @override
+  final ZcashNetworkParams coinParam;
+  @override
+  bool get supportWeb3 => true;
+  @override
+  bool get allowSwap => false;
+  const WalletZcashNetwork(this.value, this.coinParam);
+
+  @override
+  String get caip => ChainConst.buildCaip2(type, coinParam.web3ChainIdentifier);
+
+  @override
+  String get wsIdentifier => caip;
+  factory WalletZcashNetwork.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.zcash);
+    return WalletZcashNetwork(cbor.rawValueAt(0),
+        ZcashNetworkParams.deserialize(object: cbor.objectAt<CborTagValue>(1)));
+  }
+
+  @override
+  NetworkType get type => NetworkType.zcash;
+
+  @override
+  List<CryptoCoins> get coins => switch (coinParam.network) {
+        ZcashNetwork.mainnet => [
+            ZIP32Coins.zCashOrchard,
+            ZIP32Coins.zCashSapling,
+            Bip44Coins.zcash,
+            Bip49Coins.zcash
+          ],
+        ZcashNetwork.testnet => [
+            ZIP32Coins.zCashTestnetOrchard,
+            ZIP32Coins.zCashTestnetSapling,
+            Bip44Coins.zcashTestnet,
+            Bip49Coins.zcashTestnet
+          ],
+        ZcashNetwork.regtest => [
+            ZIP32Coins.zCashRegtestOrchard,
+            ZIP32Coins.zCashRegtestSapling,
+            Bip44Coins.zcashRegtest,
+            Bip49Coins.zcashRegtest
+          ],
+      };
+
+  @override
+  List get variables => [value];
+
+  @override
+  bool get supportCustomNode => true;
+
+  @override
+  WalletZcashNetwork copyWith({int? value, ZcashNetworkParams? coinParam}) {
+    return WalletZcashNetwork(value ?? this.value, coinParam ?? this.coinParam);
+  }
+
+  @override
+  String get identifier => switch (coinParam.network) {
+        ZcashNetwork.regtest => ChainConst.zeroBlockHash,
+        _ => ChainConst.getDefaultGenesisBlock(value),
+      };
+
+  String? getNu6BlockHash() {
+    if (coinParam.network == ZcashNetwork.regtest) return null;
+    return ChainConst.getSpeceficBlockHash(value);
+  }
 }

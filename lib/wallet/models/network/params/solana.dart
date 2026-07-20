@@ -1,8 +1,8 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/error/exception.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
@@ -17,9 +17,7 @@ enum SolanaNetworkType {
       genesis: "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z"),
 
   devnet(
-      identifier: 'solana:devnet',
-      value: 2,
-      genesis: "EtWTRABZaYq6iMfeYKouRu166VU2xqa1");
+      identifier: 'solana:devnet', value: 2, genesis: "EtWTRABZaYq6iMfeYKouRu166VU2xqa1");
 
   final String identifier;
   final int value;
@@ -28,8 +26,7 @@ enum SolanaNetworkType {
       {required this.identifier, required this.value, required this.genesis});
   static SolanaNetworkType fromValue(int? value) {
     return values.firstWhere((e) => e.value == value,
-        orElse: () =>
-            throw AppSerializationException(objectName: "SolanaNetworkType"));
+        orElse: () => throw AppInternalError.internalError("SolanaNetworkType"));
   }
 }
 
@@ -37,20 +34,19 @@ class SolanaNetworkParams extends NetworkCoinParams {
   final int chainId;
   final SolanaNetworkType type;
 
-  factory SolanaNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.solNetworkParam);
+  factory SolanaNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.solana.identifier);
 
     return SolanaNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(2)),
-        chainType: ChainType.fromValue(values.elementAs(4)),
-        chainId: values.elementAs(6),
-        type: SolanaNetworkType.fromValue(values.elementAs(7)),
-        addressExplorer: values.elementAs(8),
-        transactionExplorer: values.elementAs(9));
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+        chainType: ChainType.fromValue(values.rawValueAt(1)),
+        chainId: values.rawValueAt(2),
+        type: SolanaNetworkType.fromValue(values.rawValueAt(3)),
+        addressExplorer: values.rawValueAt(4),
+        transactionExplorer: values.rawValueAt(5));
   }
-  SolanaNetworkParams(
+  const SolanaNetworkParams(
       {required super.token,
       required super.chainType,
       required this.chainId,
@@ -59,23 +55,17 @@ class SolanaNetworkParams extends NetworkCoinParams {
       super.transactionExplorer});
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          chainType.name,
-          const CborNullValue(),
-          chainId,
-          type.value,
-          addressExplorer,
-          transactionExplorer
-        ]),
-        CborTagsConst.solNetworkParam);
-  }
+  SerializationIdentifier get serializationIdentifier => NetworkType.solana.identifier;
 
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        chainId.toCbor(),
+        type.value.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor()
+      ];
   @override
   NetworkCoinParams updateParams(
       {Token? token,
@@ -83,8 +73,8 @@ class SolanaNetworkParams extends NetworkCoinParams {
       String? addressExplorer,
       int? bip32CoinType}) {
     return SolanaNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         chainId: chainId,
         type: type,

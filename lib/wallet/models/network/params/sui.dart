@@ -1,9 +1,8 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/error/exception.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
@@ -18,7 +17,7 @@ enum SuiChainType {
   static SuiChainType fromValue(int? value) {
     return values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw AppSerializationException(objectName: "SuiChainType"),
+      orElse: () => throw AppInternalError.internalError("SuiChainType"),
     );
   }
 }
@@ -27,21 +26,20 @@ class SuiNetworkParams extends NetworkCoinParams {
   final String identifier;
   final SuiChainType suiChain;
 
-  factory SuiNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.suiNetworkParams);
+  factory SuiNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.sui.identifier);
 
     return SuiNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(0)),
-        chainType: ChainType.fromValue(values.elementAs(2)),
-        identifier: values.elementAs(3),
-        addressExplorer: values.elementAs(4),
-        transactionExplorer: values.elementAs(5),
-        bip32CoinType: values.elementAs(6),
-        suiChain: SuiChainType.fromValue(values.elementAs(7)));
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+        chainType: ChainType.fromValue(values.rawValueAt(1)),
+        identifier: values.rawValueAt(2),
+        addressExplorer: values.rawValueAt(3),
+        transactionExplorer: values.rawValueAt(4),
+        bip32CoinType: values.rawValueAt(5),
+        suiChain: SuiChainType.fromValue(values.rawValueAt(6)));
   }
-  SuiNetworkParams(
+  const SuiNetworkParams(
       {required super.token,
       required super.chainType,
       required this.identifier,
@@ -51,30 +49,14 @@ class SuiNetworkParams extends NetworkCoinParams {
       super.bip32CoinType});
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          token.toCbor(),
-          chainType.name,
-          identifier,
-          addressExplorer,
-          transactionExplorer,
-          bip32CoinType,
-          suiChain.value
-        ]),
-        CborTagsConst.suiNetworkParams);
-  }
-
-  @override
   NetworkCoinParams updateParams(
-      {List<APIProvider>? updateProviders,
-      Token? token,
+      {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
     return SuiNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         identifier: identifier,
         addressExplorer: addressExplorer,
@@ -82,4 +64,18 @@ class SuiNetworkParams extends NetworkCoinParams {
         bip32CoinType: bip32CoinType ?? this.bip32CoinType,
         suiChain: suiChain);
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier => NetworkType.sui.identifier;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        identifier.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor(),
+        bip32CoinType?.toCbor(),
+        suiChain.value.toCbor()
+      ];
 }

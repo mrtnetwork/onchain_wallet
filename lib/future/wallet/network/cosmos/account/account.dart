@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:on_chain/ethereum/src/address/evm_address.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
@@ -6,6 +7,57 @@ import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/operati
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/operations/transfer.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
+
+List<PopupMenuItem<int>> cosmosAccountMenuButton(
+    {required CosmosChain account, required BuildContext context, required int value}) {
+  if (!account.haveAddress) return [];
+  final address = account.addressSyncOrNull?.ethAddress;
+  if (address != null) {
+    return [
+      PopupMenuItem<int>(
+        value: value,
+        onTap: () {
+          context.openSliverDialog(
+              widget: (context) => _ShowEthAddress(address: address),
+              label: "ethereum_address".tr);
+        },
+        child: AppListTile(
+          trailing: const Icon(Icons.north_east_sharp),
+          title: Text("ethereum_address".tr, style: context.textTheme.labelMedium),
+        ),
+      ),
+    ];
+  }
+  return [];
+}
+
+class _ShowEthAddress extends StatelessWidget {
+  const _ShowEthAddress({required this.address});
+  final ETHAddress address;
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      ContainerWithBorder(
+        onRemove: () {},
+        enableTap: false,
+        onRemoveWidget: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CopyTextIcon(
+                dataToCopy: address.address,
+                color: context.onPrimaryContainer,
+                isSensitive: false),
+            BarcodeImageIconView(
+                data: address.address,
+                color: context.onPrimaryContainer,
+                isSensitive: false)
+          ],
+        ),
+        child: Text(address.address),
+      ),
+    ]);
+  }
+}
 
 class CosmosAccountPageView extends StatelessWidget {
   const CosmosAccountPageView({required this.chainAccount, super.key});
@@ -20,10 +72,10 @@ class CosmosAccountPageView extends StatelessWidget {
             return CosmosTransactionTransferOperation(
                 walletProvider: context.wallet,
                 account: chainAccount,
-                address: chainAccount.address);
+                address: chainAccount.addressSync);
           }),
-      AccountTransactionActivityView<ICosmosAddress, CosmosWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<CosmosWalletTransaction, ICosmosAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -35,7 +87,6 @@ class _CosmosAccountPageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: chainAccount.service),
       SliverToBoxAdapter(
         child: Column(children: [
           AppListTile(
@@ -46,7 +97,7 @@ class _CosmosAccountPageView extends StatelessWidget {
               final operation = CosmosTransactionIbcTransferOperation(
                   walletProvider: context.wallet,
                   account: chainAccount,
-                  address: chainAccount.address);
+                  address: chainAccount.addressSync);
               context.to(PageRouter.transaction, argruments: operation);
             },
           )

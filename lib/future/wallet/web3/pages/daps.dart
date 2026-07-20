@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
@@ -11,16 +10,16 @@ import 'package:on_chain_wallet/future/wallet/web3/types/types.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/models/access/wallet_access.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
-import 'package:on_chain_wallet/wc/wallet/core/wallet.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/walletconnect/wallet_connect.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 
 class ManageWeb3DapssView extends StatelessWidget {
   const ManageWeb3DapssView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "dapps_management".tr,
       onAccsess: (_) {
@@ -34,28 +33,26 @@ class _ManageWeb3DapssView extends StatefulWidget {
   const _ManageWeb3DapssView();
 
   @override
-  State<_ManageWeb3DapssView> createState() =>
-      _WalletConnectActiveSessionsState();
+  State<_ManageWeb3DapssView> createState() => _WalletConnectActiveSessionsState();
 }
 
 class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
     with SafeState<_ManageWeb3DapssView> {
   Web3RequestControllerImpl? web3Controller;
-  late Web3WalletConnectHandler walletConnect;
+  late IWeb3WalletConnectController walletConnect;
   final StreamPageProgressController progressKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
 
   late WalletProvider wallet;
   List<ShimmerAction<Web3DappInfo>> sessions = [];
   Future<void> loadSessions() async {
-    final result = await wallet.wallet.getAllWeb3Applications();
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError, backToIdle: false);
+    final result = await wallet.wallet.doAction(WalletActionAllWeb3Applications());
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError, backToIdle: false);
       return;
     }
-    sessions = result.result
-        .map((e) => ShimmerAction<Web3DappInfo>(object: e))
-        .toList();
+    sessions =
+        result.unwrap().map((e) => ShimmerAction<Web3DappInfo>(object: e)).toList();
     progressKey.backToIdle();
   }
 
@@ -73,25 +70,26 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
     try {
       switch (app.object.authentication.protocol) {
         case Web3APPProtocol.walletConnect:
-          final updateDapp = await wallet.wallet.disconnectWeb3Application(
-              app.object.authentication,
-              removeApplication: true);
-          assert(updateDapp.hasResult);
-          if (!updateDapp.hasResult) return;
-          await walletConnect.removeSession(app.object.clientInfo);
+          final updateDapp = await wallet.wallet.doAction(
+              WalletActionDisconnectWeb3Application(
+                  application: app.object.authentication, removeApplication: true));
+          assert(updateDapp.isOk);
+          if (!updateDapp.isOk) return;
+          await walletConnect.disconnectSession(app.object.clientInfo);
           break;
         case Web3APPProtocol.injected:
-          final clinetExists =
-              web3Controller?.clientExists(app.object) ?? false;
-          final updateDapp = await wallet.wallet.disconnectWeb3Application(
-              app.object.authentication,
-              removeApplication: !clinetExists);
+          final clinetExists = web3Controller?.clientExists(app.object) ?? false;
+          final updateDapp = await wallet.wallet.doAction(
+              WalletActionDisconnectWeb3Application(
+                  application: app.object.authentication,
+                  removeApplication: !clinetExists));
           if (!clinetExists) return;
-          assert(updateDapp.hasResult && updateDapp.result != null);
-          if (!updateDapp.hasResult || updateDapp.result == null) return;
+          final result = updateDapp.ok();
+          assert(result != null);
+          if (result == null) return;
           await web3Controller?.updateClientAuthenticated(Web3DappInfo(
               authentication: app.object.authentication,
-              dappData: updateDapp.result!,
+              dappData: result,
               clientInfo: app.object.clientInfo));
           break;
       }
@@ -103,15 +101,14 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
     }
   }
 
-  Future<void> updateDappAuthenticated(
-      Web3PermissionUpdateResponse updatedAuth) async {
+  Future<void> updateDappAuthenticated(Web3PermissionUpdateResponse updatedAuth) async {
     switch (updatedAuth.authentication.protocol) {
       case Web3APPProtocol.walletConnect:
         if (updatedAuth.hasRequiredPermission &&
             updatedAuth.appInfo.dappData.hasAnyPermission) {
           await walletConnect.updateAuthenticated(updatedAuth.appInfo);
         } else {
-          await walletConnect.removeSession(updatedAuth.appInfo.clientInfo);
+          await walletConnect.disconnectSession(updatedAuth.appInfo.clientInfo);
         }
         break;
       case Web3APPProtocol.injected:
@@ -121,22 +118,23 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
     context.showAlert("application_updated".tr);
   }
 
-  Future<void> updateApplicationAuthenticated(
-      ShimmerAction<Web3DappInfo> app) async {
+  Future<void> updateApplicationAuthenticated(ShimmerAction<Web3DappInfo> app) async {
     app.toggleAction();
     updateState();
     List<Chain> lockedChains = [];
     if (app.object.authentication.protocol.isWalletConnect) {
-      final session = walletConnect.getSession(
-          peerKey: app.object.authentication.applicationId);
+      final session =
+          walletConnect.getSession(peerKey: app.object.authentication.applicationId);
 
       if (session != null) {
         final walletChain = wallet.wallet.getChains();
         final chainIds = await walletConnect.getSessionRequiredChainIds(
             session: session, auth: app.object.dappData);
-        lockedChains = walletChain
-            .where((e) => chainIds.contains(e.network.value))
-            .toList();
+        chainIds.watch(
+          onErr: (error) => context.showAlert(error.localizationError),
+          onOk: (chainIds) => lockedChains =
+              walletChain.where((e) => chainIds.contains(e.network.value)).toList(),
+        );
       }
     }
     final request = Web3UpdatePermissionRequest.chain(
@@ -159,9 +157,9 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
     super.onInitOnce();
     wallet = context.wallet;
     walletConnect = wallet.wallet.walletConnect;
-    if (wallet.appSetting.config.supportWebView) {
+    if (wallet.supportWebView) {
       web3Controller = wallet.webviewContoller;
-    } else if (wallet.appSetting.config.isExtension) {
+    } else if (wallet.isExtension) {
       web3Controller = wallet.wallet as Web3RequestControllerImpl;
     }
     loadSessions();
@@ -177,8 +175,7 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
   Widget build(BuildContext context) {
     return StreamPageProgress(
         controller: progressKey,
-        initialWidget:
-            ProgressWithTextView(text: "loading_applications_please_wait".tr),
+        initialWidget: ProgressWithTextView(text: "loading_applications_please_wait".tr),
         builder: (context) => CustomScrollView(slivers: [
               SliverConstraintsBoxView(
                 padding: WidgetConstant.paddingHorizontal20,
@@ -195,50 +192,42 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
                               return ContainerWithBorder(
                                 onRemove: () {},
                                 enableTap: false,
-                                onRemoveWidget: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                          tooltip: "clear_dapp_permissions".tr,
-                                          onPressed: () {
-                                            resetDappAuthenticated(client);
-                                          },
-                                          icon: Icon(Icons.remove_circle,
-                                              color:
-                                                  context.onPrimaryContainer)),
-                                      IconButton(
-                                          tooltip: "update_permission".tr,
-                                          onPressed: () {
-                                            updateApplicationAuthenticated(
-                                                client);
-                                          },
-                                          icon: Icon(Icons.security,
-                                              color:
-                                                  context.onPrimaryContainer)),
-                                    ]),
+                                onRemoveWidget:
+                                    Row(mainAxisSize: MainAxisSize.min, children: [
+                                  IconButton(
+                                      tooltip: "clear_dapp_permissions".tr,
+                                      onPressed: () {
+                                        resetDappAuthenticated(client);
+                                      },
+                                      icon: Icon(Icons.remove_circle,
+                                          color: context.onPrimaryContainer)),
+                                  IconButton(
+                                      tooltip: "update_permission".tr,
+                                      onPressed: () {
+                                        updateApplicationAuthenticated(client);
+                                      },
+                                      icon: Icon(Icons.security,
+                                          color: context.onPrimaryContainer)),
+                                ]),
                                 child: Row(
                                   children: [
                                     CircleAPPImageView(
                                       authentication.icon,
                                       radius: APPConst.circleRadius25,
-                                      onError: (c) => const Icon(
-                                          Icons.broken_image,
+                                      onError: (c) => const Icon(Icons.broken_image,
                                           size: APPConst.double40),
                                     ),
                                     WidgetConstant.width8,
                                     Flexible(
                                         child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         OneLineTextWidget(authentication.name,
-                                            style: context
-                                                .onPrimaryTextTheme.labelLarge),
+                                            style: context.onPrimaryTextTheme.labelLarge),
                                         OneLineTextWidget(
                                             authentication.url ??
                                                 authentication.applicationId,
-                                            style: context
-                                                .onPrimaryTextTheme.bodyMedium),
+                                            style: context.onPrimaryTextTheme.bodyMedium),
                                       ],
                                     )),
                                   ],
@@ -248,8 +237,7 @@ class _WalletConnectActiveSessionsState extends State<_ManageWeb3DapssView>
                           );
                         },
                         itemCount: sessions.length,
-                        separatorBuilder: (context, index) =>
-                            WidgetConstant.divider);
+                        separatorBuilder: (context, index) => WidgetConstant.divider);
                   },
                 ),
               )

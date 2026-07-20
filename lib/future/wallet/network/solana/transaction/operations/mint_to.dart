@@ -11,17 +11,14 @@ import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-class SolanaTransactionMintToOperation
-    extends SolanaTransactionStateController {
+class SolanaTransactionMintToOperation extends SolanaTransactionStateController {
   final _lock = SafeAtomicLock();
   final Cancelable _cancelable = Cancelable();
   SolanaTransactionMintToOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
-  final LiveFormField<ReceiptAddress<SolAddress>, ReceiptAddress<SolAddress>>
-      programId = LiveFormField(
+  final LiveFormField<ReceiptAddress<SolAddress>, ReceiptAddress<SolAddress>> programId =
+      LiveFormField(
           title: "program_id".tr,
           subtitle: "solana_program_id_desc".tr,
           value: ReceiptAddress<SolAddress>(
@@ -42,8 +39,8 @@ class SolanaTransactionMintToOperation
       return "mint_account_not_found".tr;
     },
   );
-  final LiveFormField<ReceiptAddress<SolAddress>?, ReceiptAddress<SolAddress>>
-      authority = LiveFormField(
+  final LiveFormField<ReceiptAddress<SolAddress>?, ReceiptAddress<SolAddress>> authority =
+      LiveFormField(
     title: "authority".tr,
     value: null,
     optional: false,
@@ -54,8 +51,7 @@ class SolanaTransactionMintToOperation
           title: "destination".tr,
           subtitle: "use_owner_account_instead_pda_desc".tr,
           value: null);
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "amount".tr,
     subtitle: "mint_to_amount_desc".tr,
     value: IntegerBalance.zero(network.token),
@@ -72,21 +68,20 @@ class SolanaTransactionMintToOperation
     await _lock.run(() async {
       if (value.status.isSuccess) return;
       mint.setValue(TransactionResourceRequirementMintAccount(
-          value: value.value,
-          status: TransactionResourceRequirementFetchStatus.pending));
-      final mintAccountData = await MethodUtils.call(() async {
+          value: value.value, status: TransactionResourceRequirementFetchStatus.pending));
+      final mintAccountData = await IResult.call(() async {
         return getMintAccount(value.value.networkAddress);
       }, cancelable: _cancelable);
-      if (mintAccountData.isCancel) return;
-      if (mintAccountData.hasError || mintAccountData.result == null) {
+      if (mintAccountData.err()?.canceled() ?? false) return;
+      if (mintAccountData.isErr || mintAccountData.ok() == null) {
         mint.setValue(TransactionResourceRequirementMintAccount(
             value: value.value,
             status: TransactionResourceRequirementFetchStatus.failed,
-            error: mintAccountData.localizationErrorOrNull ??
-                "mint_account_not_found".tr));
+            error:
+                mintAccountData.err()?.localizationError ?? "mint_account_not_found".tr));
         return;
       }
-      final mintAccount = mintAccountData.result!;
+      final mintAccount = mintAccountData.unwrap()!;
       mint.setValue(TransactionResourceRequirementMintAccount(
           value: value.value,
           token: Token(
@@ -107,8 +102,7 @@ class SolanaTransactionMintToOperation
 
   void onUpdateMint(ReceiptAddress<SolAddress> address) {
     mint.setValue(TransactionResourceRequirementMintAccount(
-        value: address,
-        status: TransactionResourceRequirementFetchStatus.pending));
+        value: address, status: TransactionResourceRequirementFetchStatus.pending));
     getMintTokenData();
     onUpdateAmount(BigInt.zero);
   }
@@ -135,12 +129,10 @@ class SolanaTransactionMintToOperation
   }
 
   @override
-  Future<ISolanaTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ISolanaTransactionData> buildTransactionData({bool simulate = false}) async {
     final blockhash = await getTransactionBlockHash(simulate: simulate);
     final pda = AssociatedTokenAccountProgramUtils.associatedTokenAccount(
-        mint: mint.value!.value.networkAddress,
-        owner: destination.value!.networkAddress);
+        mint: mint.value!.value.networkAddress, owner: destination.value!.networkAddress);
     final mintTo = SPLTokenProgram.mintTo(
         layout: SPLTokenMintToLayout(amount: amount.value.balance),
         mint: mint.value!.value.networkAddress,
@@ -161,15 +153,14 @@ class SolanaTransactionMintToOperation
         fee: txFee.fee,
         memo: memo.value,
         instructions: [
-          if (associatedTokenAccountProgram != null)
-            associatedTokenAccountProgram,
+          if (associatedTokenAccountProgram != null) associatedTokenAccountProgram,
           mintTo,
         ],
         blockHash: blockhash);
   }
 
   @override
-  TransactionStateController cloneController(ISolanaAddress address) {
+  Future<TransactionStateController> cloneController(ISolanaAddress address) async {
     return SolanaTransactionMintToOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

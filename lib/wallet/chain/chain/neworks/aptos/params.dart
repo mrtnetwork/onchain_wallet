@@ -1,10 +1,8 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class AptosNewAddressParams implements NewAccountParams<IAptosAddress> {
+final class AptosNewAddressParams extends NewDerivableAccountParams<IAptosAddress> {
   @override
-  bool get isMultiSig => false;
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
   @override
   final CryptoCoins coin;
   final AptosSupportKeyScheme keyScheme;
@@ -15,7 +13,7 @@ final class AptosNewAddressParams implements NewAccountParams<IAptosAddress> {
       this.address,
       required this.keyScheme});
   factory AptosNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
+      {required DerivableIndex deriveIndex,
       required CryptoCoins coin,
       required AptosSupportKeyScheme keyScheme}) {
     return AptosNewAddressParams._(
@@ -25,78 +23,75 @@ final class AptosNewAddressParams implements NewAccountParams<IAptosAddress> {
   AptosNewAddressParams updateAddress(AptosAddress address) {
     assert(this.address == null, "Address must be null.");
     return AptosNewAddressParams._(
-        deriveIndex: deriveIndex,
-        coin: coin,
-        address: address,
-        keyScheme: keyScheme);
+        deriveIndex: deriveIndex, coin: coin, address: address, keyScheme: keyScheme);
   }
 
-  factory AptosNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory AptosNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.aptosNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.aptosNewAddressParams.tag);
     return AptosNewAddressParams._(
-        deriveIndex:
-            AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-        coin: CustomCoins.getSerializationCoin(values.elementAs(1)),
-        address: values.elemetMybeAs<AptosAddress, CborStringValue>(
+        deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(1)),
+        address: values.maybeObjectAt<AptosAddress, CborStringValue>(
             2, (e) => AptosAddress(e.value)),
-        keyScheme: AptosSupportKeyScheme.fromValue(values.elementAs(3)));
+        keyScheme: AptosSupportKeyScheme.fromValue(values.rawValueAt(3)));
+  }
+  AptosAccountPublicKey aptosPublicKey(List<int> publicKey) {
+    switch (keyScheme) {
+      case AptosSupportKeyScheme.ed25519:
+        return AptosEd25519AccountPublicKey(AptosED25519PublicKey.fromBytes(publicKey));
+      case AptosSupportKeyScheme.signleKeyEd25519:
+      case AptosSupportKeyScheme.signleKeySecp256k1:
+        return AptosSingleKeyAccountPublicKey(AptosCryptoPublicKey.fromBytes(
+            publicKeyBytes: publicKey, algorithm: keyScheme.curve));
+      default:
+        throw WalletExceptionConst.invalidAccountData("aptosPublicKey");
+    }
   }
 
   @override
-  IAptosAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IAptosAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     final address = this.address;
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
 
     if (address == null) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "AptosNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("AptosNewAddressParams.toAccount");
     }
-    // if(coin.conf.type!= )
     return IAptosAddress._newAccount(
         coin: coin,
-        keyIndex: deriveIndex,
+        derivationIndex: deriveIndex,
         keyScheme: keyScheme,
         address: address,
         identifier: NewAccountParams.toIdentifier(address.address),
-        network: network.toNetwork(),
-        publicKey: publicKey.normalizedComprossedBytes);
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          deriveIndex.toCbor(),
-          coin.toCbor(),
-          address?.address,
-          keyScheme.value
-        ]),
-        type.tag);
+        network: network.cast(),
+        publicKey: publicKey.normalizedComprossedBytes,
+        database: database,
+        id: id);
   }
 
   @override
   NewAccountParamsType get type => NewAccountParamsType.aptosNewAddressParams;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        deriveIndex.toCbor(),
+        coin.identifier.toCbor(),
+        address?.address.toCbor(),
+        keyScheme.value.toCbor()
+      ];
 }
 
-final class AptosMultiSigNewAddressParams implements AptosNewAddressParams {
-  @override
-  bool get isMultiSig => true;
+final class AptosMultiSigNewAddressParams extends NewAccountParams<IAptosAddress> {
   @override
   final CryptoCoins coin;
-  @override
   final AptosAddress address;
 
   final AptosMultisigAccountInfo multiSignatureAddress;
-  @override
-  final AddressDerivationIndex deriveIndex = MultiSigAddressIndex();
 
   AptosMultiSigNewAddressParams._({
     required this.multiSignatureAddress,
@@ -114,56 +109,46 @@ final class AptosMultiSigNewAddressParams implements AptosNewAddressParams {
   }
 
   factory AptosMultiSigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.aptosMultisigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.aptosMultisigNewAddressParams.tag);
     return AptosMultiSigNewAddressParams._(
-        coin: CustomCoins.getSerializationCoin(values.elementAs(0)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(0)),
         multiSignatureAddress: AptosMultisigAccountInfo.deserialize(
-            object: values.elementAs<CborTagValue>(1)),
-        address: AptosAddress(values.elementAs(2)));
+            object: values.objectAt<CborTagValue>(1)),
+        address: AptosAddress(values.rawValueAt(2)));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          coin.toCbor(),
-          multiSignatureAddress.toCbor(),
-          CborStringValue(address.address),
-        ]),
-        type.tag);
-  }
+  NewAccountParamsType get type => NewAccountParamsType.aptosMultisigNewAddressParams;
 
-  @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.aptosMultisigNewAddressParams;
-
-  @override
   AptosSupportKeyScheme get keyScheme => multiSignatureAddress.keyScheme;
 
   @override
-  AptosNewAddressParams updateAddress(AptosAddress address) {
-    throw UnimplementedError();
-  }
-
-  @override
-  IAptosAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IAptosAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     final address = this.address;
     if (network is! WalletAptosNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "AptosMultiSigNewAddressParams.toAccount");
     }
     return IAptosMultiSigAddress._newAccount(
-        network: network.toNetwork(),
+        network: network.cast(),
+        database: database,
         address: address,
         coin: coin,
         identifier: NewAccountParams.toIdentifier(address.address),
         keyScheme: keyScheme,
-        multiSignatureAddress: multiSignatureAddress);
+        multiSignatureAddress: multiSignatureAddress,
+        id: id);
   }
+
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        multiSignatureAddress.toCbor(),
+        CborStringValue(address.address),
+      ];
 }

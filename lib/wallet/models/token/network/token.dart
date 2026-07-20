@@ -1,6 +1,6 @@
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/token_core.dart';
 
 enum NetworkTokenFetchingStatus {
   success,
@@ -21,8 +21,7 @@ abstract class BaseNetworkToken with DisposableMixin, StreamStateController {
   TokenCore get token;
   NetworkTokenFetchingStatus _status = NetworkTokenFetchingStatus.idle;
   NetworkTokenFetchingStatus get status => _status;
-  BaseNetworkToken(
-      {NetworkTokenFetchingStatus status = NetworkTokenFetchingStatus.idle})
+  BaseNetworkToken({NetworkTokenFetchingStatus status = NetworkTokenFetchingStatus.idle})
       : _status = status;
   void updaetTokenMetadata(Token token);
   void setPending() {
@@ -76,8 +75,7 @@ class AptosNetworkToken extends BaseNetworkToken {
   @override
   AptosFATokens get token => _token;
   AptosNetworkToken(
-      {required AptosFATokens token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required AptosFATokens token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess(AptosFATokens tokenWithMetadata) {
     if (_status.isClose) return;
@@ -99,8 +97,7 @@ class StellarNetworkToken extends BaseNetworkToken {
   @override
   StellarIssueToken get token => _token;
   StellarNetworkToken(
-      {required StellarIssueToken token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required StellarIssueToken token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess(StellarIssueToken tokenWithMetadata) {
     if (_status.isClose) return;
@@ -122,8 +119,7 @@ class TonNetworkToken extends BaseNetworkToken {
   @override
   TonJettonToken get token => _token;
   TonNetworkToken(
-      {required TonJettonToken token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required TonJettonToken token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess(TonJettonToken tokenWithMetadata) {
     if (_status.isClose) return;
@@ -145,8 +141,7 @@ class SolanaNetworkToken extends BaseNetworkToken {
   @override
   SolanaSPLToken get token => _token;
   SolanaNetworkToken(
-      {required SolanaSPLToken token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required SolanaSPLToken token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess(SolanaSPLToken tokenWithMetadata) {
     if (_status.isClose) return;
@@ -176,8 +171,7 @@ class CosmosNetworkToken extends BaseNetworkToken {
   @override
   CW20Token get token => _token;
   CosmosNetworkToken(
-      {required CW20Token token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required CW20Token token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess(CW20Token tokenWithMetadata) {
     if (_status.isClose) return;
@@ -199,8 +193,7 @@ class TronNetworkToken extends BaseNetworkToken {
   @override
   TronToken get token => _token;
   TronNetworkToken(
-      {required TronToken token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required TronToken token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess(TronToken tokenWithMetadata) {
     if (_status.isClose) return;
@@ -222,8 +215,7 @@ class RippleNetworkToken extends BaseNetworkToken {
   @override
   RippleIssueToken get token => _token;
   RippleNetworkToken(
-      {required RippleIssueToken token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required RippleIssueToken token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess({RippleIssueToken? tokenWithMetadata}) {
     if (_status.isClose) return;
@@ -251,8 +243,7 @@ class EthereumNetworkToken extends BaseNetworkToken {
   @override
   ETHERC20Token get token => _token;
   EthereumNetworkToken(
-      {required ETHERC20Token token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required ETHERC20Token token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess({ETHERC20Token? tokenWithMetadata}) {
     if (_status.isClose) return;
@@ -280,8 +271,7 @@ class SubstrateNetworkToken extends BaseNetworkToken {
   @override
   SubstrateToken get token => _token;
   SubstrateNetworkToken(
-      {required SubstrateToken token,
-      super.status = NetworkTokenFetchingStatus.idle})
+      {required SubstrateToken token, super.status = NetworkTokenFetchingStatus.idle})
       : _token = token;
   void setSuccess({SubstrateToken? tokenWithMetadata}) {
     if (_status.isClose) return;

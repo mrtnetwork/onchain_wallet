@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -16,9 +16,7 @@ class RippleTransactionNFTAcceptOfferOperation
     extends RippleTransactionStateController<NFTokenAcceptOffer> {
   final CachedObject<List<RippleIssueToken>> tokens = CachedObject();
   RippleTransactionNFTAcceptOfferOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionNFTAcceptOfferOperation({
     required WalletProvider walletProvider,
     required XRPChain account,
@@ -48,8 +46,7 @@ class RippleTransactionNFTAcceptOfferOperation
     },
   );
 
-  final LiveFormField<RipplePickedAsset?, RipplePickedAsset?> token =
-      LiveFormField(
+  final LiveFormField<RipplePickedAsset?, RipplePickedAsset?> token = LiveFormField(
     title: "token".tr,
     subtitle: "ripple_accept_offer_broker_fee".tr,
     optional: true,
@@ -119,7 +116,7 @@ class RippleTransactionNFTAcceptOfferOperation
       }
     }
     return NFTokenAcceptOffer(
-      account: address.networkAddress.toAddress(),
+      account: address.networkAddress.address,
       sourceTag: address.networkAddress.tag,
       memos: RippleUtils.toXrplMemos(memos),
       fee: txFee.fee.fee.balance,
@@ -130,7 +127,7 @@ class RippleTransactionNFTAcceptOfferOperation
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionNFTAcceptOfferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -147,12 +144,11 @@ class RippleTransactionNFTAcceptOfferOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required XRPClient client,
+    required XRPNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     tokens
         .get(onFetch: () async => client.accountTokens(address))
         .catchError((_) => <RippleIssueToken>[]);

@@ -15,21 +15,20 @@ class SolanaTransactionTransferTokenOperation
       required super.account,
       required super.address,
       required this.token});
-  StreamSubscription<IntegerBalance>? _tokenBalanceListener;
+  StreamSubscription? _tokenBalanceListener;
   final SolanaSPLToken token;
   @override
   Token get transferToken => token.token;
 
   BigInt getMaxInput(SolanaTransferDetails recipient) {
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
     final max = token.balance.balance - total + recipient.amount.balance;
     if (max.isNegative) return BigInt.zero;
     return max;
   }
 
-  void onUpdateAmount(
-      SolanaTransferDetails recipient, BigInt amount, bool max) {
+  void onUpdateAmount(SolanaTransferDetails recipient, BigInt amount, bool max) {
     recipient.updateBalance(amount);
     onStateUpdated();
     estimateFee();
@@ -41,30 +40,26 @@ class SolanaTransactionTransferTokenOperation
     if (!status.isReady) return status;
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    BigInt total = address.address.currencyBalance - txFee.fee.fee.balance;
+    BigInt total = address.addressData.currencyBalance - txFee.fee.fee.balance;
     if (total.isNegative) {
       return TransactionStateStatus.insufficient(
           IntegerBalance.token(total, network.token),
           warning: simulateError);
     }
-    total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    total = recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
     final r = token.balance.balance - total;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, transferToken),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, transferToken),
           warning: simulateError);
     }
     return TransactionStateStatus.ready(warning: simulateError);
   }
 
   @override
-  Future<ISolanaTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ISolanaTransactionData> buildTransactionData({bool simulate = false}) async {
     final blockhash = await getTransactionBlockHash(simulate: simulate);
     final instructions = (await Future.wait(recipients.value.map((e) =>
-            e.instruction(
-                owner: address.networkAddress, client: client, token: token))))
+            e.instruction(owner: address.networkAddress, client: client, token: token))))
         .expand((e) => e)
         .toList();
     return ISolanaTransactionData(
@@ -85,9 +80,10 @@ class SolanaTransactionTransferTokenOperation
       buildWalletTransaction(
           {required ISolanaSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final payments = signedTx.transaction.transactionData.payment
-            ?.where((e) => e.token == token) ??
-        [];
+    final memo = signedTx.transaction.transactionData.getWalletTxMemo();
+    final payments =
+        signedTx.transaction.transactionData.payment?.where((e) => e.token == token) ??
+            [];
     if (payments.isEmpty) {
       return super.buildWalletTransaction(signedTx: signedTx, txId: txId);
     }
@@ -101,10 +97,11 @@ class SolanaTransactionTransferTokenOperation
                 tokenIdentifier: e.token?.identifier)))
         .toList();
 
-    final total = outputs.fold<BigInt>(
-        BigInt.zero, (p, c) => p + c.amount.amount.balance);
+    final total =
+        outputs.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.amount.balance);
     final transaction = SolanaWalletTransaction(
         txId: txId.txId,
+        memos: [if (memo != null) memo],
         outputs: outputs,
         totalOutput: WalletTransactionIntegerAmount(
             amount: total,
@@ -116,8 +113,9 @@ class SolanaTransactionTransferTokenOperation
   }
 
   @override
-  TransactionStateController cloneController(ISolanaAddress address) {
-    final addressToken = address.tokens.firstWhere((e) => e.mint == token.mint,
+  Future<TransactionStateController> cloneController(ISolanaAddress address) async {
+    final tokens = (await address.getAccountTokens()).unwrap();
+    final addressToken = tokens.firstWhere((e) => e.mint == token.mint,
         orElse: () => token.clone(balance: BigInt.zero));
     return SolanaTransactionTransferTokenOperation(
         walletProvider: walletProvider,
@@ -132,25 +130,22 @@ class SolanaTransactionTransferTokenOperation
   }
 
   @override
-  TransactionOperations get operation =>
-      SolanaTransactionOperations.tokenTransfer;
+  TransactionOperations get operation => SolanaTransactionOperations.tokenTransfer;
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required SolanaClient client,
+    required SolanaNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super
-        .initForm(context: context, client: client, updateAccount: false);
-    if (!address.tokens.contains(token)) {
+    await super.initForm(context: context, client: client, updateAccount: false);
+    if (!addressTokens.contains(token)) {
       await account.updateTokenBalance(address: address, tokens: [token]);
     } else {
       account.updateTokenBalance(address: address, tokens: [token]);
     }
-    _tokenBalanceListener =
-        token.streamBalance.stream.listen((_) => onStateUpdated());
+    _tokenBalanceListener = token.streamBalance.stream.listen((_) => onStateUpdated());
     return this;
   }
 

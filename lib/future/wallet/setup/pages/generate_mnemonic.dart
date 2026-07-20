@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/setup/controller/form.dart';
 import 'package:on_chain_wallet/future/wallet/setup/pages/mnemonic_view.dart';
@@ -124,8 +124,7 @@ class _SetupMnemonicView extends StatelessWidget {
                   },
                   onChanged: controller.onChangeLanguage),
               WidgetConstant.height20,
-              Text("count_of_mnemonic_word".tr,
-                  style: context.textTheme.titleMedium),
+              Text("count_of_mnemonic_word".tr, style: context.textTheme.titleMedium),
               WidgetConstant.height8,
               AppDropDownBottom(
                   isDense: false,
@@ -138,43 +137,37 @@ class _SetupMnemonicView extends StatelessWidget {
               WidgetConstant.height20,
               ConditionalWidget(
                 enable: controller.type.supportPassPhrase,
-                onActive: (context) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppCheckListTile(
-                          value: controller.usePassphrase,
-                          title: Text("enable_mnemonic_password".tr),
-                          subtitle: Text("mnemonic_passphrase_desc".tr),
-                          onChanged: controller.onChangeUsePassphrase),
-                      APPAnimated(
-                          isActive: controller.usePassphrase,
-                          onActive: (context) => Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    WidgetConstant.height20,
-                                    AppTextField(
-                                      label: "mn_password".tr,
-                                      obscureText: true,
-                                      nextFocus: controller.nextFocus,
-                                      disableContextMenu: true,
-                                      initialValue: controller.passhrase,
-                                      onChanged: controller.onChangePassphrase,
-                                      validator:
-                                          controller.onValidatePassphrase,
-                                    ),
-                                    AppTextField(
-                                        label: "c_password".tr,
-                                        obscureText: true,
-                                        disableContextMenu: true,
-                                        initialValue:
-                                            controller.confirmPassphrase,
-                                        onChanged: controller
-                                            .onChangeConfrimPassphrase,
-                                        focusNode: controller.nextFocus,
-                                        validator:
-                                            controller.onValidatePassphrase),
-                                  ]))
-                    ]),
+                onActive: (context) =>
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  AppCheckListTile(
+                      value: controller.usePassphrase,
+                      title: Text("enable_mnemonic_password".tr),
+                      subtitle: Text("mnemonic_passphrase_desc".tr),
+                      onChanged: controller.onChangeUsePassphrase),
+                  APPAnimated(
+                      isActive: controller.usePassphrase,
+                      onActive: (context) =>
+                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            WidgetConstant.height20,
+                            AppTextField(
+                              label: "mn_password".tr,
+                              obscureText: true,
+                              nextFocus: controller.nextFocus,
+                              disableContextMenu: true,
+                              initialValue: controller.passhrase,
+                              onChanged: controller.onChangePassphrase,
+                              validator: controller.onValidatePassphrase,
+                            ),
+                            AppTextField(
+                                label: "c_password".tr,
+                                obscureText: true,
+                                disableContextMenu: true,
+                                initialValue: controller.confirmPassphrase,
+                                onChanged: controller.onChangeConfrimPassphrase,
+                                focusNode: controller.nextFocus,
+                                validator: controller.onValidatePassphrase),
+                          ]))
+                ]),
               ),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 FixedElevatedButton(
@@ -234,8 +227,7 @@ class _ReviewMnemonicState extends State<_ReviewMnemonic>
                       false: (context) => SizedBox.expand(
                             child: Container(
                               decoration: BoxDecoration(
-                                  color:
-                                      context.colors.secondary.wOpacity(0.99),
+                                  color: context.colors.secondary.wOpacity(0.99),
                                   borderRadius: WidgetConstant.border8),
                               child: Center(
                                 child: FilledButton.icon(

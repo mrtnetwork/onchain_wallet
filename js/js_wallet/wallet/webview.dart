@@ -57,11 +57,12 @@ class JSWebviewWallet extends Web3JSWalletHandler {
     required this.clientId,
     required this.target,
     required this.isWorker,
+    required AppContext context,
     Web3APPData? initializeAuthenticated,
   })  : _initializeAuthenticated = initializeAuthenticated,
-        super._(crypto);
+        super._(crypto, context);
   factory JSWebviewWallet.initialize(
-      {required WalletEvent request,
+      {required JSWalletEventDart request,
       required String clientId,
       required X25519Keypair keyPair,
       required JSWebviewTraget target,
@@ -71,14 +72,15 @@ class JSWebviewWallet extends Web3JSWalletHandler {
     final chacha = ChaCha20Poly1305(sharedKey);
     final data = List<int>.from(request.data);
     final encryptedMessage = Web3EncryptedMessage.deserialize(bytes: data);
-    final decode =
-        chacha.decrypt(encryptedMessage.nonce, encryptedMessage.message);
+    final decode = chacha.decrypt(encryptedMessage.nonce, encryptedMessage.message);
     final message = Web3ChainMessage.deserialize(bytes: decode);
+    final context = DefaultAppContextExtensionContentScript.init().unwrap();
     final handler = JSWebviewWallet._(
         crypto: chacha,
         clientId: clientId,
         target: target,
         isWorker: isWorker,
+        context: context,
         initializeAuthenticated: message.authenticated);
     if (isWorker) {
       onMessage = handler._inWorkerResponse.toJS;

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
@@ -16,8 +15,7 @@ import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/
 
 class StellarTransactionGlobalOperationWidget extends StatelessWidget {
   final StellarTransactionStateController form;
-  const StellarTransactionGlobalOperationWidget(
-      {required this.form, super.key});
+  const StellarTransactionGlobalOperationWidget({required this.form, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +25,8 @@ class StellarTransactionGlobalOperationWidget extends StatelessWidget {
         builder: (context, value) {
           return APPAnimated(
               isActive: value != null,
-              onActive: (context) => _StellarTransactionOperationFormBuilder(
-                  form: value!, controller: form),
+              onActive: (context) =>
+                  _StellarTransactionOperationFormBuilder(form: value!, controller: form),
               onDeactive: (context) => _StellarTransactionFieldsView(form));
         },
       ),
@@ -47,12 +45,10 @@ class StellarTransactionOperationView extends StatelessWidget {
         _ChangeTrustOperationView(operation as StellarChangeTrustOperation),
       OperationType.payment =>
         _PaymentOperationView(operation: operation as StellarPaymentOperation),
-      OperationType.pathPaymentStrictReceive =>
-        _PathPaymentStrictReceiveOperationView(
-            operation: operation as StellarPathPaymentStrictReceiveOperation),
-      OperationType.pathPaymentStrictSend =>
-        _PathPaymentStrictSendOperationView(
-            operation: operation as StellarPathPaymentStrictSendOperation),
+      OperationType.pathPaymentStrictReceive => _PathPaymentStrictReceiveOperationView(
+          operation: operation as StellarPathPaymentStrictReceiveOperation),
+      OperationType.pathPaymentStrictSend => _PathPaymentStrictSendOperationView(
+          operation: operation as StellarPathPaymentStrictSendOperation),
       OperationType.createAccount => _CreateAccountOperationView(
           operation: operation as StellarCreateAccountOperation),
       OperationType.manageSellOffer ||
@@ -82,8 +78,7 @@ class _StellarTransactionFieldsView extends StatelessWidget {
                       child: (context) => _SelectStellarOperationView())
                   .then(form.onCreateNewOperation);
             },
-            onRemoveIcon:
-                Icon(Icons.add_box, color: context.onPrimaryContainer),
+            onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
             child: Text("tap_to_add_new_operation".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
           );
@@ -97,8 +92,7 @@ class _StellarTransactionFieldsView extends StatelessWidget {
             child: ContainerWithBorder(
                 enableTap: false,
                 iconAlginment: CrossAxisAlignment.start,
-                onRemoveIcon:
-                    Icon(Icons.edit, color: context.onPrimaryContainer),
+                onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                 onRemove: () {
                   form.onEditOperation(value);
                 },
@@ -112,8 +106,8 @@ class _StellarTransactionFieldsView extends StatelessWidget {
                         decoration: BoxDecoration(
                             color: context.colors.surface,
                             borderRadius: WidgetConstant.border8),
-                        child: StellarTransactionOperationView(
-                            operation: value.operation))
+                        child:
+                            StellarTransactionOperationView(operation: value.operation))
                   ],
                 )),
           );
@@ -138,8 +132,8 @@ class _StellarTransactionFieldsView extends StatelessWidget {
                       .then(form.onUpdateMemo);
                 },
                 onRemoveIcon: ConditionalWidget(
-                  onActive: (context) => Icon(Icons.remove_circle,
-                      color: context.onPrimaryContainer),
+                  onActive: (context) =>
+                      Icon(Icons.remove_circle, color: context.onPrimaryContainer),
                   onDeactive: (context) =>
                       Icon(Icons.add_box, color: context.onPrimaryContainer),
                   enable: field.hasValue,
@@ -158,18 +152,16 @@ class _StellarTransactionFieldsView extends StatelessWidget {
           return ContainerWithBorder(
               onRemove: () {
                 context
-                    .openSliverBottomSheet<TransactionTimeBound>(
-                        "setup_time_bound".tr,
-                        child: StellarTransactionSetupTimeBoundView(
-                            currentTimeBound: value))
+                    .openSliverBottomSheet<TransactionTimeBound>("setup_time_bound".tr,
+                        child:
+                            StellarTransactionSetupTimeBoundView(currentTimeBound: value))
                     .then(form.onUpdateTimeBound);
               },
               onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(value.type.name.tr,
-                      style: context.onPrimaryTextTheme.labelLarge),
+                  Text(value.type.name.tr, style: context.onPrimaryTextTheme.labelLarge),
                   switch (value.type) {
                     TransactiomTimeBoundType.auto => Text(
                         "stellar_time_bound_auto_desc".tr,
@@ -243,31 +235,25 @@ class _StellarTransactionOperationFormBuilder extends StatelessWidget {
         WidgetConstant.height20,
         Text("operation".tr, style: context.textTheme.titleMedium),
         ContainerWithBorder(
-            child: Text(form.type.name,
-                style: context.onPrimaryTextTheme.bodyMedium)),
+            child: Text(form.type.name, style: context.onPrimaryTextTheme.bodyMedium)),
         WidgetConstant.height20,
         form.builder(context),
         APPStreamBuilder(
             value: form.status,
             builder: (context, value) {
-              return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ErrorTextContainer(error: value.error, enableTap: false),
-                    AlertTextContainer(
-                        message: value.warning, enableTap: false),
-                    Padding(
-                      padding: WidgetConstant.paddingVertical40,
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FixedElevatedButton(
-                                onPressed: controller.onUpdateOperations,
-                                activePress: value.isReady,
-                                child: Text("setup_operation".tr))
-                          ]),
-                    )
-                  ]);
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                ErrorTextContainer(error: value.error, enableTap: false),
+                AlertTextContainer(message: value.warning, enableTap: false),
+                Padding(
+                  padding: WidgetConstant.paddingVertical40,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    FixedElevatedButton(
+                        onPressed: controller.onUpdateOperations,
+                        activePress: value.isReady,
+                        child: Text("setup_operation".tr))
+                  ]),
+                )
+              ]);
             })
       ]),
     );
@@ -280,8 +266,7 @@ class _StellarMemoView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (memo == null) {
-      return Text("tap_to_create_memo".tr,
-          style: context.onPrimaryTextTheme.bodyMedium);
+      return Text("tap_to_create_memo".tr, style: context.onPrimaryTextTheme.bodyMedium);
     }
     return Text(memo?.val ?? '', style: context.onPrimaryTextTheme.bodyMedium);
   }
@@ -295,15 +280,12 @@ class _SelectStellarOperationView extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-            title: Text("transaction_operation".tr),
-            pinned: true,
-            centerTitle: false),
+            title: Text("transaction_operation".tr), pinned: true, centerTitle: false),
         SliverConstraintsBoxView(
           padding: WidgetConstant.paddingHorizontal20,
           sliver: SliverList.separated(
               itemBuilder: (context, index) {
-                final element =
-                    StellarConst.supportedOperations.elementAt(index);
+                final element = StellarConst.supportedOperations.elementAt(index);
                 return AppListTile(
                   title: Text(element.translate.tr),
                   onTap: () => context.pop(element),
@@ -375,8 +357,7 @@ class _PaymentOperationView extends StatelessWidget {
         WidgetConstant.height20,
         ReceiptAddressView(address: operation.destination),
         WidgetConstant.height20,
-        TransactionAmountView(
-            amount: operation.amount, token: operation.asset.token),
+        TransactionAmountView(amount: operation.amount, token: operation.asset.token),
       ],
     );
   }
@@ -406,8 +387,7 @@ class _PathPaymentStrictReceiveOperationView extends StatelessWidget {
             token: operation.asset.token,
             title: "send_max".tr),
         WidgetConstant.height20,
-        ReceiptAddressView(
-            address: operation.destination, title: "destination".tr),
+        ReceiptAddressView(address: operation.destination, title: "destination".tr),
         WidgetConstant.height20,
         Text("destination_asset".tr, style: context.textTheme.titleMedium),
         WidgetConstant.height8,
@@ -470,8 +450,7 @@ class _PathPaymentStrictSendOperationView extends StatelessWidget {
             token: operation.asset.token,
             title: "send_amount".tr),
         WidgetConstant.height20,
-        ReceiptAddressView(
-            address: operation.destination, title: "destination".tr),
+        ReceiptAddressView(address: operation.destination, title: "destination".tr),
         WidgetConstant.height20,
         Text("destination_asset".tr, style: context.textTheme.titleMedium),
         WidgetConstant.height8,
@@ -559,9 +538,7 @@ class _ManageSellOfferOperationView extends StatelessWidget {
         )),
         WidgetConstant.height20,
         TransactionAmountView(
-            amount: operation.amount,
-            token: operation.asset.token,
-            title: "amount".tr),
+            amount: operation.amount, token: operation.asset.token, title: "amount".tr),
         WidgetConstant.height20,
         Text("buying".tr, style: context.textTheme.titleMedium),
         WidgetConstant.height8,

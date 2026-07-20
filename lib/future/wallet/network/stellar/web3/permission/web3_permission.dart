@@ -4,7 +4,7 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'package:stellar_dart/stellar_dart.dart';
 
 class StellarWeb3PermissionView extends StatefulWidget {
@@ -12,8 +12,7 @@ class StellarWeb3PermissionView extends StatefulWidget {
   final Web3ApplicationAuthentication application;
 
   @override
-  State<StellarWeb3PermissionView> createState() =>
-      _StellarWeb3PermissionViewState();
+  State<StellarWeb3PermissionView> createState() => _StellarWeb3PermissionViewState();
 }
 
 class _StellarWeb3PermissionViewState extends State<StellarWeb3PermissionView>
@@ -36,8 +35,7 @@ class _StellarWeb3PermissionViewState extends State<StellarWeb3PermissionView>
 
   @override
   Widget build(BuildContext context) {
-    return UpdateChainPermissionWidget<StellarAddress, IStellarAddress,
-            StellarChain>(
+    return UpdateChainPermissionWidget<StellarAddress, IStellarAddress, StellarChain>(
         chain: chain,
         chains: chains,
         isDefaultAddress: isDefaultAddress,

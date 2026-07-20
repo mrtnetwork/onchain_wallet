@@ -14,7 +14,7 @@ class LiveFormField<IN extends Object?, OUT extends Object?> {
     this.optional = false,
     this.onValidateError,
     required IN value,
-  }) : live = StreamValue(value);
+  }) : live = StreamValue(value, name: "LiveFormField");
 
   bool get hasValue => value != null;
   bool get complete => optional || value != null;

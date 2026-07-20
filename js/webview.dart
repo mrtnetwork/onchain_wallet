@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:on_chain_bridge/models/models.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/messages/models/models/exception.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/messages/models/models/exception.dart';
 import 'js_crypto_utils.dart';
 import 'js_wallet/js_wallet.dart';
 import 'package:on_chain_bridge/web/web.dart';
@@ -21,10 +21,9 @@ void main(List<String> args) async {
       final walletEvent = data.toEvent();
       switch (walletEvent!.type) {
         case WalletEventTypes.exception:
-          final message =
-              Web3ExceptionMessage.deserialize(bytes: walletEvent.data);
-          final error = JSWorkerEvent(
-              data: message.toWalletError(), type: JSWorkerType.error);
+          final message = Web3ExceptionMessage.deserialize(bytes: walletEvent.data);
+          final error =
+              JSWorkerEvent(data: message.toWalletError(), type: JSWorkerType.error);
           walletCompleter.complete((error, null));
           break;
         case WalletEventTypes.activation:
@@ -39,9 +38,10 @@ void main(List<String> args) async {
         default:
           break;
       }
-    } catch (e) {
+    } catch (e, trace) {
       final error = JSWorkerEvent(
-          data: Web3RequestExceptionConst.internalError
+          data: Web3RequestExceptionConst.internalErr("webview.main",
+                  reason: e.toString(), trace: trace.toString())
               .toResponseMessage()
               .toCbor()
               .toCborHex()
@@ -52,8 +52,7 @@ void main(List<String> args) async {
   }
 
   onMessage = onData.toJS;
-  postMessage(
-      JSWorkerEvent(type: JSWorkerType.ready, clientId: key.publicKeyHex()));
+  postMessage(JSWorkerEvent(type: JSWorkerType.ready, clientId: key.publicKeyHex()));
   final event = await walletCompleter.future;
   postMessage(event.$1);
   final wallet = event.$2;

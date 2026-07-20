@@ -3,8 +3,7 @@ part of '../scripts.dart';
 typedef POSTPAGEMESSAGE = void Function(PageMessage message);
 
 abstract class JSBasePageController {
-  late final PageRequestController requestController =
-      PageRequestController(postMessage);
+  late final PageRequestController requestController = PageRequestController(postMessage);
   late final _walletStandardController =
       JSPageWalletStandardController(requestController);
 
@@ -39,7 +38,8 @@ abstract class JSBasePageController {
     JSClientType.xrpl: RipplePageController(requestController),
     JSClientType.monero: MoneroPageController(requestController),
     JSClientType.cardano: ADAPageController(requestController),
-    JSClientType.bitcoinCash: BitcoinCashPageController(requestController)
+    JSClientType.bitcoinCash: BitcoinCashPageController(requestController),
+    JSClientType.zcash: ZcashPageController(requestController)
   };
 
   void _initControllers() {
@@ -49,8 +49,7 @@ abstract class JSBasePageController {
           final page = i.value;
           page._initNetworkFeatures(_walletStandardController._feature);
         } catch (e, s) {
-          jsConsole
-              .error("Initializing wallet failed: ${i.key.networkName} $e $s");
+          jsConsole.error("Initializing wallet failed: ${i.key.networkName} $e $s");
         }
       }
       _walletStandardController._initController();
@@ -104,8 +103,7 @@ class JSPageController extends JSBasePageController {
   void initClients(String clientId) {
     if (_walletId != null) return;
     _walletId = JsUtils.toWalletId(clientId);
-    jsWindow.addEventListener(
-        JsUtils.toEthereumClientId(clientId), _onWalletEvent.toJS);
+    jsWindow.addEventListener(JsUtils.toEthereumClientId(clientId), _onWalletEvent.toJS);
     _wait?.complete();
   }
 }
@@ -116,8 +114,7 @@ class JSWithWorkerPageController extends JSBasePageController {
   @override
   void postMessage(PageMessage message) async {
     await _waitForActivation();
-    _worker
-        ?.postMessage(JSWorkerEvent(data: message, type: JSWorkerType.client));
+    _worker?.postMessage(JSWorkerEvent(data: message, type: JSWorkerType.client));
   }
 
   factory JSWithWorkerPageController.setup() {

@@ -1,62 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/wallet/wallet.dart'
-    show ContactCore, ChainAccount;
+import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class AddressDetailsView extends StatelessWidget {
   const AddressDetailsView(
-      {required this.address, super.key, this.showBalance = true, this.color});
+      {required this.address,
+      this.chain,
+      super.key,
+      this.showBalance = true,
+      this.color,
+      this.title});
   final ChainAccount address;
+  final Chain? chain;
   final bool showBalance;
   final Color? color;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
+    final accountName = title ?? address.accountName;
+    final accountType = address.type?.tr;
+    final labelStyle = context.textTheme.labelLarge?.copyWith(color: color);
+    final currentAccount = chain?.addressSyncOrNull == address;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ConditionalWidget(
-          enable: address.accountName != null,
-          onActive: (context) => OneLineTextWidget(
-            address.accountName!,
-            style: context.textTheme.labelLarge?.copyWith(color: color),
-          ),
-          onDeactive: (context) {
-            if (address.type == null) return WidgetConstant.sizedBox;
-            return OneLineTextWidget(
-              address.type!,
-              style: context.textTheme.labelLarge?.copyWith(color: color),
-            );
-          },
-        ),
         RichText(
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-                style: context.textTheme.bodyMedium?.copyWith(color: color),
-                children: [
-                  WidgetSpan(
-                      child: AddressDerivationKeyIcon(
-                    address.keyIndex,
-                    color: color,
-                    size: context.textTheme.bodyMedium?.fontSize ??
-                        APPConst.smallIconSize,
-                  )),
-                  TextSpan(text: " "),
-                  TextSpan(text: address.address.toAddress)
-                ])),
+            text: TextSpan(style: labelStyle, children: [
+              if (currentAccount) ...[
+                WidgetSpan(
+                    child: ToolTipView(
+                        message: "current_account_address".tr,
+                        child: Icon(
+                          Icons.circle,
+                          size: context.textTheme.bodyMedium?.fontSize ??
+                              APPConst.smallIconSize,
+                          color: color,
+                        ))),
+                TextSpan(text: " "),
+              ],
+              WidgetSpan(
+                  child: AddressDerivationKeyIcon(
+                address.derivationIndex,
+                color: color,
+                size: context.textTheme.bodyMedium?.fontSize ?? APPConst.smallIconSize,
+              )),
+              TextSpan(text: " "),
+              if (accountName != null)
+                TextSpan(text: accountName, style: labelStyle)
+              else if (accountType != null)
+                TextSpan(text: accountType, style: labelStyle)
+              else
+                TextSpan(text: address.derivationIndex.typName(), style: labelStyle)
+            ])),
+        OneLineTextWidget(
+          address.address,
+          style: context.textTheme.bodyMedium?.copyWith(color: color),
+        ),
         ConditionalWidget(
             enable: showBalance,
             onActive: (context) => Column(children: [
                   WidgetConstant.height8,
                   CoinAndMarketLivePriceView(
-                      liveBalance: address.address.balance,
-                      style:
-                          context.textTheme.titleMedium?.copyWith(color: color),
+                      liveBalance: address.addressData.balance,
+                      style: context.textTheme.titleMedium?.copyWith(color: color),
                       showTokenImage: true,
                       symbolColor: color),
                 ]))
@@ -67,7 +79,7 @@ class AddressDetailsView extends StatelessWidget {
 
 class ContactAddressView extends StatelessWidget {
   const ContactAddressView({super.key, required this.contact, this.color});
-  final ContactCore contact;
+  final NetworkContact contact;
   final Color? color;
   @override
   Widget build(BuildContext context) {
@@ -88,25 +100,24 @@ class ContactAddressView extends StatelessWidget {
 
 class AddressDrivationInfo extends StatelessWidget {
   const AddressDrivationInfo(this.keyIndex,
-      {this.color, this.style, super.key});
-  final AddressDerivationIndex keyIndex;
+      {this.overridePath, this.color, this.style, super.key});
+  final DerivationIndex keyIndex;
   final Color? color;
   final TextStyle? style;
+  final String? overridePath;
   @override
   Widget build(BuildContext context) {
-    final keyStr = keyIndex.toString().tr;
+    final keyStr = overridePath ?? keyIndex.toString().tr;
 
     if (keyIndex.isImportedKey) {
       return RichText(
         text: TextSpan(children: [
           WidgetSpan(
               child: AddressDerivationKeyIcon(keyIndex,
-                  size: style?.fontSize ?? APPConst.smallIconSize,
-                  color: color)),
+                  size: style?.fontSize ?? APPConst.smallIconSize, color: color)),
           TextSpan(
               text: "imported_".tr.replaceOne(keyStr),
-              style:
-                  style ?? context.textTheme.bodySmall?.copyWith(color: color))
+              style: style ?? context.textTheme.bodySmall?.copyWith(color: color))
         ]),
       );
     }
@@ -119,7 +130,7 @@ class AddressDrivationInfo extends StatelessWidget {
           color: color,
         )),
         TextSpan(
-            text: " ${keyIndex.toString().tr}",
+            text: " ${keyStr.tr}",
             style: style ?? context.textTheme.bodySmall?.copyWith(color: color))
       ]),
     );
@@ -127,33 +138,40 @@ class AddressDrivationInfo extends StatelessWidget {
 }
 
 class AddressDerivationKeyIcon extends StatelessWidget {
-  const AddressDerivationKeyIcon(this.keyIndex,
-      {this.size, this.color, super.key});
-  final AddressDerivationIndex keyIndex;
+  const AddressDerivationKeyIcon(this.keyIndex, {this.size, this.color, super.key});
+  final DerivationIndex keyIndex;
   final Color? color;
   final double? size;
   @override
   Widget build(BuildContext context) {
-    if (keyIndex.isMultiSig) {
-      return ToolTipView(
-          message: "multisig_address".tr,
-          child: Icon(Icons.switch_account_rounded, color: color, size: size));
+    final typeName = keyIndex.typName();
+    return ToolTipView(
+        message: typeName,
+        child: switch (keyIndex) {
+          MultiSigAddressIndex() =>
+            Icon(Icons.switch_account_rounded, color: color, size: size),
+          DerivableIndex index when index.isImportedKey =>
+            Icon(Icons.key, color: color, size: size),
+          DerivableIndex index when index.subId != null =>
+            Icon(Icons.account_balance_wallet_outlined, color: color, size: size),
+          _ => Icon(Icons.account_balance_wallet_rounded, color: color, size: size)
+        });
+  }
+}
+
+extension ExtDerivationIndexTranslate on DerivationIndex {
+  String typName() {
+    switch (this) {
+      case MultiSigAddressIndex _:
+        return "multisig_address".tr;
+      case DerivableIndex keyIndex:
+        if (keyIndex.isImportedKey) {
+          return "imported_key".tr;
+        }
+        if (keyIndex.subId != null) {
+          return "subwallet".tr;
+        }
+        return "mainwallet".tr;
     }
-    if (keyIndex.isImportedKey) {
-      return ToolTipView(
-          message: "imported_key".tr,
-          child: Icon(Icons.key, color: color, size: size));
-    }
-    return ConditionalWidget(
-      enable: keyIndex.subId == null,
-      onActive: (context) => ToolTipView(
-          message: "mainwallet".tr,
-          child: Icon(Icons.account_balance_wallet_rounded,
-              color: color, size: size)),
-      onDeactive: (context) => ToolTipView(
-          message: "subwallet".tr,
-          child: Icon(Icons.account_balance_wallet_outlined,
-              color: color, size: size)),
-    );
   }
 }

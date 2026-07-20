@@ -1,9 +1,9 @@
 import 'dart:js_interop';
 
+import 'package:on_chain_bridge/web/api/types/types.dart';
 import 'package:on_chain_bridge/web/web.dart';
 
 import '../../../constant/constant.dart';
-import '../../models.dart';
 import 'wallet_standard.dart';
 
 class JSEthereumConst {
@@ -70,10 +70,7 @@ extension type EIP1193(JSObject _) implements JSAny {
 @JS()
 extension type EIP6963ProviderInfo._(JSObject _) implements JSOBJ {
   external factory EIP6963ProviderInfo(
-      {required String uuid,
-      required String name,
-      required String icon,
-      String? rdns});
+      {required String uuid, required String name, required String icon, String? rdns});
   external String get uuid;
   external String get name;
   external String get icon;
@@ -86,8 +83,7 @@ extension type EIP6963ProviderInfo._(JSObject _) implements JSOBJ {
 }
 @JS()
 extension type EIP6963._(JSObject _) implements JSOBJ {
-  external factory EIP6963(
-      {required EIP6963ProviderInfo info, required JSAny? provider});
+  external factory EIP6963({required EIP6963ProviderInfo info, required JSAny? provider});
   external EIP6963ProviderInfo get info;
   external EIP1193 get provider;
 
@@ -97,24 +93,22 @@ extension type EIP6963._(JSObject _) implements JSOBJ {
         EventInit(
             bubbles: true,
             cancelable: false,
-            detail: JSOBJ.freeze(EIP6963(
-                info: EIP6963ProviderInfo.providerInfo, provider: ethereum))));
+            detail: JSOBJ.freeze(
+                EIP6963(info: EIP6963ProviderInfo.providerInfo, provider: ethereum))));
     void onRequestProvider(CustomEvent r) {
       jsWindow.dispatchEvent(event);
       jsWindow.removeEventListener(
           JSEthereumConst.eip6963Request, onRequestProvider.toJS);
     }
 
-    jsWindow.addEventListener(
-        JSEthereumConst.eip6963Request, onRequestProvider.toJS);
+    jsWindow.addEventListener(JSEthereumConst.eip6963Request, onRequestProvider.toJS);
     jsWindow.dispatchEvent(event);
   }
 }
 
 @JS()
 extension type EthereumRequestParams._(JSObject o) implements JSAny {
-  external factory EthereumRequestParams(
-      {String? method, JSAny? params, int? id});
+  external factory EthereumRequestParams({String? method, JSAny? params, int? id});
   external String get method;
   external set method(String? method);
   external JSAny? get params;
@@ -138,8 +132,7 @@ extension type JSEthereumEIPProviderRpcError._(JSObject o) implements JSAny {
 }
 
 @JS()
-extension type JSEthereumTransactionAccessListParams._(JSObject o)
-    implements JSAny {
+extension type JSEthereumTransactionAccessListParams._(JSObject o) implements JSAny {
   external String? get address;
   external JSArray<JSString>? get storageKeys;
 }
@@ -160,8 +153,7 @@ extension type JSEthereumTransactionParams._(JSObject o) implements JSAny {
   external JSArray<JSEthereumTransactionAccessListParams>? get accessList;
 }
 @JS()
-extension type JSEthereumWalletStandardTransactionParams._(JSObject o)
-    implements JSAny {
+extension type JSEthereumWalletStandardTransactionParams._(JSObject o) implements JSAny {
   external JSSEthereumWalletAccount? get account;
   external JSEthereumTransactionParams? get transaction;
   static const List<String> properties = ['account', 'transaction'];
@@ -187,26 +179,20 @@ extension type JSEthereumAddNewChainParams._(JSObject o) implements JSAny {
   external JSEthereumNativeCurrencyParams? get nativeCurrency;
 }
 @JS()
-extension type JSSEthereumWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSSEthereumWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSSEthereumWalletAccount.setup(
-      {required String address,
-      required List<int>? publicKey,
-      required String chain}) {
+      {required String address, required List<int>? publicKey, required String chain}) {
     return JSSEthereumWalletAccount._(JSObject())
       ..address = address
-      ..publicKey =
-          publicKey == null ? null : APPJSUint8Array.fromList(publicKey)
+      ..publicKey = publicKey == null ? null : APPJSUint8Array.fromList(publicKey)
       ..chains = [chain.toJS].toJS
       ..features = JSEthereumConst.defaultAccountFeatures;
   }
 }
 @JS()
 extension type JSEthereumWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSEthereumWalletStandardConnect.setup(
-      List<JSSEthereumWalletAccount> accounts) {
-    return JSEthereumWalletStandardConnect._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSEthereumWalletStandardConnect.setup(List<JSSEthereumWalletAccount> accounts) {
+    return JSEthereumWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSSEthereumWalletAccount> get accounts;
   external set accounts(JSArray<JSSEthereumWalletAccount> _);
@@ -225,8 +211,7 @@ extension type EthereumWalletAdapterConnectFeature(JSAny _) implements JSAny {
   external set connect(JSFunction _);
 }
 @JS()
-extension type EthereumWalletAdapterPersonalSignFeature(JSAny _)
-    implements JSAny {
+extension type EthereumWalletAdapterPersonalSignFeature(JSAny _) implements JSAny {
   factory EthereumWalletAdapterPersonalSignFeature.setup(
       {required JSFunction personalSign,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -250,8 +235,7 @@ extension type EthereumWalletAdapterEthSignFeature(JSAny _) implements JSAny {
   external set ethSign(JSFunction _);
 }
 @JS()
-extension type EthereumWalletAdapterSendTransactionFeature(JSAny _)
-    implements JSAny {
+extension type EthereumWalletAdapterSendTransactionFeature(JSAny _) implements JSAny {
   factory EthereumWalletAdapterSendTransactionFeature.setup(
       {required JSFunction sendTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -263,8 +247,7 @@ extension type EthereumWalletAdapterSendTransactionFeature(JSAny _)
   external set sendTransaction(JSFunction _);
 }
 @JS()
-extension type EthereumWalletAdapterSignTypedDataFeature(JSAny _)
-    implements JSAny {
+extension type EthereumWalletAdapterSignTypedDataFeature(JSAny _) implements JSAny {
   factory EthereumWalletAdapterSignTypedDataFeature.setup(
       {required JSFunction signTypedData,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -276,8 +259,7 @@ extension type EthereumWalletAdapterSignTypedDataFeature(JSAny _)
   external set signTypedData(JSFunction _);
 }
 @JS()
-extension type EthereumWalletAdapterSignTypedDataV4Feature(JSAny _)
-    implements JSAny {
+extension type EthereumWalletAdapterSignTypedDataV4Feature(JSAny _) implements JSAny {
   factory EthereumWalletAdapterSignTypedDataV4Feature.setup(
       {required JSFunction signTypedDataV4,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -289,8 +271,7 @@ extension type EthereumWalletAdapterSignTypedDataV4Feature(JSAny _)
   external set signTypedDataV4(JSFunction _);
 }
 @JS()
-extension type EthereumWalletAdapterSignTypedDataV3Feature(JSAny _)
-    implements JSAny {
+extension type EthereumWalletAdapterSignTypedDataV3Feature(JSAny _) implements JSAny {
   factory EthereumWalletAdapterSignTypedDataV3Feature.setup(
       {required JSFunction signTypedDataV3,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -302,8 +283,7 @@ extension type EthereumWalletAdapterSignTypedDataV3Feature(JSAny _)
   external set signTypedDataV3(JSFunction _);
 }
 @JS()
-extension type EthereumWalletAdapterAddNewChainFeature(JSAny _)
-    implements JSAny {
+extension type EthereumWalletAdapterAddNewChainFeature(JSAny _) implements JSAny {
   factory EthereumWalletAdapterAddNewChainFeature.setup(
       {required JSFunction addNewChain,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -348,8 +328,7 @@ extension type JSEthereumSignatureResponse._(JSObject o) implements JSAny {
   external set signature(APPJSUint8Array _);
 }
 @JS()
-extension type JSEthereumSendTransactionResponse._(JSObject o)
-    implements JSAny {
+extension type JSEthereumSendTransactionResponse._(JSObject o) implements JSAny {
   factory JSEthereumSendTransactionResponse.setup(String txId) {
     return JSEthereumSendTransactionResponse._(JSObject())..txId = txId;
   }

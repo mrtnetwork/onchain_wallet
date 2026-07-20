@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/restore_backup.dart';
 import 'package:on_chain_wallet/future/wallet/setup/controller/form.dart';
@@ -79,17 +79,13 @@ class _MnemonicViewState extends State<ExistsMnemonicView>
                                       value: e,
                                       enabled: isEnable,
                                       child: Opacity(
-                                        opacity: isEnable
-                                            ? 1
-                                            : APPConst.disabledOpacity,
+                                        opacity: isEnable ? 1 : APPConst.disabledOpacity,
                                         child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(e.tr.tr),
                                             Text(e.desc.tr,
-                                                style:
-                                                    context.textTheme.bodySmall)
+                                                style: context.textTheme.bodySmall)
                                           ],
                                         ),
                                       ),
@@ -97,8 +93,7 @@ class _MnemonicViewState extends State<ExistsMnemonicView>
                                   }).toList(),
                                   onChanged: controller.onChangeMnemonicType),
                               WidgetConstant.height20,
-                              Text("mnemonic".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("mnemonic".tr, style: context.textTheme.titleMedium),
                               Text("enter_mnemonic_desc".tr),
                               WidgetConstant.height8,
                               AppTextField(
@@ -115,8 +110,7 @@ class _MnemonicViewState extends State<ExistsMnemonicView>
                                     PasteTextIcon(
                                         onPaste: controller.onPasteMnemonic,
                                         isSensitive: true),
-                                    BarcodeScannerIconView(
-                                        controller.onPasteMnemonic,
+                                    BarcodeScannerIconView(controller.onPasteMnemonic,
                                         isSensitive: true),
                                     IconButton(
                                         onPressed: () {
@@ -125,12 +119,11 @@ class _MnemonicViewState extends State<ExistsMnemonicView>
                                                   "restore_backup".tr,
                                                   child: RestoreBackupView(
                                                       accepted:
-                                                          WalletBackupTypes
-                                                              .mnemonic))
+                                                          WalletBackupTypes.mnemonic))
                                               .then(controller.onPasteMnemonic);
                                         },
-                                        icon: Icon(Icons
-                                            .settings_backup_restore_outlined))
+                                        icon:
+                                            Icon(Icons.settings_backup_restore_outlined))
                                   ],
                                 ),
                                 initialValue: controller.mnemonic,
@@ -139,17 +132,13 @@ class _MnemonicViewState extends State<ExistsMnemonicView>
                               ConditionalWidget(
                                 enable: controller.type.supportPassPhrase,
                                 onActive: (context) => Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       AppCheckListTile(
                                           value: controller.usePassphrase,
-                                          title: Text(
-                                              "enable_mnemonic_password".tr),
-                                          subtitle: Text(
-                                              "mnemonic_passphrase_desc".tr),
-                                          onChanged:
-                                              controller.onChangeUsePassphrase),
+                                          title: Text("enable_mnemonic_password".tr),
+                                          subtitle: Text("mnemonic_passphrase_desc".tr),
+                                          onChanged: controller.onChangeUsePassphrase),
                                       APPAnimated(
                                           isActive: controller.usePassphrase,
                                           onActive: (context) => Column(
@@ -160,41 +149,33 @@ class _MnemonicViewState extends State<ExistsMnemonicView>
                                                     AppTextField(
                                                       label: "mn_password".tr,
                                                       obscureText: true,
-                                                      nextFocus:
-                                                          controller.nextFocus,
                                                       disableContextMenu: true,
-                                                      initialValue:
-                                                          controller.passhrase,
-                                                      onChanged: controller
-                                                          .onChangePassphrase,
-                                                      validator: controller
-                                                          .onValidatePassphrase,
+                                                      initialValue: controller.passhrase,
+                                                      onChanged:
+                                                          controller.onChangePassphrase,
+                                                      validator:
+                                                          controller.onValidatePassphrase,
                                                     ),
                                                     AppTextField(
                                                         label: "c_password".tr,
                                                         obscureText: true,
-                                                        disableContextMenu:
-                                                            true,
-                                                        initialValue: controller
-                                                            .confirmPassphrase,
+                                                        disableContextMenu: true,
+                                                        initialValue:
+                                                            controller.confirmPassphrase,
                                                         onChanged: controller
                                                             .onChangeConfrimPassphrase,
-                                                        focusNode: controller
-                                                            .nextFocus,
+                                                        focusNode: controller.nextFocus,
                                                         validator: controller
                                                             .onValidateConfirmPassphrase),
                                                   ]))
                                     ]),
                               ),
-                              Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    FixedElevatedButton(
-                                        padding:
-                                            WidgetConstant.paddingVertical40,
-                                        onPressed: onValidateMnemonic,
-                                        child: Text("verify".tr))
-                                  ])
+                              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                FixedElevatedButton(
+                                    padding: WidgetConstant.paddingVertical40,
+                                    onPressed: onValidateMnemonic,
+                                    child: Text("verify".tr))
+                              ])
                             ],
                           ),
                         ),

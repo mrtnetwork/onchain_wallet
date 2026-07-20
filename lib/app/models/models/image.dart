@@ -1,11 +1,11 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/constant/global/serialization.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/app/serialization/serialization.dart';
+
 import 'package:on_chain_wallet/app/utils/string/utils.dart';
 import 'content_type.dart';
 
-// import 'package:on_chain_wallet/app/core.dart';
 typedef OnLoadUrl = Future<String> Function();
 typedef OnLoadCacheKey = Future<String> Function();
 
@@ -14,24 +14,12 @@ abstract class APPImageInfo with Equality {
   abstract final ContentType type;
 }
 
-class LazyAPPImage with Equality implements APPImageInfo {
-  final String identifier;
-  @override
-  final ContentType type = ContentType.lazy;
-  const LazyAPPImage({required this.loadUrl, required this.identifier});
-  @override
-  final OnLoadUrl loadUrl;
-
-  @override
-  List get variabels => [identifier];
-}
-
-class APPImage with CborSerializable, Equality implements APPImageInfo {
+class APPImage with AppSerialization, Equality implements APPImageInfo {
   @override
   final ContentType type;
   final String uri;
   const APPImage._({required this.type, required this.uri});
-  APPImage.local(this.uri) : type = ContentType.local;
+  const APPImage.local(this.uri) : type = ContentType.local;
   factory APPImage.hex({required String hexData}) {
     return APPImage._(type: ContentType.hex, uri: hexData);
   }
@@ -53,21 +41,23 @@ class APPImage with CborSerializable, Equality implements APPImageInfo {
     return APPImage._(type: ContentType.favIcon, uri: websiteUrl);
   }
 
-  factory APPImage.deserialize({List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: APPSerializationConst.imageTag);
-    final String uri = cbor.elementAs(1);
-    return APPImage._(type: ContentType.fromValue(cbor.elementAs(0)), uri: uri);
-  }
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([type.value, CborStringValue(uri)]),
-        APPSerializationConst.imageTag);
+  factory APPImage.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.imageTag);
+    final String uri = cbor.rawValueAt(1);
+    return APPImage._(type: ContentType.fromValue(cbor.rawValueAt(0)), uri: uri);
   }
 
   @override
-  List get variabels => [type, uri];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.imageTag;
+
+  @override
+  List<CborObject?> get serializationItems => [type.value.toCbor(), CborStringValue(uri)];
+  @override
+  List get variables => [type, uri];
 
   @override
   OnLoadUrl get loadUrl => () async => uri;

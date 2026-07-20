@@ -13,16 +13,16 @@ class WalletScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     return UnfocusableChild(
       child: StateBuilder(
           controller: () => wallet,
-          removable: false,
+          disposeStrategy: StateBuilderDisposeStrategy.never,
           builder: (controller) {
             final status = wallet.appStatus;
             return PopScope(
               canPop: controller.canPop,
-              onPopInvokedWithResult: controller.onPop,
+              onPopInvokedWithResult: controller.onAppBackButton,
               child: APPAnimatedSwitcher(enable: status.status, widgets: {
                 APPStatusType.ready: (context) => _APPPage(wallet),
                 APPStatusType.init: (context) => ProgressWithAPPLogo(),
@@ -40,7 +40,7 @@ class _APPPage extends StatelessWidget {
   const _APPPage(this.wallet);
   @override
   Widget build(BuildContext context) {
-    return APPStreamWidget<WalletActionEvent>(
+    return APPStreamWidget<WalletEvent>(
       stream: wallet.wallet.status,
       allowNotify: (value) {
         if (value.action.isLogin) {
@@ -62,8 +62,7 @@ class _APPPage extends StatelessWidget {
                 _ => WidgetConstant.sizedBox
               };
             },
-            onActive: (context) =>
-                _UnlockWalletView(wallet: wallet, status: value));
+            onActive: (context) => _UnlockWalletView(wallet: wallet, status: value));
       },
     );
   }
@@ -71,7 +70,7 @@ class _APPPage extends StatelessWidget {
 
 class _UnlockWalletView extends StatelessWidget {
   final WalletProvider wallet;
-  final WalletActionEvent status;
+  final WalletEvent status;
   const _UnlockWalletView({required this.wallet, required this.status});
 
   @override

@@ -50,7 +50,8 @@ class TronTransactionFreezeBalanceV2ContractOperation
 
   BigInt getMaxInput() {
     final total = amount.value.balance;
-    final max = address.address.currencyBalance - total - txFee.fee.fee.balance;
+    final max =
+        address.addressData.currencyBalance - total - txFee.fee.fee.balance;
     if (max.isNegative) return BigInt.zero;
     return max;
   }
@@ -71,7 +72,8 @@ class TronTransactionFreezeBalanceV2ContractOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(
+      ITronAddress address) async {
     return TronTransactionFreezeBalanceV2ContractOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

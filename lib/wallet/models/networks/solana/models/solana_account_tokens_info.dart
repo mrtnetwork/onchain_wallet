@@ -1,6 +1,6 @@
-import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 import 'package:on_chain/solana/solana.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/spl_token.dart';
 
 class SolanaAccountSPLTokenInfo {
   final SolAddress mintAddress;

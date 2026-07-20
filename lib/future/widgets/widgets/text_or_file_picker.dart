@@ -2,16 +2,12 @@ import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_bridge/models/files/picked_file_data.dart';
-import 'package:on_chain_wallet/app/platform_methods/cross/methods.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
-import 'package:on_chain_wallet/app/utils/platform/utils.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/conditional_widget.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/constraints_box_view.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/container_with_border.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/paste_icon_widget.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/widget_constant.dart';
-
 import 'animated/animation.dart';
 import 'text_widget.dart';
 
@@ -32,8 +28,9 @@ enum SelectBackupOptions {
 
 class BackupDataPickerView extends StatefulWidget {
   final PickFileContentEncoding encoding;
+  final BackupDataPickerContent? content;
   const BackupDataPickerView(
-      {this.encoding = PickFileContentEncoding.utf8, super.key});
+      {this.encoding = PickFileContentEncoding.utf8, this.content, super.key});
 
   @override
   State<BackupDataPickerView> createState() => BackupDataPickerViewState();
@@ -41,9 +38,10 @@ class BackupDataPickerView extends StatefulWidget {
 
 class BackupDataPickerViewState extends State<BackupDataPickerView>
     with SafeState<BackupDataPickerView> {
-  String? pasteBackup;
-  PickedFileContent? pickedFile;
-  SelectBackupOptions tab = SelectBackupOptions.file;
+  BackupDataPickerContent content = BackupDataPickerContent();
+  String? get pasteBackup => content.pasteBackup;
+  PickedFileContent? get pickedFile => content.pickedFile;
+  SelectBackupOptions get tab => content.tab;
 
   List<int>? getData() {
     switch (tab) {
@@ -80,7 +78,7 @@ class BackupDataPickerViewState extends State<BackupDataPickerView>
   }
 
   void onChangeTab(int index) {
-    tab = SelectBackupOptions.values.elementAt(index);
+    content.tab = SelectBackupOptions.values.elementAt(index);
     updateState();
   }
 
@@ -99,39 +97,49 @@ class BackupDataPickerViewState extends State<BackupDataPickerView>
       default:
     }
 
-    pasteBackup = data;
+    content.pasteBackup = data;
     updateState();
   }
 
   Future<void> onPasteData() async {
-    final data = await PlatformUtils.readClipboard();
-    if (data == null || data.isEmpty) {
-      context.showAlert("clipboard_empty".tr);
-      return;
-    }
-    if (!StringUtils.isHexBytes(data.trim())) {
-      context.showAlert("bcakup_validator".tr);
-      return;
-    }
-    pasteBackup = data;
-    updateState();
+    final data = await context.appContext.platformUtls.readClipboard();
+    data.map((txt) {
+      if (txt == null || txt.isEmpty) {
+        context.showAlert("clipboard_empty".tr);
+        return;
+      }
+      if (!StringUtils.isHexBytes(txt.trim())) {
+        context.showAlert("bcakup_validator".tr);
+        return;
+      }
+      content.pasteBackup = txt;
+      updateState();
+    });
   }
 
   Future<void> onSelectFile() async {
-    final result = await MethodUtils.call(() async {
-      return await PlatformMethods.pickFile(encoding: widget.encoding);
-    });
-    if (result.hasError) {
-      context.showAlert(result.localizationError);
-      return;
+    final result =
+        await context.appContext.platformUtls.pickFile(encoding: widget.encoding);
+    result.watch(
+      onErr: (error) => context.showAlert(error.localizationError),
+      onOk: (data) {
+        content.pickedFile = data;
+        updateState();
+      },
+    );
+  }
+
+  @override
+  void onInitOnce() {
+    super.onInitOnce();
+    final content = widget.content;
+    if (content != null) {
+      this.content = content;
     }
-    pickedFile = result.result;
-    updateState();
   }
 
   @override
   Widget build(BuildContext context) {
-    // FileUtils
     return FormField(
         validator: validate,
         enabled: true,
@@ -140,21 +148,19 @@ class BackupDataPickerViewState extends State<BackupDataPickerView>
           return Column(children: [
             DefaultTabController(
                 length: SelectBackupOptions.values.length,
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FullWidthWrapper(
-                        child: TabBar(
-                            onTap: onChangeTab,
-                            isScrollable: true,
-                            indicatorColor: context.colors.transparent,
-                            // dividerHeight: 0,
-                            tabAlignment: TabAlignment.start,
-                            tabs: SelectBackupOptions.values
-                                .map((e) => Tab(icon: Icon(e.icon)))
-                                .toList()),
-                      )
-                    ])),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  FullWidthWrapper(
+                    child: TabBar(
+                        onTap: onChangeTab,
+                        isScrollable: true,
+                        indicatorColor: context.colors.transparent,
+                        // dividerHeight: 0,
+                        tabAlignment: TabAlignment.start,
+                        tabs: SelectBackupOptions.values
+                            .map((e) => Tab(icon: Icon(e.icon)))
+                            .toList()),
+                  )
+                ])),
             WidgetConstant.height8,
             APPAnimatedSwitcher<SelectBackupOptions>(enable: tab, widgets: {
               SelectBackupOptions.file: (context) => ContainerWithBorder(
@@ -165,8 +171,7 @@ class BackupDataPickerViewState extends State<BackupDataPickerView>
                       enable: pickedFile != null,
                       onActive: (context) => Text(pickedFile!.name,
                           style: context.onPrimaryTextTheme.bodyMedium),
-                      onDeactive: (context) => Text(
-                          "tab_to_choose_backup_file".tr,
+                      onDeactive: (context) => Text("tab_to_choose_backup_file".tr,
                           style: context.onPrimaryTextTheme.bodyMedium),
                     ),
                   ),
@@ -180,8 +185,7 @@ class BackupDataPickerViewState extends State<BackupDataPickerView>
                     child: ConditionalWidget(
                       enable: pasteBackup != null,
                       onActive: (context) => OneLineTextWidget(pasteBackup!,
-                          style: context.onPrimaryTextTheme.bodyMedium,
-                          maxLine: 4),
+                          style: context.onPrimaryTextTheme.bodyMedium, maxLine: 4),
                       onDeactive: (context) => Text("paste_your_backup_here".tr,
                           style: context.onPrimaryTextTheme.bodyMedium),
                     ),
@@ -190,4 +194,10 @@ class BackupDataPickerViewState extends State<BackupDataPickerView>
           ]);
         });
   }
+}
+
+class BackupDataPickerContent {
+  String? pasteBackup;
+  PickedFileContent? pickedFile;
+  SelectBackupOptions tab = SelectBackupOptions.file;
 }

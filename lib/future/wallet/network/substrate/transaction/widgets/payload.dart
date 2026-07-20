@@ -13,23 +13,20 @@ class SubstrateShowPayloadInfoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle =
-        context.textTheme.labelLarge?.copyWith(color: backgroundColor);
+    final labelStyle = context.textTheme.labelLarge?.copyWith(color: backgroundColor);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text("payload_info".tr, style: labelStyle),
         WidgetConstant.height8,
         ContainerWithBorder(
-          onRemoveIcon:
-              Icon(Icons.open_in_full, color: context.onPrimaryContainer),
+          onRemoveIcon: Icon(Icons.open_in_full, color: context.onPrimaryContainer),
           onRemove: () {
             context.openDialogPage('',
-                child: (context) => JsonView(
-                    text: payload.payloadInfo!, title: 'payload_info'.tr));
+                child: (context) =>
+                    JsonView(text: payload.payloadInfo!, title: 'payload_info'.tr));
           },
-          child:
-              Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
+          child: Text("content".tr, style: context.onPrimaryTextTheme.bodyMedium),
         ),
         WidgetConstant.height20,
         Text("serialized_call".tr, style: labelStyle),
@@ -42,8 +39,7 @@ class SubstrateShowPayloadInfoWidget extends StatelessWidget {
         WidgetConstant.height8,
         ContainerWithBorder(
             child: LargeTextContainer(
-                text: payload.serializedExtrinsic,
-                color: context.onPrimaryContainer)),
+                text: payload.serializedExtrinsic, color: context.onPrimaryContainer)),
         WidgetConstant.height20,
         ConditionalWidget(
             enable: payload.payload != payload.serializedExtrinsic,
@@ -53,8 +49,7 @@ class SubstrateShowPayloadInfoWidget extends StatelessWidget {
                   WidgetConstant.height8,
                   ContainerWithBorder(
                       child: LargeTextContainer(
-                          text: payload.payload,
-                          color: context.onPrimaryContainer)),
+                          text: payload.payload, color: context.onPrimaryContainer)),
                   WidgetConstant.height20,
                 ])),
       ],
@@ -83,8 +78,8 @@ class SubstrateShowPayloadInfoView extends StatelessWidget {
             enableTap: false,
             onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
             child: APPExpansionListTile(
-              title: Text("payload_info".tr,
-                  style: context.onPrimaryTextTheme.bodyMedium),
+              title:
+                  Text("payload_info".tr, style: context.onPrimaryTextTheme.bodyMedium),
               tilePadding: EdgeInsets.zero,
               children: [
                 ContainerWithBorder(

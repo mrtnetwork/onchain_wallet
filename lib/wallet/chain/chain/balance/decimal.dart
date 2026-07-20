@@ -11,24 +11,18 @@ class DecimalBalance implements BalanceCore<BigRational, NonDecimalToken> {
   }
   factory DecimalBalance.fromString(String balance, NonDecimalToken token,
       {int amoutDecimal = 4, bool immutable = false}) {
-    final inRetional = BigRational.tryParseDecimaal(balance);
+    final inRetional = BigRational.tryParse(balance);
     if (inRetional == null) {
       throw WalletExceptionConst.invalidBalance;
     }
     return DecimalBalance.fromRational(token, inRetional,
         amoutDecimal: amoutDecimal, immutable: immutable);
   }
-  factory DecimalBalance.fromRational(
-      NonDecimalToken token, BigRational rational,
+  factory DecimalBalance.fromRational(NonDecimalToken token, BigRational rational,
       {int amoutDecimal = 4, bool immutable = false}) {
     final String toString = rational.toDecimal(digits: amoutDecimal);
-    return DecimalBalance._(
-        token,
-        rational,
-        rational.toDecimal(digits: amoutDecimal),
-        amoutDecimal,
-        StrUtils.to3Digits(toString, separator: ","),
-        immutable);
+    return DecimalBalance._(token, rational, rational.toDecimal(digits: amoutDecimal),
+        amoutDecimal, StrUtils.to3Digits(toString, separator: ","), immutable);
   }
 
   DecimalBalance._(this.token, this._balance, this._price, this.showDecimal,

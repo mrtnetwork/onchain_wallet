@@ -1,6 +1,6 @@
 export 'bitcoin/bitcoin.dart';
 export 'cardano/cardano.dart';
-export 'cosmos/cosmos.dart';
+export 'cosmos/clients/cosmos.dart';
 export 'ethereum/ethereum.dart';
 export 'ripple/ripple.dart';
 export 'solana/solana.dart';
@@ -11,3 +11,4 @@ export 'stellar/stellar.dart';
 export 'monero/monero.dart';
 export 'aptos/aptos.dart';
 export 'sui/client/client.dart';
+export 'zcash/zcash.dart';

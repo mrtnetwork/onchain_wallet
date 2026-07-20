@@ -18,9 +18,7 @@ abstract class AptosTransactionStateController<T extends IAptosTransactionData>
         AptosTransactionSignerController {
   Token get transferToken;
   AptosTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   late final LiveFormFields<AptosTransferDetails> recipients =
       LiveFormFields<AptosTransferDetails>(
@@ -36,12 +34,12 @@ abstract class AptosTransactionStateController<T extends IAptosTransactionData>
   }
 
   @override
-  Future<void> estimateFee() async {
+  Future<void> estimateFee({BigInt? accountBalance}) async {
     if (!fieldsReady) {
       setDefaultFee();
       return;
     }
-    return super.estimateFee();
+    return super.estimateFee(accountBalance: address.addressData.balance.value.balance);
   }
 
   String? _validateRecipients(List<AptosTransferDetails> recipients) {
@@ -80,17 +78,14 @@ abstract class AptosTransactionStateController<T extends IAptosTransactionData>
 
   @override
   Future<IAptosTransaction<T>> buildTransaction(
-      {bool simulate = false,
-      BigInt? maxGasAmount,
-      BigInt? gasUnitPrice}) async {
+      {bool simulate = false, BigInt? maxGasAmount, BigInt? gasUnitPrice}) async {
     final tansactionData = await buildTransactionData();
     final accountSequence =
         await getAccountSequenceNumber(address.networkAddress, cache: simulate);
     final chainId = await getChainId();
     final fee = tansactionData.fee;
     final expire = BigInt.from(
-        DateTime.now().add(const Duration(minutes: 2)).millisecondsSinceEpoch ~/
-            1000);
+        DateTime.now().add(const Duration(minutes: 2)).millisecondsSinceEpoch ~/ 1000);
     maxGasAmount ??= fee.maxGasAmount;
     gasUnitPrice ??= fee.gasUnitPrice;
     final rawTransaction = AptosRawTransaction(
@@ -108,15 +103,12 @@ abstract class AptosTransactionStateController<T extends IAptosTransactionData>
   }
 
   @override
-  Future<IAptosSignedTransaction<T>> signTransaction(
-      IAptosTransaction<T> transaction,
+  Future<IAptosSignedTransaction<T>> signTransaction(IAptosTransaction<T> transaction,
       {bool fakeSignature = false}) async {
     final address = transaction.account;
     final rawTransaction = transaction.rawTransaction;
     final signatures = await signTransactionInternal(
-        rawTransaction: rawTransaction,
-        address: address,
-        fakeSignature: fakeSignature);
+        rawTransaction: rawTransaction, address: address, fakeSignature: fakeSignature);
     if (fakeSignature) {
       return IAptosSignedTransaction(
           transaction: transaction,
@@ -126,22 +118,20 @@ abstract class AptosTransactionStateController<T extends IAptosTransactionData>
               authenticator: AptosTransactionAuthenticatorSignleSender(
                   AptosAccountAuthenticatorNoAccountAuthenticator())));
     }
-    final accountAuthenticators =
-        address.createAccountAuthenticated(signatures);
+    final accountAuthenticators = address.createAccountAuthenticated(signatures);
     return IAptosSignedTransaction(
         transaction: transaction,
         signatures: signatures.map((e) => e.signatureBytes()).toList(),
         finalTransactionData: AptosSignedTransaction(
             rawTransaction: rawTransaction,
-            authenticator: AptosTransactionAuthenticatorSignleSender(
-                accountAuthenticators)));
+            authenticator:
+                AptosTransactionAuthenticatorSignleSender(accountAuthenticators)));
   }
 
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IAptosSignedTransaction<T> signedTransaction}) async {
-    final result =
-        await client.submitTransaction(signedTransaction.finalTransactionData);
+    final result = await client.submitTransaction(signedTransaction.finalTransactionData);
     return SubmitTransactionSuccess(
         txId: result.$1, signedTransaction: signedTransaction);
   }
@@ -150,11 +140,8 @@ abstract class AptosTransactionStateController<T extends IAptosTransactionData>
   Future<AptosSignedTransaction> simulateTransaction(
       {required BigInt maxGasAmount, required BigInt gasUnitPrice}) async {
     final transaction = await buildTransaction(
-        simulate: true,
-        gasUnitPrice: gasUnitPrice,
-        maxGasAmount: AptosConstants.defaultMinGasAmount);
-    final signedTransaction =
-        await signTransaction(transaction, fakeSignature: true);
+        simulate: true, gasUnitPrice: gasUnitPrice, maxGasAmount: maxGasAmount);
+    final signedTransaction = await signTransaction(transaction, fakeSignature: true);
     return signedTransaction.finalTransactionData;
   }
 

@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/sync/cached_object.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -16,9 +16,7 @@ class RippleTransactionTrustSetOperation
     extends RippleTransactionStateController<TrustSet> {
   final CachedObject<List<RippleIssueToken>> tokens = CachedObject();
   RippleTransactionTrustSetOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionTrustSetOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -27,18 +25,14 @@ class RippleTransactionTrustSetOperation
         walletProvider: walletProvider, account: account, address: address);
   }
 
-  final LiveFormField<RippleIssueToken?, RippleIssueToken> token =
-      LiveFormField(
-          title: "token".tr,
-          subtitle: "ripple_choose_token_for_trust_path".tr,
-          optional: false,
-          value: null);
-
-  final LiveFormField<DecimalBalance?, DecimalBalance> amount = LiveFormField(
-      title: "amount".tr,
-      subtitle: "trust_line_limit".tr,
+  final LiveFormField<RippleIssueToken?, RippleIssueToken> token = LiveFormField(
+      title: "token".tr,
+      subtitle: "ripple_choose_token_for_trust_path".tr,
       optional: false,
       value: null);
+
+  final LiveFormField<DecimalBalance?, DecimalBalance> amount = LiveFormField(
+      title: "amount".tr, subtitle: "trust_line_limit".tr, optional: false, value: null);
 
   final LiveFormField<BigRational?, BigRational> qualityIn = LiveFormField(
       title: "trust_set_quality_in".tr,
@@ -100,7 +94,7 @@ class RippleTransactionTrustSetOperation
           value: amount.output.balance.toDecimal(),
           currency: token.assetCode,
           issuer: token.issuer),
-      account: address.networkAddress.toAddress(),
+      account: address.networkAddress.address,
       sourceTag: address.networkAddress.tag,
       memos: RippleUtils.toXrplMemos(memos),
       fee: txFee.fee.fee.balance,
@@ -111,7 +105,7 @@ class RippleTransactionTrustSetOperation
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionTrustSetOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -122,18 +116,16 @@ class RippleTransactionTrustSetOperation
   }
 
   @override
-  SubmittableTransactionType get transactionType =>
-      SubmittableTransactionType.trustSet;
+  SubmittableTransactionType get transactionType => SubmittableTransactionType.trustSet;
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required XRPClient client,
+    required XRPNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     tokens
         .get(onFetch: () async => client.accountTokens(address))
         .catchError((_) => <RippleIssueToken>[]);

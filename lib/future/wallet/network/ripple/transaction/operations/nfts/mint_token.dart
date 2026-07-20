@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -14,9 +14,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionNFTokenMintOperation
     extends RippleTransactionStateController<NFTokenMint> {
   RippleTransactionNFTokenMintOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionNFTokenMintOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -25,8 +23,7 @@ class RippleTransactionNFTokenMintOperation
         walletProvider: walletProvider, account: account, address: address);
   }
 
-  late final LiveFormField<BigRational?, BigRational> nftokenTaxon =
-      LiveFormField(
+  late final LiveFormField<BigRational?, BigRational> nftokenTaxon = LiveFormField(
     title: "NFTokenTaxon",
     subtitle: "ripple_nftokentaxon".tr,
     optional: false,
@@ -39,7 +36,7 @@ class RippleTransactionNFTokenMintOperation
     },
   );
 
-  final LiveFormField<ReceiptAddress<XRPAddress>?, ReceiptAddress<XRPAddress>>
+  final LiveFormField<ReceiptAddress<XRPBaseAddress>?, ReceiptAddress<XRPBaseAddress>>
       issuer = LiveFormField(
     title: "issuer".tr,
     subtitle: "ripple_mint_token_issuer".tr,
@@ -47,8 +44,7 @@ class RippleTransactionNFTokenMintOperation
     value: null,
   );
 
-  late final LiveFormField<BigRational?, BigRational> transferFee =
-      LiveFormField(
+  late final LiveFormField<BigRational?, BigRational> transferFee = LiveFormField(
     title: "ripple_transfer_rate".tr,
     subtitle: "ripple_mint_token_transfer_rate".tr,
     optional: true,
@@ -85,7 +81,7 @@ class RippleTransactionNFTokenMintOperation
     estimateFee();
   }
 
-  void onUpdateIssuer(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateIssuer(ReceiptAddress<XRPBaseAddress>? address) {
     issuer.setValue(address);
     onStateUpdated();
     estimateFee();
@@ -114,9 +110,9 @@ class RippleTransactionNFTokenMintOperation
   NFTokenMint buildTransactionInternal() {
     return NFTokenMint(
       nftokenTaxon: nftokenTaxon.value!.toBigInt().toInt(),
-      account: address.networkAddress.toAddress(),
+      account: address.networkAddress.address,
       sourceTag: address.networkAddress.tag,
-      issuer: issuer.value?.networkAddress.address,
+      issuer: issuer.value?.networkAddress.classicAddress,
       flags: flags.value?.value == null ? null : [flags.value!.value],
       uri: uri.value == null ? null : QuickBytesUtils.ensureIsHex(uri.value!),
       memos: RippleUtils.toXrplMemos(memos),
@@ -126,7 +122,7 @@ class RippleTransactionNFTokenMintOperation
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionNFTokenMintOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

@@ -1,7 +1,6 @@
 import 'package:blockchain_utils/bip/bip.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/models/models/image.dart';
-import 'package:on_chain_wallet/app/serialization/cbor/cbor.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
 class NetworkCoinParamsConst {
@@ -9,15 +8,14 @@ class NetworkCoinParamsConst {
   static const String addrArgs = "#address";
 }
 
-abstract class NetworkCoinParams with CborSerializable {
-  NetworkCoinParams(
+abstract class NetworkCoinParams with AppSerialization {
+  const NetworkCoinParams(
       {required this.token,
       this.chainType = ChainType.mainnet,
       this.bip32CoinType,
       this.transactionExplorer,
       this.addressExplorer});
-  static Token validateUpdateParams(
-      {required Token token, required Token? updateToken}) {
+  static Token validateUpdateParams({required Token token, required Token? updateToken}) {
     if (updateToken == null) return token;
     if (updateToken.decimal != token.decimal ||
         updateToken.name.trim().isEmpty ||
@@ -30,7 +28,6 @@ abstract class NetworkCoinParams with CborSerializable {
   final String? transactionExplorer;
   final String? addressExplorer;
   final Token token;
-  // final List<PROVIDER> providers;
   final ChainType chainType;
   bool get mainnet => chainType == ChainType.mainnet;
   bool get isTestNet => chainType == ChainType.testnet;
@@ -40,6 +37,7 @@ abstract class NetworkCoinParams with CborSerializable {
   bool get hasMarketUrl => token.market != null;
   int get averageBlockTime => 10;
   int get maxTxConfirmationBlock => 20;
+  int get totalConfirmationTime => averageBlockTime * maxTxConfirmationBlock;
 
   String? get marketUri {
     return token.marketUri;

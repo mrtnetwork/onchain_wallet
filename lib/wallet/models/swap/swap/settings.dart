@@ -1,14 +1,15 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
 class APPSwapSettingsConst {
   static const double minTelerance = 0;
   static const double maxTolerance = 100;
 }
 
-class APPSwapSettings with CborSerializable, Equality {
+class APPSwapSettings with AppSerialization, Equality {
   APPSwapSettings._(
       {required this.chainType,
       required List<SwapServiceProvider> swapProviders,
@@ -22,59 +23,49 @@ class APPSwapSettings with CborSerializable, Equality {
       {required List<SwapServiceProvider> swapProviders,
       required ChainType chainType,
       required double tolerance}) {
-    assert(tolerance >= 0 && tolerance <= 100);
+    assert(tolerance >= APPSwapSettingsConst.minTelerance &&
+        tolerance <= APPSwapSettingsConst.maxTolerance);
 
     return APPSwapSettings._(
         swapProviders: swapProviders,
         chainType: chainType,
-        tolerance: (tolerance == 0 ? null : tolerance));
+        tolerance: (tolerance == APPSwapSettingsConst.minTelerance ? null : tolerance));
   }
 
-  factory APPSwapSettings.deserialize(
-      {List<int>? bytes, String? hex, CborObject? obj}) {
-    try {
-      final CborListValue values = CborSerializable.cborTagValue(
-          hex: hex,
-          cborBytes: bytes,
-          object: obj,
-          tags: CborTagsConst.swapSetting);
-      List<SwapServiceProvider> providers = values
-          .elementAsListOf<CborStringValue>(0)
-          .map((e) => SwapConstants.findProvider(e.value))
-          .whereType<SwapServiceProvider>()
-          .toList();
-      if (providers.isEmpty) {
-        providers = SwapConstants.supportProviders;
-      }
-      final chainType = ChainType.fromValue(values.elementAs(1));
-      return APPSwapSettings._(
-          swapProviders: providers,
-          chainType: chainType,
-          tolerance: values.elementAs(2));
-    } catch (_) {
-      return APPSwapSettings._(
-          swapProviders: SwapConstants.supportProviders,
-          chainType: ChainType.mainnet);
+  factory APPSwapSettings.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.swapSetting);
+    List<SwapServiceProvider> providers = values
+        .listAt<CborStringValue>(0)
+        .map((e) => SwapConstants.findProvider(e.value))
+        .whereType<SwapServiceProvider>()
+        .toList();
+    if (providers.isEmpty) {
+      providers = SwapConstants.supportProviders;
     }
+    final chainType = ChainType.fromValue(values.rawValueAt(1));
+    return APPSwapSettings._(
+        swapProviders: providers, chainType: chainType, tolerance: values.rawValueAt(2));
   }
   factory APPSwapSettings() {
     return APPSwapSettings._(
-        chainType: ChainType.mainnet,
-        swapProviders: SwapConstants.supportProviders);
+        chainType: ChainType.mainnet, swapProviders: SwapConstants.supportProviders);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          CborSerializable.fromDynamic(
-              swapProviders.map((e) => CborStringValue(e.identifier)).toList()),
-          chainType.name,
-          tolerance
-        ]),
-        CborTagsConst.swapSetting);
-  }
+  List get variables => [swapProviders, chainType, tolerance];
 
   @override
-  List get variabels => [swapProviders, chainType, tolerance];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.swapSetting;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        AppSerialization.listFromObjects(
+            swapProviders.map((e) => CborStringValue(e.identifier)).toList()),
+        chainType.name.toCbor(),
+        tolerance?.toCbor()
+      ];
 }

@@ -1,5 +1,5 @@
 import 'package:blockchain_utils/utils/string/string.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/operations.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/web3/types/types.dart';
@@ -12,18 +12,14 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
 
   ReceiptAddress<StellarAddress> _getOrCreateReceiptAddress(
       {required StellarAddress address, required StellarChain chain}) {
-    return chain.getReceiptAddress(address.toString()) ??
-        ReceiptAddress<StellarAddress>(
-            view: address.toString(), networkAddress: address);
+    return chain.getOrCreateReceiptFromNetworkAddressSync(address: address);
   }
 
   IntegerBalance? _getAssetBalance(
-      {required StellarAsset asset,
-      required StellarAccountResponse signerAccountInfo}) {
+      {required StellarAsset asset, required StellarAccountResponse signerAccountInfo}) {
     if (asset.type == AssetType.poolShare) return null;
     if (asset.type == AssetType.native) {
-      return IntegerBalance.token(
-          signerAccountInfo.nativeBalance, network.token);
+      return IntegerBalance.token(signerAccountInfo.nativeBalance, network.token);
     }
     final assetBalances = signerAccountInfo.getAsset(asset);
     if (assetBalances != null) {
@@ -56,16 +52,14 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
     StellarSorobanTransactionDetais? soroban;
     if (transaction.sorobanData.sorobanTransactionData != null) {
       soroban = StellarSorobanTransactionDetais(
-          sorobanData: transaction.sorobanData.sorobanTransactionData!,
-          network: network);
+          sorobanData: transaction.sorobanData.sorobanTransactionData!, network: network);
     }
     final memo = StellarMemoDetils(transaction.memo);
     final List<StellarTransactionOperationDetails> baseOperation = [];
     for (final i in tx.operations) {
       final sourceAccount = i.sourceAccount?.address == null
           ? null
-          : _getOrCreateReceiptAddress(
-              address: i.sourceAccount!.address, chain: chain);
+          : _getOrCreateReceiptAddress(address: i.sourceAccount!.address, chain: chain);
       final OperationBody body = i.body;
       final bool isSigner = signer.networkAddress.baseAddress ==
           (sourceAccount?.networkAddress.baseAddress ?? source.baseAddress);
@@ -93,8 +87,7 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
                 issueToken: null,
                 tokenBalance: isSigner
                     ? _getAssetBalance(
-                        asset: operation.asset,
-                        signerAccountInfo: signerAccountInfo)
+                        asset: operation.asset, signerAccountInfo: signerAccountInfo)
                     : null),
             amount: IntegerBalance.token(operation.amount, network.token),
           );
@@ -112,14 +105,13 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
                 issueToken: null,
                 tokenBalance: isSigner
                     ? _getAssetBalance(
-                        asset: StellarAssetNative(),
-                        signerAccountInfo: signerAccountInfo)
+                        asset: StellarAssetNative(), signerAccountInfo: signerAccountInfo)
                     : null),
             startingBalance:
                 IntegerBalance.token(operation.startingBalance, network.token),
           );
-          baseOperation.add(StellarTransactionOperationDetails(
-              operation: i, operationInfo: info));
+          baseOperation
+              .add(StellarTransactionOperationDetails(operation: i, operationInfo: info));
           break;
         case OperationType.pathPaymentStrictReceive:
           final operation = body.cast<PathPaymentStrictReceiveOperation>();
@@ -136,13 +128,9 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
                           signerAccountInfo: signerAccountInfo)
                       : null),
               destAsset: StellarPickedIssueAsset(
-                  asset: operation.destAsset,
-                  network: network,
-                  issueToken: null),
-              destAmount:
-                  IntegerBalance.token(operation.destAmount, network.token),
-              sendAmount:
-                  IntegerBalance.token(operation.sendMax, network.token),
+                  asset: operation.destAsset, network: network, issueToken: null),
+              destAmount: IntegerBalance.token(operation.destAmount, network.token),
+              sendAmount: IntegerBalance.token(operation.sendMax, network.token),
               paths: operation.path
                   .map((e) => StellarPickedIssueAsset(
                       asset: e, network: network, issueToken: null))
@@ -165,12 +153,9 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
                           signerAccountInfo: signerAccountInfo)
                       : null),
               destAsset: StellarPickedIssueAsset(
-                  asset: operation.destAsset,
-                  network: network,
-                  issueToken: null),
+                  asset: operation.destAsset, network: network, issueToken: null),
               destMin: IntegerBalance.token(operation.destMin, network.token),
-              sendAmount:
-                  IntegerBalance.token(operation.sendAmount, network.token),
+              sendAmount: IntegerBalance.token(operation.sendAmount, network.token),
               paths: operation.path
                   .map((e) => StellarPickedIssueAsset(
                       asset: e, network: network, issueToken: null))
@@ -215,8 +200,8 @@ mixin StellarWeb3TransactionApiController on DisposableMixin {
         memo: memo,
         fee: fee,
         source: _getOrCreateReceiptAddress(address: source, chain: chain),
-        contentStr: StringUtils.fromJson(envlope.toJson(),
-            indent: '  ', toStringEncodable: true),
+        contentStr:
+            StringUtils.fromJson(envlope.toJson(), indent: '  ', toStringEncodable: true),
         type: type,
         operations: baseOperation,
         envelope: envlope,

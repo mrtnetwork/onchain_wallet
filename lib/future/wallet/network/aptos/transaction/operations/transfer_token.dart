@@ -12,21 +12,20 @@ import 'package:on_chain_wallet/wallet/models/networks/aptos/models/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class AptosTransactionTransferTokenOperation
-    extends AptosTransactionStateController<
-        IAptosTransactionDataTokenTransfer> {
+    extends AptosTransactionStateController<IAptosTransactionDataTokenTransfer> {
   AptosTransactionTransferTokenOperation(
       {required super.walletProvider,
       required super.account,
       required super.address,
       required this.token});
-  StreamSubscription<IntegerBalance>? _tokenBalanceListener;
+  StreamSubscription? _tokenBalanceListener;
   final AptosFATokens token;
   @override
   Token get transferToken => token.token;
 
   BigInt getMaxInput(AptosTransferDetails recipient) {
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
     final max = token.balance.balance - total + recipient.amount.balance;
     if (max.isNegative) return BigInt.zero;
     return max;
@@ -50,7 +49,7 @@ class AptosTransactionTransferTokenOperation
     if (!status.isReady) return status;
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    BigInt total = address.address.currencyBalance - txFee.fee.requiredFee;
+    BigInt total = address.addressData.currencyBalance - txFee.fee.requiredFee;
     if (total.isNegative) {
       return TransactionStateStatus.insufficient(
           IntegerBalance.token(total, network.token),
@@ -58,8 +57,7 @@ class AptosTransactionTransferTokenOperation
     }
     total = recipients.value.map((c) => c.amount.balance).sum;
     final r = token.balance.balance - total;
-    return TransactionStateStatus.insufficient(
-        IntegerBalance.token(r, transferToken),
+    return TransactionStateStatus.insufficient(IntegerBalance.token(r, transferToken),
         warning: simulateError);
   }
 
@@ -78,8 +76,7 @@ class AptosTransactionTransferTokenOperation
   @override
   Future<List<IWalletTransaction<AptosWalletTransaction, IAptosAddress>>>
       buildWalletTransaction(
-          {required IAptosSignedTransaction<IAptosTransactionDataTokenTransfer>
-              signedTx,
+          {required IAptosSignedTransaction<IAptosTransactionDataTokenTransfer> signedTx,
           required SubmitTransactionSuccess txId}) async {
     final transactionData = signedTx.transaction.transactionData;
     final outputs = AptosWalletTransactionTransferOutput(
@@ -102,9 +99,9 @@ class AptosTransactionTransferTokenOperation
   }
 
   @override
-  TransactionStateController cloneController(IAptosAddress address) {
-    final addressToken = address.tokens.firstWhere(
-        (e) => e.assetType == token.assetType,
+  Future<TransactionStateController> cloneController(IAptosAddress address) async {
+    final tokens = (await address.getAccountTokens()).unwrap();
+    final addressToken = tokens.firstWhere((e) => e.assetType == token.assetType,
         orElse: () => token.clone(balance: BigInt.zero));
     return AptosTransactionTransferTokenOperation(
         walletProvider: walletProvider,
@@ -121,25 +118,22 @@ class AptosTransactionTransferTokenOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required AptosClient client,
+    required AptosNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super
-        .initForm(context: context, client: client, updateAccount: false);
-    if (!address.tokens.contains(token)) {
+    await super.initForm(context: context, client: client, updateAccount: false);
+    if (!addressTokens.contains(token)) {
       await account.updateTokenBalance(address: address, tokens: [token]);
     } else {
       account.updateTokenBalance(address: address, tokens: [token]);
     }
-    _tokenBalanceListener =
-        token.streamBalance.stream.listen((_) => onStateUpdated());
+    _tokenBalanceListener = token.streamBalance.stream.listen((_) => onStateUpdated());
     return this;
   }
 
   @override
-  TransactionOperations get operation =>
-      AptosTransactionOperations.tokenTransfer;
+  TransactionOperations get operation => AptosTransactionOperations.tokenTransfer;
 
   @override
   void dispose() {
@@ -147,6 +141,5 @@ class AptosTransactionTransferTokenOperation
     _tokenBalanceListener?.cancel();
     _tokenBalanceListener = null;
     token.streamBalance.dispose();
-    appLogger.debug(runtime: runtimeType, functionName: "dispose");
   }
 }

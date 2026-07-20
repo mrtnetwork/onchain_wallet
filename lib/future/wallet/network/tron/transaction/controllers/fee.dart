@@ -16,8 +16,7 @@ mixin TronTransactionFeeController on TronTransactionApiController {
   final _lock = SafeAtomicLock();
   bool _isManualFeeLimit = false;
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> feeLimit =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> feeLimit = LiveFormField(
     title: "fee_limit".tr,
     subtitle: "fee_limit".tr,
     value: IntegerBalance.token(TronHelper.toSun("25"), network.token),
@@ -76,10 +75,8 @@ mixin TronTransactionFeeController on TronTransactionApiController {
     }
     int energy = 0;
     if (contract.contractType == TransactionContractType.triggerSmartContract) {
-      energy =
-          await estimateContractTrigger(contract.cast<TriggerSmartContract>());
-    } else if (contract.contractType ==
-        TransactionContractType.createSmartContract) {
+      energy = await estimateContractTrigger(contract.cast<TriggerSmartContract>());
+    } else if (contract.contractType == TransactionContractType.createSmartContract) {
       final sc = contract.cast<CreateSmartContract>();
       energy = await client.estimateCreateContractEnergy(
           ownerAddress: sc.ownerAddress,
@@ -109,14 +106,15 @@ mixin TronTransactionFeeController on TronTransactionApiController {
     await _lock.run(() async {
       txFee.setFee(_defaultFee);
       txFee.setPending();
-      final fee = await MethodUtils.call(() async => await simulateFee(),
-          cancelable: _cancelable);
-      if (fee.isCancel) return;
-      if (fee.hasError) {
-        // txFee.setError(fee.localizationError);
+      final fee =
+          await IResult.call(() async => await simulateFee(), cancelable: _cancelable);
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
+        txFee.setFee(TronTransactionFee.defaultFee(
+            feeToken: network.token, error: fee.err()?.localizationError));
         return;
       }
-      txFee.setFee(fee.result);
+      txFee.setFee(fee.unwrap());
     });
   }
 

@@ -17,8 +17,7 @@ abstract class StellarTransactionOperation {
   OperationType get type;
   StellarPickedIssueAsset? get asset;
 
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network);
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network);
 }
 
 class StellarChangeTrustOperation implements StellarTransactionOperation {
@@ -26,10 +25,8 @@ class StellarChangeTrustOperation implements StellarTransactionOperation {
   final StellarPickedIssueAsset asset;
   final IntegerBalance limit;
 
-  StellarChangeTrustOperation(
-      {required this.asset, required IntegerBalance limit})
-      : limit =
-            IntegerBalance.token(limit.balance, limit.token, immutable: true);
+  StellarChangeTrustOperation({required this.asset, required IntegerBalance limit})
+      : limit = IntegerBalance.token(limit.balance, limit.token, immutable: true);
 
   @override
   Operation<OperationBody> toOperation() {
@@ -44,8 +41,7 @@ class StellarChangeTrustOperation implements StellarTransactionOperation {
   OperationType get type => OperationType.changeTrust;
 
   @override
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 }
@@ -62,8 +58,7 @@ class StellarPaymentOperation implements StellarTransactionOperation {
     required this.asset,
     required this.destination,
     required IntegerBalance amount,
-  }) : amount =
-            IntegerBalance.token(amount.balance, amount.token, immutable: true);
+  }) : amount = IntegerBalance.token(amount.balance, amount.token, immutable: true);
   @override
   Operation<OperationBody> toOperation() {
     return Operation(
@@ -79,8 +74,7 @@ class StellarPaymentOperation implements StellarTransactionOperation {
   OperationType get type => OperationType.payment;
 
   @override
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionTransferOutput(
         to: destination.networkAddress,
         amount: WalletTransactionIntegerAmount(
@@ -91,8 +85,7 @@ class StellarPaymentOperation implements StellarTransactionOperation {
   }
 }
 
-class StellarPathPaymentStrictReceiveOperation
-    implements StellarTransactionOperation {
+class StellarPathPaymentStrictReceiveOperation implements StellarTransactionOperation {
   @override
   final StellarPickedIssueAsset asset;
   final IntegerBalance sendAmount;
@@ -110,10 +103,10 @@ class StellarPathPaymentStrictReceiveOperation
     required this.destAsset,
     List<StellarPickedIssueAsset> paths = const [],
     required IntegerBalance destAmount,
-  })  : sendAmount = IntegerBalance.token(sendAmount.balance, sendAmount.token,
-            immutable: true),
-        destAmount = IntegerBalance.token(destAmount.balance, destAmount.token,
-            immutable: true),
+  })  : sendAmount =
+            IntegerBalance.token(sendAmount.balance, sendAmount.token, immutable: true),
+        destAmount =
+            IntegerBalance.token(destAmount.balance, destAmount.token, immutable: true),
         paths = paths.immutable;
   @override
   Operation<OperationBody> toOperation() {
@@ -134,14 +127,12 @@ class StellarPathPaymentStrictReceiveOperation
   OperationType get type => OperationType.pathPaymentStrictReceive;
 
   @override
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 }
 
-class StellarPathPaymentStrictSendOperation
-    implements StellarTransactionOperation {
+class StellarPathPaymentStrictSendOperation implements StellarTransactionOperation {
   @override
   final StellarPickedIssueAsset asset;
   final IntegerBalance sendAmount;
@@ -158,10 +149,9 @@ class StellarPathPaymentStrictSendOperation
     required this.destAsset,
     List<StellarPickedIssueAsset> paths = const [],
     required IntegerBalance destMin,
-  })  : sendAmount = IntegerBalance.token(sendAmount.balance, sendAmount.token,
-            immutable: true),
-        destMin = IntegerBalance.token(destMin.balance, destMin.token,
-            immutable: true),
+  })  : sendAmount =
+            IntegerBalance.token(sendAmount.balance, sendAmount.token, immutable: true),
+        destMin = IntegerBalance.token(destMin.balance, destMin.token, immutable: true),
         paths = paths.immutable;
   @override
   Operation<OperationBody> toOperation() {
@@ -181,8 +171,7 @@ class StellarPathPaymentStrictSendOperation
   @override
   OperationType get type => OperationType.pathPaymentStrictSend;
   @override
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 }
@@ -216,12 +205,10 @@ class StellarCreateAccountOperation implements StellarTransactionOperation {
   OperationType get type => OperationType.createAccount;
 
   @override
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionTransferOutput(
         to: destination.networkAddress,
-        amount:
-            WalletTransactionIntegerAmount(amount: value, network: network));
+        amount: WalletTransactionIntegerAmount(amount: value, network: network));
   }
 }
 
@@ -242,8 +229,7 @@ class StellarManageSellOfferOperation implements StellarTransactionOperation {
     required IntegerBalance amount,
     required this.offerId,
     required this.price,
-  }) : amount =
-            IntegerBalance.token(amount.balance, amount.token, immutable: true);
+  }) : amount = IntegerBalance.token(amount.balance, amount.token, immutable: true);
   @override
   Operation<OperationBody> toOperation() {
     return Operation(
@@ -263,8 +249,7 @@ class StellarManageSellOfferOperation implements StellarTransactionOperation {
 
   bool get isByOffer => type == OperationType.manageBuyOffer;
   @override
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 }
@@ -319,8 +304,8 @@ class StellarTransactionOperationDetails {
     return StellarTransactionOperationDetails._(
         operation: operation,
         operationContent: content,
-        operationContentStr: StringUtils.fromJson(content,
-            indent: '  ', toStringEncodable: true),
+        operationContentStr:
+            StringUtils.fromJson(content, indent: '  ', toStringEncodable: true),
         operationInfo: operationInfo,
         sourceAccount: sourceAccount);
   }
@@ -332,11 +317,11 @@ abstract class StellarTransactionOperationForm {
   List<LiveFormField<Object?, Object?>> get fields;
   final StellarTransactionStateController controller;
   final OperationType type;
-  StellarTransactionOperationForm(
-      {required this.controller, required this.type});
+  StellarTransactionOperationForm({required this.controller, required this.type});
 
-  final StreamValue<TransactionStateStatus> status =
-      StreamValue(TransactionStateStatus.error());
+  final StreamValue<TransactionStateStatus> status = StreamValue(
+      TransactionStateStatus.error(),
+      name: "StellarTransactionOperationForm");
 
   TransactionStateStatus getStateStatus() {
     for (final i in fields) {
@@ -356,8 +341,7 @@ abstract class StellarTransactionOperationForm {
     return switch (type) {
       OperationType.changeTrust =>
         StellarChangeTrustOperationForm(controller: controller),
-      OperationType.payment =>
-        StellarPaymentOperationForm(controller: controller),
+      OperationType.payment => StellarPaymentOperationForm(controller: controller),
       OperationType.pathPaymentStrictReceive =>
         StellarPathPaymentStrictReceiveOperationForm(controller: controller),
       OperationType.pathPaymentStrictSend =>
@@ -391,9 +375,9 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
     final asset = this.asset.value;
     if (asset == null) return BigInt.zero;
     if (asset.asset.type.isNative) {
-      final total = controller.operations.value
-          .fold(BigInt.zero, (p, c) => p + c.operation.value);
-      final balance = controller.address.address.currencyBalance;
+      final total =
+          controller.operations.value.fold(BigInt.zero, (p, c) => p + c.operation.value);
+      final balance = controller.address.addressData.currencyBalance;
       return balance - total - controller.txFee.fee.fee.balance;
     }
     final tokenBalance = asset.tokenBalance;
@@ -425,8 +409,7 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
           TransactionResourceRequirementStellarAccountActivity> recipient =
       LiveFormField(title: "recipient".tr, value: null);
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "transfer_amount".tr,
     value: IntegerBalance.zero(controller.network.token),
     onValidateError: (field, value) {
@@ -450,13 +433,11 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
 
   void onUpdateRecipient(ReceiptAddress<StellarAddress>? recipient) {
     if (recipient == null ||
-        recipient.networkAddress ==
-            this.recipient.value?.address.networkAddress) {
+        recipient.networkAddress == this.recipient.value?.address.networkAddress) {
       return;
     }
     final currentDestination = this.recipient.value;
-    final destination =
-        TransactionResourceRequirementStellarAccountActivity(recipient);
+    final destination = TransactionResourceRequirementStellarAccountActivity(recipient);
     this.recipient.setValue(destination);
     controller.trackAccountActivity(destination);
     currentDestination?.dispose();
@@ -491,8 +472,7 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
   @override
   BigInt get value => amount.value.balance;
 
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     final asset = this.asset.output;
     final isNative = asset.asset.type.isNative;
     return StellarWalletTransactionTransferOutput(
@@ -510,8 +490,7 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
     if (!state.isReady) return state;
     final recipient = this.recipient.output;
     if (recipient.status.isInactive) {
-      return TransactionStateStatus.error(
-          error: "stellar_account_inactive_desc".tr);
+      return TransactionStateStatus.error(error: "stellar_account_inactive_desc".tr);
     }
     final remain = _getMaxInput();
     if (remain.isNegative) {
@@ -519,9 +498,7 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
           IntegerBalance.token(remain, asset.output.token));
     }
     final pathError = _checkTrustPathLimit(
-        asset: asset.output,
-        destination: recipient,
-        amount: amount.output.balance);
+        asset: asset.output, destination: recipient, amount: amount.output.balance);
     if (pathError != null) {
       return TransactionStateStatus.error(error: pathError);
     }
@@ -535,8 +512,7 @@ class StellarPaymentOperationForm extends StellarTransactionOperationForm {
   }
 
   @override
-  List<LiveFormField<Object?, Object?>> get fields =>
-      [asset, recipient, amount];
+  List<LiveFormField<Object?, Object?>> get fields => [asset, recipient, amount];
 
   @override
   void dispose() {
@@ -557,8 +533,7 @@ class StellarChangeTrustOperationForm extends StellarTransactionOperationForm {
           optional: false,
           value: null);
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> limit =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> limit = LiveFormField(
     title: "limit".tr,
     subtitle: "change_trust_limit".tr,
     optional: false,
@@ -591,15 +566,13 @@ class StellarChangeTrustOperationForm extends StellarTransactionOperationForm {
 
   @override
   StellarChangeTrustOperation toOperation() {
-    return StellarChangeTrustOperation(
-        asset: asset.output, limit: limit.output);
+    return StellarChangeTrustOperation(asset: asset.output, limit: limit.output);
   }
 
   @override
   BigInt get value => BigInt.zero;
 
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 
@@ -624,8 +597,7 @@ class StellarPathPaymentStrictReceiveOperationForm
           optional: false,
           value: null);
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> sendMax =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> sendMax = LiveFormField(
     title: "send_max".tr,
     subtitle: "stellar_path_receive_send_max_desc".tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
@@ -635,8 +607,8 @@ class StellarPathPaymentStrictReceiveOperationForm
     },
   );
 
-  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      destAsset = LiveFormField(
+  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> destAsset =
+      LiveFormField(
     title: "destination_asset".tr,
     subtitle: "stellar_path_receive_dest_asset_desc".tr,
     optional: false,
@@ -644,16 +616,14 @@ class StellarPathPaymentStrictReceiveOperationForm
   );
 
   final LiveFormField<TransactionResourceRequirementStellarAccountActivity?,
-          TransactionResourceRequirementStellarAccountActivity> destination =
-      LiveFormField(
+      TransactionResourceRequirementStellarAccountActivity> destination = LiveFormField(
     title: "destination".tr,
     subtitle: "stellar_path_receive_destination_desc".tr,
     optional: false,
     value: null,
   );
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> destAmount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> destAmount = LiveFormField(
     title: "destination_amount".tr,
     subtitle: "stellar_path_receive_dest_amount_desc".tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
@@ -669,8 +639,7 @@ class StellarPathPaymentStrictReceiveOperationForm
       optional: true,
       maxLength: 5);
 
-  void onUpdatePath(StellarPickedIssueAsset? path,
-      {DynamicVoid? onPathExists}) {
+  void onUpdatePath(StellarPickedIssueAsset? path, {DynamicVoid? onPathExists}) {
     if (path == null) return;
     final exists = paths.value.any((e) => e.asset == path.asset);
     if (exists) {
@@ -695,13 +664,11 @@ class StellarPathPaymentStrictReceiveOperationForm
 
   void onUpdateDestination(ReceiptAddress<StellarAddress>? address) {
     if (address == null ||
-        address.networkAddress ==
-            this.destination.value?.address.networkAddress) {
+        address.networkAddress == this.destination.value?.address.networkAddress) {
       return;
     }
     this.destination.value?.dispose();
-    final destination =
-        TransactionResourceRequirementStellarAccountActivity(address);
+    final destination = TransactionResourceRequirementStellarAccountActivity(address);
     this.destination.setValue(destination);
     controller.trackAccountActivity(destination);
     onStateUpdated();
@@ -741,8 +708,7 @@ class StellarPathPaymentStrictReceiveOperationForm
   @override
   BigInt get value => sendMax.value.balance;
 
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 
@@ -756,20 +722,18 @@ class StellarPathPaymentStrictReceiveOperationForm
   }
 }
 
-class StellarPathPaymentStrictSendOperationForm
-    extends StellarTransactionOperationForm {
+class StellarPathPaymentStrictSendOperationForm extends StellarTransactionOperationForm {
   bool get allowAddPaths => paths.value.length < 5;
 
   StellarPathPaymentStrictSendOperationForm({required super.controller})
       : super(type: OperationType.pathPaymentStrictSend);
-  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      sendAsset = LiveFormField(
+  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> sendAsset =
+      LiveFormField(
     title: "send_asset".tr,
     subtitle: "stellar_path_send_send_asset_desc".tr,
     value: null,
   );
-  late final LiveFormField<IntegerBalance, IntegerBalance> sendAmount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> sendAmount = LiveFormField(
     title: "send_amount".tr,
     subtitle: "stellar_path_receive_send_amount_desc".tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
@@ -778,14 +742,13 @@ class StellarPathPaymentStrictSendOperationForm
       return "field_is_required".tr.replaceOne(field.title);
     },
   );
-  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      destAsset = LiveFormField(
+  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> destAsset =
+      LiveFormField(
           title: "destination_asset".tr,
           subtitle: "stellar_path_send_dest_asset_desc".tr,
           value: null);
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> destMin =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> destMin = LiveFormField(
     title: "minimum_destination_amount".tr,
     subtitle: "stellar_path_send_dest_min_desc".tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
@@ -805,8 +768,7 @@ class StellarPathPaymentStrictSendOperationForm
       subtitle: "stellar_path_send_path_desc".tr,
       optional: true,
       maxLength: 5);
-  void onUpdatePath(StellarPickedIssueAsset? path,
-      {DynamicVoid? onPathExists}) {
+  void onUpdatePath(StellarPickedIssueAsset? path, {DynamicVoid? onPathExists}) {
     if (path == null) return;
     final exists = paths.value.any((e) => e.asset == path.asset);
     if (exists) {
@@ -823,13 +785,11 @@ class StellarPathPaymentStrictSendOperationForm
 
   void onUpdateDestination(ReceiptAddress<StellarAddress>? address) {
     if (address == null ||
-        address.networkAddress ==
-            this.destination.value?.address.networkAddress) {
+        address.networkAddress == this.destination.value?.address.networkAddress) {
       return;
     }
     this.destination.value?.dispose();
-    final destination =
-        TransactionResourceRequirementStellarAccountActivity(address);
+    final destination = TransactionResourceRequirementStellarAccountActivity(address);
     this.destination.setValue(destination);
     controller.trackAccountActivity(destination);
     onStateUpdated();
@@ -876,8 +836,7 @@ class StellarPathPaymentStrictSendOperationForm
   BigInt get value => sendAmount.value.balance;
   @override
   OperationType get type => OperationType.pathPaymentStrictSend;
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 
@@ -891,8 +850,7 @@ class StellarPathPaymentStrictSendOperationForm
   }
 }
 
-class StellarCreateAccountOperationForm
-    extends StellarTransactionOperationForm {
+class StellarCreateAccountOperationForm extends StellarTransactionOperationForm {
   StellarCreateAccountOperationForm({required super.controller})
       : super(type: OperationType.createAccount);
   BigInt getMinInput() {
@@ -900,7 +858,7 @@ class StellarCreateAccountOperationForm
   }
 
   BigInt getMaxInput() {
-    return controller.address.address.currencyBalance;
+    return controller.address.addressData.currencyBalance;
   }
 
   late final LiveFormField<IntegerBalance, IntegerBalance> startingBalance =
@@ -909,8 +867,7 @@ class StellarCreateAccountOperationForm
     subtitle: "stellar_create_account_starting_balance_desc".tr,
     value: IntegerBalance.zero(controller.network.token),
     onValidateError: (f, current) {
-      if (current.balance <
-          controller.noneActiveAccountRequiredAmount.balance) {
+      if (current.balance < controller.noneActiveAccountRequiredAmount.balance) {
         return "stellar_starting_balance_desc"
             .tr
             .replaceOne(controller.noneActiveAccountRequiredAmount.price);
@@ -920,8 +877,7 @@ class StellarCreateAccountOperationForm
   );
 
   final LiveFormField<TransactionResourceRequirementStellarAccountActivity?,
-          TransactionResourceRequirementStellarAccountActivity> destination =
-      LiveFormField(
+      TransactionResourceRequirementStellarAccountActivity> destination = LiveFormField(
     title: "recipient".tr,
     optional: false,
     value: null,
@@ -942,13 +898,11 @@ class StellarCreateAccountOperationForm
 
   void onUpdateDestination(ReceiptAddress<StellarAddress>? address) {
     if (address == null ||
-        address.networkAddress ==
-            this.destination.value?.address.networkAddress) {
+        address.networkAddress == this.destination.value?.address.networkAddress) {
       return;
     }
     this.destination.value?.dispose();
-    final destination =
-        TransactionResourceRequirementStellarAccountActivity(address);
+    final destination = TransactionResourceRequirementStellarAccountActivity(address);
     this.destination.setValue(destination);
     controller.trackAccountActivity(destination);
     onStateUpdated();
@@ -958,9 +912,7 @@ class StellarCreateAccountOperationForm
   StellarTransactionOperation toOperation() {
     return StellarCreateAccountOperation(
         asset: StellarPickedIssueAsset(
-            asset: StellarAssetNative(),
-            network: controller.network,
-            issueToken: null),
+            asset: StellarAssetNative(), network: controller.network, issueToken: null),
         destination: destination.output.address,
         startingBalance: startingBalance.output);
   }
@@ -970,17 +922,14 @@ class StellarCreateAccountOperationForm
   @override
   OperationType get type => OperationType.createAccount;
 
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionTransferOutput(
         to: destination.output.address.networkAddress,
-        amount:
-            WalletTransactionIntegerAmount(amount: value, network: network));
+        amount: WalletTransactionIntegerAmount(amount: value, network: network));
   }
 
   @override
-  List<LiveFormField<Object?, Object?>> get fields =>
-      [startingBalance, destination];
+  List<LiveFormField<Object?, Object?>> get fields => [startingBalance, destination];
 
   @override
   Widget builder(BuildContext context) {
@@ -988,29 +937,27 @@ class StellarCreateAccountOperationForm
   }
 }
 
-class StellarManageSellOfferOperationForm
-    extends StellarTransactionOperationForm {
+class StellarManageSellOfferOperationForm extends StellarTransactionOperationForm {
   String? _priceMessage;
   String? get priceMessage => _priceMessage;
   StellarManageSellOfferOperationForm({required super.controller})
       : super(type: OperationType.manageSellOffer);
-  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      selling = LiveFormField(
+  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> selling =
+      LiveFormField(
     title: "selling".tr,
     subtitle: "stellar_manage_sell_offer_selling".tr,
     optional: false,
     value: null,
   );
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "amount".tr,
     subtitle: "stellar_manage_sell_offer_amount".tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
   );
 
-  late final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      buying = LiveFormField(
+  late final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> buying =
+      LiveFormField(
     title: "buying".tr,
     subtitle: "stellar_manage_sell_offer_buying".tr,
     optional: false,
@@ -1024,9 +971,7 @@ class StellarManageSellOfferOperationForm
   );
 
   final LiveFormField<BigRational?, BigRational> price = LiveFormField(
-      title: "price".tr,
-      subtitle: "stellar_manage_sell_offer_price".tr,
-      value: null);
+      title: "price".tr, subtitle: "stellar_manage_sell_offer_price".tr, value: null);
 
   final LiveFormField<BigInt?, BigInt> offerId = LiveFormField(
       title: "offer_id".tr,
@@ -1041,8 +986,7 @@ class StellarManageSellOfferOperationForm
   void onUpdateSelling(StellarPickedIssueAsset? asset) {
     if (asset == null || asset.asset == selling.value?.asset) return;
     selling.setValue(asset);
-    amount.setValue(
-        IntegerBalance.token(BigInt.zero, asset.token, allowNegative: true));
+    amount.setValue(IntegerBalance.token(BigInt.zero, asset.token, allowNegative: true));
     price.setValue(null);
     onStateUpdated();
   }
@@ -1064,8 +1008,8 @@ class StellarManageSellOfferOperationForm
     if (price == null) return;
     _priceMessage = "exchange_entred_price_buy_desc"
         .tr
-        .replaceOne(PriceUtils.priceWithCoinName(
-            price.toDecimal(), buying.output.token.symbol))
+        .replaceOne(
+            PriceUtils.priceWithCoinName(price.toDecimal(), buying.output.token.symbol))
         .replaceTwo(selling.output.token.symbol);
     this.price.setValue(price);
     onStateUpdated();
@@ -1088,8 +1032,7 @@ class StellarManageSellOfferOperationForm
 
   bool get isByOffer => type == OperationType.manageBuyOffer;
 
-  StellarWalletTransactionOutput toWalletTransactionOutput(
-      WalletStellarNetwork network) {
+  StellarWalletTransactionOutput toWalletTransactionOutput(WalletStellarNetwork network) {
     return StellarWalletTransactionOperationOutput(name: type.name);
   }
 
@@ -1114,29 +1057,27 @@ class StellarManageSellOfferOperationForm
   }
 }
 
-class StellarManageBuyOfferOperationForm
-    extends StellarTransactionOperationForm {
+class StellarManageBuyOfferOperationForm extends StellarTransactionOperationForm {
   StellarManageBuyOfferOperationForm({required super.controller})
       : super(type: OperationType.manageBuyOffer);
   String? _priceMessage;
   String? get priceMessage => _priceMessage;
-  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      selling = LiveFormField(
+  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> selling =
+      LiveFormField(
     title: "selling".tr,
     subtitle: "stellar_manage_buy_offer_selling".tr,
     optional: false,
     value: null,
   );
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "amount".tr,
     subtitle: "stellar_manage_buy_offer_buy_amount".tr,
     value: IntegerBalance.zero(controller.network.token, allowNegative: false),
   );
 
-  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset>
-      buying = LiveFormField(
+  final LiveFormField<StellarPickedIssueAsset?, StellarPickedIssueAsset> buying =
+      LiveFormField(
     title: "buying".tr,
     subtitle: "stellar_manage_buy_offer_buying".tr,
     optional: false,
@@ -1144,9 +1085,7 @@ class StellarManageBuyOfferOperationForm
   );
 
   final LiveFormField<BigRational?, BigRational> price = LiveFormField(
-      title: "price".tr,
-      subtitle: "stellar_manage_buy_offer_price".tr,
-      value: null);
+      title: "price".tr, subtitle: "stellar_manage_buy_offer_price".tr, value: null);
 
   final LiveFormField<BigInt?, BigInt> offerId = LiveFormField(
     title: "offer_id".tr,
@@ -1169,8 +1108,7 @@ class StellarManageBuyOfferOperationForm
 
   void onUpdateBuying(StellarPickedIssueAsset? asset) {
     if (asset == null || asset.asset == buying.value?.asset) return;
-    amount.setValue(
-        IntegerBalance.token(BigInt.zero, asset.token, allowNegative: false));
+    amount.setValue(IntegerBalance.token(BigInt.zero, asset.token, allowNegative: false));
     buying.setValue(asset);
     _priceMessage = null;
     price.setValue(null);
@@ -1187,8 +1125,8 @@ class StellarManageBuyOfferOperationForm
     if (price == null) return;
     _priceMessage = "exchange_entred_price_buy_desc"
         .tr
-        .replaceOne(PriceUtils.priceWithCoinName(
-            price.toDecimal(), selling.output.token.symbol))
+        .replaceOne(
+            PriceUtils.priceWithCoinName(price.toDecimal(), selling.output.token.symbol))
         .replaceTwo(buying.output.token.symbol);
     this.price.setValue(price);
     onStateUpdated();

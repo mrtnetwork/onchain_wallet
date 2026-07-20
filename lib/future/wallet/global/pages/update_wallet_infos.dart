@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/platform_methods/cross/methods.dart';
 import 'package:on_chain_wallet/crypto/types/credential.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
@@ -10,17 +9,13 @@ typedef OnUpdateWidget = void Function(WalletUpdateInfosData);
 
 class UpdateWalletInfosWidget extends StatefulWidget {
   const UpdateWalletInfosWidget(
-      {this.setupButtonTitle,
-      required this.onUpdate,
-      required this.wallet,
-      super.key});
-  final MainWallet wallet;
+      {this.setupButtonTitle, required this.onUpdate, required this.wallet, super.key});
+  final IMainWallet wallet;
   final String? setupButtonTitle;
   final OnUpdateWidget onUpdate;
 
   @override
-  State<UpdateWalletInfosWidget> createState() =>
-      _UpdateWalletInfosWidgetState();
+  State<UpdateWalletInfosWidget> createState() => _UpdateWalletInfosWidgetState();
 }
 
 class _UpdateWalletInfosWidgetState extends State<UpdateWalletInfosWidget>
@@ -79,33 +74,37 @@ class _UpdateWalletInfosWidgetState extends State<UpdateWalletInfosWidget>
       platformCredential = ShimmerAction(object: null);
     } else {
       platformCredential.setAction(false);
-      final credential = await MethodUtils.call(() async {
-        return await PlatformCryptoMethods.createPlatformCredential(
-            name: name,
-            appName: APPConst.name,
-            displayName: name,
-            accountId: widget.wallet.key,
-            reason: "authenticate".tr);
-      });
-      if (credential.hasError) {
-        context.showAlert(credential.localizationError);
-      } else {
-        if (credential.result == null) {
-          context.showAlert("no_biometric_enrolled".tr);
-        }
-        platformCredential = ShimmerAction(object: credential.result);
-      }
+      final credential = await context.appContext.platformCrypto.createPlatformCredential(
+          name: name,
+          appName: APPConst.name,
+          displayName: name,
+          accountId: widget.wallet.key,
+          reason: "authenticate".tr);
+      credential.watch(
+        onErr: (error) => context.showAlert(error.localizationError),
+        onOk: (credential) {
+          if (credential == null) {
+            context.showAlert("no_biometric_enrolled".tr);
+          }
+          platformCredential = ShimmerAction(object: credential);
+        },
+      );
       platformCredential.setAction(true);
     }
     updateState();
   }
 
   Future<void> init() async {
-    platformCredential =
-        ShimmerAction(object: widget.wallet.platformCredential);
+    platformCredential = ShimmerAction(object: widget.wallet.platformCredential);
     if (platformCredential.object == null) {
-      supportPlatformCredential =
-          await PlatformCryptoMethods.supportPlatformCredential();
+      final supportPlatformCredential =
+          await context.appContext.platformCrypto.supportPlatformCredential();
+      supportPlatformCredential.watch(
+        onErr: (error) => context.showAlert(error.localizationError),
+        onOk: (value) {
+          this.supportPlatformCredential = value;
+        },
+      );
     }
 
     platformCredential.setAction(true);
@@ -149,8 +148,8 @@ class _UpdateWalletInfosWidgetState extends State<UpdateWalletInfosWidget>
               value: reqPassword,
               maxLine: 6,
               onChanged: onChangeReqPassword,
-              title: Text("password_requirement".tr,
-                  style: context.textTheme.titleMedium),
+              title:
+                  Text("password_requirement".tr, style: context.textTheme.titleMedium),
               subtitle: Text("wallet_password_requirement_desc2".tr),
             ),
             WidgetConstant.height20,
@@ -158,26 +157,23 @@ class _UpdateWalletInfosWidgetState extends State<UpdateWalletInfosWidget>
               contentPadding: EdgeInsets.zero,
               value: protectWallet,
               onChanged: onChangeProtectWallet,
-              title: Text("protect_wallet".tr,
-                  style: context.textTheme.titleMedium),
+              title: Text("protect_wallet".tr, style: context.textTheme.titleMedium),
               subtitle: Text("required_password_to_sign_transaction".tr),
             ),
             ConditionalWidget(
                 enable: supportPlatformCredential,
-                onActive: (context) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          WidgetConstant.height20,
-                          AppCheckListTile(
-                            contentPadding: EdgeInsets.zero,
-                            value: platformCredential.object != null,
-                            onChanged: (_) => togglePlatformCredential(),
-                            title: Text("enable_device_authentication".tr,
-                                style: context.textTheme.titleMedium),
-                            subtitle:
-                                Text("enable_device_authentication_desc".tr),
-                          ),
-                        ])),
+                onActive: (context) =>
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      WidgetConstant.height20,
+                      AppCheckListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: platformCredential.object != null,
+                        onChanged: (_) => togglePlatformCredential(),
+                        title: Text("enable_device_authentication".tr,
+                            style: context.textTheme.titleMedium),
+                        subtitle: Text("enable_device_authentication_desc".tr),
+                      ),
+                    ])),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

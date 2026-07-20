@@ -3,7 +3,7 @@ import 'package:on_chain_wallet/future/wallet/global/pages/address_details.dart'
 import 'package:on_chain_wallet/future/wallet/security/pages/login.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/crypto/worker.dart' show AddressDerivationIndex;
+import 'package:on_chain_wallet/crypto/crypto.dart' show DerivableIndex;
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 typedef ONSIGNINGCREDENTIAL = Future<WalletCredentialResponseVerify> Function(
@@ -11,11 +11,8 @@ typedef ONSIGNINGCREDENTIAL = Future<WalletCredentialResponseVerify> Function(
 
 class WalletSigningPassword extends StatefulWidget {
   const WalletSigningPassword(
-      {super.key,
-      required this.keys,
-      required this.addresses,
-      required this.controller});
-  final Set<AddressDerivationIndex> keys;
+      {super.key, required this.keys, required this.addresses, required this.controller});
+  final Set<DerivableIndex> keys;
   final Set<ChainAccount> addresses;
   final ScrollController controller;
 
@@ -23,18 +20,15 @@ class WalletSigningPassword extends StatefulWidget {
   State<WalletSigningPassword> createState() => _WalletSigningPasswordState();
 }
 
-class _WalletSigningPasswordState extends State<WalletSigningPassword>
-    with SafeState {
+class _WalletSigningPasswordState extends State<WalletSigningPassword> with SafeState {
   @override
   Widget build(BuildContext context) {
-    return WalletLoginView<WalletCredentialResponseVerify,
-            WalletCredentialVerify>(
+    return WalletLoginView<WalletCredentialResponseVerify, WalletCredentialVerify>(
         controller: widget.controller,
         onWalletAccess: (credential) => context.pop(credential),
         request: WalletCredentialVerify(),
         appBar: AppBar(title: Text("signing_request".tr)),
-        subtitle:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           PageTitleSubtitle(
               title: "signing_request".tr,
               body: Column(
@@ -48,49 +42,43 @@ class _WalletSigningPasswordState extends State<WalletSigningPassword>
           WidgetConstant.height20,
           ConditionalWidget(
               enable: widget.addresses.isNotEmpty,
-              onActive: (context) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("accounts".tr,
-                            style: context.textTheme.titleMedium),
-                        WidgetConstant.height8,
-                        ConditionalWidget(
-                          enable: widget.addresses.length > 1,
-                          onActive: (context) => APPExpansionListTile(
-                              title: Text(
-                                  "transaction_generated_with_number_accounts"
-                                      .tr
-                                      .replaceOne(
-                                          widget.addresses.length.toString()),
-                                  style: context.onPrimaryTextTheme.bodyMedium),
-                              children: [
-                                ListView.separated(
-                                  separatorBuilder: (context, index) => Divider(
-                                      color: context.onPrimaryContainer),
-                                  itemCount: widget.addresses.length,
-                                  shrinkWrap: true,
-                                  physics: WidgetConstant.noScrollPhysics,
-                                  itemBuilder: (context, index) {
-                                    final address =
-                                        widget.addresses.elementAt(index);
-                                    return ContainerWithBorder(
-                                      backgroundColor:
-                                          context.onPrimaryContainer,
-                                      child: AddressDetailsView(
-                                          address: address,
-                                          color: context.primaryContainer),
-                                    );
-                                  },
-                                )
-                              ]),
-                          onDeactive: (context) => ContainerWithBorder(
-                            child: AddressDetailsView(
-                                address: widget.addresses.first,
-                                color: context.onPrimaryContainer),
-                          ),
-                        ),
-                        WidgetConstant.height20,
-                      ])),
+              onActive: (context) =>
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text("accounts".tr, style: context.textTheme.titleMedium),
+                    WidgetConstant.height8,
+                    ConditionalWidget(
+                      enable: widget.addresses.length > 1,
+                      onActive: (context) => APPExpansionListTile(
+                          title: Text(
+                              "transaction_generated_with_number_accounts"
+                                  .tr
+                                  .replaceOne(widget.addresses.length.toString()),
+                              style: context.onPrimaryTextTheme.bodyMedium),
+                          children: [
+                            ListView.separated(
+                              separatorBuilder: (context, index) =>
+                                  Divider(color: context.onPrimaryContainer),
+                              itemCount: widget.addresses.length,
+                              shrinkWrap: true,
+                              physics: WidgetConstant.noScrollPhysics,
+                              itemBuilder: (context, index) {
+                                final address = widget.addresses.elementAt(index);
+                                return ContainerWithBorder(
+                                  backgroundColor: context.onPrimaryContainer,
+                                  child: AddressDetailsView(
+                                      address: address, color: context.primaryContainer),
+                                );
+                              },
+                            )
+                          ]),
+                      onDeactive: (context) => ContainerWithBorder(
+                        child: AddressDetailsView(
+                            address: widget.addresses.first,
+                            color: context.onPrimaryContainer),
+                      ),
+                    ),
+                    WidgetConstant.height20,
+                  ])),
           ConditionalWidget(
             enable: widget.keys.isNotEmpty,
             onActive: (context) =>
@@ -139,7 +127,7 @@ class _WalletSigningPasswordState extends State<WalletSigningPassword>
 
 class _HDWalletDerivationDetails extends StatelessWidget {
   const _HDWalletDerivationDetails({required this.keyIndex, this.color});
-  final AddressDerivationIndex keyIndex;
+  final DerivableIndex keyIndex;
   final Color? color;
   @override
   Widget build(BuildContext context) {

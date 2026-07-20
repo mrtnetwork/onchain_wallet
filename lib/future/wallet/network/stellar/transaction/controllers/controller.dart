@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:flutter/material.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
@@ -27,13 +28,10 @@ class StellarTransactionStateController extends BaseStellarTransactionController
   StellarAccountResponse get accountData => _accountData!;
   late IntegerBalance _noneActiveAccountRequiredAmount =
       IntegerBalance.token(BigInt.zero, network.token);
-  IntegerBalance get noneActiveAccountRequiredAmount =>
-      _noneActiveAccountRequiredAmount;
+  IntegerBalance get noneActiveAccountRequiredAmount => _noneActiveAccountRequiredAmount;
 
   StellarTransactionStateController._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory StellarTransactionStateController(
       {required WalletProvider walletProvider,
       required StellarChain account,
@@ -42,8 +40,7 @@ class StellarTransactionStateController extends BaseStellarTransactionController
       StellarIssueToken? token}) {
     final instance = StellarTransactionStateController._(
         walletProvider: walletProvider, account: account, address: address);
-    if (token != null &&
-        (operation == null || operation == OperationType.payment)) {
+    if (token != null && (operation == null || operation == OperationType.payment)) {
       instance._onCreatePaymentOperation(token: token);
     } else if (operation != null) {
       instance.onCreateNewOperation(operation);
@@ -53,8 +50,8 @@ class StellarTransactionStateController extends BaseStellarTransactionController
 
   final LiveFormFields<StellarTransactionOperationData> operations =
       LiveFormFields(title: "operations".tr, optional: false);
-  final LiveFormField<StellarTransactionOperationForm?,
-          StellarTransactionOperationForm> pendingOperation =
+  final LiveFormField<StellarTransactionOperationForm?, StellarTransactionOperationForm>
+      pendingOperation =
       LiveFormField(title: "operation".tr, value: null, optional: true);
   final LiveFormField<TransactionTimeBound, TransactionTimeBound> timebound =
       LiveFormField(
@@ -76,8 +73,7 @@ class StellarTransactionStateController extends BaseStellarTransactionController
 
   void onCreateNewOperation(OperationType? type) {
     if (type == null || pendingOperation.hasValue) return;
-    final form =
-        StellarTransactionOperationForm.create(controller: this, type: type);
+    final form = StellarTransactionOperationForm.create(controller: this, type: type);
     pendingOperation.setValue(form);
   }
 
@@ -105,8 +101,7 @@ class StellarTransactionStateController extends BaseStellarTransactionController
     form.onStateUpdated();
     if (!form.status.value.isReady) return;
     final operation = form.toOperation();
-    final data =
-        StellarTransactionOperationData(operation: operation, form: form);
+    final data = StellarTransactionOperationData(operation: operation, form: form);
     operations.addValue(data);
     onStateUpdated();
     estimateFee();
@@ -129,9 +124,8 @@ class StellarTransactionStateController extends BaseStellarTransactionController
     if (pendingOperation.hasValue) {
       return TransactionStateStatus.error();
     }
-    final total =
-        operations.value.fold(BigInt.zero, (p, c) => p + c.operation.value);
-    final balance = address.address.currencyBalance;
+    final total = operations.value.fold(BigInt.zero, (p, c) => p + c.operation.value);
+    final balance = address.addressData.currencyBalance;
     final remain = balance - total - txFee.fee.fee.balance;
     if (remain.isNegative) {
       return TransactionStateStatus.insufficient(
@@ -172,8 +166,7 @@ class StellarTransactionStateController extends BaseStellarTransactionController
   }
 
   @override
-  Future<IStellarTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IStellarTransactionData> buildTransactionData({bool simulate = false}) async {
     final operations = this.operations.value.map((e) => e.operation).toList();
     operations.sort((a, b) {
       if (a.type == OperationType.createAccount) {
@@ -199,18 +192,14 @@ class StellarTransactionStateController extends BaseStellarTransactionController
         fee: transactionData.fee.fee.balance.toInt(),
         seqNum: transactionData.sequence,
         cond: transactionData.timeboundCondition,
-        operations:
-            transactionData.operations.map((e) => e.toOperation()).toList(),
+        operations: transactionData.operations.map((e) => e.toOperation()).toList(),
         memo: transactionData.memo);
     return IStellarTransaction(
-        transaction: transaction,
-        transactionData: transactionData,
-        account: address);
+        transaction: transaction, transactionData: transactionData, account: address);
   }
 
   @override
-  Future<IStellarSignedTransaction> signTransaction(
-      IStellarTransaction transaction,
+  Future<IStellarSignedTransaction> signTransaction(IStellarTransaction transaction,
       {bool fakeSignature = false}) async {
     final signedTx = await signTransactionInternal(
         address: transaction.account, transaction: transaction.transaction);
@@ -223,32 +212,38 @@ class StellarTransactionStateController extends BaseStellarTransactionController
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IStellarSignedTransaction signedTransaction}) async {
-    final envelopeXdr =
-        signedTransaction.finalTransactionData.toVariantXDRBase64();
+    final envelopeXdr = signedTransaction.finalTransactionData.toVariantXDRBase64();
     final submissionResult =
-        await MethodUtils.call(() async => await client.submitTx(envelopeXdr));
+        await IResult.call(() async => await client.submitTx(envelopeXdr));
 
-    if (submissionResult.hasError) {
-      return SubmitTransactionFailed(submissionResult.localizationError);
+    if (submissionResult.isErr) {
+      return SubmitTransactionFailed(submissionResult.unwrapErr().localizationError);
     }
-    final success = submissionResult.result?.successful ?? true;
+    final success = submissionResult.unwrap()?.successful ?? true;
     if (!success) {
-      final result = MethodUtils.nullOnException(
-          () => submissionResult.result?.getResult().toJson());
+      final result = MethodUtils.fallbackOnException(
+        () => submissionResult.unwrap()?.getResult().toJson(),
+        mode: LoggerMode.danger,
+        onError: (exception, trace) => AppLogData(
+          runtime: runtimeType,
+          function: "submitTransaction",
+          msg: "Failed to get submission result.",
+          err: exception,
+          trace: trace.toString(),
+        ),
+      );
       if (result == null) {
-        return SubmitTransactionFailed(
-            "submit_transaction_error".tr.replaceOne(''));
+        return SubmitTransactionFailed("submit_transaction_error".tr.replaceOne(''));
       }
-      return SubmitTransactionFailed("submit_transaction_error"
-          .tr
-          .replaceOne("\n${StringUtils.fromJson(result)}"));
+      return SubmitTransactionFailed(
+          "submit_transaction_error".tr.replaceOne("\n${StringUtils.fromJson(result)}"));
     }
-    final String txId = submissionResult.result?.id ??
+    final String txId = submissionResult.unwrap()?.id ??
         signedTransaction.finalTransactionData
             .txId(network.coinParam.stellarChainType.passphraseHash);
     return SubmitTransactionSuccess(
         txId: txId,
-        warning: submissionResult.result == null
+        warning: submissionResult.unwrap() == null
             ? "tx_submit_response_failed_desc".tr
             : null,
         signedTransaction: signedTransaction);
@@ -261,8 +256,7 @@ class StellarTransactionStateController extends BaseStellarTransactionController
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
 
     _accountData = await getAccount(address.networkAddress);
     if (_accountData == null) {
@@ -281,9 +275,10 @@ class StellarTransactionStateController extends BaseStellarTransactionController
       buildWalletTransaction(
           {required IStellarSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final outputs = signedTx.transaction.transactionData.operations
-        .map((e) => e.toWalletTransactionOutput(network))
-        .toList();
+    final txData = signedTx.transaction.transactionData;
+    final memo = txData.getWalletTxMemo();
+    final outputs =
+        txData.operations.map((e) => e.toWalletTransactionOutput(network)).toList();
     final totalOut = outputs
         .whereType<StellarWalletTransactionTransferOutput>()
         .where((e) => e.amount.isNativeToken)
@@ -291,14 +286,14 @@ class StellarTransactionStateController extends BaseStellarTransactionController
     final transaction = StellarWalletTransaction(
         txId: txId.txId,
         network: network,
+        memos: [if (memo != null) memo],
         outputs: outputs,
-        totalOutput:
-            WalletTransactionIntegerAmount(amount: totalOut, network: network));
+        totalOutput: WalletTransactionIntegerAmount(amount: totalOut, network: network));
     return [IWalletTransaction(transaction: transaction, account: address)];
   }
 
   @override
-  TransactionStateController cloneController(IStellarAddress address) {
+  Future<TransactionStateController> cloneController(IStellarAddress address) async {
     return StellarTransactionStateController(
         walletProvider: walletProvider, account: account, address: address);
   }

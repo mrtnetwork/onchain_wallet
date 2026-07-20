@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:on_chain/aptos/aptos.dart';
 import 'package:on_chain_wallet/future/future.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 mixin AptosTransactionSignerController {
@@ -21,7 +22,8 @@ mixin AptosTransactionSignerController {
         feePayerAddress: feePayerAddress,
         secondarySignerAddresses: secondarySignerAddresses);
     final signedTr = await walletProvider.wallet.signTransaction(
-        request: WalletSigningRequest(
+        params: WalletActionSign(
+            request: WalletSigningRequest(
       network: network,
       addresses: [address],
       sign: (generateSignature) async {
@@ -31,7 +33,7 @@ mixin AptosTransactionSignerController {
               address.cast<IAptosMultiSigAddress>().multiSignatureAddress;
           for (int i = 0; i < multisigAddress.requiredSignature; i++) {
             final publicKey = multisigAddress.publicKeys[i];
-            final Bip32AddressIndex signer = publicKey.keyIndex;
+            final Bip32DerivationIndex signer = publicKey.derivationIndex;
             final signRequest =
                 GlobalSignRequest.aptos(digest: signingDigest, index: signer);
             final signature = await generateSignature(signRequest);
@@ -40,16 +42,14 @@ mixin AptosTransactionSignerController {
           }
           return anySignatures;
         }
-        final Bip32AddressIndex signer = address.keyIndex.cast();
-        final signRequest =
-            GlobalSignRequest.aptos(digest: signingDigest, index: signer);
+        final Bip32DerivationIndex signer = address.derivationIndex.cast();
+        final signRequest = GlobalSignRequest.aptos(digest: signingDigest, index: signer);
         final signature = await generateSignature(signRequest);
         return [
-          AptosUtils.generateSignature(
-              signature.signature, address.keyScheme.curve)
+          AptosUtils.generateSignature(signature.signature, address.keyScheme.curve)
         ];
       },
-    ));
-    return signedTr.result;
+    )));
+    return signedTr.unwrap();
   }
 }

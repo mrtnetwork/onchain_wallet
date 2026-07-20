@@ -1,4 +1,4 @@
-import 'package:on_chain_wallet/crypto/utils/ton/ton.dart';
+import 'package:on_chain_wallet/crypto/networks/ton/ton.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:ton_dart/ton_dart.dart';
 
@@ -56,9 +56,7 @@ class TonTransferDetails extends TransferOutputDetails<TonAddress> {
   }
 
   void onUpdateTransferToken(TonJettonToken? jetton) {
-    _token = jetton == null
-        ? null
-        : TonOutputJettonWithBalance(jetton, networkToken);
+    _token = jetton == null ? null : TonOutputJettonWithBalance(jetton, networkToken);
     notify();
   }
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/context.dart'
-    show QuickContextAccsess;
+import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/context.dart';
 import 'package:on_chain_wallet/app/models/models/typedef.dart'
     show BoolVoid, DynamicVoid, NullBoolVoid;
 import 'package:on_chain_wallet/future/widgets/widgets/widget_constant.dart';
@@ -35,8 +34,7 @@ class AppListTile extends StatelessWidget {
     return ListTile(
       title: title == null
           ? null
-          : DefaultTextStyle(
-              style: context.textTheme.labelLarge!, child: title!),
+          : DefaultTextStyle(style: context.textTheme.labelLarge!, child: title!),
       subtitle: subtitle == null
           ? null
           : DefaultTextStyle(
@@ -64,6 +62,8 @@ class AppCheckListTile extends StatelessWidget {
       this.title,
       this.subtitle,
       this.contentPadding,
+      this.color,
+      this.backgroundColor,
       this.maxLine = 2});
   final int? maxLine;
   final NullBoolVoid? onChanged;
@@ -71,16 +71,19 @@ class AppCheckListTile extends StatelessWidget {
   final Widget? title;
   final Widget? subtitle;
   final EdgeInsets? contentPadding;
+  final Color? color;
+  final Color? backgroundColor;
   @override
   Widget build(BuildContext context) {
     return CheckboxListTile(
       onChanged: onChanged,
       value: value,
       contentPadding: contentPadding,
+      fillColor: backgroundColor == null ? null : WidgetStatePropertyAll(backgroundColor),
+      checkColor: color,
       title: title == null
           ? null
-          : DefaultTextStyle(
-              style: context.textTheme.labelLarge!, child: title!),
+          : DefaultTextStyle(style: context.textTheme.labelLarge!, child: title!),
       subtitle: subtitle == null
           ? null
           : DefaultTextStyle(
@@ -118,20 +121,22 @@ class AppRadioListTile<T> extends StatelessWidget {
       required this.value,
       this.title,
       this.subtitle,
-      this.secondary});
+      this.secondary,
+      this.enabled});
   final T value;
   final Widget? title;
   final Widget? secondary;
   final Widget? subtitle;
+  final bool? enabled;
   @override
   Widget build(BuildContext context) {
     return RadioListTile<T>(
       value: value,
       secondary: secondary,
+      enabled: enabled,
       title: title == null
           ? null
-          : DefaultTextStyle(
-              style: context.textTheme.labelLarge!, child: title!),
+          : DefaultTextStyle(style: context.textTheme.labelLarge!, child: title!),
       subtitle: subtitle == null
           ? null
           : DefaultTextStyle(
@@ -265,8 +270,7 @@ class APPExpansionListTile extends StatelessWidget {
       child: ExpansionTile(
           enabled: enabled,
           shape: RoundedRectangleBorder(borderRadius: WidgetConstant.border8),
-          collapsedShape:
-              RoundedRectangleBorder(borderRadius: WidgetConstant.border8),
+          collapsedShape: RoundedRectangleBorder(borderRadius: WidgetConstant.border8),
           backgroundColor: color ?? context.primaryContainer,
           collapsedBackgroundColor: color ?? context.primaryContainer,
           tilePadding: tilePadding,
@@ -303,9 +307,8 @@ class APPCheckBox extends StatelessWidget {
     return IgnorePointer(
       ignoring: ignoring,
       child: Checkbox(
-        fillColor: backgroundColor == null
-            ? null
-            : WidgetStatePropertyAll(backgroundColor),
+        fillColor:
+            backgroundColor == null ? null : WidgetStatePropertyAll(backgroundColor),
         checkColor: color,
         activeColor: backgroundColor,
         value: value,

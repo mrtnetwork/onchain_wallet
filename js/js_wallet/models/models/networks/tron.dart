@@ -1,9 +1,9 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
 import 'package:on_chain_bridge/web/web.dart';
 
 import '../base.dart';
 import 'ethereum.dart';
-import 'solana.dart';
 import 'wallet_standard.dart';
 
 class JSTronConst {
@@ -33,8 +33,7 @@ extension type TronWebOptions._(JSAny _) implements JSAny {
 
 @JS("TronWeb")
 extension type TronWeb._(JSAny _) implements JSAny {
-  external factory TronWeb(
-      String? solidityNode, String? eventServer, String? privateKey);
+  external factory TronWeb(String? solidityNode, String? eventServer, String? privateKey);
   static TronWeb defaultTronWeb() {
     final tronWeb = TronWeb(JSTronConst.defaultTronWebEndpoint,
         JSTronConst.defaultTronWebEndpoint, JSTronConst.defaultTronWebEndpoint);
@@ -149,8 +148,7 @@ extension type JSTronTIPChainChanged._(JSObject o) implements JSAny {
       required String chain});
 }
 
-extension type JSSTronWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSSTronWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSSTronWalletAccount.setup(
       {required String address,
       required List<int>? publicKey,
@@ -158,8 +156,7 @@ extension type JSSTronWalletAccount._(JSObject _)
       required String hex}) {
     return JSSTronWalletAccount._(JSObject())
       ..address = address
-      ..publicKey =
-          publicKey == null ? null : APPJSUint8Array.fromList(publicKey)
+      ..publicKey = publicKey == null ? null : APPJSUint8Array.fromList(publicKey)
       ..chains = [chain.toJS].toJS
       ..features = JSTronConst.defaultAccountFeatures
       ..hex = hex;
@@ -169,8 +166,7 @@ extension type JSSTronWalletAccount._(JSObject _)
 }
 
 @JS()
-extension type TronWalletAdapterSignTransactionFeature(JSAny _)
-    implements JSAny {
+extension type TronWalletAdapterSignTransactionFeature(JSAny _) implements JSAny {
   factory TronWalletAdapterSignTransactionFeature.setup(
       {required JSFunction signAndSendTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -208,8 +204,7 @@ extension type TronWalletAdapterConnectFeature(JSAny _) implements JSAny {
 }
 @JS()
 extension type JSTronWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSTronWalletStandardConnect.setup(
-      List<JSSTronWalletAccount> accounts) {
+  factory JSTronWalletStandardConnect.setup(List<JSSTronWalletAccount> accounts) {
     return JSTronWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSSTronWalletAccount> get accounts;
@@ -231,17 +226,14 @@ extension type JSTronSignatureResponse._(JSObject o) implements JSAny {
   external set signature(APPJSUint8Array _);
 }
 @JS()
-extension type JSTronWalletStandardTransactionParams._(JSObject o)
-    implements JSAny {
+extension type JSTronWalletStandardTransactionParams._(JSObject o) implements JSAny {
   external JSSTronWalletAccount get account;
   external APPJSUint8Array get transaction;
   static const List<String> properties = ['account', 'transaction'];
 }
 @JS()
-extension type JSTronWalletStandardTransactionResponse._(JSObject o)
-    implements JSAny {
-  factory JSTronWalletStandardTransactionResponse.setup(
-      List<int> signedTransaction) {
+extension type JSTronWalletStandardTransactionResponse._(JSObject o) implements JSAny {
+  factory JSTronWalletStandardTransactionResponse.setup(List<int> signedTransaction) {
     return JSTronWalletStandardTransactionResponse._(JSObject())
       ..signedTransaction = APPJSUint8Array.fromList(signedTransaction);
   }

@@ -16,14 +16,14 @@ import 'package:on_chain_wallet/future/wallet/network/bitcoin/web3/types/types.d
 import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
-import 'package:on_chain_wallet/wallet/api/client/networks/bitcoin/core/core.dart';
+import 'package:on_chain_wallet/wallet/api/client/networks/bitcoin/clients/bitcoin.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/bitcoin.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/constant/constants/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/params/models/send_transaction.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/constant/constants/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/params/models/send_transaction.dart';
 
 class Web3BitcoinSendTransactionStateController
     extends Web3BitcoinTransactionStateController<
@@ -52,33 +52,25 @@ class Web3BitcoinSendTransactionStateController
   Web3BitcoinSendTransactionStateController(
       {required super.walletProvider, required super.request});
 
-  late final LiveFormField<BitcoinRemainTransferDetails,
-          BitcoinRemainTransferDetails> remainingAmount =
-      LiveFormField(
+  late final LiveFormField<BitcoinRemainTransferDetails, BitcoinRemainTransferDetails>
+      remainingAmount = LiveFormField(
           title: "remaining_amount".tr,
           subtitle: "remaining_amount_and_receiver".tr,
           value: BitcoinRemainTransferDetails(
-              recipient:
-                  account.getReceiptAddress(defaultAccount.viewAddress) ??
-                      ReceiptAddress(
-                          view: defaultAccount.viewAddress,
-                          networkAddress: defaultAccount.networkAddress),
+              recipient: account.getOrCreateReceiptFromNetworkAddressSync(
+                  account: defaultAccount),
               network: network),
           optional: false);
 
   final LiveFormField<bool, bool> rbf = LiveFormField(
-      title: "replace_by_fee".tr,
-      subtitle: "bitcoin_rbf_error".tr,
-      value: false);
+      title: "replace_by_fee".tr, subtitle: "bitcoin_rbf_error".tr, value: false);
   void onUpdateRBF(bool? rbf) {
     if (rbf == null) return;
     this.rbf.setValue(rbf);
   }
 
   void onUpdateRemainingAccount(IBitcoinAddress address) {
-    final recipient = account.getReceiptAddress(address.viewAddress) ??
-        ReceiptAddress(
-            view: address.viewAddress, networkAddress: address.networkAddress);
+    final recipient = account.getOrCreateReceiptFromNetworkAddressSync(account: address);
     remainingAmount.value.onUpdateRecipient(recipient);
   }
 
@@ -88,7 +80,7 @@ class Web3BitcoinSendTransactionStateController
   }
 
   void _buildOutputs() {
-    final remain = remainingAmount.value.toOutput();
+    final remain = remainingAmount.value.toOutput()?.output;
     _outputs = List<BitcoinBaseOutput>.unmodifiable([
       ..._requestOutputs.map((e) => e.toOutput()),
       if (remain != null) remain,
@@ -97,8 +89,8 @@ class Web3BitcoinSendTransactionStateController
 
   void _onReceiptsUpdated() {
     final totalOutput = totalUtxos.value.balance;
-    final totalAmounts = _requestOutputs.fold(BigInt.zero,
-        (previousValue, element) => previousValue + element.balance.balance);
+    final totalAmounts = _requestOutputs.fold(
+        BigInt.zero, (previousValue, element) => previousValue + element.balance.balance);
     remainingAmount.value
         .updateBalance(totalOutput - totalAmounts - txFee.fee.fee.balance);
     remainingAmount.notify();
@@ -132,12 +124,9 @@ class Web3BitcoinSendTransactionStateController
     }
     final requireAccount = _requireAccount;
     if (requireAccount != null &&
-        !_inputs
-            .any((e) => e.address.viewAddress == requireAccount.viewAddress)) {
+        !_inputs.any((e) => e.address.viewAddress == requireAccount.viewAddress)) {
       return TransactionStateStatus.error(
-          error: 'bitcoin_account_must_spend'
-              .tr
-              .replaceOne(requireAccount.viewAddress));
+          error: 'bitcoin_account_must_spend'.tr.replaceOne(requireAccount.viewAddress));
     }
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
@@ -147,26 +136,27 @@ class Web3BitcoinSendTransactionStateController
     return TransactionStateStatus.ready(warning: simulateError);
   }
 
-  ReceiptAddress<BitcoinBaseAddress>? _getReceiptAddress(
-      BitcoinBaseAddress? address) {
+  ReceiptAddress<BitcoinNetworkAddress>? _getReceiptAddress(
+      BitcoinNetworkAddress? address) {
     if (address == null) return null;
-    final addressStr = address.toAddress(utxoNetwork);
-    return account.getReceiptAddress(addressStr) ??
-        ReceiptAddress(view: addressStr, networkAddress: address);
+    return account.getOrCreateReceiptFromNetworkAddressSync(address: address);
   }
 
-  PsbtBitcoinOutputWithBalance _buildOutput(
-      Web3BitcoinSendTransactionOutput output) {
-    BitcoinBaseAddress? address;
+  PsbtBitcoinOutputWithBalance _buildOutput(Web3BitcoinSendTransactionOutput output) {
+    BitcoinNetworkAddress? address;
     if (output.address != null) {
       address = BitcoinNetworkAddress.parse(
-              address: output.address!,
-              network: network.coinParam.transacationNetwork)
-          .baseAddress;
+          address: output.address!, network: network.coinParam.transacationNetwork);
     } else {
-      address = account.findAddressFromScript(output.scriptPubKey) ??
-          BitcoinScriptUtils.tryGenerateAddressFromScriptPubKey(
-              output.scriptPubKey);
+      address = account.findAddressFromScriptSync(output.scriptPubKey);
+      if (address == null) {
+        final addr =
+            BitcoinScriptUtils.tryGenerateAddressFromScriptPubKey(output.scriptPubKey);
+        if (addr != null) {
+          address = BitcoinNetworkAddress.fromBaseAddress(
+              address: addr, network: network.coinParam.transacationNetwork);
+        }
+      }
     }
     final receipt = _getReceiptAddress(address);
     return PsbtBitcoinOutputWithBalance(
@@ -186,7 +176,7 @@ class Web3BitcoinSendTransactionStateController
       enableRBF: rbf.output,
       requestOutputs: _requestOutputs,
       requireAccount: _requireAccount,
-      utxos: _inputs.map((e) => e.utxo).toList(),
+      utxos: _inputs.map((e) => e.toUtxoWithAdress()).toList(),
       outputs: _outputs,
     );
   }
@@ -197,22 +187,19 @@ class Web3BitcoinSendTransactionStateController
           {required IWeb3BitcoinSignedPaymentTransaction signedTx,
           required SubmitTransactionSuccess? txId}) async {
     if (txId == null) return [];
-    List<IWalletTransaction<BitcoinWalletTransaction, IBitcoinAddress>>
-        transactions = [];
+    List<IWalletTransaction<BitcoinWalletTransaction, IBitcoinAddress>> transactions = [];
     final accounts = signedTx.transaction.accounts.toSet();
     for (final i in accounts) {
-      final totalInputs = inputs
-          .where((e) => e.address == i)
-          .map((e) => e.utxo)
-          .toList()
-          .sumOfUtxosValue();
+      final totalInputs =
+          inputs.where((e) => e.address == i).map((e) => e.utxo.utxo.value).toList().sum;
       if (totalInputs == BigInt.zero) continue;
       final tx = BitcoinWalletTransaction(
           txId: txId.txId,
-          totalOutput: WalletTransactionIntegerAmount(
-              amount: totalInputs, network: network),
+          totalOutput:
+              WalletTransactionIntegerAmount(amount: totalInputs, network: network),
           scriptHash: i.networkAddress.pubKeyHash(),
           web3Client: web3ClientInfo(),
+          type: WalletTransactionType.web3,
           network: network);
       transactions.add(IWalletTransaction(transaction: tx, account: i));
     }
@@ -220,8 +207,7 @@ class Web3BitcoinSendTransactionStateController
   }
 
   @override
-  Future<IWeb3BitcoinPaymentTransaction> buildTransaction(
-      {bool simulate = false}) async {
+  Future<IWeb3BitcoinPaymentTransaction> buildTransaction({bool simulate = false}) async {
     final transactionData = await buildTransactionData(simulate: simulate);
     final transaction = switch (network.coinParam.isForked) {
       true => ForkedTransactionBuilder(
@@ -247,7 +233,7 @@ class Web3BitcoinSendTransactionStateController
     for (final i in transactionData.utxos) {
       final IBitcoinAddress utxosAcount = accounts.firstWhere(
           (element) =>
-              element.networkAddress.addressProgram ==
+              element.networkAddress.baseAddress.addressProgram ==
               i.ownerDetails.address.addressProgram,
           orElse: () => throw Web3RequestExceptionConst.missingPermission);
       signers.add(utxosAcount);
@@ -300,40 +286,34 @@ class Web3BitcoinSendTransactionStateController
   Future<SubmitTransactionResult> submitTransaction(
       {required IWeb3BitcoinSignedPaymentTransaction signedTransaction}) async {
     final transaction = signedTransaction.finalTransactionData;
-    final serialize = transaction.serialize();
-    final txId = await client.sendTransaction(serialize);
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    final txId = await client.sendTransaction(transaction);
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 
   @override
-  Future<void> initForm(BitcoinClient<IBitcoinAddress> client) async {
+  Future<void> initForm(BitcoinNetworkClient<IBitcoinAddress> client) async {
     await super.initForm(client);
-    try {
-      if (accounts.isEmpty) {
+    if (accounts.isEmpty) {
+      throw Web3RequestExceptionConst.missingPermission;
+    }
+    if (accounts.map((e) => e.network).toSet().length != 1) {
+      throw Web3BitcoinExceptionConstant.invalidRequestAccounts;
+    }
+    if (params.requiredAccount != null) {
+      final requiredAccount = params.requiredAccount?.addressStr;
+      _requireAccount =
+          accounts.firstWhereOrNull((e) => e.viewAddress == requiredAccount);
+      if (_requireAccount == null) {
         throw Web3RequestExceptionConst.missingPermission;
       }
-      if (accounts.map((e) => e.network).toSet().length != 1) {
-        throw Web3BitcoinExceptionConstant.invalidRequestAccounts;
-      }
-      if (params.requiredAccount != null) {
-        final requiredAccount = params.requiredAccount?.addressStr;
-        _requireAccount =
-            accounts.firstWhereOrNull((e) => e.viewAddress == requiredAccount);
-        if (_requireAccount == null) {
-          throw Web3RequestExceptionConst.missingPermission;
-        }
-      }
-      final rOutputs = request.params.outputs;
-      if (rOutputs.isEmpty) {
-        throw Web3BitcoinExceptionConstant.emptyOutput;
-      }
-      _requestOutputs = rOutputs.map(_buildOutput).toImutableList;
-      await initAccountUtxos(addresses: accounts);
-      _feeListener = txFee.stream.listen(onFeeUpdated);
-    } catch (e) {
-      rethrow;
     }
+    final rOutputs = request.params.outputs;
+    if (rOutputs.isEmpty) {
+      throw Web3BitcoinExceptionConstant.emptyOutput;
+    }
+    _requestOutputs = rOutputs.map(_buildOutput).toImutableList;
+    await initAccountUtxos(addresses: accounts);
+    _feeListener = txFee.stream.listen(onFeeUpdated);
   }
 
   @override

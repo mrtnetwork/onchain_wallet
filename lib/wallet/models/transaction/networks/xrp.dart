@@ -1,13 +1,15 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-class XRPWalletTransaction extends ChainTransaction {
+class XRPWalletTransaction extends ChainTransaction<XRPWalletTransactionOutput> {
   XRPWalletTransaction(
-      {required super.txId,
+      {required String txId,
       DateTime? time,
       super.outputs = const [],
       super.web3Client,
@@ -16,34 +18,29 @@ class XRPWalletTransaction extends ChainTransaction {
       super.type = WalletTransactionType.send,
       super.status = WalletTransactionStatus.pending,
       List<XRPWalletTransactionOperationInput> super.inputs = const []})
-      : super(time: time ?? DateTime.now());
+      : super(time: time ?? DateTime.now(), txId: StringUtils.normalizeHex(txId));
 
   factory XRPWalletTransaction.deserialize(WalletXRPNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: NetworkType.xrpl.tag);
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.xrpl.identifier);
     return XRPWalletTransaction(
-        txId: values.valueAs(0),
-        time: values.valueAs(1),
+        txId: values.rawValueAt(0),
+        time: values.rawValueAt(1),
         network: network,
-        totalOutput: values.elemetMybeAs<WalletTransactionAmount, CborTagValue>(
+        totalOutput: values.maybeObjectAt<WalletTransactionAmount, CborTagValue>(
             2, (e) => WalletTransactionAmount.deserialize(network, object: e)),
         outputs: values
-            .elementAsListOf<CborTagValue>(3)
-            .map((e) =>
-                XRPWalletTransactionOutput.deserialize(network, object: e))
+            .listAt<CborTagValue>(3)
+            .map((e) => XRPWalletTransactionOutput.deserialize(network, object: e))
             .toList(),
-        web3Client:
-            values.elemetMybeAs<WalletWeb3ClientTransaction, CborTagValue>(
-                4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
-        type: WalletTransactionType.fromValue(values.valueAs(5)),
-        status: WalletTransactionStatus.fromValue(values.valueAs(6)),
+        web3Client: values.maybeObjectAt<WalletWeb3ClientTransaction, CborTagValue>(
+            4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
+        type: WalletTransactionType.fromValue(values.rawValueAt(5)),
+        status: WalletTransactionStatus.fromValue(values.rawValueAt(6)),
         inputs: values
-            .elementAsListOf<CborTagValue>(7, emyptyOnNull: true)
-            .map((e) => XRPWalletTransactionOperationInput.deserialize(obj: e))
+            .listAt<CborTagValue>(7, emptyOnNull: true)
+            .map((e) => XRPWalletTransactionOperationInput.deserialize(object: e))
             .toList());
   }
 
@@ -54,113 +51,97 @@ class XRPWalletTransaction extends ChainTransaction {
 abstract class XRPWalletTransactionOutput extends WalletTransactionOutput {
   const XRPWalletTransactionOutput({required super.type});
   factory XRPWalletTransactionOutput.deserialize(WalletXRPNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
+      {List<int>? bytes, CborObject? object}) {
     final CborTagValue tag =
-        CborSerializable.decode(cborBytes: bytes, hex: cborHex, object: object);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
     final type = WalletTransactionOutputType.fromTag(tag.tags);
     return switch (type) {
       WalletTransactionOutputType.transfer =>
         XRPWalletTransactionTransferOutput.deserialize(network,
-            bytes: bytes, cborHex: cborHex, object: object),
+            bytes: bytes, object: object),
       WalletTransactionOutputType.operation =>
         XRPWalletTransactionOperationOutput.deserialize(network,
-            bytes: bytes, cborHex: cborHex, object: object),
+            bytes: bytes, object: object),
       _ => throw WalletExceptionConst.invalidWalletTransactionData
     };
   }
 }
 
 class XRPWalletTransactionTransferOutput
-    extends WalletTransactionTransferOutput<XRPAddress>
+    extends WalletTransactionTransferOutput<XRPBaseAddress>
     implements XRPWalletTransactionOutput {
-  const XRPWalletTransactionTransferOutput(
-      {required super.to, required super.amount});
+  const XRPWalletTransactionTransferOutput({required super.to, required super.amount});
 
-  factory XRPWalletTransactionTransferOutput.deserialize(
-      WalletXRPNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory XRPWalletTransactionTransferOutput.deserialize(WalletXRPNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.transfer.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.transfer.tag);
     return XRPWalletTransactionTransferOutput(
         amount: WalletTransactionAmount.deserialize(network,
-            object: values.elementAs<CborTagValue>(0)),
-        to: XRPAddress(values.elementAs(1)));
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([amount.toCbor(), to.address]), type.tag);
+            object: values.objectAt<CborTagValue>(0)),
+        to: XRPBaseAddress.deserializeIAddress(bytes: values.rawValueAt(1)));
   }
 
   @override
   String get address => to.address;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [amount.toCbor(), CborBytesValue(to.encodeAsIAddress())];
 }
 
 class XRPWalletTransactionOperationInput
-    extends WalletTransactionOperationInput<XRPAddress> {
+    extends WalletTransactionOperationInput<XRPBaseAddress> {
   @override
-  final XRPAddress address;
+  final XRPBaseAddress address;
 
   const XRPWalletTransactionOperationInput(
       {required this.address, required super.operation});
   factory XRPWalletTransactionOperationInput.deserialize(
-      {List<int>? bytes, CborObject? obj, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: hex,
-        object: obj,
-        tags: WalletTransactionInputType.operation.tag);
+        cborObject: object,
+        identifier: WalletTransactionInputType.operation.tag);
     return XRPWalletTransactionOperationInput(
-        address: XRPAddress(values.elementAs(0)),
-        operation: values.elementAs<String?>(1) ?? "Payment");
-  }
-  @override
-  CborTagValue<CborObject> toCbor() {
-    return CborTagValue(
-        CborListValue.definite([
-          CborStringValue(addressStr),
-          CborStringValue(operation),
-        ]),
-        type.tag);
+        address: XRPBaseAddress.deserializeIAddress(bytes: values.rawValueAt(0)),
+        operation: values.rawValueAt<String?>(1) ?? "Payment");
   }
 
   @override
-  String get addressStr => address.toAddress();
+  String get addressStr => address.classicAddress;
+
+  @override
+  SerializationIdentifier get serializationIdentifier => type.tag;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        CborBytesValue(address.encodeAsIAddress()),
+        CborStringValue(operation),
+      ];
 }
 
-class XRPWalletTransactionOperationOutput
-    extends WalletTransactionOperationOutput
+class XRPWalletTransactionOperationOutput extends WalletTransactionOperationOutput
     implements XRPWalletTransactionOutput {
   const XRPWalletTransactionOperationOutput(
       {required super.name, super.amount, super.content});
 
-  factory XRPWalletTransactionOperationOutput.deserialize(
-      WalletXRPNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory XRPWalletTransactionOperationOutput.deserialize(WalletXRPNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.operation.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.operation.tag);
     return XRPWalletTransactionOperationOutput(
-        name: values.elementAs(0),
-        amount: values.elemetMybeAs<WalletTransactionAmount, CborTagValue>(
+        name: values.rawValueAt(0),
+        amount: values.maybeObjectAt<WalletTransactionAmount, CborTagValue>(
             1, (e) => WalletTransactionAmount.deserialize(network, object: e)),
-        content: values.elementAs(2));
+        content: values.rawValueAt(2));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([name, amount?.toCbor(), content]),
-        type.tag);
-  }
+  List<CborObject?> get serializationItems =>
+      [name.toCbor(), amount?.toCbor(), content?.toCbor()];
 }

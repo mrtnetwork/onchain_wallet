@@ -1,17 +1,19 @@
 import 'dart:async';
 
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/tokens/tokens.dart';
 import 'package:on_chain_wallet/wallet/api/client/core/client.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/nfts/core/core.dart';
 import 'package:on_chain_wallet/wallet/models/token/network/token.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/core/core.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 
 class ManageAccountTokenView extends StatefulWidget {
@@ -25,7 +27,7 @@ class _ManageAccountTokenViewState extends State<ManageAccountTokenView> {
   @override
   Widget build(BuildContext context) {
     return NetworkAccountControllerView<NetworkClient, ChainAccount, Chain>(
-        childBulder: (wallet, account, client, address, onAccountChanged) {
+        childBulder: (wallet, account, client, address) {
           switch (account.network.type) {
             case NetworkType.substrate:
               return ManageSubstrateAccountToken(
@@ -60,7 +62,7 @@ class __ManageAccountTokenState extends State<_ManageAccountToken>
             _ManageAccountToken,
             NetworkClient,
             TokenCore,
-            ChainAccount<dynamic, TokenCore, NFTCore, ChainTransaction>,
+            ChainAccount<IAddress, TokenCore, NFTCore, ChainTransaction, WalletNetwork>,
             Chain> {
   @override
   Chain get account => widget.account;
@@ -70,31 +72,33 @@ class __ManageAccountTokenState extends State<_ManageAccountToken>
 }
 
 mixin ManageAccountTokenState<
-        W extends StatefulWidget,
-        CL extends NetworkClient,
-        TOKEN extends TokenCore,
-        ACCOUNT extends ChainAccount<dynamic, TOKEN, NFTCore, ChainTransaction>,
-        CHAIN extends APPCHAINNETWORKTOKENACCOUNT<TOKEN, CL, ACCOUNT>>
-    on SafeState<W> {
+    W extends StatefulWidget,
+    CL extends NetworkClient,
+    TOKEN extends TokenCore,
+    ACCOUNT extends ChainAccount<IAddress, TOKEN, NFTCore, ChainTransaction,
+        WalletNetwork>,
+    CHAIN extends APPCHAINTOKENCLIENTACCOUNT<TOKEN, CL, ACCOUNT>> on SafeState<W> {
+  List<TOKEN> addressTokens = [];
   CHAIN get account;
   CL get client;
   late WalletProvider wallet;
   StreamSubscription<List<BaseNetworkToken>>? listener;
-  ACCOUNT get address => account.address;
-  List<BaseNetworkToken> tokens = [];
+  StreamSubscription? accountListener;
+  ACCOUNT get address => account.addressSync;
+  List<ShimmerAction<BaseNetworkToken>> tokens = [];
   final StreamPageProgressController progressKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
 
   void onNewToken(List<BaseNetworkToken> token) {
-    tokens.addAll(token);
+    tokens.addAll(token.map((e) => ShimmerAction(object: e)));
     updateState();
     if (progressKey.inProgress) progressKey.backToIdle();
   }
 
   void onError(Object e) {
-    final error = MethodResult.findErrorMessage(e);
+    final error = ResultErr.from(e).localizationError;
     if (progressKey.inProgress) {
-      progressKey.errorText(error.tr, backToIdle: false);
+      progressKey.errorText(error, backToIdle: false);
     }
   }
 
@@ -102,12 +106,11 @@ mixin ManageAccountTokenState<
     if (progressKey.inProgress) progressKey.backToIdle();
   }
 
-  Future<void> onTap(BaseNetworkToken token) async {
-    if (address.tokens.contains(token.token)) {
-      await account.removeToken(token: token.token as TOKEN, address: address);
-      return;
+  Future<IResult<void>> addOrRemoveToken(BaseNetworkToken token) async {
+    if (addressTokens.contains(token.token)) {
+      return await account.removeToken(
+          token: token.token.clone() as TOKEN, address: address);
     }
-
     if (token.status.isFailed) {
       Token? updated;
       await context.openSliverBottomSheet<bool>("update_token".tr,
@@ -119,7 +122,7 @@ mixin ManageAccountTokenState<
                   body: AlertTextContainer(
                       message: "update_unknown_token_metadata_desc".tr,
                       enableTap: false)),
-              address: account.address,
+              address: account.addressSync,
               onUpdateToken: (context, updatedToken) {
                 context.pop();
                 updated = updatedToken;
@@ -130,15 +133,50 @@ mixin ManageAccountTokenState<
         token.updaetTokenMetadata(updated!);
       }
     }
-    await account.addNewToken(token: token.token as TOKEN, address: address);
+    final result =
+        await account.addNewToken(token: token.token as TOKEN, address: address);
+    return result;
+  }
+
+  Future<void> onTap(ShimmerAction<BaseNetworkToken> token) async {
+    try {
+      token.setAction(true);
+      updateState();
+      final update = await addOrRemoveToken(token.object);
+      update.mapErr((e) {
+        context.showAlert(e.localizationError);
+        return e.exception;
+      });
+    } finally {
+      token.setAction(false);
+      updateState();
+    }
+  }
+
+  void onAccountEvent(ChainEvent event) {
+    addressTokens = address.tokenSync;
+    updateState();
   }
 
   void init() {
-    listener = client.getAccountTokensStream(address.networkAddress).listen(
-        onNewToken,
-        onError: onError,
-        onDone: onDone,
-        cancelOnError: true);
+    address.getAccountTokens().then((result) {
+      result.watch(
+        onErr: (error) {
+          if (closed) return;
+          context.showAlert(error.localizationError);
+        },
+        onOk: (tokens) {
+          if (closed) return;
+          addressTokens = tokens;
+          updateState();
+        },
+      );
+    });
+    listener = client
+        .getAccountTokensStream(address.networkAddress)
+        .listen(onNewToken, onError: onError, onDone: onDone, cancelOnError: true);
+    accountListener = account.filterStream([DefaultChainNotify.token],
+        status: ChainNotifyStatus.complete).listen(onAccountEvent);
     wallet = context.wallet;
   }
 
@@ -154,8 +192,10 @@ mixin ManageAccountTokenState<
     progressKey.dispose();
     listener?.cancel();
     listener = null;
+    accountListener?.cancel();
+    accountListener = null;
     for (final i in tokens) {
-      i.dispose();
+      i.object.dispose();
     }
   }
 
@@ -170,51 +210,47 @@ mixin ManageAccountTokenState<
         builder: (context) => ChainStreamBuilder(
           account: account,
           allowNotify: [DefaultChainNotify.token],
-          builder: (context, value, _) => CustomScrollView(
+          builder: (context, _) => CustomScrollView(
             slivers: [
               EmptyItemSliverWidgetView(
                 isEmpty: tokens.isEmpty,
                 itemBuilder: (context) => SliverConstraintsBoxView(
                   padding: WidgetConstant.paddingHorizontal20,
                   sliver: SliverList.separated(
-                      separatorBuilder: (context, index) =>
-                          WidgetConstant.divider,
+                      separatorBuilder: (context, index) => WidgetConstant.divider,
                       itemBuilder: (context, index) {
                         final token = tokens.elementAt(index);
-                        final bool exist = address.tokens.contains(token.token);
+                        final bool exist = addressTokens.contains(token.object.token);
                         return APPStreamBuilder(
-                          value: token.notifier,
+                          value: token.object.notifier,
                           builder: (context, value) => Shimmer(
-                              onActive: (enable, context) =>
-                                  AccountTokenDetailsView(
-                                      error: token.status.isFailed
-                                          ? "update_unknown_token_metadata_desc"
-                                              .tr
-                                          : null,
-                                      onTapError: () {},
-                                      onSelect: () {
-                                        context.openSliverDialog(
+                              onActive: (enable, context) => AccountTokenDetailsView(
+                                  error: token.object.status.isFailed
+                                      ? "update_unknown_token_metadata_desc".tr
+                                      : null,
+                                  onTapError: () {},
+                                  onSelect: () {
+                                    context
+                                        .openSliverDialog<bool>(
                                             widget: (ctx) => DialogTextView(
-                                                buttonWidget:
-                                                    AsyncDialogDoubleButtonView(
-                                                  firstButtonPressed: () =>
-                                                      onTap(token),
-                                                ),
+                                                buttonWidget: DialogDoubleButtonView(),
                                                 text: exist
-                                                    ? "remove_token_from_account"
-                                                        .tr
-                                                    : "add_token_to_your_account"
-                                                        .tr),
+                                                    ? "remove_token_from_account".tr
+                                                    : "add_token_to_your_account".tr),
                                             label: exist
                                                 ? "remove_token".tr
-                                                : "add_token".tr);
-                                      },
-                                      onSelectIcon: APPCheckBox(
-                                          value: exist,
-                                          ignoring: true,
-                                          onChanged: (value) {}),
-                                      token: token.token),
-                              enable: !token.status.isPending),
+                                                : "add_token".tr)
+                                        .then((v) {
+                                      if (v == null) return;
+                                      onTap(token);
+                                    });
+                                  },
+                                  onSelectIcon: APPCheckBox(
+                                      value: exist,
+                                      ignoring: true,
+                                      onChanged: (value) {}),
+                                  token: token.object.token),
+                              enable: (!token.action && !token.object.status.isPending)),
                         );
                       },
                       addAutomaticKeepAlives: false,

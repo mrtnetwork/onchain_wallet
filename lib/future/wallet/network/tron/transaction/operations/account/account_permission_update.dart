@@ -4,7 +4,7 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/types.dart';
@@ -16,23 +16,16 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 class TronTransactionAccountPermissionUpdateContractOperation
     extends TronTransactionStateController2<AccountPermissionUpdateContract> {
   TronTransactionAccountPermissionUpdateContractOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   List<TronPermissionBuilder> _permissions = const [];
   List<TronPermissionBuilder> get permissions => _permissions;
 
-  TronAccountInfo? get accountInfo => address.accountInfo;
   List<TransactionContractType>? _operations;
   List<TransactionContractType>? get operations => _operations;
 
-  late final LiveFormField<TronPermissionBuilder?, TronPermissionBuilder>
-      permission = LiveFormField(
-          title: "permissions".tr,
-          // subtitle: "tron_permission_desc".tr,
-          value: null,
-          optional: true);
+  late final LiveFormField<TronPermissionBuilder?, TronPermissionBuilder> permission =
+      LiveFormField(title: "permissions".tr, value: null, optional: true);
 
   TronPermissionBuilder _createNewPermission() {
     final List<int> ids = permissions
@@ -57,6 +50,7 @@ class TronTransactionAccountPermissionUpdateContractOperation
     }
     this.permission.setValue(permission);
     permission.checkError();
+    notify();
   }
 
   void onSavePermission() {
@@ -68,26 +62,28 @@ class TronTransactionAccountPermissionUpdateContractOperation
     this.permission.setValue(null);
     getStateStatus();
     estimateFee();
+    notify();
   }
 
   void onRemovePermission() {
     final permission = this.permission.value;
     if (permission == null || !permission.permission.isActivePermission) return;
-    permissions.removeWhere(
-        (element) => element.permission.id == permission.permission.id);
+    permissions
+        .removeWhere((element) => element.permission.id == permission.permission.id);
     this.permission.setValue(null);
     getStateStatus();
     estimateFee();
+    notify();
   }
 
   @override
-  Future<ITronTransactionData<AccountPermissionUpdateContract>>
-      buildTransactionData({bool simulate = false}) async {
+  Future<ITronTransactionData<AccountPermissionUpdateContract>> buildTransactionData(
+      {bool simulate = false}) async {
     final blockData = await transactionBlockRequirment(simulate: simulate);
-    final witnessPermission = permissions.firstWhereOrNull(
-        (element) => element.permission.type == PermissionType.witness);
-    final ownerPermission = permissions.firstWhere(
-        (element) => element.permission.type == PermissionType.owner);
+    final witnessPermission = permissions
+        .firstWhereOrNull((element) => element.permission.type == PermissionType.witness);
+    final ownerPermission = permissions
+        .firstWhere((element) => element.permission.type == PermissionType.owner);
     final activates = permissions
         .where((element) => element.permission.type == PermissionType.active)
         .map((e) => e.buildPermission()!.toPermission())
@@ -105,7 +101,7 @@ class TronTransactionAccountPermissionUpdateContractOperation
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
     return TronTransactionAccountPermissionUpdateContractOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -129,9 +125,8 @@ class TronTransactionAccountPermissionUpdateContractOperation
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
-    _permissions = address.accountInfo!.permissions
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
+    _permissions = accountInfo!.permissions
         .map((e) => e.clone())
         .cast<AccountPermission>()
         .map((e) => TronPermissionBuilder(e))
@@ -180,8 +175,8 @@ class TronPermissionBuilder with DisposableMixin, StreamStateController {
     checkError();
   }
 
-  void onUpdateTheresHold(int v) {
-    final threshHold = BigInt.from(v);
+  void onUpdateTheresHold(int? v) {
+    final threshHold = BigInt.from(v ?? 1);
     if (permission.threshold == threshHold) {
       return;
     }
@@ -212,8 +207,8 @@ class TronPermissionBuilder with DisposableMixin, StreamStateController {
         permission.keys.length > TronUtils.maxWitnessPermissionKeyLength) {
       return "tron_signer_validator_witness_desc".tr;
     }
-    final sum = permission.keys.fold(BigInt.zero,
-        (previousValue, element) => previousValue + element.weight);
+    final sum = permission.keys
+        .fold(BigInt.zero, (previousValue, element) => previousValue + element.weight);
     if (sum < permission.threshold) {
       return "tron_permission_threshhold_validator".tr;
     }
@@ -221,8 +216,8 @@ class TronPermissionBuilder with DisposableMixin, StreamStateController {
   }
 
   String? filterAccount(TronAddress address) {
-    final exist = permission.keys
-        .firstWhereOrNull((element) => element.address == address);
+    final exist =
+        permission.keys.firstWhereOrNull((element) => element.address == address);
     if (exist != null) {
       return "signer_already_exist".tr;
     }
@@ -231,8 +226,8 @@ class TronPermissionBuilder with DisposableMixin, StreamStateController {
 
   void onAddNewSigner(ReceiptAddress<TronAddress>? address) {
     if (address == null) return;
-    final exist = permission.keys.firstWhereOrNull(
-        (element) => element.address == address.networkAddress);
+    final exist = permission.keys
+        .firstWhereOrNull((element) => element.address == address.networkAddress);
     if (exist != null) {
       return;
     }
@@ -246,16 +241,14 @@ class TronPermissionBuilder with DisposableMixin, StreamStateController {
   void onRemoveSigner(PermissionKeys? key) {
     if (key == null) return;
     final keys = permission.keys
-      ..removeWhere(
-          (element) => element.address.toAddress() == key.address.toAddress());
+      ..removeWhere((element) => element.address.toAddress() == key.address.toAddress());
     _permission = permission.copyWith(keys: keys);
     checkError();
   }
 
   String? _buildOperation() {
     if (canUpdateOperations) {
-      return BytesUtils.toHexString(
-          TronHelper.encodePermissionOperations(_operations));
+      return BytesUtils.toHexString(TronHelper.encodePermissionOperations(_operations));
     }
     return null;
   }
@@ -267,14 +260,14 @@ class TronPermissionBuilder with DisposableMixin, StreamStateController {
     return permission.copyWith(operations: operations);
   }
 
-  void updateKeyThereshHold(PermissionKeys? key, int v) {
+  /// ADD threshold validator for feild
+  void updateKeyThereshHold(PermissionKeys? key, int? v) {
     if (key == null) return;
-    final weight = BigInt.from(v);
+    final weight = BigInt.from(v ?? 1);
     if (key.weight == weight) return;
-    final keyIndex = permission.keys.indexWhere(
-        (element) => element.address.toAddress() == key.address.toAddress());
-    permission.keys[keyIndex] =
-        PermissionKeys(address: key.address, weight: weight);
+    final keyIndex = permission.keys
+        .indexWhere((element) => element.address.toAddress() == key.address.toAddress());
+    permission.keys[keyIndex] = PermissionKeys(address: key.address, weight: weight);
     checkError();
   }
 }

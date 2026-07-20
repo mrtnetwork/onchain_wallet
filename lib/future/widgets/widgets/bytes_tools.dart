@@ -63,8 +63,7 @@ class _StringWriterViewState extends State<BytesToolsView>
   _BytesTools address = _BytesTools.substrate;
   final GlobalKey<AppTextFieldState> textFieldKey =
       GlobalKey(debugLabel: "_StringWriterViewState");
-  final GlobalKey<FormState> formKey =
-      GlobalKey(debugLabel: "_StringWriterViewState_1");
+  final GlobalKey<FormState> formKey = GlobalKey(debugLabel: "_StringWriterViewState_1");
   late String text = widget.value ?? '';
   late String additionalFeild = address.additionalData ?? '';
   String? error;
@@ -143,7 +142,7 @@ class _StringWriterViewState extends State<BytesToolsView>
       case _BytesTools.utf8:
         return StringUtils.decode(bytes);
       case _BytesTools.base64:
-        return StringUtils.decode(bytes, type: StringEncoding.base64);
+        return StringUtils.decode(bytes, encoding: StringEncoding.base64);
       case _BytesTools.sha3:
         return BytesUtils.toHexString(SHA3.hash(bytes));
       case _BytesTools.sha3224:
@@ -179,11 +178,11 @@ class _StringWriterViewState extends State<BytesToolsView>
 
   void onPressed() async {
     if (!formKey.ready()) return;
-    final r = await MethodUtils.call(() async => encode(text));
-    if (r.hasError) {
-      error = r.localizationError;
+    final r = await IResult.call(() async => encode(text));
+    if (r.isErr) {
+      error = r.unwrapErr().localizationError;
     } else {
-      inHex = r.result;
+      inHex = r.unwrap();
     }
     updateState();
   }
@@ -198,8 +197,7 @@ class _StringWriterViewState extends State<BytesToolsView>
           Text("bytes_tools".tr, style: context.textTheme.titleMedium),
           Text("bytes_tools_desc".tr),
           WidgetConstant.height20,
-          AppDropDownBottom(
-              items: addresses, value: address, onChanged: onChangeAddress),
+          AppDropDownBottom(items: addresses, value: address, onChanged: onChangeAddress),
           AppTextField(
             label: "bytes".tr,
             initialValue: text,
@@ -214,8 +212,7 @@ class _StringWriterViewState extends State<BytesToolsView>
                 return AppTextField(
                   label: address.additionalData,
                   initialValue: null,
-                  suffixIcon:
-                      PasteTextIcon(onPaste: onPaste, isSensitive: false),
+                  suffixIcon: PasteTextIcon(onPaste: onPaste, isSensitive: false),
                   onChanged: onChangeAdditionalField,
                 );
               },

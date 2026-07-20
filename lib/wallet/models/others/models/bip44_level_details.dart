@@ -2,8 +2,7 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 
 class Bip44LevelsDetails {
   Bip44LevelsDetails(this.key, this.level);
-  Bip44LevelsDetails.fromIntIndex(int index, this.level)
-      : key = Bip32KeyIndex(index);
+  Bip44LevelsDetails.fromIntIndex(int index, this.level) : key = Bip32KeyIndex(index);
 
   final Bip32KeyIndex key;
   final Bip44Levels level;

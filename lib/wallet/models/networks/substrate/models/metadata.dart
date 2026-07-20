@@ -1,4 +1,5 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
@@ -18,8 +19,7 @@ class _SubstrateChainConst {
     try {
       final StorageEntryMetadataV14 storage =
           metadata.metadata.getStorageMethod("System", "account");
-      final decode =
-          metadata.decodeLookup(storage.type.outputTypeId, storage.fallback);
+      final decode = metadata.decodeLookup(storage.type.outputTypeId, storage.fallback);
       SubstrateDefaultAccount.deserializeJson(decode);
       return true;
     } catch (_) {}
@@ -41,23 +41,19 @@ class _SubstrateChainConst {
     }
   }
 
-  static SubstrateDefaultTransfer createFakeTx(
-      SubstrateNetworkCryptoInfo cryptoInfo) {
+  static SubstrateDefaultTransfer createFakeTx(SubstrateNetworkCryptoInfo cryptoInfo) {
     if (cryptoInfo.addressPalletType.isEthereum) {
       return SubstrateDefaultTransfer(
-          address: SubstrateEthereumAddress(
-              '0x0000000000000000000000000000000000000000'),
+          address: SubstrateEthereumAddress('0x0000000000000000000000000000000000000000'),
           value: BigInt.zero);
     }
     return SubstrateDefaultTransfer(
-        address: SubstrateAddress(
-            '5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM'),
+        address: SubstrateAddress('5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM'),
         value: BigInt.zero);
   }
 
   static List<BalancesCallPalletMethod> transferTypes(
-      {required MetadataApi metadata,
-      required SubstrateNetworkCryptoInfo cryptoInfo}) {
+      {required MetadataApi metadata, required SubstrateNetworkCryptoInfo cryptoInfo}) {
     SubstrateDefaultTransfer transfer = createFakeTx(cryptoInfo);
     return [
       BalancesCallPalletMethod.transferKeepAlive,
@@ -66,9 +62,7 @@ class _SubstrateChainConst {
         .map((e) {
           try {
             transfer.encode(
-                metadata: metadata,
-                method: e,
-                addressType: cryptoInfo.addressPalletType);
+                metadata: metadata, method: e, addressType: cryptoInfo.addressPalletType);
             return e;
           } catch (_) {
             return null;
@@ -175,9 +169,10 @@ class SubstrateChainMetadata {
     final substrateNetwork = BaseSubstrateNetwork.fromGenesis(genesis);
     BaseSubstrateNetworkController? controller;
     if (substrateNetwork != null) {
-      controller = MethodUtils.nullOnException(() =>
-          SubstrateNetworkControllerFinder.buildApi(
-              network: substrateNetwork, params: apiParams));
+      controller = MethodUtils.fallbackOnException(
+          () => SubstrateNetworkControllerFinder.buildApi(
+              network: substrateNetwork, params: apiParams),
+          logOnDebug: false);
     }
     final existentialDeposit = BigintUtils.tryParse(metadata.tryGetConstant(
         SubtrateMetadataPallet.balances.name,
@@ -187,32 +182,33 @@ class SubstrateChainMetadata {
     final depositFactor = BigintUtils.tryParse(metadata.tryGetConstant(
         SubtrateMetadataPallet.multisig.name, APPSubstrateConst.depositFactor));
     final maxSignatories = IntUtils.tryParse(metadata.tryGetConstant(
-        SubtrateMetadataPallet.multisig.name,
-        APPSubstrateConst.maxSignatories));
+        SubtrateMetadataPallet.multisig.name, APPSubstrateConst.maxSignatories));
     final int? batchedCallsLimit = IntUtils.tryParse(metadata.tryGetConstant(
-        SubtrateMetadataPallet.utility.name,
-        APPSubstrateConst.batchedCallsLimit));
+        SubtrateMetadataPallet.utility.name, APPSubstrateConst.batchedCallsLimit));
     final metadataInfos = metadata.metadata.palletsInfos();
     final metadataExtrinsic = metadataInfos.extrinsic.firstWhere(
         (e) =>
-            _SubstrateChainConst.supportedExtrinsicVersions
-                .contains(e.version) &&
+            _SubstrateChainConst.supportedExtrinsicVersions.contains(e.version) &&
             e.addressType != null &&
             e.signatureType != null,
-        orElse: () =>
-            throw WalletException.error('unsuported_network_metadata'));
-    final extrinsic = MethodUtils.nullOnException(() =>
-        ExtrinsicBuilderUtils.buildExtrinsicFields(
-            metadata, metadataExtrinsic));
+        orElse: () => throw WalletException.message('unsuported_network_metadata'));
+    final extrinsic = MethodUtils.fallbackOnException(
+      () => ExtrinsicBuilderUtils.buildExtrinsicFields(metadata, metadataExtrinsic),
+      mode: LoggerMode.info,
+      onError: (exception, trace) => AppLogData(
+          runtime: "SubstrateChainMetadata",
+          err: exception,
+          trace: trace.toString(),
+          msg: "Unsupported network metadata."),
+    );
     if (extrinsic == null) {
-      throw WalletException.error('unsuported_network_metadata');
+      throw WalletException.message('unsuported_network_metadata');
     }
     List<SubstrateCallPalletTransferMethod> transferMethods = [];
     if (controller != null) {
       transferMethods =
           SubstrateNetworkControllerLocalAssetTransferBuilder.transferMethods(
-              metadata:
-                  MetadataWithExtrinsic(api: metadata, extrinsic: extrinsic),
+              metadata: MetadataWithExtrinsic(api: metadata, extrinsic: extrinsic),
               asset: controller.defaultNativeAsset);
     } else {
       transferMethods = _SubstrateChainConst.transferTypes(
@@ -223,32 +219,28 @@ class SubstrateChainMetadata {
     bool supportMultisig = extrinsic.crypto.type != SubstrateChainType.ethereum;
     if (supportMultisig && maxSignatories != null) {
       try {
-        final musigMethods = metadata.metadata
-            .getCallMethodNames(SubtrateMetadataPallet.multisig.name);
+        final musigMethods =
+            metadata.metadata.getCallMethodNames(SubtrateMetadataPallet.multisig.name);
         supportMultisig &= MultisigCallPalletMethod.values.every((e) {
           if (e == MultisigCallPalletMethod.pokeDeposit) return true;
           return musigMethods.contains(e.method);
         });
-        pokeDeposit =
-            musigMethods.contains(MultisigCallPalletMethod.pokeDeposit.method);
+        pokeDeposit = musigMethods.contains(MultisigCallPalletMethod.pokeDeposit.method);
       } catch (_) {
         supportMultisig = false;
       }
     }
 
     final bool hasDryRunApi = SubstrateRuntimeApiDryRunMethods.values.every(
-        (e) => SubstrateQuickRuntimeApi.dryRun
+        (e) => SubstrateQuickRuntimeApi.dryRun.methodExists(api: metadata, method: e));
+    final bool hasXcmPaymentApi = SubstrateRuntimeApiXCMPaymentMethods.values.every((e) =>
+        SubstrateQuickRuntimeApi.xcmPayment.methodExists(api: metadata, method: e));
+    final bool hasCurrencyConvertionApi = SubstrateRuntimeApiAssetConversionMethods.values
+        .every((e) => SubstrateQuickRuntimeApi.assetConversion
             .methodExists(api: metadata, method: e));
-    final bool hasXcmPaymentApi = SubstrateRuntimeApiXCMPaymentMethods.values
-        .every((e) => SubstrateQuickRuntimeApi.xcmPayment
-            .methodExists(api: metadata, method: e));
-    final bool hasCurrencyConvertionApi =
-        SubstrateRuntimeApiAssetConversionMethods.values.every((e) =>
-            SubstrateQuickRuntimeApi.assetConversion
-                .methodExists(api: metadata, method: e));
     final supportBatch = batchedCallsLimit != null &&
-        metadata.callMethodExists(SubtrateMetadataPallet.utility.name,
-            UtilityCallPalletMethod.batchAll.method);
+        metadata.callMethodExists(
+            SubtrateMetadataPallet.utility.name, UtilityCallPalletMethod.batchAll.method);
     return SubstrateChainMetadata._(
         batchedCallsLimit: batchedCallsLimit ?? 0,
         hasCurrencyConvertionApi: hasCurrencyConvertionApi,
@@ -259,8 +251,7 @@ class SubstrateChainMetadata {
         metadataInfos: metadataInfos,
         supportTransferLocalToken: controller != null &&
             (controller.network.allowLocalTransfer ||
-                _SubstrateChainConst.allowedLocalTransfer
-                    .contains(controller.network)),
+                _SubstrateChainConst.allowedLocalTransfer.contains(controller.network)),
         genesis: genesis,
         metadata: metadata,
         runtimeVersion: metadata.runtimeVersion(),
@@ -278,10 +269,9 @@ class SubstrateChainMetadata {
         supportRemarks: _SubstrateChainConst.supportRemark(metadata: metadata),
         supportMultisig: supportMultisig && maxSignatories != null,
         rpcMethods: rpcMethods,
-        existentialDeposit:
-            existentialDeposit != null && existentialDeposit > BigInt.zero
-                ? existentialDeposit
-                : null);
+        existentialDeposit: existentialDeposit != null && existentialDeposit > BigInt.zero
+            ? existentialDeposit
+            : null);
   }
 
   List<PalletInfo> constantPallets() {
@@ -297,10 +287,9 @@ class SubstrateChainMetadata {
   }
 
   StorageInfo? getAccountInfoStorageKey() {
-    final system = metadataInfos.pallets
-        .firstWhereOrNull((e) => e.name.toLowerCase() == "system");
-    return system?.storage
-        ?.firstWhereOrNull((e) => e.name.toLowerCase() == "account");
+    final system =
+        metadataInfos.pallets.firstWhereOrNull((e) => e.name.toLowerCase() == "system");
+    return system?.storage?.firstWhereOrNull((e) => e.name.toLowerCase() == "account");
   }
 
   MetadataTypeInfo getTypeInfo(Si1Variant variant) {
@@ -311,9 +300,8 @@ class SubstrateChainMetadata {
 
   MetadataTypeInfo? getLookupTypeInfo(int? lockupId, {String? name}) {
     if (lockupId == null) return null;
-    final info = metadata.metadata
-        .getLookup(lockupId)
-        .typeInfo(metadata.registry, lockupId);
+    final info =
+        metadata.metadata.getLookup(lockupId).typeInfo(metadata.registry, lockupId);
     if (name == null) return info;
     return info.copyWith(name: name);
   }
@@ -326,8 +314,7 @@ class SubstrateChainMetadata {
     final buffer = DynamicByteTracker();
     List<int>? encodeSignature;
     if (signature != null) {
-      final encodedAddress =
-          extrinsic.encodeSigner(address: address, metadata: metadata);
+      final encodedAddress = extrinsic.encodeSigner(address: address, metadata: metadata);
       encodeSignature = extrinsic.encodeSignature(
           algorithm: algorithm, signature: signature, metadata: metadata);
       buffer.add(encodedAddress);

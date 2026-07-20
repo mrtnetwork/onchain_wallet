@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -13,9 +13,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionEscrowFinishOperation
     extends RippleTransactionStateController<EscrowFinish> {
   RippleTransactionEscrowFinishOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionEscrowFinishOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -23,7 +21,7 @@ class RippleTransactionEscrowFinishOperation
     return RippleTransactionEscrowFinishOperation._(
         walletProvider: walletProvider, account: account, address: address);
   }
-  final LiveFormField<ReceiptAddress<XRPAddress>?, ReceiptAddress<XRPAddress>>
+  final LiveFormField<ReceiptAddress<XRPBaseAddress>?, ReceiptAddress<XRPBaseAddress>>
       owner = LiveFormField(
     title: "owner".tr,
     subtitle: "ripple_escrow_finish_owner".tr,
@@ -69,7 +67,7 @@ class RippleTransactionEscrowFinishOperation
     estimateFee();
   }
 
-  void onUpdateOwner(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateOwner(ReceiptAddress<XRPBaseAddress>? address) {
     if (address == null) return;
     owner.setValue(address);
     onStateUpdated();
@@ -83,7 +81,7 @@ class RippleTransactionEscrowFinishOperation
       owner: owner.value!.view,
       fulfillment: fulfillment.value,
       condition: condition.value,
-      account: address.networkAddress.toAddress(),
+      account: address.networkAddress.address,
       sourceTag: address.networkAddress.tag,
       memos: RippleUtils.toXrplMemos(memos),
       fee: txFee.fee.fee.balance,
@@ -91,7 +89,7 @@ class RippleTransactionEscrowFinishOperation
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionEscrowFinishOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

@@ -1,17 +1,15 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/link.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ton/ton.dart';
+import 'package:on_chain_wallet/crypto/networks/ton/ton.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/types/transfer.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/widgets/token_list.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/ton.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/jetton.dart';
 import 'package:ton_dart/ton_dart.dart';
-
 import 'fee.dart';
 
 class TonTransactionTransferWidget extends StatelessWidget {
@@ -33,10 +31,12 @@ class TonTransactionTransferWidget extends StatelessWidget {
                       account: form.account,
                       multipleSelect: true,
                       onFilterAccount: form.filterAccount)
-                  .then(form.onUpdateRecipients);
+                  .then(
+                    (value) =>
+                        form.onUpdateRecipients(value, (err) => context.showAlert(err)),
+                  );
             },
-            onRemoveIcon:
-                Icon(Icons.add_box, color: context.onPrimaryContainer),
+            onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
             child: Text("tap_to_add_new_receipment".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
           );
@@ -47,8 +47,8 @@ class TonTransactionTransferWidget extends StatelessWidget {
             builder: (context, value) {
               return ContainerWithBorder(
                 iconAlginment: CrossAxisAlignment.start,
-                onRemoveIcon: Icon(Icons.remove_circle,
-                    color: context.onPrimaryContainer),
+                onRemoveIcon:
+                    Icon(Icons.remove_circle, color: context.onPrimaryContainer),
                 validate: receiver.isReady,
                 onRemove: () {},
                 enableTap: false,
@@ -58,8 +58,7 @@ class TonTransactionTransferWidget extends StatelessWidget {
                           .openSliverDialog<bool>(
                               widget: (p0) => DialogTextView(
                                     text: "remove_recipient_desc".tr,
-                                    buttonWidget:
-                                        const DialogDoubleButtonView(),
+                                    buttonWidget: const DialogDoubleButtonView(),
                                   ),
                               label: "remove_recipient".tr)
                           .then((remove) {
@@ -67,8 +66,7 @@ class TonTransactionTransferWidget extends StatelessWidget {
                         form.onRemoveRecipients(receiver);
                       });
                     },
-                    icon: Icon(Icons.remove_circle,
-                        color: context.onPrimaryContainer)),
+                    icon: Icon(Icons.remove_circle, color: context.onPrimaryContainer)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -88,8 +86,7 @@ class TonTransactionTransferWidget extends StatelessWidget {
                           });
                         },
                         validate: receiver.hasAmount,
-                        onRemoveIcon:
-                            Icon(Icons.edit, color: context.primaryContainer),
+                        onRemoveIcon: Icon(Icons.edit, color: context.primaryContainer),
                         backgroundColor: context.colors.onPrimaryContainer,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,9 +99,7 @@ class TonTransactionTransferWidget extends StatelessWidget {
                             APPAnimated(
                                 isActive: receiver.hasToken,
                                 onActive: (context) => AlertTextContainer(
-                                    message:
-                                        "ton_jetton_transfer_ton_amount_desc"
-                                            .tr)),
+                                    message: "ton_jetton_transfer_ton_amount_desc".tr)),
                           ],
                         )),
                     APPAnimated(
@@ -118,14 +113,16 @@ class TonTransactionTransferWidget extends StatelessWidget {
                                   context
                                       .openSliverBottomSheet<TonJettonToken>(
                                           child: TonTransactionSelectTokenList(
-                                              account: form.address),
+                                            account: form.address,
+                                            tokens: form.addressTokens,
+                                          ),
                                           "select_token".tr)
                                       .then((jetton) {
                                     form.onUpdateToken(receiver, jetton);
                                   });
                                 },
-                                onRemoveIcon: Icon(Icons.add_box,
-                                    color: context.primaryContainer),
+                                onRemoveIcon:
+                                    Icon(Icons.add_box, color: context.primaryContainer),
                                 child: Text("add_jetton_to_transfer".tr,
                                     style: context.primaryTextTheme.bodyMedium),
                               ),
@@ -148,11 +145,9 @@ class TonTransactionTransferWidget extends StatelessWidget {
                                         context
                                             .setupAmount(
                                                 token: receiver.jetton!.token,
-                                                max: form
-                                                    .getTokenMaxInput(receiver))
+                                                max: form.getTokenMaxInput(receiver))
                                             .then((amount) {
-                                          form.onUpdateJettonBalance(
-                                              receiver, amount);
+                                          form.onUpdateJettonBalance(receiver, amount);
                                         });
                                       },
                                       validate: receiver.hasTokenAmount,
@@ -161,10 +156,8 @@ class TonTransactionTransferWidget extends StatelessWidget {
                                       backgroundColor: context.primaryContainer,
                                       child: CoinAndMarketPriceView(
                                           balance: receiver.tokenBalance,
-                                          style: context
-                                              .onPrimaryTextTheme.titleMedium,
-                                          symbolColor:
-                                              context.onPrimaryContainer,
+                                          style: context.onPrimaryTextTheme.titleMedium,
+                                          symbolColor: context.onPrimaryContainer,
                                           showTokenImage: true),
                                     ),
                                     APPExpansionListTile(
@@ -172,31 +165,24 @@ class TonTransactionTransferWidget extends StatelessWidget {
                                       color: context.primaryContainer,
                                       reverse: context.onPrimaryContainer,
                                       title: Text("jetton_transfer_options".tr,
-                                          style: context
-                                              .onPrimaryTextTheme.bodyMedium),
+                                          style: context.onPrimaryTextTheme.bodyMedium),
                                       children: [
                                         ContainerWithBorder(
-                                          backgroundColor:
-                                              context.onPrimaryContainer,
+                                          backgroundColor: context.onPrimaryContainer,
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Row(
                                                 children: [
                                                   Flexible(
-                                                    child: Text(
-                                                        "forward_amount".tr,
-                                                        style: context
-                                                            .primaryTextTheme
+                                                    child: Text("forward_amount".tr,
+                                                        style: context.primaryTextTheme
                                                             .titleMedium),
                                                   ),
                                                   WidgetConstant.width8,
                                                   TooltipHelper(
-                                                      "ton_total_amount_desc_2"
-                                                          .tr,
-                                                      iconColor: context
-                                                          .primaryContainer)
+                                                      "ton_total_amount_desc_2".tr,
+                                                      iconColor: context.primaryContainer)
                                                 ],
                                               ),
                                               WidgetConstant.height8,
@@ -204,76 +190,62 @@ class TonTransactionTransferWidget extends StatelessWidget {
                                                 onRemove: () {
                                                   context
                                                       .setupAmount(
-                                                          token: receiver
-                                                              .networkToken,
-                                                          max: form.getMaxInput(
-                                                              receiver))
+                                                          token: receiver.networkToken,
+                                                          max: form.getMaxInput(receiver))
                                                       .then((amount) {
                                                     form.onUpdateForwardBalance(
                                                         receiver, amount);
                                                   });
                                                 },
                                                 onRemoveIcon: Icon(Icons.edit,
-                                                    color: context
-                                                        .onPrimaryContainer),
-                                                backgroundColor:
-                                                    context.primaryContainer,
+                                                    color: context.onPrimaryContainer),
+                                                backgroundColor: context.primaryContainer,
                                                 child: CoinAndMarketPriceView(
-                                                    balance:
-                                                        receiver.forwardBalance,
+                                                    balance: receiver.forwardBalance,
                                                     style: context
-                                                        .onPrimaryTextTheme
-                                                        .titleMedium,
-                                                    symbolColor: context
-                                                        .onPrimaryContainer,
+                                                        .onPrimaryTextTheme.titleMedium,
+                                                    symbolColor:
+                                                        context.onPrimaryContainer,
                                                     showTokenImage: true),
                                               ),
                                               WidgetConstant.height20,
                                               Text("query_id".tr,
                                                   style: context
-                                                      .primaryTextTheme
-                                                      .titleMedium),
+                                                      .primaryTextTheme.titleMedium),
                                               WidgetConstant.height8,
                                               ContainerWithBorder(
-                                                  backgroundColor: context
-                                                      .colors.primaryContainer,
+                                                  backgroundColor:
+                                                      context.colors.primaryContainer,
                                                   onRemoveIcon: Icon(Icons.edit,
-                                                      color: context.colors
-                                                          .onPrimaryContainer),
+                                                      color: context
+                                                          .colors.onPrimaryContainer),
                                                   onRemove: () {
                                                     context
                                                         .openSliverBottomSheet<
                                                             BigRational>(
-                                                      "jetton_transfer_fields"
-                                                          .tr,
+                                                      "jetton_transfer_fields".tr,
                                                       child: NumberWriteView(
-                                                        defaultValue:
-                                                            BigRational.zero,
+                                                        defaultValue: BigRational.zero,
                                                         allowDecimal: false,
-                                                        customForm: form
-                                                            .queryIdValidator,
-                                                        max: TonConst
-                                                            .maxTransferQueryId,
+                                                        customForm: form.queryIdValidator,
+                                                        max: TonConst.maxTransferQueryId,
                                                         allowSign: false,
-                                                        title:
-                                                            PageTitleSubtitle(
-                                                                title:
-                                                                    "query_id"
-                                                                        .tr,
-                                                                body: Column(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .start,
-                                                                  children: [
-                                                                    TextAndLinkView(
-                                                                        text: "arbitrary_request_number"
+                                                        title: PageTitleSubtitle(
+                                                            title: "query_id".tr,
+                                                            body: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                TextAndLinkView(
+                                                                    text:
+                                                                        "arbitrary_request_number"
                                                                             .tr,
-                                                                        url: LinkConst
-                                                                            .reviewJettonQueryId),
-                                                                  ],
-                                                                )),
-                                                        buttonText:
-                                                            "setup_input".tr,
+                                                                    url: LinkConst
+                                                                        .reviewJettonQueryId),
+                                                              ],
+                                                            )),
+                                                        buttonText: "setup_input".tr,
                                                         label: "query_id".tr,
                                                       ),
                                                     )
@@ -284,11 +256,8 @@ class TonTransactionTransferWidget extends StatelessWidget {
                                                       },
                                                     );
                                                   },
-                                                  child: Text(
-                                                      receiver.queryId
-                                                          .toString(),
-                                                      style: context
-                                                          .onPrimaryTextTheme
+                                                  child: Text(receiver.queryId.toString(),
+                                                      style: context.onPrimaryTextTheme
                                                           .bodyMedium)),
                                             ],
                                           ),
@@ -407,14 +376,16 @@ class _TonTransactionMessageSettingsViewState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppSwitchListTile(
-              title: Text("bounce".tr,
-                  style: context.onPrimaryTextTheme.titleMedium),
-              contentPadding: EdgeInsets.zero,
-              subtitle: Text("ton_bounce_desc2".tr,
-                  style: context.onPrimaryTextTheme.bodyMedium),
-              value: isBounce,
-              onChanged: (p0) => toggleBounce(),
+            Material(
+              color: context.primaryContainer,
+              child: AppSwitchListTile(
+                title: Text("bounce".tr, style: context.onPrimaryTextTheme.titleMedium),
+                contentPadding: EdgeInsets.zero,
+                subtitle: Text("ton_bounce_desc2".tr,
+                    style: context.onPrimaryTextTheme.bodyMedium),
+                value: isBounce,
+                onChanged: (p0) => toggleBounce(),
+              ),
             ),
             WidgetConstant.height20,
             Text("type_of_message_body".tr,
@@ -422,8 +393,7 @@ class _TonTransactionMessageSettingsViewState
             WidgetConstant.height8,
             AppDropDownBottom(
               items: {
-                for (final i in TonMessageBodyType.supportValues)
-                  i: Text(i.name.tr)
+                for (final i in TonMessageBodyType.supportValues) i: Text(i.name.tr)
               },
               hint: "choose_the_type".tr,
               onChanged: onChageBodyType,
@@ -431,8 +401,8 @@ class _TonTransactionMessageSettingsViewState
             ),
             APPAnimatedSize(
                 isActive: bodyType.hasBody,
-                onActive: (c) => _TonBodyBuilderView(
-                    state: this, initialValue: widget.receiver.body),
+                onActive: (c) =>
+                    _TonBodyBuilderView(state: this, initialValue: widget.receiver.body),
                 onDeactive: (c) => WidgetConstant.sizedBox),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -462,10 +432,8 @@ class _TonBodyBuilderView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         WidgetConstant.height20,
-        Text(state.bodyType.name.tr,
-            style: context.onPrimaryTextTheme.titleMedium),
-        Text(state.bodyType.helperText.tr,
-            style: context.onPrimaryTextTheme.bodyMedium),
+        Text(state.bodyType.name.tr, style: context.onPrimaryTextTheme.titleMedium),
+        Text(state.bodyType.helperText.tr, style: context.onPrimaryTextTheme.bodyMedium),
         WidgetConstant.height8,
         AppTextField(
             key: state.bodyTextController,

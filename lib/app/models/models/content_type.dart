@@ -6,7 +6,6 @@ enum ContentType {
   hex(2),
   base64(3),
   network(4),
-  lazy(4),
   favIcon(5);
 
   final int value;
@@ -15,7 +14,7 @@ enum ContentType {
   static ContentType fromValue(int? value, {ContentType? defaultValue}) {
     return values.firstWhere((element) => element.value == value, orElse: () {
       if (defaultValue != null) return defaultValue;
-      throw AppSerializationException(objectName: "DigestAuthHeadersAlg");
+      throw AppInternalError.internalError("DigestAuthHeadersAlg");
     });
   }
 }

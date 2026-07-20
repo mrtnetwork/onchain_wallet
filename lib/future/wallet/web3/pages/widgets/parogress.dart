@@ -1,6 +1,6 @@
 import 'dart:async';
-
-import 'package:blockchain_utils/exception/exception/exception.dart';
+import 'package:blockchain_utils/exception/exceptions.dart';
+import 'package:blockchain_utils/utils/equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
@@ -8,46 +8,54 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
-import 'package:on_chain_wallet/wallet/web3/core/exception/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/request/web_request.dart';
+import 'package:on_chain_wallet/web3/web3/core/exception/exception.dart';
 
-enum Web3ProgressStatus {
-  progress(true),
-  error(true),
-  idle(true),
-  successResponse(false),
-  errorResponse(false),
-  successRequest(false),
-  failedRequest(false);
+sealed class Web3RequestStatus with Equality {
+  final bool updateble;
+  const Web3RequestStatus(this.updateble);
+  bool get inProgress => false;
 
-  final bool canUpdate;
-  const Web3ProgressStatus(this.canUpdate);
-
-  static Web3ProgressStatus fromWeb3Status(
-      Web3RequestCompleterEventType? status) {
-    switch (status) {
-      case Web3RequestCompleterEventType.response:
-        return Web3ProgressStatus.successResponse;
-      case Web3RequestCompleterEventType.error:
-        return Web3ProgressStatus.errorResponse;
-      case Web3RequestCompleterEventType.closed:
-        return Web3ProgressStatus.failedRequest;
-      case Web3RequestCompleterEventType.success:
-        return Web3ProgressStatus.successRequest;
-      default:
-        return Web3ProgressStatus.idle;
-    }
-  }
-
-  bool get inProgress => this == Web3ProgressStatus.progress;
+  @override
+  List<dynamic> get variables => [];
 }
 
-class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
-  final Web3ProgressStatus initialStatus;
+class Web3RequestStatusProgress extends Web3RequestStatus {
+  const Web3RequestStatusProgress() : super(true);
+  @override
+  bool get inProgress => true;
+}
+
+class Web3RequestStatusError extends Web3RequestStatus {
+  const Web3RequestStatusError() : super(true);
+}
+
+class Web3RequestStatusIdle extends Web3RequestStatus {
+  const Web3RequestStatusIdle() : super(true);
+}
+
+class Web3RequestStatusSuccessResponse extends Web3RequestStatus {
+  const Web3RequestStatusSuccessResponse() : super(false);
+}
+
+class Web3RequestStatusErrorResponse extends Web3RequestStatus {
+  const Web3RequestStatusErrorResponse() : super(false);
+}
+
+class Web3RequestStatusSuccessRequest extends Web3RequestStatus {
+  const Web3RequestStatusSuccessRequest() : super(false);
+}
+
+class Web3RequestStatusErrorRequest extends Web3RequestStatus {
+  final bool pageClosed;
+  const Web3RequestStatusErrorRequest(this.pageClosed) : super(false);
+}
+
+class StreamWeb3PageProgressController extends StreamValue<Web3RequestStatus> {
+  final Web3RequestStatus initialStatus;
   StreamWeb3PageProgressController(
-      {this.initialStatus = Web3ProgressStatus.idle,
+      {this.initialStatus = const Web3RequestStatusIdle(),
       this.idleTimeout = APPConst.oneSecoundDuration})
-      : super(initialStatus);
+      : super(initialStatus, name: "StreamWeb3PageProgressController");
   final Duration idleTimeout;
 
   Widget? _responseWidget;
@@ -56,12 +64,12 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
     return _responseWidget;
   }
 
-  void _updateStream(Web3ProgressStatus status) {
+  void _updateStream(Web3RequestStatus status) {
     value = status;
   }
 
-  void _update({required Web3ProgressStatus status, Widget? widget}) {
-    if (value.canUpdate) {
+  void _update({required Web3RequestStatus status, Widget? widget}) {
+    if (value.updateble) {
       _responseWidget = widget;
       _updateStream(status);
     }
@@ -69,7 +77,7 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
 
   void response({String? text, Widget? widget}) {
     _update(
-        status: Web3ProgressStatus.successResponse,
+        status: Web3RequestStatusSuccessResponse(),
         widget: widget ??
             PageProgressChildWidget(ProgressWithTextView(
                 text: text ?? "request_has_been_processed_successfully".tr,
@@ -93,8 +101,7 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
                   txId: txId.txId,
                   warning: txId.warning,
                   openUrl: account.network.getTransactionExplorer(txId.txId),
-                  transaction: transactions
-                      .firstWhereOrNull((e) => e.txId == txId.txId));
+                  transaction: transactions.firstWhereOrNull((e) => e.txId == txId.txId));
             }).toList(),
             logo: account.network.token.assetLogo,
             title: account.network.networkName));
@@ -102,9 +109,8 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
 
   void processs({String? text}) {
     _update(
-        status: Web3ProgressStatus.progress,
-        widget:
-            PageProgressChildWidget(ProgressWithTextView(text: text ?? "")));
+        status: Web3RequestStatusProgress(),
+        widget: PageProgressChildWidget(ProgressWithTextView(text: text ?? "")));
   }
 
   void error({
@@ -114,7 +120,7 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
     bool showBackButton = false,
   }) {
     _errorResponseFromException(
-        status: Web3ProgressStatus.error,
+        status: Web3RequestStatusError(),
         showBackButton: showBackButton,
         backToIdle: backToIdle,
         error: error,
@@ -123,7 +129,7 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
 
   void errorResponse({Object? error, String? message}) {
     _errorResponseFromException(
-        status: Web3ProgressStatus.errorResponse,
+        status: Web3RequestStatusErrorResponse(),
         error: error,
         message: message,
         backToIdle: null);
@@ -134,8 +140,8 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
       String? message,
       Duration? backToIdle = APPConst.twoSecoundDuration,
       bool showBackButton = false,
-      required Web3ProgressStatus status}) {
-    showBackButton = showBackButton && status.canUpdate;
+      required Web3RequestStatus status}) {
+    showBackButton = showBackButton && status.updateble;
     if (error == WalletExceptionConst.rejectSigning) {
       showBackButton = false;
       backToIdle = APPConst.oneSecoundDuration;
@@ -143,13 +149,13 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
     if (showBackButton) {
       backToIdle = null;
     }
-    if (!status.canUpdate) {
+    if (!status.updateble) {
       backToIdle = null;
       showBackButton = false;
     }
     final key = showBackButton ? this : null;
 
-    if (error is ApiProviderException) {
+    if (error is APIError) {
       _error(
           backToIdle: backToIdle,
           widget: _Web3ErrorMessageView(error.message.tr, key),
@@ -181,42 +187,45 @@ class StreamWeb3PageProgressController extends StreamValue<Web3ProgressStatus> {
       {String? text,
       Widget? widget,
       Duration? backToIdle = APPConst.twoSecoundDuration,
-      required Web3ProgressStatus status}) {
+      required Web3RequestStatus status}) {
     _update(
         status: status,
         widget: widget ??
             PageProgressChildWidget(ProgressWithTextView(
                 text: text ?? "", icon: WidgetConstant.errorIconLarge)));
     if (backToIdle != null) {
-      Future.delayed(
-          backToIdle, () => _update(status: Web3ProgressStatus.idle));
+      Future.delayed(backToIdle, () => _update(status: Web3RequestStatusIdle()));
     }
   }
 
-  void closedRequest({String? error}) {
-    if (_responseWidget == null || value == Web3ProgressStatus.progress) {
+  void closedRequest({String? error, bool pageClosed = false}) {
+    if (_responseWidget == null || value.inProgress) {
       _responseWidget = PageProgressChildWidget(ProgressWithTextView(
           text: error?.tr ?? "client_closed_durning_request".tr,
           icon: WidgetConstant.errorIconLarge));
     }
 
-    _updateStream(Web3ProgressStatus.failedRequest);
+    _updateStream(Web3RequestStatusErrorRequest(pageClosed));
   }
 
   void successRequest() {
-    if (value != Web3ProgressStatus.successResponse &&
-        value != Web3ProgressStatus.errorResponse) {
-      if (_responseWidget == null || value == Web3ProgressStatus.progress) {
-        _responseWidget = PageProgressChildWidget(ProgressWithTextView(
-            text: "web3_response_successfully_desc".tr,
-            icon: WidgetConstant.checkCircleLarge));
-      }
+    switch (value) {
+      case Web3RequestStatusSuccessResponse():
+      case Web3RequestStatusErrorResponse():
+        break;
+      default:
+        if (_responseWidget == null || value.inProgress) {
+          _responseWidget = PageProgressChildWidget(ProgressWithTextView(
+              text: "web3_response_successfully_desc".tr,
+              icon: WidgetConstant.checkCircleLarge));
+        }
+        break;
     }
-    _updateStream(Web3ProgressStatus.successRequest);
+    _updateStream(Web3RequestStatusSuccessRequest());
   }
 
   void idle() {
-    _update(status: Web3ProgressStatus.idle);
+    _update(status: Web3RequestStatusIdle());
   }
 
   void setInitialState() {
@@ -231,10 +240,7 @@ class StreamWeb3PageProgress extends StatefulWidget {
 
   final Widget? initialWidget;
   const StreamWeb3PageProgress(
-      {required this.controller,
-      required this.builder,
-      this.initialWidget,
-      super.key});
+      {required this.controller, required this.builder, this.initialWidget, super.key});
   @override
   State<StreamWeb3PageProgress> createState() => _StreamWeb3PageProgressState();
 }
@@ -242,38 +248,44 @@ class StreamWeb3PageProgress extends StatefulWidget {
 class _StreamWeb3PageProgressState extends State<StreamWeb3PageProgress>
     with SafeState<StreamWeb3PageProgress> {
   StreamWeb3PageProgressController get controller => widget.controller;
-  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>?
-      scaffoldMessageController;
-  ScaffoldMessengerState? key;
-  StreamSubscription<Web3ProgressStatus>? _listener;
-  Web3ProgressStatus status = Web3ProgressStatus.idle;
+  StreamSubscription<Web3RequestStatus>? _listener;
+  Web3RequestStatus status = Web3RequestStatusIdle();
   Widget? child;
   Widget? currentWidget;
+  late WalletProvider wallet;
+  SnackbarController? snackbar;
 
-  void onChangeStatus(Web3ProgressStatus status) {
+  void onChangeStatus(Web3RequestStatus status) {
     this.status = status;
     currentWidget = controller.getWidget();
     updateState();
-    if (status.canUpdate) return;
-    scaffoldMessageController ??= key?.showSnackBar(_buildRequestSnackBar(
-      context: context,
-      status: controller,
-      onHide: () {
-        scaffoldMessageController?.close();
-        scaffoldMessageController = null;
-      },
-    ));
+    if (status.updateble) return;
+    if (status case Web3RequestStatusErrorRequest(:final pageClosed)) {
+      if (pageClosed) return;
+    }
+    context.showSnackbar(
+      _buildRequestSnackBar(
+        context: context,
+        status: controller,
+        onHide: () {
+          snackbar?.close();
+          snackbar = null;
+        },
+      ),
+      onShow: (controller) => snackbar = controller,
+    );
   }
 
   @override
   void onInitOnce() {
     super.onInitOnce();
+    wallet = context.wallet;
     status = controller.value;
     _listener = controller.stream.listen(onChangeStatus);
-    currentWidget = widget.initialWidget;
-
-    key = ScaffoldMessenger.maybeOf(context);
-    key?.clearSnackBars();
+    currentWidget = switch (status) {
+      Web3RequestStatusProgress() => widget.initialWidget,
+      _ => controller.getWidget()
+    };
   }
 
   @override
@@ -284,19 +296,17 @@ class _StreamWeb3PageProgressState extends State<StreamWeb3PageProgress>
     child = null;
     _listener?.cancel();
     _listener = null;
-    MethodUtils.after(() async {
-      key?.clearSnackBars();
-    });
+    snackbar?.close();
   }
 
   @override
   Widget build(BuildContext context) {
-    return APPAnimatedSwitcher<Web3ProgressStatus>(
+    return APPAnimatedSwitcher<Web3RequestStatus>(
       duration: APPConst.animationDuraion,
       enable: status,
       widgets: {
-        Web3ProgressStatus.idle: (c) => FutureBuilder(
-              future: MethodUtils.after(() async => widget.builder(c)),
+        Web3RequestStatusIdle(): (c) => FutureBuilder(
+              future: MethodUtils.executeAfterDelay(() async => widget.builder(c)),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Column(
@@ -313,25 +323,27 @@ class _StreamWeb3PageProgressState extends State<StreamWeb3PageProgress>
                 return child ?? WidgetConstant.sizedBox;
               },
             ),
-        Web3ProgressStatus.progress: (c) => currentWidget,
-        Web3ProgressStatus.error: (c) => currentWidget,
-        Web3ProgressStatus.errorResponse: (c) => currentWidget,
-        Web3ProgressStatus.successResponse: (c) => currentWidget,
-        Web3ProgressStatus.failedRequest: (c) => currentWidget,
-        Web3ProgressStatus.successRequest: (c) => currentWidget
+
+        // Web3RequestStatusProgress(): (c) => currentWidget,
+        // Web3RequestStatus.error: (c) => currentWidget,
+        // Web3RequestStatus.errorResponse: (c) => currentWidget,
+        // Web3RequestStatus.successResponse: (c) => currentWidget,
+        // Web3RequestStatus.failedRequest: (c) => currentWidget,
+        // Web3RequestStatus.successRequest: (c) => currentWidget
       },
+      defaultBuilder: (context) => currentWidget,
     );
   }
 }
 
 SnackBar _buildRequestSnackBar(
     {required BuildContext context,
-    required StreamValue<Web3ProgressStatus> status,
+    required StreamValue<Web3RequestStatus> status,
     required DynamicVoid onHide}) {
   return SnackBar(
       duration: switch (status.value) {
-        Web3ProgressStatus.successRequest => APPConst.tenSecoundDuration,
-        Web3ProgressStatus.failedRequest => APPConst.tenSecoundDuration,
+        Web3RequestStatusSuccessRequest() => APPConst.tenSecoundDuration,
+        Web3RequestStatusErrorRequest() => APPConst.tenSecoundDuration,
         _ => const Duration(minutes: 10)
       },
       action: SnackBarAction(label: 'close'.tr, onPressed: onHide),
@@ -340,26 +352,24 @@ SnackBar _buildRequestSnackBar(
         builder: (context, status) => Row(
           children: [
             switch (status) {
-              Web3ProgressStatus.successResponse ||
-              Web3ProgressStatus.errorResponse =>
-                APPCircularProgressIndicator(
-                    color: context.colors.onInverseSurface),
-              Web3ProgressStatus.failedRequest =>
+              Web3RequestStatusSuccessResponse() ||
+              Web3RequestStatusErrorResponse() =>
+                APPCircularProgressIndicator(color: context.colors.onInverseSurface),
+              Web3RequestStatusErrorRequest() =>
                 Icon(Icons.error, color: context.colors.onInverseSurface),
-              _ =>
-                Icon(Icons.check_circle, color: context.colors.onInverseSurface)
+              _ => Icon(Icons.check_circle, color: context.colors.onInverseSurface)
             },
             WidgetConstant.width8,
             Flexible(
                 child: switch (status) {
-              Web3ProgressStatus.successResponse ||
-              Web3ProgressStatus.errorResponse =>
+              Web3RequestStatusSuccessResponse() ||
+              Web3RequestStatusErrorResponse() =>
                 OneLineTextWidget(
                     maxLine: 2,
                     "web3_sending_response_to_client".tr,
                     style: context.textTheme.labelLarge
                         ?.copyWith(color: context.colors.onInverseSurface)),
-              Web3ProgressStatus.failedRequest => OneLineTextWidget(
+              Web3RequestStatusErrorRequest() => OneLineTextWidget(
                   maxLine: 2,
                   "web3_sending_response_error_desc".tr,
                   style: context.textTheme.labelLarge
@@ -387,18 +397,14 @@ class _Web3ErrorMessageView extends StatelessWidget {
       progressKey: progressKey,
       text: message ?? "request_error".tr,
       icon: WidgetConstant.errorIconLarge,
-      bottomWidget:
-          ErrorTextContainer(error: error, enableTap: false, copyable: true),
+      bottomWidget: ErrorTextContainer(error: error, enableTap: false, copyable: true),
     ));
   }
 }
 
 class _Web3ProgressWithTextView extends StatelessWidget {
   const _Web3ProgressWithTextView(
-      {required this.text,
-      required this.progressKey,
-      this.icon,
-      this.bottomWidget});
+      {required this.text, required this.progressKey, this.icon, this.bottomWidget});
   final String text;
   final Widget? icon;
   final Widget? bottomWidget;
@@ -406,13 +412,13 @@ class _Web3ProgressWithTextView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canUpdate = progressKey?.value.canUpdate ?? false;
+    final updateble = progressKey?.value.updateble ?? false;
     return _ProgressWithTextView(
         text: Column(
           children: [
             LargeTextView([text], maxLine: 3, textAligen: TextAlign.center),
             if (bottomWidget != null) bottomWidget!,
-            if (canUpdate) ...[
+            if (updateble) ...[
               WidgetConstant.height20,
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -442,11 +448,7 @@ class _ProgressWithTextView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        icon ?? const CircularProgressIndicator(),
-        WidgetConstant.height8,
-        text
-      ],
+      children: [icon ?? const CircularProgressIndicator(), WidgetConstant.height8, text],
     );
   }
 }

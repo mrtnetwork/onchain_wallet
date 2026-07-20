@@ -45,5 +45,6 @@ SnackBar createSnackAlert(
       ),
     ),
   );
+
   return snackBar;
 }

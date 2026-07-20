@@ -19,7 +19,7 @@ class BigRationalTextField extends StatefulWidget {
     this.error,
     this.validator,
     this.defaultValue,
-    required this.max,
+    this.max,
     required this.min,
     this.maxScale,
     this.focusNode,
@@ -35,7 +35,7 @@ class BigRationalTextField extends StatefulWidget {
   final String? helperText;
   final String? hintText;
   final String? error;
-  final NullStringString? validator;
+  final BigIntRationalNullString? validator;
   final BigIntRationalVoid onChange;
   final BigRational? defaultValue;
   final FocusNode? focusNode;
@@ -69,8 +69,7 @@ class BigRationalTextFieldState extends State<BigRationalTextField>
   }
 
   void changeIndex(BigRational newIndex) {
-    if (newIndex < widget.min ||
-        (widget.max != null && newIndex > widget.max!)) {
+    if (newIndex < widget.min || (widget.max != null && newIndex > widget.max!)) {
       return;
     }
     _controller.text = "$newIndex";
@@ -84,12 +83,20 @@ class BigRationalTextFieldState extends State<BigRationalTextField>
     return BigInt.tryParse(_controller.text);
   }
 
+  String? validator(String? v) {
+    final validator = widget.validator;
+    if (validator == null) return null;
+    final num = BigRational.tryParse(v ?? '');
+    if (num == null) return "enter_valid_number".tr;
+    return validator(num);
+  }
+
   @override
   void initState() {
     super.initState();
     _controller.addListener(listener);
     if (widget.defaultValue != null) {
-      MethodUtils.after(
+      MethodUtils.executeAfterDelay(
           () async => changeIndex(widget.defaultValue ?? widget.min));
     }
   }
@@ -142,16 +149,13 @@ class BigRationalTextFieldState extends State<BigRationalTextField>
       helperText: widget.helperText,
       hintText: widget.hintText,
       label: widget.label,
-      validator: widget.validator,
+      validator: validator,
       onSubmitField: onSubmitField,
       onPaste: onPaste,
       inputFormatters: [
         // FilteringTextInputFormatter.digitsOnly,
         BigRetionalTextInputFormatter(
-            max: max,
-            allowSign: allowSign,
-            allowDecimal: showDecimal,
-            maxScale: maxScale)
+            max: max, allowSign: allowSign, allowDecimal: showDecimal, maxScale: maxScale)
       ],
     );
   }
@@ -198,8 +202,7 @@ class _NumberTextFieldView extends StatelessWidget {
         textAlign: TextAlign.center,
         autovalidateMode: AutovalidateMode.always,
         focusNode: focusNode,
-        keyboardType:
-            TextInputType.numberWithOptions(decimal: true, signed: allowSign),
+        keyboardType: TextInputType.numberWithOptions(decimal: true, signed: allowSign),
         controller: controller,
         validator: validator,
         onFieldSubmitted: onSubmitField,
@@ -217,8 +220,7 @@ class _NumberTextFieldView extends StatelessWidget {
             errorText: error,
             labelText: label,
             border: OutlineInputBorder(
-                borderRadius: WidgetConstant.border8,
-                borderSide: BorderSide.none)),
+                borderRadius: WidgetConstant.border8, borderSide: BorderSide.none)),
       ),
     );
   }

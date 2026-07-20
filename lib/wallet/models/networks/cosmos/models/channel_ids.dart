@@ -1,63 +1,60 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
-import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
 
-class CosmosIBCChannelId with CborSerializable, Equality {
-  final String name;
+class CosmosIBCChannelId with AppSerialization, Equality {
   final String channelId;
-  const CosmosIBCChannelId({required this.name, required this.channelId});
-  factory CosmosIBCChannelId.deserialize(
-      {List<int>? bytes, String? hex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  final String port;
+  const CosmosIBCChannelId({required this.channelId, required this.port});
+  factory CosmosIBCChannelId.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: hex,
-        object: object,
-        tags: CborTagsConst.cosmosIbcChannelId);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cosmosIbcChannelId);
     return CosmosIBCChannelId(
-        name: values.elementAs(0), channelId: values.elementAs(1));
+        channelId: values.rawValueAt(0), port: values.rawValueAt(1));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(CborSerializable.fromDynamic([name, channelId]),
-        CborTagsConst.cosmosIbcChannelId);
-  }
+  List get variables => [channelId, port];
 
   @override
-  List get variabels => [channelId, name];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cosmosIbcChannelId;
+
+  @override
+  List<CborObject?> get serializationItems => [channelId.toCbor(), port.toCbor()];
 }
 
-class CosmosAccountIBCChannelIds with CborSerializable {
+class CosmosAccountIBCChannelIds with AppSerialization {
   List<CosmosIBCChannelId> _channelIds;
   List<CosmosIBCChannelId> get channelIds => _channelIds;
   CosmosAccountIBCChannelIds({List<CosmosIBCChannelId> channelIds = const []})
       : _channelIds = channelIds.immutable;
-  factory CosmosAccountIBCChannelIds.deserialize(
-      {List<int>? bytes, String? hex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory CosmosAccountIBCChannelIds.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: hex,
-        object: object,
-        tags: CborTagsConst.cosmosAccountChannelId);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cosmosAccountChannelId);
     return CosmosAccountIBCChannelIds(
         channelIds: values
-            .castValue<CborTagValue>()
+            .allObjectsAs<CborTagValue>()
             .map((e) => CosmosIBCChannelId.deserialize(object: e))
             .toList());
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic(
-            _channelIds.map((e) => e.toCbor()).toList()),
-        CborTagsConst.cosmosAccountChannelId);
   }
 
   void addChannel(CosmosIBCChannelId channel) {
     if (_channelIds.contains(channel)) return;
     _channelIds = [channel, ..._channelIds].toImutableList;
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cosmosAccountChannelId;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [AppSerialization.listFromObjects(_channelIds.map((e) => e.toCbor()).toList())];
 }

@@ -2,12 +2,10 @@ import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/transac
 import 'package:on_chain_wallet/future/wallet/network/ripple/web3/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ripple/params/core/request.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ripple/params/core/request.dart';
 
-abstract class Web3XRPTransactionStateController<
-        RESPONSE,
-        T extends Web3XRPRequestParam<RESPONSE>,
-        E extends IWeb3XRPTransactionData>
+abstract class Web3XRPTransactionStateController<RESPONSE,
+        T extends Web3XRPRequestParam<RESPONSE>, E extends IWeb3XRPTransactionData>
     extends BaseWeb3XRPTransactionStateController<RESPONSE, T, E>
     with
         XRPWeb3TransactionApiController,
@@ -19,8 +17,7 @@ abstract class Web3XRPTransactionStateController<
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IWeb3XRPSignedTransaction<E> signedTransaction}) async {
-    final txResult =
-        await broadcastTransaction(signedTransaction.finalTransactionData);
+    final txResult = await broadcastTransaction(signedTransaction.finalTransactionData);
     if (!txResult.isSuccess) {
       return SubmitTransactionFailed(txResult.engineResultMessage);
     }

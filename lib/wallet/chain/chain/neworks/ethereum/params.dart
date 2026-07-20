@@ -1,63 +1,51 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class EthereumNewAddressParams extends NewAccountParams<IEthAddress> {
+final class EthereumNewAddressParams extends NewDerivableAccountParams<IEthereumAddress> {
   @override
-  bool get isMultiSig => false;
-
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
   @override
   final CryptoCoins coin;
-  const EthereumNewAddressParams._(
-      {required this.deriveIndex, required this.coin})
-      : super._();
+  const EthereumNewAddressParams._({required this.deriveIndex, required this.coin});
   factory EthereumNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
-      required CryptoCoins coin}) {
+      {required DerivableIndex deriveIndex, required CryptoCoins coin}) {
     return EthereumNewAddressParams._(deriveIndex: deriveIndex, coin: coin);
   }
-  factory EthereumNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory EthereumNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.ethereumNewAddressParamss.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.ethereumNewAddressParamss.tag);
     return EthereumNewAddressParams(
-      deriveIndex:
-          AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(1)),
+      deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(1)),
     );
   }
 
   @override
-  IEthAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IEthereumAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletEthereumNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "EthereumNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("EthereumNewAddressParams.toAccount");
     }
     final keyBytes = publicKey.keyBytes(immutable: true);
     final address = ETHAddress.fromPublicKey(keyBytes);
-    return IEthAddress._newAccount(
+    return IEthereumAddress._newAccount(
         address: address,
         coin: coin,
+        database: database,
         identifier: NewAccountParams.toIdentifier(address.address),
-        keyIndex: deriveIndex,
+        derivationIndex: deriveIndex,
         publicKey: keyBytes,
-        network: network);
+        network: network,
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([deriveIndex.toCbor(), coin.toCbor()]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems =>
+      [deriveIndex.toCbor(), coin.identifier.toCbor()];
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.ethereumNewAddressParamss;
+  NewAccountParamsType get type => NewAccountParamsType.ethereumNewAddressParamss;
 }

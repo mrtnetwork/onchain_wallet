@@ -1,20 +1,18 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:on_chain_bridge/models/events/models/wallet_event.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'js_crypto_utils.dart';
 import 'js_wallet/js_wallet.dart';
 import 'package:on_chain_bridge/web/web.dart';
 
-void postToWallet(
-    {required JSWorkerWalletData data, required JSWebviewTraget target}) {
+void postToWallet({required JSWorkerWalletData data, required JSWebviewTraget target}) {
   if (target.isMacos) {
     jsWindow.webkit.messageHandlers.onChain.postMessage(data.toJson().jsify());
     return;
   }
-  onChain.onChainInternalJsRequest(
-      data.clientId, data.data, data.requestId, data.type);
+  onChain.onChainInternalJsRequest(data.clientId, data.data, data.requestId, data.type);
 }
 
 void main(List<String> args) async {
@@ -47,8 +45,8 @@ void main(List<String> args) async {
         return false;
       }
       if (walletEvent.type == WalletEventTypes.exception) {
-        workerCompleter.completeError(
-            JSError(message: String.fromCharCodes(walletEvent.data)));
+        workerCompleter
+            .completeError(JSError(message: String.fromCharCodes(walletEvent.data)));
         return false;
       }
       final target = JSWebviewTraget.fromName(walletEvent.platform);

@@ -4,6 +4,8 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
+import 'package:on_chain_wallet/wallet/api/types/types.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class SubstrateImportChainView extends StatelessWidget {
@@ -11,8 +13,7 @@ class SubstrateImportChainView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       appbar: AppBar(title: Text("import_network".tr)),
       onAccsess: (_) {
@@ -25,13 +26,12 @@ class SubstrateImportChainView extends StatelessWidget {
 enum _Page { rpc, fields, review }
 
 mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
-  final StreamPageProgressController pageProgressKey =
-      StreamPageProgressController();
+  final StreamPageProgressController pageProgressKey = StreamPageProgressController();
   final GlobalKey<FormState> formKey =
       GlobalKey(debugLabel: "AddSubstrateChainState_formKey");
   final GlobalKey<HTTPServiceProviderFieldsState> rpcKey =
       GlobalKey(debugLabel: "AddSubstrateChainState_rpcKey");
-  (SubstrateNetworkParams, SubstrateAPIProvider)? network;
+  (SubstrateNetworkParams, DefaultAPIProvider)? network;
   SubstrateChainMetadata? metadata;
   RPCURL? uri;
   bool get canPop => pageProgressKey.isSuccess || _page == _Page.rpc;
@@ -91,16 +91,14 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
   String? validateCoinType(String? v) {
     if (v?.trim().isEmpty ?? true) return null;
     final parse = int.tryParse(v ?? "");
-    if (parse == null ||
-        parse < 0 ||
-        parse > Bip32KeyDataConst.keyIndexMaxVal) {
+    if (parse == null || parse < 0 || parse > Bip32KeyDataConst.keyIndexMaxVal) {
       return "slip_44_desc".tr;
     }
     return null;
   }
 
-  void onChangeDecimals(int v) {
-    decimal = v;
+  void onChangeDecimals(int? v) {
+    decimal = v ?? 0;
   }
 
   String? validateDecimals(String? v) {
@@ -120,8 +118,7 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
   }
 
   String? validateRpcUrl(String? v) {
-    final path =
-        StrUtils.validateUri(v, schame: ["http", "https", "ws", "wss"]);
+    final path = StrUtils.validateUri(v, schame: ["http", "https", "ws", "wss"]);
     if (path == null) return "rpc_url_validator".tr;
     return null;
   }
@@ -136,15 +133,16 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
   bool get showRemoveIcon => isWalletNetwork && !isDefaultNetwork;
   Future<void> getNetworkInfromation() async {
     if (!formKey.ready()) return;
-    uri = rpcKey.currentState?.getEndpoint();
-    if (uri == null) return;
+    final url = uri = rpcKey.currentState?.getEndpoint();
+    if (url == null) return;
     pageProgressKey.progressText("checking_rpc_network_info".tr);
-    final provider = SubstrateAPIProvider(
-        uri: uri!.url,
-        identifier: APIUtils.getProviderIdentifier(),
-        auth: uri!.auth);
-    final client = APIUtils.buildsubstrateClient(provider: provider);
-    final init = await MethodUtils.call(() async {
+    final provider = DefaultAPIProvider.create(
+        url: url.url, service: APIProviderServices.substrateJsonRpc, auth: url.auth);
+    final client = SubstrateClient.fromProviders(
+      provider: provider,
+      netApi: context.appContext.netApi,
+    );
+    final init = await IResult.call(() async {
       final api = await client.loadApi();
       if (api == null) return null;
       // final substrateNetwork = BaseSubstrateNetwork.fromGenesis(api.genesis);
@@ -152,25 +150,24 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
       final systemChain = await client.systemChain();
       return (api, systemProperties, systemChain);
     });
-    if (init.hasError) {
-      pageProgressKey.errorText(init.localizationError,
+    client.dispose();
+    if (init.isErr) {
+      pageProgressKey.errorText(init.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
-    } else if (init.result == null) {
+    } else if (init.ok() == null) {
       pageProgressKey.errorText("unsuported_network_metadata".tr);
     } else {
-      final chainInfo = init.result!.$1;
+      final chainData = init.unwrap();
+      final chainInfo = chainData!.$1;
       final internalController = chainInfo.controller;
-      // systemProperties = init.result?.$2;
-      // substrateNetwork = init.result?.$3;
+
       metadata = chainInfo;
-      networkName =
-          internalController?.network.networkName ?? init.result?.$3 ?? '';
-      // final token = systemProperties?.tokens.firstOrNull;
+      networkName = internalController?.network.networkName ?? chainData.$3 ?? '';
       if (internalController != null) {
         symbol = internalController.defaultNativeAsset.symbol ?? '';
         decimal = internalController.defaultNativeAsset.decimals ?? decimal;
       } else {
-        final token = init.result?.$2?.tokens.firstOrNull;
+        final token = chainData.$2?.tokens.firstOrNull;
         if (token != null) {
           symbol = token.tokenSymbol;
           decimal = token.decimals;
@@ -181,43 +178,6 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
     }
   }
 
-  // Future<void> checkNetwork() async {
-  //   if (!formKey.ready()) return;
-  //   uri = rpcKey.currentState?.getEndpoint();
-  //   if (uri == null) return;
-  //   // PolkadotNetwork.values.firstWhere((e)=>e.paraId)
-  //   pageProgressKey.progressText("checking_rpc_network_info".tr);
-  //   final provider = SubstrateAPIProvider(
-  //       uri: uri!.url,
-  //       identifier: APIUtils.getProviderIdentifier(),
-  //       auth: uri!.auth);
-  //   final client = APIUtils.buildsubstrateClient(provider: provider);
-  //   final init = await MethodUtils.call(() async => client.loadApi());
-  //   if (init.hasError) {
-  //     pageProgressKey.errorText(init.localizationError,
-  //         backToIdle: false, showBackButton: true);
-  //   } else if (init.result == null) {
-  //     pageProgressKey.errorText("unsuported_network_metadata".tr);
-  //   } else {
-  //     final chainInfo = init.result!;
-  //     metadata = chainInfo;
-  //     network = SubstrateNetworkParams(
-  //         token: Token(name: networkName, symbol: symbol, decimal: decimal),
-  //         providers: [provider],
-  //         chainType: ChainType.mainnet,
-  //         ss58Format: chainInfo.ss58Prefix,
-  //         substrateChainType: chainInfo.extrinsic.crypto.type,
-  //         addressExplorer: explorerAddressLink.nullOnEmpty,
-  //         transactionExplorer: explorerTransaction.nullOnEmpty,
-  //         gnesisBlock: chainInfo.genesis,
-  //         keyAlgorithms: chainInfo.extrinsic.crypto.cryptoAlgoritms,
-  //         specVersion: chainInfo.specVersion,
-  //         paraId: null,
-  //         relaySystem: null);
-  //     pageProgressKey.backToIdle();
-  //   }
-  // }
-
   Future<void> checkNetwork() async {
     if (!formKey.ready()) return;
     final uri = this.uri;
@@ -225,11 +185,9 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
 
     if (uri == null || chainInfo == null) return;
     pageProgressKey.progressText("create_network_please_wait".tr);
-    final network = await MethodUtils.call(() async {
-      final provider = SubstrateAPIProvider(
-          uri: uri.url,
-          identifier: APIUtils.getProviderIdentifier(),
-          auth: uri.auth);
+    final network = await IResult.call(() async {
+      final provider = DefaultAPIProvider.create(
+          url: uri.url, service: APIProviderServices.substrateJsonRpc, auth: uri.auth);
       metadata = chainInfo;
       final network = SubstrateNetworkParams(
         token: Token(name: networkName, symbol: symbol, decimal: decimal),
@@ -246,12 +204,12 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
       );
       return (network, provider);
     }, delay: APPConst.oneSecoundDuration);
-    if (network.hasError) {
-      pageProgressKey.errorText(network.localizationError,
+    if (network.isErr) {
+      pageProgressKey.errorText(network.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
       return;
     }
-    this.network = network.result;
+    this.network = network.unwrap();
     _page = _Page.review;
     pageProgressKey.backToIdle();
     updateState();
@@ -261,12 +219,12 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
     final params = this.network;
     if (params == null) return;
     pageProgressKey.progressText("add_or_updating_wallet_network".tr);
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     final network = WalletSubstrateNetwork(-1, params.$1);
-    final import = await MethodUtils.call(() async => wallet.wallet
-        .importNewNetwork(network: network, providers: [params.$2]));
-    if (import.hasError) {
-      pageProgressKey.errorText(import.localizationError,
+    final import = await (wallet.wallet.doAction(
+        WalletActionImportNewNetwork(network: network, providers: [params.$2])));
+    if (import.isErr) {
+      pageProgressKey.errorText(import.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
       pageProgressKey.successText("network_imported_to_your_wallet".tr,
@@ -290,8 +248,7 @@ mixin AddSubstrateChainState<T extends StatefulWidget> on SafeState<T> {
 class _ImportSubstrateNetwork extends StatefulWidget {
   const _ImportSubstrateNetwork();
   @override
-  State<_ImportSubstrateNetwork> createState() =>
-      __ImportSubstrateNetworkState();
+  State<_ImportSubstrateNetwork> createState() => __ImportSubstrateNetworkState();
 }
 
 class __ImportSubstrateNetworkState extends State<_ImportSubstrateNetwork>
@@ -312,12 +269,9 @@ class __ImportSubstrateNetworkState extends State<_ImportSubstrateNetwork>
             slivers: [
               SliverConstraintsBoxView(
                   padding: WidgetConstant.padding20,
-                  sliver:
-                      APPSliverAnimatedSwitcher<_Page>(enable: _page, widgets: {
-                    _Page.rpc: (context) =>
-                        SubstrateAddChainRPCFieldsView(state: this),
-                    _Page.fields: (context) =>
-                        SubstrateAddChainFieldsView(state: this),
+                  sliver: APPSliverAnimatedSwitcher<_Page>(enable: _page, widgets: {
+                    _Page.rpc: (context) => SubstrateAddChainRPCFieldsView(state: this),
+                    _Page.fields: (context) => SubstrateAddChainFieldsView(state: this),
                     _Page.review: (context) {
                       return SubstrateAddChainInfoView(
                           onAddChain: addOrUpdateChain,
@@ -345,10 +299,8 @@ class SubstrateAddChainRPCFieldsView extends StatelessWidget {
         children: [
           PageTitleSubtitle(
               title: "import_new_network".tr,
-              body: LargeTextView([
-                "import_new_network_desc1".tr,
-                "import_new_network_desc2".tr
-              ])),
+              body: LargeTextView(
+                  ["import_new_network_desc1".tr, "import_new_network_desc2".tr])),
           WidgetConstant.height20,
           Text("providers".tr, style: context.textTheme.titleMedium),
           LargeTextView(
@@ -387,10 +339,8 @@ class SubstrateAddChainFieldsView extends StatelessWidget {
         children: [
           PageTitleSubtitle(
               title: "import_new_network".tr,
-              body: LargeTextView([
-                "import_new_network_desc1".tr,
-                "import_new_network_desc2".tr
-              ])),
+              body: LargeTextView(
+                  ["import_new_network_desc1".tr, "import_new_network_desc2".tr])),
           Text("network_name".tr, style: context.textTheme.titleMedium),
           Text("network_name_desc".tr),
           WidgetConstant.height8,
@@ -420,13 +370,12 @@ class SubstrateAddChainFieldsView extends StatelessWidget {
           NumberTextField(
               label: "decimals".tr,
               defaultValue: state.decimal,
-              onChange: state.onChangeDecimals,
+              onChangeValue: state.onChangeDecimals,
               validator: state.validateDecimals,
               max: APPSubstrateConst.maxDecimals,
               min: 0),
           WidgetConstant.height20,
-          Text("network_explorer_address_link".tr,
-              style: context.textTheme.titleMedium),
+          Text("network_explorer_address_link".tr, style: context.textTheme.titleMedium),
           LargeTextView(["network_evm_explorer_address_desc".tr], maxLine: 1),
           WidgetConstant.height8,
           AppTextField(
@@ -439,8 +388,7 @@ class SubstrateAddChainFieldsView extends StatelessWidget {
           WidgetConstant.height20,
           Text("network_explorer_transaction_link".tr,
               style: context.textTheme.titleMedium),
-          LargeTextView(["network_evm_explorer_transaction_desc".tr],
-              maxLine: 1),
+          LargeTextView(["network_evm_explorer_transaction_desc".tr], maxLine: 1),
           WidgetConstant.height8,
           AppTextField(
             initialValue: state.explorerAddressLink,
@@ -484,15 +432,13 @@ class SubstrateAddChainInfoView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (metadata != null) ...[
-            ErrorTextContainer(
-                error: "import_network_experimental_feature_desc".tr),
+            ErrorTextContainer(error: "import_network_experimental_feature_desc".tr),
             WidgetConstant.height20,
           ],
           Text("network_name".tr, style: context.textTheme.titleMedium),
           WidgetConstant.height8,
           ContainerWithBorder(
-            child: Text(network.token.name,
-                style: context.onPrimaryTextTheme.bodyMedium),
+            child: Text(network.token.name, style: context.onPrimaryTextTheme.bodyMedium),
           ),
           WidgetConstant.height20,
           Text("symbol".tr, style: context.textTheme.titleMedium),
@@ -517,8 +463,7 @@ class SubstrateAddChainInfoView extends StatelessWidget {
             Text("key_algorithms".tr, style: context.textTheme.titleMedium),
             WidgetConstant.height8,
             ContainerWithBorder(
-                child: Text(keyAlgorithms,
-                    style: context.onPrimaryTextTheme.bodyMedium)),
+                child: Text(keyAlgorithms, style: context.onPrimaryTextTheme.bodyMedium)),
           ],
           WidgetConstant.height20,
           Text("ss58_prefix".tr, style: context.textTheme.titleMedium),
@@ -529,13 +474,11 @@ class SubstrateAddChainInfoView extends StatelessWidget {
           if (metadata != null) ...[
             if (!metadata!.supportNativeTransfer) ...[
               WidgetConstant.height20,
-              ErrorTextContainer(
-                  error: "substrate_disable_transfer_option_desc".tr),
+              ErrorTextContainer(error: "substrate_disable_transfer_option_desc".tr),
             ],
             if (!metadata!.supportAccountTemplate) ...[
               WidgetConstant.height20,
-              ErrorTextContainer(
-                  error: "substrate_unsuported_account_template_desc".tr),
+              ErrorTextContainer(error: "substrate_unsuported_account_template_desc".tr),
             ],
           ],
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [

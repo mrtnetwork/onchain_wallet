@@ -1,6 +1,9 @@
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:cosmos_sdk/cosmos_sdk.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/auth/v1beta1/src/auth.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/tx/v1beta1/models.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -67,8 +70,7 @@ class CosmosTransactionFee extends TransactionFee {
   }
 }
 
-class CosmosTransactionFeeData
-    extends TransactionDynamicFeeData<CosmosTransactionFee> {
+class CosmosTransactionFeeData extends TransactionDynamicFeeData<CosmosTransactionFee> {
   String _denom;
   String get denom => _denom;
   BigInt _gasLimit;
@@ -98,8 +100,7 @@ class CosmosTransactionFeeData
   }
 
   @override
-  void updateTokenFee(Token token, List<CosmosTransactionFee> fees,
-      {String? denom}) {
+  void updateTokenFee(Token token, List<CosmosTransactionFee> fees, {String? denom}) {
     throw UnimplementedError();
   }
 
@@ -121,25 +122,22 @@ class CosmosTransactionFeeData
   }
 }
 
-abstract class BaseCosmosTransactionController
-    extends TransactionStateController<
-        CW20Token,
-        ICosmosAddress,
-        CosmosClient,
-        WalletCosmosNetwork,
-        CosmosChain,
-        ICosmosTransactionData,
-        ICosmosTransaction,
-        ICosmosSignedTransaction,
-        CosmosWalletTransaction,
-        SubmitTransactionSuccess<ICosmosSignedTransaction>,
-        CosmosTransactionFeeData> {
+abstract class BaseCosmosTransactionController extends TransactionStateController<
+    CW20Token,
+    WalletCosmosNetwork,
+    ICosmosAddress,
+    CosmosNetworkClient,
+    CosmosChain,
+    ICosmosTransactionData,
+    ICosmosTransaction,
+    ICosmosSignedTransaction,
+    CosmosWalletTransaction,
+    SubmitTransactionSuccess<ICosmosSignedTransaction>,
+    CosmosTransactionFeeData> {
   bool get isThorChain =>
       network.coinParam.networkType == CosmosNetworkTypes.thorAndForked;
   BaseCosmosTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class ICosmosTransactionData extends ITransactionData {
@@ -160,6 +158,17 @@ class ICosmosTransactionData extends ITransactionData {
       List<ICosmosTransactionDataTokenTransfer>? payments})
       : messages = messages.immutable,
         payments = payments?.immutable;
+
+  WalletTransactionMemo? getWalletTxMemo() {
+    final memo = this.memo;
+    if (memo == null) return null;
+    return WalletTransactionMemo.from(
+        memo,
+        switch (StringUtils.isHexBytes(memo)) {
+          true => WalletTransactionMemoType.binary,
+          false => WalletTransactionMemoType.string,
+        });
+  }
 }
 
 class ICosmosTransactionDataTokenTransfer {
@@ -171,9 +180,8 @@ class ICosmosTransactionDataTokenTransfer {
       {required this.recipient, required this.amount, required this.token});
 }
 
-class ICosmosTransaction
-    extends ITransaction<ICosmosTransactionData, ICosmosAddress> {
-  final TXBody transaction;
+class ICosmosTransaction extends ITransaction<ICosmosTransactionData, ICosmosAddress> {
+  final TxBody transaction;
   const ICosmosTransaction(
       {required super.account,
       required this.transaction,
@@ -191,7 +199,7 @@ class ICosmosSignedTransaction<TXDATA extends ICosmosTransactionData>
 }
 
 class CosmosTransactionMessage {
-  final ServiceMessage message;
+  final ICosmosProtoServiceMessage message;
   final ICosmosAddress signer;
   const CosmosTransactionMessage({required this.message, required this.signer});
 }
@@ -199,8 +207,7 @@ class CosmosTransactionMessage {
 class CosmosSignedTransaction {
   final List<int> signature;
   final List<int> payload;
-  CosmosSignedTransaction(
-      {required List<int> signature, required List<int> payload})
+  CosmosSignedTransaction({required List<int> signature, required List<int> payload})
       : signature = signature.asImmutableBytes,
         payload = payload.asImmutableBytes;
 }

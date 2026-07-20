@@ -1,11 +1,12 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain/on_chain.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-class SolanaWalletTransaction extends ChainTransaction {
+class SolanaWalletTransaction extends ChainTransaction<SolanaWalletTransactionOutput> {
   SolanaWalletTransaction(
       {required super.txId,
       DateTime? time,
@@ -14,32 +15,32 @@ class SolanaWalletTransaction extends ChainTransaction {
       super.totalOutput,
       required WalletSolanaNetwork network,
       super.type = WalletTransactionType.send,
-      super.status = WalletTransactionStatus.pending})
+      super.status = WalletTransactionStatus.pending,
+      super.memos})
       : super(time: time ?? DateTime.now());
 
   factory SolanaWalletTransaction.deserialize(WalletSolanaNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: NetworkType.solana.tag);
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.solana.identifier);
     return SolanaWalletTransaction(
-        txId: values.elementAs(0),
-        time: values.elementAs(1),
+        txId: values.rawValueAt(0),
+        time: values.rawValueAt(1),
         network: network,
-        totalOutput: values.elemetMybeAs<WalletTransactionAmount, CborTagValue>(
+        totalOutput: values.maybeObjectAt<WalletTransactionAmount, CborTagValue>(
             2, (e) => WalletTransactionAmount.deserialize(network, object: e)),
         outputs: values
-            .elementAsListOf<CborTagValue>(3)
-            .map((e) =>
-                SolanaWalletTransactionOutput.deserialize(network, object: e))
+            .listAt<CborTagValue>(3)
+            .map((e) => SolanaWalletTransactionOutput.deserialize(network, object: e))
             .toList(),
-        web3Client:
-            values.elemetMybeAs<WalletWeb3ClientTransaction, CborTagValue>(
-                4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
-        type: WalletTransactionType.fromValue(values.elementAs(5)),
-        status: WalletTransactionStatus.fromValue(values.elementAs(6)));
+        web3Client: values.maybeObjectAt<WalletWeb3ClientTransaction, CborTagValue>(
+            4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
+        type: WalletTransactionType.fromValue(values.rawValueAt(5)),
+        status: WalletTransactionStatus.fromValue(values.rawValueAt(6)),
+        memos: values
+            .listAt<CborTagValue>(7)
+            .map((e) => WalletTransactionMemo.deserialize(object: e))
+            .toList());
   }
 
   @override
@@ -49,17 +50,17 @@ class SolanaWalletTransaction extends ChainTransaction {
 abstract class SolanaWalletTransactionOutput extends WalletTransactionOutput {
   const SolanaWalletTransactionOutput({required super.type});
   factory SolanaWalletTransactionOutput.deserialize(WalletSolanaNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
+      {List<int>? bytes, CborObject? object}) {
     final CborTagValue tag =
-        CborSerializable.decode(cborBytes: bytes, hex: cborHex, object: object);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
     final type = WalletTransactionOutputType.fromTag(tag.tags);
     return switch (type) {
       WalletTransactionOutputType.transfer =>
         SolanaWalletTransactionTransferOutput.deserialize(network,
-            bytes: bytes, cborHex: cborHex, object: object),
+            bytes: bytes, object: object),
       WalletTransactionOutputType.operation =>
         SolanaWalletTransactionOperationOutput.deserialize(network,
-            bytes: bytes, cborHex: cborHex, object: object),
+            bytes: bytes, object: object),
       _ => throw WalletExceptionConst.invalidWalletTransactionData
     };
   }
@@ -68,65 +69,47 @@ abstract class SolanaWalletTransactionOutput extends WalletTransactionOutput {
 class SolanaWalletTransactionTransferOutput
     extends WalletTransactionTransferOutput<SolAddress>
     implements SolanaWalletTransactionOutput {
-  const SolanaWalletTransactionTransferOutput(
-      {required super.to, required super.amount});
+  const SolanaWalletTransactionTransferOutput({required super.to, required super.amount});
 
-  factory SolanaWalletTransactionTransferOutput.deserialize(
-      WalletSolanaNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory SolanaWalletTransactionTransferOutput.deserialize(WalletSolanaNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.transfer.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.transfer.tag);
     return SolanaWalletTransactionTransferOutput(
         amount: WalletTransactionIntegerAmount.deserialize(network,
-            object: values.elementAs<CborTagValue>(0)),
-        to: SolAddress(values.elementAs(1)));
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([amount.toCbor(), to.address]), type.tag);
+            object: values.objectAt<CborTagValue>(0)),
+        to: SolAddress.deserializeIAddress(bytes: values.rawValueAt(1)));
   }
 
   @override
   String get address => to.address;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [amount.toCbor(), CborBytesValue(to.encodeAsIAddress())];
 }
 
-class SolanaWalletTransactionOperationOutput
-    extends WalletTransactionOperationOutput
+class SolanaWalletTransactionOperationOutput extends WalletTransactionOperationOutput
     implements SolanaWalletTransactionOutput {
   const SolanaWalletTransactionOperationOutput(
       {required super.name, super.amount, super.content});
 
-  factory SolanaWalletTransactionOperationOutput.deserialize(
-      WalletSolanaNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory SolanaWalletTransactionOperationOutput.deserialize(WalletSolanaNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.operation.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.operation.tag);
     return SolanaWalletTransactionOperationOutput(
-        name: values.elementAs(0),
-        amount:
-            values.elemetMybeAs<WalletTransactionIntegerAmount, CborTagValue>(
-                1,
-                (e) => WalletTransactionIntegerAmount.deserialize(network,
-                    object: e)),
-        content: values.elementAs(2));
+        name: values.rawValueAt(0),
+        amount: values.maybeObjectAt<WalletTransactionIntegerAmount, CborTagValue>(
+            1, (e) => WalletTransactionIntegerAmount.deserialize(network, object: e)),
+        content: values.rawValueAt(2));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([name, amount?.toCbor(), content]),
-        type.tag);
-  }
+  List<CborObject?> get serializationItems =>
+      [name.toCbor(), amount?.toCbor(), content?.toCbor()];
 }

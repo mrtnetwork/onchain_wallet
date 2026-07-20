@@ -1,8 +1,8 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
@@ -11,42 +11,38 @@ class BitcoinParams extends NetworkCoinParams {
   bool get isBCH => transacationNetwork is BitcoinCashNetwork;
   bool get isForked => isBCH || transacationNetwork is BitcoinSVNetwork;
 
-  factory BitcoinParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.bitconNetworkParam);
-
+  factory BitcoinParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: NetworkType.bitcoinAndForked.identifier);
+    final txNetwork = BasedUtxoNetwork.fromTag(values.rawValueAt(1));
     return BitcoinParams(
-        token: Token.deserialize(obj: values.elementAs<CborTagValue>(2)),
-        transacationNetwork: BasedUtxoNetwork.fromName(values.elementAs(3)),
-        addressExplorer: values.elementAs(6),
-        transactionExplorer: values.elementAs(7));
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+        transacationNetwork: txNetwork,
+        addressExplorer: values.rawValueAt(2),
+        transactionExplorer: values.rawValueAt(3),
+        chainType: txNetwork.isMainnet ? ChainType.mainnet : ChainType.testnet);
   }
-  BitcoinParams({
+  const BitcoinParams({
     required super.token,
     required this.transacationNetwork,
+    required super.chainType,
     super.addressExplorer,
     super.transactionExplorer,
-  }) : super(
-            chainType: transacationNetwork.isMainnet
-                ? ChainType.mainnet
-                : ChainType.testnet);
+  });
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          transacationNetwork.value,
-          CborNullValue(),
-          const CborNullValue(),
-          addressExplorer,
-          transactionExplorer,
-        ]),
-        CborTagsConst.bitconNetworkParam);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      NetworkType.bitcoinAndForked.identifier;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        transacationNetwork.tag.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor(),
+      ];
 
   @override
   NetworkCoinParams updateParams(
@@ -55,11 +51,12 @@ class BitcoinParams extends NetworkCoinParams {
       String? addressExplorer,
       int? bip32CoinType}) {
     return BitcoinParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         addressExplorer: addressExplorer,
         transactionExplorer: transactionExplorer,
-        transacationNetwork: transacationNetwork);
+        transacationNetwork: transacationNetwork,
+        chainType: chainType);
   }
 
   @override

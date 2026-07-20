@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/widgets/fee.dart';
@@ -45,15 +45,13 @@ class Web3TonSignTransactionStateView extends StatelessWidget {
           token: controller.network.token),
       WidgetConstant.height20,
       TonTransactionFeeDataView(controller: controller),
-      Web3StateAcceptRequestView(
-          controller: controller, title: "sign_transaction".tr),
+      Web3StateAcceptRequestView(controller: controller, title: "sign_transaction".tr),
     ]);
   }
 }
 
 class _TonWeb3TransactionMessageView extends StatelessWidget {
-  const _TonWeb3TransactionMessageView(
-      {required this.message, required this.network});
+  const _TonWeb3TransactionMessageView({required this.message, required this.network});
   final TonWeb3TransactionMessageInfo message;
   final WalletTonNetwork network;
 
@@ -62,8 +60,7 @@ class _TonWeb3TransactionMessageView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ReceiptAddressView(
-            address: message.destination, title: "destination".tr),
+        ReceiptAddressView(address: message.destination, title: "destination".tr),
         WidgetConstant.height20,
         TransactionAmountView(
             title: "message_amount".tr,

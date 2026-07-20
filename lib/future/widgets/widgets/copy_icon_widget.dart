@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
-import 'package:on_chain_wallet/app/utils/platform/utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/animated/widgets/animated_switcher.dart';
 import 'widget_constant.dart';
@@ -26,8 +25,9 @@ mixin _CopyTextState<T extends StatefulWidget> on SafeState<T> {
     if (!status.isIdle) return;
     status = _CopyTextStatus.pending;
     updateState();
-    final response = await PlatformUtils.writeClipboard(dataToCopy);
-    if (response) {
+    final response =
+        await context.appContextOrNull?.platformUtls.writeClipboard(dataToCopy);
+    if (response?.ok() ?? false) {
       status = _CopyTextStatus.success;
       context.showAlert(message ?? "copied_to_clipboard".tr);
     } else {
@@ -40,14 +40,15 @@ mixin _CopyTextState<T extends StatefulWidget> on SafeState<T> {
     status = _CopyTextStatus.idlle;
     updateState();
     if (!isSensitive) return;
-    _resetClipoard(dataToCopy);
+    _resetClipoard(dataToCopy, context.appContextOrNull);
   }
 
-  static void _resetClipoard(String txt) {
-    MethodUtils.after(() async {
-      final data = await PlatformUtils.readClipboard();
-      if (data != txt) return;
-      PlatformUtils.writeClipboard('');
+  static void _resetClipoard(String txt, AppContext? context) {
+    if (context == null) return;
+    MethodUtils.executeAfterDelay(() async {
+      final data = await context.platformUtls.readClipboard();
+      if (data.ok() != txt) return;
+      context.platformUtls.writeClipboard('');
     }, duration: APPConst.tenSecoundDuration);
   }
 }
@@ -73,8 +74,7 @@ class CopyTextIcon extends StatefulWidget {
   State<CopyTextIcon> createState() => CopyTextIconState();
 }
 
-class CopyTextIconState extends State<CopyTextIcon>
-    with SafeState, _CopyTextState {
+class CopyTextIconState extends State<CopyTextIcon> with SafeState, _CopyTextState {
   @override
   String get dataToCopy => widget.dataToCopy;
 
@@ -87,6 +87,7 @@ class CopyTextIconState extends State<CopyTextIcon>
   @override
   Widget build(BuildContext context) {
     final icon = IconButton(
+      tooltip: "copy_to_clipboard".tr,
       onPressed: () => onTap(context),
       icon: APPAnimatedSwitcher(enable: status, widgets: {
         _CopyTextStatus.idlle: (context) =>
@@ -108,11 +109,7 @@ class CopyTextIconState extends State<CopyTextIcon>
       ),
       child: widget.widget != null
           ? Row(
-              children: [
-                Expanded(child: widget.widget!),
-                WidgetConstant.width8,
-                icon
-              ],
+              children: [Expanded(child: widget.widget!), WidgetConstant.width8, icon],
             )
           : icon,
     );
@@ -181,8 +178,7 @@ class CopyableTextWidgetState extends State<CopyableTextWidget>
               child: widget.widget ??
                   Text(
                     widget.text,
-                    style: context.textTheme.bodyMedium
-                        ?.copyWith(color: widget.color),
+                    style: context.textTheme.bodyMedium?.copyWith(color: widget.color),
                     maxLines: widget.maxLines,
                     overflow: TextOverflow.ellipsis,
                   )),

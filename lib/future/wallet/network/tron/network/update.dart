@@ -3,7 +3,8 @@ import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/update_network_provider.dart';
+import 'package:on_chain_wallet/future/wallet/global/provider/update_network_provider.dart';
+import 'package:on_chain_wallet/wallet/api/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class UpdateTronProvider extends StatelessWidget {
@@ -14,8 +15,7 @@ class UpdateTronProvider extends StatelessWidget {
     return NetworkAccountControllerView<TronClient?, ITronAddress?, TronChain>(
         addressRequired: false,
         clientRequired: false,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
-            _UpdateTronProvider(account));
+        childBulder: (wallet, account, client, address) => _UpdateTronProvider(account));
   }
 }
 
@@ -30,342 +30,36 @@ class _UpdateTronProvider extends StatefulWidget {
 class _UpdateTronProviderState extends State<_UpdateTronProvider>
     with
         SafeState<_UpdateTronProvider>,
-        UpdateNetworkProviderState<
-            _UpdateTronProvider,
-            TronAPIProvider,
-            TronAddress,
-            ITronAddress,
-            TronClient,
-            TokenCore,
-            NFTCore,
-            TronChain> {
+        UpdateNetworkProviderState<_UpdateTronProvider, TronAddress, ITronAddress,
+            TronClient, TokenCore, NFTCore, TronChain> {
   @override
   TronChain get chain => widget.account;
-  final GlobalKey<AppTextFieldState> jsonFeildKey = GlobalKey();
-  String jsonRpcUrl = '';
-  void onChageJsonRpcUrl(String v) {
-    jsonRpcUrl = v;
-  }
-
-  void onPasteJsonRpcUri(String v) {
-    jsonFeildKey.currentState?.updateText(v);
-  }
-
-  ProviderAuthType jsonRpcAuth = ProviderAuthType.header;
-  void onJsonRpcChangeAuthMode(ProviderAuthType? auth) {
-    jsonRpcAuth = auth ?? jsonRpcAuth;
-    updateState();
-  }
-
-  void onJsonRpcChangeAuthenticated(bool? v) {
-    jsonRpcUseAuthenticated = !jsonRpcUseAuthenticated;
-    updateState();
-  }
-
-  bool jsonRpcUseAuthenticated = false;
-  String jsonRpcAuthKey = "";
-  String jsonRpcAuthValue = "";
-
-  void onJsonRpcChangeKey(String v) {
-    jsonRpcAuthKey = v;
-  }
-
-  void onJsonRpcChangeValue(String v) {
-    jsonRpcAuthValue = v;
-  }
-
-  String? validateHttpWss(String? address) {
-    final path =
-        StrUtils.validateUri(address, schame: ["http", "https", "wss", "ws"]);
-    if (path != null) return null;
-    return "invalid_url".tr;
-  }
 
   @override
-  TronAPIProvider createProvider(
-      {required String url,
-      required APIProviderServiceInfo service,
-      ProviderAuthenticated? auth}) {
-    return TronAPIProvider(
-        httpNodeUri: url,
-        auth: auth,
-        identifier: APIUtils.getProviderIdentifier(),
-        solidityProvider: EthereumAPIProvider(
-            uri: jsonRpcUrl,
-            identifier: APIUtils.getProviderIdentifier(),
-            auth: jsonRpcUseAuthenticated
-                ? BasicProviderAuthenticated(
-                    type: jsonRpcAuth,
-                    key: jsonRpcAuthKey,
-                    value: jsonRpcAuthValue)
-                : null));
-  }
-
-  @override
-  late final List<ServiceProtocol> supportedProtocol;
-
-  void init() {
-    supportedProtocol = [ServiceProtocol.http];
-    protocol = supportedProtocol.first;
-  }
-
-  @override
-  void onInitOnce() {
-    MethodUtils.after(() async => init());
-    super.onInitOnce();
-  }
-
-  @override
-  Future<TronAPIProvider> validate(TronAPIProvider provider) async {
-    final client = APIUtils.buildTronProvider(
-        httpProviderService: provider, network: network.toNetwork());
-    bool init = await client.checkGenesis();
-    if (!init) {
-      throw AppException("network_genesis_hash_validator");
+  Future<DefaultAPIProvider> validate(DefaultAPIProvider provider) async {
+    TronClient? client;
+    try {
+      if (provider.service == APIProviderServices.ethereumJsonRpc) {
+        client = TronClient.fromProvider(
+            netApi: context.appContext.netApi,
+            provider: TronNetworkProvider(ethereum: provider, node: provider),
+            network: chain.network);
+        final correctChainId = await client.checkSolidityChainId();
+        if (!correctChainId) throw AppException("network_incorrect_chain_id");
+        return provider;
+      }
+      if (provider.service == APIProviderServices.tron) {
+        client = TronClient.fromProvider(
+            netApi: context.appContext.netApi,
+            provider: TronNetworkProvider(ethereum: provider, node: provider),
+            network: chain.network);
+        final correctChainId = await client.checkGenesis();
+        if (!correctChainId) throw AppException("network_genesis_hash_validator");
+        return provider;
+      }
+      throw WalletExceptionConst.invalidProviderInformation;
+    } finally {
+      client?.dispose();
     }
-    init = await client.checkSolidityChainId();
-    if (!init) {
-      throw AppException("network_incorrect_chain_id");
-    }
-    return provider;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaffoldPageView(
-      appBar: AppBar(title: Text("network_update_node_provider".tr)),
-      child: PopScope(
-        child: StreamPageProgress(
-          controller: progressKey,
-          builder: (c) => CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: ConstraintsBoxView(
-                    padding: WidgetConstant.padding20,
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PageTitleSubtitle(
-                              title: "securely_add_providers".tr,
-                              body: LargeTextView([
-                                "network_security_desc".tr,
-                                "network_change_detect_desc".tr
-                              ])),
-                          Text("network".tr,
-                              style: context.textTheme.titleMedium),
-                          WidgetConstant.height8,
-                          ContainerWithBorder(
-                              child: Text(
-                            network.coinParam.token.name,
-                            style: context.colors.onPrimaryContainer
-                                .bodyMedium(context),
-                          )),
-                          WidgetConstant.height20,
-                          AnimatedSize(
-                              duration: APPConst.animationDuraion,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (providers.isNotEmpty) ...[
-                                    Text("providers".tr,
-                                        style: context.textTheme.titleMedium),
-                                    Text("available_network_providers".tr),
-                                    WidgetConstant.height8,
-                                    ...List.generate(providers.length, (index) {
-                                      final action = providers[index];
-                                      final provider = action.object;
-                                      final bool isDefault =
-                                          provider.isDefaultProvider;
-                                      return Shimmer(
-                                          onActive: (_, context) =>
-                                              ContainerWithBorder(
-                                                  onRemove:
-                                                      isDefault ? null : () {},
-                                                  enableTap: false,
-                                                  onRemoveWidget: IconButton(
-                                                      onPressed: () {
-                                                        deleteProvider(action);
-                                                      },
-                                                      icon: Icon(
-                                                          Icons.remove_circle,
-                                                          color: context.colors
-                                                              .onPrimaryContainer)),
-                                                  child: CopyableTextWidget(
-                                                      text: provider.callUrl,
-                                                      widget: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                              provider.protocol
-                                                                  .value,
-                                                              style: context
-                                                                  .onPrimaryTextTheme
-                                                                  .labelLarge),
-                                                          Text(provider.callUrl,
-                                                              style: context
-                                                                  .onPrimaryTextTheme
-                                                                  .bodyMedium),
-                                                        ],
-                                                      ),
-                                                      color: context.colors
-                                                          .onPrimaryContainer)),
-                                          enable: !action.action);
-                                    }),
-                                    WidgetConstant.height20,
-                                  ],
-                                  Text("service_provider".tr,
-                                      style: context.textTheme.titleMedium),
-                                  if (serviceDescription != null)
-                                    Text(serviceDescription!),
-                                  WidgetConstant.height8,
-                                  ContainerWithBorder(
-                                    enableTap: false,
-                                    onRemove: service.url == null
-                                        ? null
-                                        : () {
-                                            UriUtils.lunch(service.url);
-                                          },
-                                    onRemoveIcon: ToolTipView(
-                                      key: ValueKey(service),
-                                      message: service.url,
-                                      child: Icon(Icons.open_in_new_rounded,
-                                          color: context.onPrimaryContainer),
-                                    ),
-                                    child: AppDropDownBottom(
-                                        key: ValueKey(service),
-                                        isExpanded: true,
-                                        fillColor: context.colors.transparent,
-                                        items: {
-                                          for (final i in services)
-                                            i: Text(i.name,
-                                                style: context
-                                                    .onPrimaryTextTheme
-                                                    .bodyMedium)
-                                        },
-                                        selectedItemBuilder: {
-                                          for (final i in services)
-                                            i: Text(i.name)
-                                        },
-                                        labelStyle: context
-                                            .onPrimaryTextTheme.labelLarge,
-                                        value: service,
-                                        onChanged: onChangeService),
-                                  ),
-                                  WidgetConstant.height20,
-                                  Text("protocol".tr,
-                                      style: context.textTheme.titleMedium),
-                                  Text("toggle_between_available_protocols".tr),
-                                  WidgetConstant.height8,
-                                  ContainerWithBorder(
-                                    enableTap: false,
-                                    child: AppDropDownBottom(
-                                      key: ValueKey(protocol),
-                                      fillColor: context.colors.transparent,
-                                      items: {
-                                        for (final i in supportedProtocol)
-                                          i: Text(
-                                            i.value,
-                                            style: context
-                                                .colors.onPrimaryContainer
-                                                .bodyMedium(context),
-                                          )
-                                      },
-                                      selectedItemBuilder: {
-                                        for (final i in supportedProtocol)
-                                          i: Text(i.value)
-                                      },
-                                      labelStyle:
-                                          context.onPrimaryTextTheme.labelLarge,
-                                      value: protocol,
-                                      onChanged: onChangeProtocol,
-                                    ),
-                                  ),
-                                  WidgetConstant.height20,
-                                  Text("http_api_url".tr,
-                                      style: context.textTheme.titleMedium),
-                                  Text(protocolTitle),
-                                  WidgetConstant.height8,
-                                  AppTextField(
-                                    key: uriFieldKey,
-                                    initialValue: rpcUrl,
-                                    onChanged: onChageUrl,
-                                    validator: validateRpcUrl,
-                                    suffixIcon: PasteTextIcon(
-                                      onPaste: onPasteUri,
-                                      isSensitive: false,
-                                    ),
-                                    label: "api_url".tr,
-                                    hint: protocolHint,
-                                  ),
-                                  ProviderAuthView(
-                                      enableAuthMode: enableAuthMode,
-                                      useAuthenticated: useAuthenticated,
-                                      onChangeAuthenticated:
-                                          onChangeAuthenticated,
-                                      onChangeAuthMode: onChangeAuthMode,
-                                      auth: auth,
-                                      authKey: authKey,
-                                      authValue: authValue,
-                                      onChangeKey: onChangeKey,
-                                      validateKey: validateKey,
-                                      onChangeValue: onChangeValue,
-                                      validateValue: validateValue,
-                                      supportedAuths: supportedAuth),
-                                  WidgetConstant.height20,
-                                  Text("json_rpc_solidity_url".tr,
-                                      style: context.textTheme.titleMedium),
-                                  Text("network_title_http_wss_url".tr),
-                                  WidgetConstant.height8,
-                                  AppTextField(
-                                    key: jsonFeildKey,
-                                    initialValue: jsonRpcUrl,
-                                    onChanged: onChageJsonRpcUrl,
-                                    validator: validateHttpWss,
-                                    suffixIcon: PasteTextIcon(
-                                        onPaste: onPasteJsonRpcUri,
-                                        isSensitive: false),
-                                    label: "api_url".tr,
-                                    hint: protocolHint,
-                                  ),
-                                  ProviderAuthView(
-                                      enableAuthMode: enableAuthMode,
-                                      useAuthenticated: jsonRpcUseAuthenticated,
-                                      onChangeAuthenticated:
-                                          onJsonRpcChangeAuthenticated,
-                                      onChangeAuthMode: onJsonRpcChangeAuthMode,
-                                      auth: jsonRpcAuth,
-                                      authKey: jsonRpcAuthKey,
-                                      authValue: jsonRpcAuthValue,
-                                      onChangeKey: onJsonRpcChangeKey,
-                                      validateKey: validateKey,
-                                      onChangeValue: onJsonRpcChangeValue,
-                                      validateValue: validateValue,
-                                      supportedAuths: supportedAuth),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      FixedElevatedButton(
-                                        padding:
-                                            WidgetConstant.paddingVertical20,
-                                        onPressed: updateNetworkProviders,
-                                        child: Text("import_provider".tr),
-                                      )
-                                    ],
-                                  ),
-                                ],
-                              ))
-                        ],
-                      ),
-                    )),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

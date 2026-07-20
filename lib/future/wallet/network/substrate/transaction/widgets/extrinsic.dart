@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/models/models/typedef.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/metadata/fields/fields.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/metadata/forms/metadata.dart';
@@ -13,8 +13,7 @@ import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 class SubstrateTransactionExtrinsicWidget extends StatelessWidget {
   final SubstrateTransactionExtrinsicOperation form;
   final BuildContext mainContext;
-  List<MetadataFormValidator> get payloadFields =>
-      form.extrinsicPayloadValidators;
+  List<MetadataFormValidator> get payloadFields => form.extrinsicPayloadValidators;
   List<MetadataFormValidator> get extrinsicFields => form.extrinsicValidators;
   const SubstrateTransactionExtrinsicWidget(
       {required this.form, required this.mainContext, super.key});
@@ -26,8 +25,7 @@ class SubstrateTransactionExtrinsicWidget extends StatelessWidget {
       builder: (context, value) {
         return APPSliverAnimatedSwitcher(enable: value, widgets: {
           BuildExtrinsicPage.payload: (context) => _CreatePayload(field: form),
-          BuildExtrinsicPage.extrinsic: (context) =>
-              _CreateExtrinsic(field: form),
+          BuildExtrinsicPage.extrinsic: (context) => _CreateExtrinsic(field: form),
           BuildExtrinsicPage.review: (context) =>
               _Review(field: form, mainContext: mainContext)
         });
@@ -37,8 +35,7 @@ class SubstrateTransactionExtrinsicWidget extends StatelessWidget {
 }
 
 class _CreatePayload extends StatelessWidget {
-  List<MetadataFormValidator> get payloadFields =>
-      field.extrinsicPayloadValidators;
+  List<MetadataFormValidator> get payloadFields => field.extrinsicPayloadValidators;
   List<MetadataFormValidator> get extrinsicFields => field.extrinsicValidators;
   final SubstrateTransactionExtrinsicOperation field;
   const _CreatePayload({required this.field});
@@ -53,9 +50,7 @@ class _CreatePayload extends StatelessWidget {
             metadata: field.metadata,
           )),
       _SubstrateTransactionStateSendTransaction(
-          controller: field,
-          name: 'create_payload'.tr,
-          onTap: field.onCreatePayload)
+          controller: field, name: 'create_payload'.tr, onTap: field.onCreatePayload)
     ]);
   }
 }
@@ -78,9 +73,7 @@ class _CreateExtrinsic extends StatelessWidget {
             metadata: field.metadata,
           )),
       _SubstrateTransactionStateSendTransaction(
-          controller: field,
-          name: 'create_extrinsic'.tr,
-          onTap: field.onCreateExtrinsic)
+          controller: field, name: 'create_extrinsic'.tr, onTap: field.onCreateExtrinsic)
     ]);
   }
 }
@@ -130,23 +123,17 @@ class _SubstrateTransactionStateSendTransaction extends StatelessWidget {
     return APPStreamBuilder(
         value: controller.stateStatus,
         builder: (context, value) {
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ErrorTextContainer(error: value.error),
-                AlertTextContainer(message: value.warning),
-                Padding(
-                  padding: WidgetConstant.paddingVertical40,
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FixedElevatedButton(
-                            onPressed: onTap,
-                            activePress: true,
-                            child: Text(name))
-                      ]),
-                )
-              ]);
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ErrorTextContainer(error: value.error),
+            AlertTextContainer(message: value.warning),
+            Padding(
+              padding: WidgetConstant.paddingVertical40,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                FixedElevatedButton(
+                    onPressed: onTap, activePress: true, child: Text(name))
+              ]),
+            )
+          ]);
         });
   }
 }

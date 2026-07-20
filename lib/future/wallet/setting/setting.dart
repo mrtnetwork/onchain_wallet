@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/theme/theme.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-
 import 'color_selector.dart';
 
 class AppSettingView extends StatelessWidget {
@@ -16,7 +15,7 @@ class AppSettingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return NetworkAccountControllerView<NetworkClient?, ChainAccount?, Chain>(
-        childBulder: (wallet, account, client, address, onAccountChanged) {
+        childBulder: (wallet, account, client, address) {
           return _AppSettingView(wallet);
         },
         addressRequired: false,
@@ -35,6 +34,7 @@ class _AppSettingView extends StatefulWidget {
 class _AppSettingViewState extends State<_AppSettingView>
     with SafeState<_AppSettingView> {
   WalletProvider get wallet => widget.wallet;
+  bool supportTorConnection = false;
   void toggleBrightness() {
     wallet.toggleBrightness();
     updateState(() {});
@@ -59,7 +59,7 @@ class _AppSettingViewState extends State<_AppSettingView>
 
   @override
   Widget build(BuildContext context) {
-    // final wallet = context.watch<WalletProvider>(StateConst.main);
+    // final wallet = context.wallet;
     final setting = PageRouter.networkSettings(wallet.wallet.network);
     return ScaffoldPageView(
       appBar: AppBar(title: Text("wallet_preferences".tr)),
@@ -123,8 +123,7 @@ class _AppSettingViewState extends State<_AppSettingView>
                 title: Text("backup".tr),
                 subtitle: Text("backup_wallet".tr),
                 onTap: () {
-                  context.to(PageRouter.backupWallet,
-                      argruments: wallet.wallet.network);
+                  context.to(PageRouter.backupWallet, argruments: wallet.wallet.network);
                 },
               ),
               AppListTile(
@@ -215,7 +214,16 @@ class _AppSettingViewState extends State<_AppSettingView>
                 title: Text("primary_color_palette".tr),
                 subtitle: Text("define_primary_of_app".tr),
               ),
-              if (wallet.appSetting.supportBarcodeScanner)
+
+              // AppListTile(
+              //   onTap: () {
+              //     context.toPage(ParingMainWalletView());
+              //   },
+              //   leading: const Icon(Icons.color_lens),
+              //   title: Text("link_device".tr),
+              //   subtitle: Text("define_primary_of_app".tr),
+              // ),
+              if (wallet.supportBarcodeScanner)
                 AppListTile(
                   onTap: () {
                     context.to(PageRouter.barcodeScanner);
@@ -229,7 +237,7 @@ class _AppSettingViewState extends State<_AppSettingView>
                 title: Text("about_onchain_wallet".tr),
                 leading: const Icon(Icons.home),
                 onTap: () {
-                  UriUtils.lunch(LinkConst.appGithub);
+                  context.appContext.platformUtls.lunchUri(LinkConst.appGithub);
                 },
               ),
               WidgetConstant.height20,

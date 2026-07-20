@@ -1,89 +1,91 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class IEthAddress extends ChainAccount<ETHAddress, ETHERC20Token, NFTCore,
-    EthWalletTransaction> {
-  IEthAddress._(
-      {required super.keyIndex,
+final class IEthereumAddress extends ChainAccount<ETHAddress, ETHERC20Token, NFTCore,
+    EthWalletTransaction, WalletEthereumNetwork> {
+  IEthereumAddress._(
+      {required super.derivationIndex,
+      required super.database,
       required super.coin,
       required super.address,
       required super.network,
       required super.networkAddress,
       required super.identifier,
       required List<int> publicKey,
-      super.accountName})
+      required super.id})
       : publicKey = publicKey.asImmutableBytes;
 
-  factory IEthAddress._newAccount({
+  factory IEthereumAddress._newAccount({
     required List<int> publicKey,
     required WalletEthereumNetwork network,
     required CryptoCoins coin,
     required ETHAddress address,
     required String identifier,
-    required AddressDerivationIndex keyIndex,
+    required DerivationIndex derivationIndex,
+    required IAppDatabaseApi? database,
+    required String? id,
   }) {
-    final balance =
-        ChainAccountBalance(address: address.address, network: network);
-    return IEthAddress._(
+    return IEthereumAddress._(
         coin: coin,
-        address: balance,
-        keyIndex: keyIndex,
+        address: address.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: address,
-        network: network.value,
+        network: network,
         publicKey: publicKey,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
 
-  factory IEthAddress.deserialize(WalletEthereumNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.ethAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
-    final keyIndex =
-        AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(1));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(2));
-    final ETHAddress ethAddress = ETHAddress(address.toAddress);
-    final int networkId = values.elementAs(3);
+  factory IEthereumAddress.deserialize(
+      {required WalletEthereumNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.ethAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final derivationIndex =
+        DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
+    final ETHAddress ethAddress =
+        ETHAddress.deserializeIAddress(bytes: values.rawValueAt(2));
+    final int networkId = values.rawValueAt(3);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-
-    final String? accountName = values.elementAs(4);
-    final List<int> publicKey = values.elementAs(5);
-    final String identifier = values.elementAs(6);
-    return IEthAddress._(
+    final List<int> publicKey = values.rawValueAt(4);
+    final String identifier = values.rawValueAt(5);
+    return IEthereumAddress._(
         coin: coin,
-        address: address,
-        keyIndex: keyIndex,
+        address: ethAddress.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: ethAddress,
-        network: networkId,
-        accountName: accountName,
+        network: network,
         publicKey: publicKey,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
 
-  @override
   final List<int> publicKey;
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          keyIndex.toCbor(),
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          CborBytesValue(publicKey),
-          identifier
-        ]),
-        CborTagsConst.ethAccount);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.ethAccount;
   @override
-  List get variabels {
-    return [keyIndex, network];
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        derivationIndex.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        CborBytesValue(publicKey),
+        identifier.toCbor()
+      ];
+  @override
+  List get variables {
+    return [derivationIndex, network.value];
   }
 
   @override
@@ -91,6 +93,9 @@ final class IEthAddress extends ChainAccount<ETHAddress, ETHERC20Token, NFTCore,
 
   @override
   EthereumNewAddressParams toAccountParams() {
-    return EthereumNewAddressParams(deriveIndex: keyIndex, coin: coin);
+    return switch (derivationIndex) {
+      DerivableIndex index => EthereumNewAddressParams(deriveIndex: index, coin: coin),
+      _ => throw AppCryptoExceptionConst.invalidDerivationKey
+    };
   }
 }

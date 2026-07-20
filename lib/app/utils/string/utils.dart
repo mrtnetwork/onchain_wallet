@@ -1,5 +1,6 @@
+import 'package:blockchain_utils/utf8/src/encoder.dart';
 import 'package:blockchain_utils/utils/utils.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/utils/utils.dart';
 
 class StrUtils {
   static bool isHtml(String error) {
@@ -27,12 +28,21 @@ class StrUtils {
   static String camelCaseToSpaced(String input) {
     return input
         // Insert a space before each capital letter (except the first one)
-        .replaceAllMapped(
-            RegExp(r'(?<=[a-z])([A-Z])'), (match) => ' ${match.group(1)}')
+        .replaceAllMapped(RegExp(r'(?<=[a-z])([A-Z])'), (match) => ' ${match.group(1)}')
         // Capitalize the first letter of each word
         .split(' ')
         .map((word) => word[0].toUpperCase() + word.substring(1))
         .join(' ');
+  }
+
+  static String fromBytes(List<int> bytes,
+      {bool allowInvalidOrMalformed = false, bool allowHexEncoding = true}) {
+    try {
+      return StringUtils.decode(bytes, allowInvalidOrMalformed: allowInvalidOrMalformed);
+    } catch (_) {
+      if (!allowHexEncoding) rethrow;
+      return BytesUtils.toHexString(bytes);
+    }
   }
 
   static String toCamelCase(String input, {bool space = false}) {
@@ -154,9 +164,57 @@ class StrUtils {
     if (url == null) return null;
     final uri = Uri.tryParse(url);
     if (uri == null) return null;
-    if (uri.host.isEmpty) return null;
+    if (!isValidHost(uri.host)) return null;
     if (!schame.contains(uri.scheme.toLowerCase())) return null;
     return uri.normalizePath().toString();
+  }
+
+  static bool isValidHost(String host) {
+    if (host.isEmpty) return false;
+    if (host == "localhost") return true;
+    final RegExp regex = RegExp(
+        r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)+([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$');
+    return regex.hasMatch(host);
+  }
+
+  static bool isLocalHost(String url) {
+    final uri = Uri.tryParse(url);
+    final host = uri?.host;
+    if (host == null || host.isEmpty) return false;
+
+    return host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '0.0.0.0' ||
+        host == '::1';
+  }
+
+  static String? validateRawSocket(String? url,
+      {List<String> schame = const ['tcp', 'tls']}) {
+    if (url == null) return null;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    if (uri.host.isEmpty) return null;
+    if (!schame.contains(uri.scheme.toLowerCase())) return null;
+    if (!isValidHost(uri.host)) return null;
+    if (uri.path.isNotEmpty && uri.path != "/") return null;
+    return uri.normalizePath().toString();
+  }
+
+  static bool isOnion(String? url) {
+    if (url == null || url.trim().isEmpty) return false;
+    final onionRegex = RegExp(r'^[a-z2-7]{56}\.onion$');
+    if (onionRegex.hasMatch(url)) {
+      return true;
+    }
+    Uri? uri = Uri.tryParse(url);
+
+    // If no scheme, try adding one
+    if (uri == null || uri.host.isEmpty) {
+      uri = Uri.tryParse("http://$url");
+      if (uri == null) return false;
+    }
+    final host = uri.host.toLowerCase().replaceAll(RegExp(r'\.$'), '');
+    return host.endsWith('.onion');
   }
 
   static int findFirstMissingNumber(List<int> numbers, {int start = 0}) {
@@ -205,8 +263,7 @@ class StrUtils {
   static String removeSchame(String uri) {
     final schames = ["https://", "http://", "ws://", "wss://"];
     final lower = uri.toLowerCase();
-    final schame = MethodUtils.nullOnException(
-        () => schames.firstWhere((element) => lower.startsWith(element)));
+    final schame = schames.firstWhereOrNull((element) => lower.startsWith(element));
     if (schame == null) return uri;
     return uri.substring(schame.length - 1);
   }
@@ -290,5 +347,12 @@ class StrUtils {
       offset += length;
     }
     return results;
+  }
+
+  static int getStringBytesLength(String value) {
+    return switch (StringUtils.isHexBytes(value)) {
+      true => value.length ~/ 2,
+      false => UTF8Encoder.inBytesLength(value),
+    };
   }
 }

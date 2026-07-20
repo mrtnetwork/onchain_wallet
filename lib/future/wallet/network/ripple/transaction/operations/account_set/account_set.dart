@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/bytes/quick_bytes.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -14,9 +14,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionAccountSetOperation
     extends RippleTransactionStateController<AccountSet> {
   RippleTransactionAccountSetOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionAccountSetOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -24,23 +22,16 @@ class RippleTransactionAccountSetOperation
     return RippleTransactionAccountSetOperation._(
         walletProvider: walletProvider, account: account, address: address);
   }
-  final LiveFormField<AccountSetAsfFlag?, AccountSetAsfFlag> setFlag =
-      LiveFormField(
+  final LiveFormField<AccountSetAsfFlag?, AccountSetAsfFlag> setFlag = LiveFormField(
     title: "ripple_enable_account_set_flags".tr,
     optional: true,
     value: null,
   );
-  final LiveFormField<AccountSetAsfFlag?, AccountSetAsfFlag> clearFlag =
-      LiveFormField(
-          title: "ripple_disable_account_set_flags".tr,
-          optional: true,
-          value: null);
+  final LiveFormField<AccountSetAsfFlag?, AccountSetAsfFlag> clearFlag = LiveFormField(
+      title: "ripple_disable_account_set_flags".tr, optional: true, value: null);
 
   final LiveFormField<String?, String> domain = LiveFormField(
-      title: "domain".tr,
-      subtitle: "domain_desc".tr,
-      optional: true,
-      value: null);
+      title: "domain".tr, subtitle: "domain_desc".tr, optional: true, value: null);
 
   final LiveFormField<String?, String> email = LiveFormField(
       title: "email_hash".tr,
@@ -58,14 +49,13 @@ class RippleTransactionAccountSetOperation
       return false;
     },
   );
-  final LiveFormField<ReceiptAddress<XRPAddress>?, ReceiptAddress<XRPAddress>>
+  final LiveFormField<ReceiptAddress<XRPBaseAddress>?, ReceiptAddress<XRPBaseAddress>>
       nftokenMinter = LiveFormField(
           title: "ripple_nft_token_minter".tr,
           subtitle: "ripple_nft_token_minter_desc".tr,
           optional: true,
           value: null);
-  late final LiveFormField<BigRational?, BigRational> transferRate =
-      LiveFormField(
+  late final LiveFormField<BigRational?, BigRational> transferRate = LiveFormField(
     title: "ripple_transfer_rate".tr,
     subtitle: "ripple_transfer_rate_desc".tr,
     optional: true,
@@ -116,7 +106,7 @@ class RippleTransactionAccountSetOperation
     estimateFee();
   }
 
-  void onUpdateNFTokenMinter(ReceiptAddress<XRPAddress>? nftokenMinter) {
+  void onUpdateNFTokenMinter(ReceiptAddress<XRPBaseAddress>? nftokenMinter) {
     this.nftokenMinter.setValue(nftokenMinter);
     onStateUpdated();
     estimateFee();
@@ -143,7 +133,7 @@ class RippleTransactionAccountSetOperation
   }
 
   String? validateTransferRate(String? v) {
-    final BigRational? rate = BigRational.tryParseDecimaal(v ?? "");
+    final BigRational? rate = BigRational.tryParse(v ?? "");
     final valid = RippleUtils.validateAccoutSetTransferRate(rate);
     if (valid == null) {
       return "ripple_validate_transfer_rate".tr;
@@ -152,7 +142,7 @@ class RippleTransactionAccountSetOperation
   }
 
   String? validateTickSize(String? v) {
-    final BigRational? rate = BigRational.tryParseDecimaal(v ?? "");
+    final BigRational? rate = BigRational.tryParse(v ?? "");
     final valid = RippleUtils.validateAccoutSetTickSize(rate);
     if (valid == null) {
       return "ripple_validate_tick_size".tr;
@@ -163,11 +153,10 @@ class RippleTransactionAccountSetOperation
   @override
   AccountSet buildTransactionInternal() {
     return AccountSet(
-      account: address.networkAddress.address,
+      account: address.networkAddress.classicAddress,
       setFlag: setFlag.value,
       clearFlag: clearFlag.value,
-      domain:
-          domain.hasValue ? QuickBytesUtils.ensureIsHex(domain.value!) : null,
+      domain: domain.hasValue ? QuickBytesUtils.ensureIsHex(domain.value!) : null,
       emailHash: email.hasValue
           ? QuickBytesUtils.stringToHexWithLength(
               email.value!, RippleConst.maxEmailHashLength)
@@ -175,14 +164,14 @@ class RippleTransactionAccountSetOperation
       fee: txFee.fee.fee.balance,
       memos: RippleUtils.toXrplMemos(memos),
       messageKey: messageKey.value,
-      nftTokenMinter: nftokenMinter.value?.networkAddress.address,
+      nftTokenMinter: nftokenMinter.value?.networkAddress.classicAddress,
       tickSize: tickSize.value?.toBigInt().toInt(),
       transferRate: transferRate.value?.toBigInt().toInt(),
     );
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionAccountSetOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -193,8 +182,7 @@ class RippleTransactionAccountSetOperation
   }
 
   @override
-  SubmittableTransactionType get transactionType =>
-      SubmittableTransactionType.accountSet;
+  SubmittableTransactionType get transactionType => SubmittableTransactionType.accountSet;
   @override
   List<LiveFormField<Object?, Object>> get fields => [
         setFlag,

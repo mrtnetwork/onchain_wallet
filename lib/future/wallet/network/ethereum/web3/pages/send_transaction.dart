@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain/solidity/address/core.dart';
 import 'package:on_chain/tron/tron.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
@@ -34,15 +34,13 @@ class Web3EthereumSendTransactionStateView extends StatelessWidget {
           },
           fee: controller.txFee,
           getMaxFeeInput: controller.getMaxFeeInput),
-      Web3StateAcceptRequestView(
-          controller: controller, title: "send_transaction".tr),
+      Web3StateAcceptRequestView(controller: controller, title: "send_transaction".tr),
     ]);
   }
 }
 
 class _ETHTransactionTransferFields extends StatelessWidget {
-  const _ETHTransactionTransferFields(
-      {required this.field, required this.network});
+  const _ETHTransactionTransferFields({required this.field, required this.network});
   final Web3EthereumTransactionRequestInfos field;
   final WalletEthereumNetwork network;
   @override
@@ -72,8 +70,7 @@ class _ETHTransactionTransferFields extends StatelessWidget {
 }
 
 class _EthereumTransactionDataView extends StatelessWidget {
-  const _EthereumTransactionDataView(
-      {required this.data, required this.network});
+  const _EthereumTransactionDataView({required this.data, required this.network});
   final EthereumTransactionDataInfo? data;
   final WalletNetwork network;
   @override
@@ -90,8 +87,7 @@ class _EthereumTransactionDataView extends StatelessWidget {
             Text(data?.localizationName.tr ?? "transfer".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
             if (data?.selector != null)
-              Text(data!.selector!,
-                  style: context.onPrimaryTextTheme.bodyMedium)
+              Text(data!.selector!, style: context.onPrimaryTextTheme.bodyMedium)
           ],
         )),
         if (data != null) ...[
@@ -148,8 +144,8 @@ class _EthereumTransactionNameAndInputsWidget extends StatelessWidget {
         ContainerWithBorder(
           constraints: null,
           backgroundColor: context.onPrimaryContainer,
-          child: Text(data.localizationName.tr,
-              style: context.primaryTextTheme.bodyMedium),
+          child:
+              Text(data.localizationName.tr, style: context.primaryTextTheme.bodyMedium),
         ),
         if (data.inputs.isNotEmpty) ...[
           WidgetConstant.height20,
@@ -172,8 +168,7 @@ class _EthereumTransactionNameAndInputsWidget extends StatelessWidget {
 }
 
 class _SolidityTypesView extends StatelessWidget {
-  const _SolidityTypesView(
-      {required this.value, required this.network, this.style});
+  const _SolidityTypesView({required this.value, required this.network, this.style});
   final dynamic value;
   final WalletNetwork network;
   final TextStyle? style;
@@ -227,9 +222,7 @@ class _EthereumTransactionERC20DataWidget extends StatelessWidget {
               color: context.onPrimaryContainer,
               dataToCopy: data.dataHex,
               widget: SelectableText(data.dataHex,
-                  style: context.onPrimaryTextTheme.bodyMedium,
-                  minLines: 1,
-                  maxLines: 3),
+                  style: context.onPrimaryTextTheme.bodyMedium, minLines: 1, maxLines: 3),
             ),
           )
         ],
@@ -278,9 +271,7 @@ class _UnknownTransactionDataView extends StatelessWidget {
           onRemove: () {},
           enableTap: false,
           onRemoveWidget: CopyTextIcon(
-              dataToCopy: dataHex,
-              isSensitive: false,
-              color: context.onPrimaryContainer),
+              dataToCopy: dataHex, isSensitive: false, color: context.onPrimaryContainer),
           child: OneLineTextWidget(dataHex,
               maxLine: 2, style: context.onPrimaryTextTheme.bodyMedium),
         ),

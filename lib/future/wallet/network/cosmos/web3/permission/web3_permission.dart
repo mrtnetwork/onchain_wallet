@@ -5,15 +5,14 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 
 class CosmosWeb3PermissionView extends StatefulWidget {
   const CosmosWeb3PermissionView({required this.application, super.key});
   final Web3ApplicationAuthentication application;
 
   @override
-  State<CosmosWeb3PermissionView> createState() =>
-      _CosmosWeb3PermissionViewState();
+  State<CosmosWeb3PermissionView> createState() => _CosmosWeb3PermissionViewState();
 }
 
 class _CosmosWeb3PermissionViewState extends State<CosmosWeb3PermissionView>
@@ -35,8 +34,7 @@ class _CosmosWeb3PermissionViewState extends State<CosmosWeb3PermissionView>
   NetworkType get type => NetworkType.cosmos;
   @override
   Widget build(BuildContext context) {
-    return UpdateChainPermissionWidget<CosmosBaseAddress, ICosmosAddress,
-            CosmosChain>(
+    return UpdateChainPermissionWidget<CosmosBaseAddress, ICosmosAddress, CosmosChain>(
         chain: chain,
         isDefaultAddress: isDefaultAddress,
         chains: chains,

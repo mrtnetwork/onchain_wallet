@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/signer.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/types/types.dart';
@@ -12,14 +13,13 @@ import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
 import 'package:on_chain_wallet/future/wallet/web3/core/state.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
 
-class WebXRPSendTransactionStateController
-    extends Web3XRPTransactionStateController<
-        Web3XRPTransactionResponse,
-        Web3XRPSendTransaction,
-        IWeb3XRPTransactionRawData> with RippleTransactionSignerController {
+class WebXRPSendTransactionStateController extends Web3XRPTransactionStateController<
+    Web3XRPTransactionResponse,
+    Web3XRPSendTransaction,
+    IWeb3XRPTransactionRawData> with RippleTransactionSignerController {
   Web3SecurityLevel _securityLevel = Web3SecurityLevel.minimal;
   @override
   Web3SecurityLevel get securityLevel => _securityLevel;
@@ -39,21 +39,27 @@ class WebXRPSendTransactionStateController
     await filledTransactionRequirment(transaction.transaction,
         force: transaction.signingMode.isFull);
     transaction.transaction.setFee(txFee.fee.fee.balance);
-    return IWeb3XRPTransaction(
-        account: defaultAccount, transactionData: transactionData);
+    return IWeb3XRPTransaction(account: defaultAccount, transactionData: transactionData);
   }
 
   @override
-  Future<IWeb3XRPTransactionRawData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IWeb3XRPTransactionRawData> buildTransactionData({bool simulate = false}) async {
     return _transactionData ??= await () async {
-      final transaction = MethodUtils.nullOnException(
-          () => SubmittableTransaction.fromBytes(params.txBlob));
+      final transaction = MethodUtils.fallbackOnException(
+        () => SubmittableTransaction.fromBytes(params.txBlob),
+        mode: LoggerMode.danger,
+        onError: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            function: "buildTransactionData",
+            msg: "Failed to decode transaction.",
+            err: exception,
+            trace: trace.toString()),
+      );
       if (transaction == null) {
         throw Web3XRPExceptionConstant.invalidTransaction;
       }
-      final owner = XRPAddress(transaction.account);
-      final ownerInfo = getOrCreateAddressInfo(owner, owner.address);
+      final owner = XRPBaseAddress(transaction.account);
+      final ownerInfo = getOrCreateAddressInfo(owner);
       final accountInfo = await getWeb3TransactionAccountInfo(ownerInfo);
       final signMode = canSignTransaction(
           owner: accountInfo, address: defaultAccount, method: params.method);
@@ -75,8 +81,7 @@ class WebXRPSendTransactionStateController
   @override
   Future<List<IWalletTransaction<XRPWalletTransaction, IXRPAddress>>>
       buildWalletTransaction(
-          {required IWeb3XRPSignedTransaction<IWeb3XRPTransactionRawData>
-              signedTx,
+          {required IWeb3XRPSignedTransaction<IWeb3XRPTransactionRawData> signedTx,
           required SubmitTransactionSuccess<
                   IWeb3XRPSignedTransaction<IWeb3XRPTransactionRawData>>?
               txId}) async {
@@ -91,14 +96,13 @@ class WebXRPSendTransactionStateController
               name: signedTx.finalTransactionData.transactionType.value)
         ]);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   BigInt maxInputFee() {
     if (transactionData.signingMode.isFull) {
-      return defaultAccount.address.currencyBalance;
+      return defaultAccount.addressData.currencyBalance;
     }
     return BigInt.zero;
   }
@@ -122,16 +126,13 @@ class WebXRPSendTransactionStateController
                   ? Web3XRPTransactionSignatureResponse(
                       txnSignature: signature.signature!,
                       signingPubKey: signature.signingPubKey)
-                  : Web3XRPTransactionSignatureResponse.multiSigner(
-                      mutliSignature!
-                          .map((e) =>
-                              Web3XRPTransactionSignatureMultiSignerResponse(
-                                  txnSignature: e.txnSignature!,
-                                  signingPubKey: e.signingPubKey,
-                                  account: e.account))
-                          .toList()),
-              txBlob: result.signedTransaction.finalTransactionData
-                  .toTransactionBlob()),
+                  : Web3XRPTransactionSignatureResponse.multiSigner(mutliSignature!
+                      .map((e) => Web3XRPTransactionSignatureMultiSignerResponse(
+                          txnSignature: e.txnSignature!,
+                          signingPubKey: e.signingPubKey,
+                          account: e.account))
+                      .toList()),
+              txBlob: result.signedTransaction.finalTransactionData.toTransactionBlob()),
           txIds: [result]);
     }
     final transaction = await buildTransaction();
@@ -144,14 +145,12 @@ class WebXRPSendTransactionStateController
                 ? Web3XRPTransactionSignatureResponse(
                     txnSignature: signature.signature!,
                     signingPubKey: signature.signingPubKey)
-                : Web3XRPTransactionSignatureResponse.multiSigner(
-                    mutliSignature!
-                        .map((e) =>
-                            Web3XRPTransactionSignatureMultiSignerResponse(
-                                txnSignature: e.txnSignature!,
-                                signingPubKey: e.signingPubKey,
-                                account: e.account))
-                        .toList()),
+                : Web3XRPTransactionSignatureResponse.multiSigner(mutliSignature!
+                    .map((e) => Web3XRPTransactionSignatureMultiSignerResponse(
+                        txnSignature: e.txnSignature!,
+                        signingPubKey: e.signingPubKey,
+                        account: e.account))
+                    .toList()),
             txBlob: signedTx.finalTransactionData.toTransactionBlob()));
   }
 
@@ -190,8 +189,7 @@ class WebXRPSendTransactionStateController
       return TransactionStateStatus.error(error: "fee_zero_validator_desc".tr);
     }
     if (!txFee.hasFee) {
-      return TransactionStateStatus.ready(
-          warning: "fee_zero_validator_desc".tr);
+      return TransactionStateStatus.ready(warning: "fee_zero_validator_desc".tr);
     }
     return super.getStateStatus();
   }
@@ -208,14 +206,13 @@ class WebXRPSendTransactionStateController
   }
 
   @override
-  Future<void> initForm(XRPClient client) async {
+  Future<void> initForm(XRPNetworkClient client) async {
     await super.initForm(client);
     _transactionData = await buildTransactionData();
     int multiSigner = 0;
     if (transactionData.signingMode == XRPWeb3SigningMode.full) {
       if (defaultAccount.multiSigAccount) {
-        final IXRPMultisigAddress multiSigAddress =
-            defaultAccount as IXRPMultisigAddress;
+        final IXRPMultisigAddress multiSigAddress = defaultAccount as IXRPMultisigAddress;
         if (!multiSigAddress.multiSignatureAccount.isRegular) {
           multiSigner = multiSigAddress.multiSignatureAccount.signers.length;
         }
@@ -223,22 +220,19 @@ class WebXRPSendTransactionStateController
     }
     _feeListener = txFee.stream.listen(onFeeUpdated);
     await initFee(
-        multiSigner: multiSigner,
-        type: transactionData.transaction.transactionType);
+        multiSigner: multiSigner, type: transactionData.transaction.transactionType);
 
     estimateFee();
     final fee = transactionData.transaction.fee ?? BigInt.zero;
     if (transactionData.signingMode.isFull) {
       if (fee > BigInt.zero) {
         final feeData = RippleTransactionFee(
-            fee: IntegerBalance.token(fee, network.token),
-            type: TxFeeTypes.manually);
+            fee: IntegerBalance.token(fee, network.token), type: TxFeeTypes.manually);
         txFee.setManualFee(feeData);
       }
     } else {
       final feeData = RippleTransactionFee(
-          fee: IntegerBalance.token(fee, network.token),
-          type: TxFeeTypes.manually);
+          fee: IntegerBalance.token(fee, network.token), type: TxFeeTypes.manually);
       txFee.setManualFee(feeData);
       txFee.setAllowSwitchFee(false);
     }

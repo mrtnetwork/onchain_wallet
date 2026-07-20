@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
-import 'package:on_chain_wallet/future/wallet/network/monero/settings/pages/unlocking_account_output.dart';
+import 'package:on_chain_wallet/future/wallet/network/zcash/settings/pages/status.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
@@ -13,8 +14,8 @@ class MoneroAccountPageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return TabBarView(physics: WidgetConstant.noScrollPhysics, children: [
       _MoneroServices(chainAccount),
-      AccountTransactionActivityView<IMoneroAddress, MoneroWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<MoneroWalletTransaction, IMoneroAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -26,43 +27,107 @@ class _MoneroServices extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverToBoxAdapter(
         child: Column(children: [
+          ChainStreamBuilder(
+            account: account,
+            allowNotify: [
+              MoneroChainNotify.trackerAccountChanged,
+            ],
+            builder: (context, latestEvent) {
+              return FutureShimmerBuilder(
+                  onData: (context, snapshot) {
+                    return AppListTile(
+                      leading: const Icon(Icons.sync),
+                      trailing: switch (snapshot.data) {
+                        ResultOk<MoneroSyncing?>(:final value)
+                            when snapshot.connectionState == ConnectionState.done =>
+                          switch (value) {
+                            null => ToolTipView(
+                                message: "chain_synchronization_disabled_desc".tr,
+                                child: Icon(
+                                  Icons.error,
+                                  color: context.colors.error,
+                                )),
+                            MoneroSyncing syncing => APPStreamBuilder(
+                                value: syncing.latestEvent,
+                                builder: (context, _) =>
+                                    BlockSyncStatusIcon(status: syncing.status))
+                          },
+                        ResultErr<MoneroSyncing?>(:final localizationError)
+                            when snapshot.connectionState == ConnectionState.done =>
+                          ToolTipView(
+                              message: localizationError,
+                              child: Icon(
+                                Icons.error,
+                                color: context.colors.error,
+                              )),
+                        _ => null,
+                      },
+                      title: Text("sync_information".tr),
+                      subtitle: Text("view_account_block_sync".tr),
+                      onTap: () {
+                        context.to(PageRouter.moneroAccountSync);
+                      },
+                    );
+                    // return AppListTile(
+                    //   leading: const Icon(Icons.sync),
+                    //   title: Text("sync_options".tr),
+                    //   subtitle: Column(
+                    //     crossAxisAlignment: CrossAxisAlignment.start,
+                    //     children: [
+                    //       Text("monero_sync_options_desc".tr),
+                    //       ConditionalWidgetWithValue(
+                    //         value: snapshot.data,
+                    //         onValue: (context, value) => ConditionalWidgetIResult(
+                    //           onOk: (context, value) {
+                    //             return ConditionalWidget(
+                    //               onActive: (context) => ErrorTextContainer(
+                    //                   enableTap: false,
+                    //                   showErrorIcon: false,
+                    //                   error: "chain_synchronization_disabled_desc".tr),
+                    //               enable: !value,
+                    //             );
+                    //           },
+                    //           onErr: (context, err) => ErrorTextContainer(
+                    //               enableTap: false,
+                    //               showErrorIcon: false,
+                    //               error: err.localizationError),
+                    //           result: value,
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    //   onTap: () {
+                    //     context.to(PageRouter.moneroSyncOptions);
+                    //   },
+                    // );
+                  },
+                  future: account.getSyncing());
+            },
+          ),
           AppListTile(
-            leading: const Icon(Icons.sync),
-            title: Text("sync_options".tr),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("monero_sync_options_desc".tr),
-                ConditionalWidget(
-                  onActive: (context) => ErrorTextContainer(
-                      enableTap: false,
-                      showErrorIcon: false,
-                      error: "chain_synchronization_disabled_desc".tr),
-                  enable: !account.syncIsActive,
-                )
-              ],
-            ),
+            leading: const Icon(Icons.download),
+            title: Text("import_utxos".tr),
+            subtitle: Text("import_utoxs_from_transaction_ids".tr),
             onTap: () {
-              context.to(PageRouter.moneroSyncOptions);
+              context.to(PageRouter.moneroImportUtxos);
+            },
+          ),
+          AppListTile(
+            leading: const Icon(Icons.api),
+            title: Text("wallet_rpc_synchronization".tr),
+            subtitle: Text("synchronization_with_monero_wallet_rpc".tr),
+            onTap: () {
+              context.to(PageRouter.moneroWalletRpc);
             },
           ),
           AppListTile(
             leading: const Icon(Icons.sync),
-            title: Text("sync_information".tr),
-            subtitle: Text("view_account_block_sync".tr),
+            title: Text("create_synchronization_request".tr),
+            subtitle: Text("create_synchronization_request_desc".tr),
             onTap: () {
-              context.to(PageRouter.moneroAccountSync);
-            },
-          ),
-          AppListTile(
-            leading: const Icon(Icons.password),
-            title: Text("monero_mnemonic".tr),
-            subtitle: Text("generate_monero_private_key".tr),
-            onTap: () {
-              context.to(PageRouter.moneroMnemonic);
+              context.to(PageRouter.moneroCreateSynchronizationRequest);
             },
           ),
           AppListTile(
@@ -81,30 +146,16 @@ class _MoneroServices extends StatelessWidget {
               context.to(PageRouter.moneroVerifyProof);
             },
           ),
+          AppListTile(
+            leading: const Icon(Icons.password),
+            title: Text("monero_mnemonic".tr),
+            subtitle: Text("generate_monero_private_key".tr),
+            onTap: () {
+              context.to(PageRouter.moneroMnemonic);
+            },
+          ),
         ]),
       )
     ]);
-  }
-}
-
-class MoneroAppBarActionView extends StatelessWidget {
-  const MoneroAppBarActionView(this.chain, {super.key});
-  final MoneroChain chain;
-  @override
-  Widget build(BuildContext context) {
-    return switch (chain.config.status) {
-      MoneroChainStatus.outputReceived => AccountAppbarActionView(
-          onHide: chain.hideStatus,
-          onAction: () {
-            context.openDialogPage(
-              "",
-              child: (context) {
-                return MoneroUnlockingAccountOutputView();
-              },
-            );
-          },
-          text: "account_tx_detected_desc".tr),
-      _ => WidgetConstant.sizedBox
-    };
   }
 }

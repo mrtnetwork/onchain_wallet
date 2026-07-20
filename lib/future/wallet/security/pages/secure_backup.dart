@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/models/access/wallet_access.dart';
 import 'package:on_chain_wallet/wallet/models/wallet/models/backup.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 
 class GenerateBackupView extends StatefulWidget {
   const GenerateBackupView(
@@ -40,27 +40,27 @@ class _SecureBackupViewState extends State<GenerateBackupView>
   String? backup;
   String? viewText;
   void createBackup() async {
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     progressKey.progressText("creating_backup_desc".tr);
-    final MethodResult<String> result;
+    final IResult<String> result;
     if (widget.type == WalletBackupTypes.walletV3) {
       final options = widget.walletBackupOptions;
       if (options == null) {
         progressKey.errorText("invalid_backup_options".tr, backToIdle: false);
         return;
       }
-      result = await wallet.wallet.generateWalletBackup(
-          credential: widget.credential, options: options);
+      result = await wallet.wallet.doAction(
+          WalletActionWalletBackup(credential: widget.credential, options: options));
     } else {
-      result = await wallet.wallet.generateWalletKeyBackup(
+      result = await wallet.wallet.doAction(WalletActionKeyBackup(
           data: widget.data,
-          type: useKeyStore ? WalletBackupTypes.keystore : widget.type,
-          credential: widget.credential);
+          backupType: useKeyStore ? WalletBackupTypes.keystore : widget.type,
+          credential: widget.credential));
     }
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError);
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError);
     } else {
-      backup = result.result;
+      backup = result.unwrap();
       viewText = backup!.substring(0, IntUtils.min(200, backup!.length));
       progressKey.success();
     }
@@ -68,39 +68,46 @@ class _SecureBackupViewState extends State<GenerateBackupView>
 
   final GlobalKey<StreamWidgetState> shareState = GlobalKey();
   final GlobalKey<StreamWidgetState> saveState = GlobalKey();
-  // String? _shareError;
 
   Future<void> share() async {
+    final backup = this.backup;
     if (backup == null) return;
 
     shareState.process();
-    final result = await MethodUtils.call(() async {
-      final name = "credentials_${StrUtils.toFileName(DateTime.now())}.txt";
-      final toFile = await PlatformUtils.writeString(backup!, name);
-      return await ShareUtils.shareFile(toFile, name,
-          subject: "account credentials", mimeType: FileMimeTypes.textPlain);
-    });
-    if (result.hasError || !result.result) {
-      shareState.error();
-    } else {
-      shareState.success();
-    }
+    final name = "credentials_${StrUtils.toFileName(DateTime.now())}";
+    final result = await context.appContext.platformUtls.shareFile(
+      buffer: IBuffer.string(backup),
+      name: name,
+      type: AppFileType.txt,
+      subject: "account credentials",
+    );
+
+    result.watch(
+      onErr: (error) {
+        shareState.error();
+      },
+      onOk: (value) {
+        shareState.success();
+      },
+    );
   }
 
   Future<void> save() async {
+    final backup = this.backup;
     if (backup == null) return;
     saveState.process();
-    final result = await MethodUtils.call(() async {
-      final name = "credentials_${StrUtils.toFileName(DateTime.now())}.txt";
-      final toFile = await PlatformUtils.writeString(backup!, name);
-      return await PlatformUtils.saveFile(filePath: toFile);
-    });
-    if (result.hasError) {
-      saveState.error();
-      context.showAlert("file_save_failed".tr);
-    } else {
-      saveState.success();
-    }
+    final name = "credentials_${StrUtils.toFileName(DateTime.now())}";
+    final result = await context.appContext.platformUtls
+        .saveFile(buffer: IBuffer.string(backup), name: name, type: AppFileType.txt);
+    result.watch(
+      onErr: (error) {
+        saveState.error();
+        context.showAlert("file_save_failed".tr);
+      },
+      onOk: (value) {
+        saveState.success();
+      },
+    );
   }
 
   @override

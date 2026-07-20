@@ -6,6 +6,7 @@ import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class SwitchNetworkView extends StatefulWidget {
@@ -37,22 +38,21 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
 
   void toggleShowTestnet() {
     showTestnet = !showTestnet;
-    final setting = wallet.appSetting.walletSetting
-        .copyWith(showTestnetNetworks: showTestnet);
-    wallet.updateWalletSetting(setting);
+    final appSetting = wallet.appSetting;
+    final setting = appSetting.walletSetting.copyWith(showTestnetNetworks: showTestnet);
+    wallet.updateAppSettings(appSetting.copyWith(walletSetting: setting));
     buildChains();
     updateState();
   }
 
   void initNetwork() {
-    wallet = context.watch<WalletProvider>(StateConst.main);
+    wallet = context.wallet;
     showTestnet = wallet.appSetting.walletSetting.showTestnetNetworks;
     allChains = wallet.wallet.getChains();
     for (final i in NetworkType.values) {
       if (i == NetworkType.bitcoinCash) continue;
       if (i == NetworkType.bitcoinAndForked) {
-        allNetworks[i] =
-            allChains.where((e) => e.network.type.isBitcoin).toList();
+        allNetworks[i] = allChains.where((e) => e.network.type.isBitcoin).toList();
       } else {
         allNetworks[i] = allChains.where((e) => e.network.type == i).toList();
       }
@@ -80,8 +80,7 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
       filteredNetworks = buildedNetwork.clone();
     } else {
       filteredNetworks = buildedNetwork
-          .where((e) =>
-              e.network.networkName.toLowerCase().contains(v.toLowerCase()))
+          .where((e) => e.network.networkName.toLowerCase().contains(v.toLowerCase()))
           .toList();
     }
     updateState();
@@ -113,6 +112,8 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
         return NetworkType.sui;
       case 12:
         return NetworkType.aptos;
+      case 13:
+        return NetworkType.zcash;
       default:
         return NetworkType.bitcoinAndForked;
     }
@@ -144,6 +145,8 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
         return 11;
       case NetworkType.aptos:
         return 12;
+      case NetworkType.zcash:
+        return 13;
       default:
         return 0;
     }
@@ -225,8 +228,8 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
                     Expanded(
                       child: SingleChildScrollView(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                              maxWidth: APPConst.naviationRailWidth),
+                          constraints:
+                              const BoxConstraints(maxWidth: APPConst.naviationRailWidth),
                           child: IntrinsicHeight(
                             child: NavigationRail(
                                 useIndicator: true,
@@ -262,22 +265,19 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                   NavigationRailDestination(
-                                      icon: CircleAssetsImageView(APPConst.ton,
+                                      icon: CircleAssetsImageView(APPConst.gram,
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                   NavigationRailDestination(
-                                      icon: CircleAssetsImageView(
-                                          APPConst.substrate,
+                                      icon: CircleAssetsImageView(APPConst.substrate,
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                   NavigationRailDestination(
-                                      icon: CircleAssetsImageView(
-                                          APPConst.stellar,
+                                      icon: CircleAssetsImageView(APPConst.stellar,
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                   NavigationRailDestination(
-                                      icon: CircleAssetsImageView(
-                                          APPConst.monero,
+                                      icon: CircleAssetsImageView(APPConst.monero,
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                   NavigationRailDestination(
@@ -285,8 +285,11 @@ class _SwitchNetworkViewState extends State<SwitchNetworkView>
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                   NavigationRailDestination(
-                                      icon: CircleAssetsImageView(
-                                          APPConst.aptos,
+                                      icon: CircleAssetsImageView(APPConst.aptos,
+                                          radius: imageRadius),
+                                      label: WidgetConstant.sizedBox),
+                                  NavigationRailDestination(
+                                      icon: CircleAssetsImageView(APPConst.zcash,
                                           radius: imageRadius),
                                       label: WidgetConstant.sizedBox),
                                 ],
@@ -382,8 +385,7 @@ class _NetworksView extends StatelessWidget {
                         children: [
                           Column(
                             children: [
-                              CircleTokenImageView(net.coinParam.token,
-                                  radius: 20),
+                              CircleTokenImageView(net.coinParam.token, radius: 20),
                               if (net.coinParam.isTestNet)
                                 ToolTipView(
                                   message: "testnet_price_desc".tr,
@@ -440,16 +442,22 @@ class SwitchNetworkIcon extends StatelessWidget {
             (value) {
               if (value == null) return;
               if (context.mounted) {
-                if (value is Chain) {
-                  context.wallet.wallet.switchNetwork(value);
-                } else {
-                  context.mybeTo(PageRouter.importNetwork(value));
+                switch (value) {
+                  case Chain network:
+                    context.wallet.wallet
+                        .doAction(WalletActionSwitchNetwork(network: network))
+                        .then((e) {
+                      if (e.isErr) context.showAlert(e.unwrapErr().localizationError);
+                    });
+                    break;
+                  case NetworkType network:
+                    context.mybeTo(PageRouter.importNetwork(network));
                 }
               }
             },
           );
         },
-        icon: CircleTokenImageView(account.network.token,
-            radius: APPConst.circleRadius12));
+        icon:
+            CircleTokenImageView(account.network.token, radius: APPConst.circleRadius12));
   }
 }

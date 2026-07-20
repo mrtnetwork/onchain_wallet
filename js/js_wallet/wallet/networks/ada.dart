@@ -3,30 +3,27 @@ import 'dart:js_interop';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/cardano/cardano.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/cardano/state/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/cardano/cardano.dart';
+import 'package:on_chain_wallet/web3/web3/networks/cardano/state/types/types.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
 import '../../models/models.dart';
 import '../../models/models/networks/ada.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../core/network_handler.dart';
 
-class ADAWeb3JSStateAddress extends Web3JSStateAddress<ADAAddress,
-    Web3ADAChainAccount, JSADAWalletAccount, Web3ADAChainIdnetifier> {
+class ADAWeb3JSStateAddress extends Web3JSStateAddress<ADAAddress, Web3ADAChainAccount,
+    JSADAWalletAccount, Web3ADAChainIdnetifier> {
   const ADAWeb3JSStateAddress(
       {required super.chainaccount,
       required super.jsAccount,
       required super.networkIdentifier});
 }
 
-class ADAWeb3JSStateAccount extends Web3JSStateAccount<
-    ADAAddress,
-    Web3ADAChainAccount,
-    JSADAWalletAccount,
-    Web3ADAChainIdnetifier,
-    ADAWeb3JSStateAddress> {
+class ADAWeb3JSStateAccount extends Web3JSStateAccount<ADAAddress, Web3ADAChainAccount,
+    JSADAWalletAccount, Web3ADAChainIdnetifier, ADAWeb3JSStateAddress> {
   ADAWeb3JSStateAccount._({
     required super.state,
     required super.chains,
@@ -36,8 +33,7 @@ class ADAWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory ADAWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return ADAWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return ADAWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory ADAWeb3JSStateAccount(Web3ADAChainAuthenticated? authenticated) {
     if (authenticated == null) {
@@ -84,10 +80,16 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
         Web3ADAChainAccount,
         JSADAWalletAccount,
         Web3ADAChainIdnetifier,
+        ADAWeb3JSStateAddress,
         ADAWeb3JSStateAccount>
     with //
-        ADAWeb3StateHandler<JSADAWalletAccount, ADAWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        ADAWeb3StateHandler<
+            JSADAWalletAccount,
+            ADAWeb3JSStateAddress,
+            ADAWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   ADAWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
 
@@ -113,8 +115,7 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
       required Web3ExceptionMessage error}) async {
     final method = Web3ADARequestMethods.fromName(message.request.method);
     if (!message.request.isCardanoApi) {
-      return super
-          .finalizeError(message: message, params: params, error: error);
+      return super.finalizeError(message: message, params: params, error: error);
     }
     JSWalletError jsError = JSWalletError.cardano(
         info: error.message,
@@ -134,13 +135,13 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
         return onConnectResponse(message);
 
       case Web3ADARequestMethods.signMessage:
-        final signature = Web3ADASignMessageResponse.deserialize(
-            bytes: response.resultAsList<int>());
+        final signature =
+            Web3ADASignMessageResponse.deserialize(bytes: response.resultAsList<int>());
         return WalletMessageResponse.success(
             JSADASignMessageResponse.setup(signature.signature));
       case Web3ADARequestMethods.signData:
-        final signature = Web3ADASignDataResponse.deserialize(
-            bytes: response.resultAsList<int>());
+        final signature =
+            Web3ADASignDataResponse.deserialize(bytes: response.resultAsList<int>());
         return WalletMessageResponse.success(JSADASignDataResponse.setup(
             key: BytesUtils.toHexString(signature.key),
             pubKey: BytesUtils.toHexString(signature.pubKey),
@@ -152,25 +153,22 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3ADARequestMethods.signTransaction:
         final resposne = Web3ADASignTransactionsResponse.deserialize(
             bytes: response.resultAsList<int>());
-        return WalletMessageResponse.success(resposne.witnesses
-            .map((e) => e.witness.serializeHex().toJS)
-            .toList()
-            .toJS);
+        return WalletMessageResponse.success(
+            resposne.witnesses.map((e) => e.witness.serializeHex().toJS).toList().toJS);
       case Web3ADARequestMethods.signTx:
         final resposne = Web3ADASignTransactionsResponse.deserialize(
             bytes: response.resultAsList<int>());
         if (resposne.witnesses.length != 1) {
-          throw Web3RequestExceptionConst.internalError;
+          throw Web3RequestExceptionConst.internalErr("ada.finalizeWalletResponse",
+              reason: "Unexpected response.");
         }
         return WalletMessageResponse.success(
             resposne.witnesses[0].witness.serializeHex().toJS);
       case Web3ADARequestMethods.signTxs:
         final resposne = Web3ADASignTransactionsResponse.deserialize(
             bytes: response.resultAsList<int>());
-        return WalletMessageResponse.success(resposne.witnesses
-            .map((e) => e.witness.serializeHex().toJS)
-            .toList()
-            .toJS);
+        return WalletMessageResponse.success(
+            resposne.witnesses.map((e) => e.witness.serializeHex().toJS).toList().toJS);
       case Web3ADARequestMethods.submitTxs:
         final resposne = Web3ADASignTransactionsResponse.deserialize(
             bytes: response.resultAsList<int>());
@@ -188,7 +186,8 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
         final resposne = Web3ADASignTransactionsResponse.deserialize(
             bytes: response.resultAsList<int>());
         if (resposne.witnesses.length != 1) {
-          throw Web3RequestExceptionConst.internalError;
+          throw Web3RequestExceptionConst.internalErr("ada.finalizeWalletResponse",
+              reason: "Unexpected response.");
         }
         return WalletMessageResponse.success(resposne.witnesses[0].txId.toJS);
       case Web3ADARequestMethods.signAndSendTransaction:
@@ -206,14 +205,12 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3ADARequestMethods.getScriptRequirements:
         final resposne = response.resultAsList<Web3ADAScriptRequirement>();
         return WalletMessageResponse.success(resposne
-            .map((e) =>
-                JSADAScriptRequirement.setup(value: e.value, code: e.code))
+            .map((e) => JSADAScriptRequirement.setup(value: e.value, code: e.code))
             .toList()
             .toJS);
       case Web3ADARequestMethods.getAccountPub:
         final resposne = response.resultAsList<int>();
-        return WalletMessageResponse.success(
-            BytesUtils.toHexString(resposne).toJS);
+        return WalletMessageResponse.success(BytesUtils.toHexString(resposne).toJS);
       case Web3ADARequestMethods.getExtensions:
         final resposne = response.resultAsList<Web3ADAExtension>();
         return WalletMessageResponse.success(
@@ -221,12 +218,12 @@ class ADAWeb3JSStateHandler extends Web3JSStateHandler<
 
       default:
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  ADAWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  ADAWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return ADAWeb3JSStateAccount.init();
     return ADAWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

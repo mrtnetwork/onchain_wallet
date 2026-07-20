@@ -7,8 +7,7 @@ import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/models/networks/ethereum/models/typed_data.dart';
 
 class Web3EthereumSignTypedDataStateView extends StatelessWidget {
-  const Web3EthereumSignTypedDataStateView(
-      {required this.controller, super.key});
+  const Web3EthereumSignTypedDataStateView({required this.controller, super.key});
   final Web3EthereumSignTypedDataStateController controller;
   @override
   Widget build(BuildContext context) {
@@ -30,10 +29,8 @@ class Web3EthereumSignTypedDataStateView extends StatelessWidget {
         enableTap: false,
         padding: EdgeInsets.zero,
         child: APPExpansionListTile(
-          title:
-              Text("message".tr, style: context.onPrimaryTextTheme.bodyMedium),
-          children:
-              List.generate(controller.params.typedDataJson.length, (index) {
+          title: Text("message".tr, style: context.onPrimaryTextTheme.bodyMedium),
+          children: List.generate(controller.params.typedDataJson.length, (index) {
             final key = controller.params.typedDataJson.keys.elementAt(index);
             final value = controller.params.typedDataJson[key];
             if (value == null) return WidgetConstant.sizedBox;
@@ -57,8 +54,7 @@ class Web3EthereumSignTypedDataStateView extends StatelessWidget {
                           color: context.colors.primaryContainer,
                           widget: SelectableText(
                             value.toString(),
-                            style: context.colors.primaryContainer
-                                .bodyMedium(context),
+                            style: context.primaryTextTheme.bodyMedium,
                             maxLines: 4,
                             minLines: 1,
                           ),
@@ -72,8 +68,7 @@ class Web3EthereumSignTypedDataStateView extends StatelessWidget {
           }),
         ),
       ),
-      Web3StateAcceptRequestView(
-          controller: controller, title: "sign_message".tr),
+      Web3StateAcceptRequestView(controller: controller, title: "sign_message".tr),
     ]);
   }
 }
@@ -94,11 +89,10 @@ class _EIP712FieldsView extends StatelessWidget {
           WidgetConstant.height8,
           ContainerWithBorder(
             onRemove: () {},
-            onRemoveWidget: CopyTextIcon(
-                dataToCopy: eip712.primaryType, isSensitive: false),
+            onRemoveWidget:
+                CopyTextIcon(dataToCopy: eip712.primaryType, isSensitive: false),
             enableTap: false,
-            child: Text(eip712.primaryType,
-                style: context.onPrimaryTextTheme.bodyMedium),
+            child: Text(eip712.primaryType, style: context.onPrimaryTextTheme.bodyMedium),
           ),
           _EIP712DomainView(domain)
         ],
@@ -127,17 +121,14 @@ class _EIP712DomainView extends StatelessWidget {
             Text("name".tr, style: context.onPrimaryTextTheme.labelLarge),
             ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
-                child: Text(domain!.name,
-                    style: context.primaryTextTheme.bodyMedium)),
+                child: Text(domain!.name, style: context.primaryTextTheme.bodyMedium)),
             WidgetConstant.height20,
             Text("version".tr, style: context.onPrimaryTextTheme.titleMedium),
             ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
-                child: Text(domain!.version,
-                    style: context.primaryTextTheme.bodyMedium)),
+                child: Text(domain!.version, style: context.primaryTextTheme.bodyMedium)),
             WidgetConstant.height20,
-            Text("verifying_contract".tr,
-                style: context.onPrimaryTextTheme.titleMedium),
+            Text("verifying_contract".tr, style: context.onPrimaryTextTheme.titleMedium),
             ContainerWithBorder(
                 backgroundColor: context.onPrimaryContainer,
                 onRemove: () {},

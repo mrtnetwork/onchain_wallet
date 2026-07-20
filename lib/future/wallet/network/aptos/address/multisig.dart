@@ -7,15 +7,16 @@ import 'package:blockchain_utils/utils/numbers/utils/int_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/aptos/aptos.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/account/pages/account_controller.dart';
+import 'package:on_chain_wallet/future/wallet/account/controller/account_controller.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/aptos/account/state.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/models/networks/aptos/models/types.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 enum _Pages { threshold, pickAddresses, review }
@@ -25,16 +26,15 @@ class SetupAptosMultisigAddress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "setup_multisig_address".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<AptosClient?, IAptosAddress?,
+        return NetworkAccountControllerView<AptosNetworkClient?, IAptosAddress?,
             AptosChain>(
           addressRequired: false,
           clientRequired: false,
-          childBulder: (wallet, account, client, address, onAccountChanged) {
+          childBulder: (wallet, account, client, address) {
             return _SetupAptosMultisigAddress(account: account, wallet: wallet);
           },
         );
@@ -44,14 +44,12 @@ class SetupAptosMultisigAddress extends StatelessWidget {
 }
 
 class _SetupAptosMultisigAddress extends StatefulWidget {
-  const _SetupAptosMultisigAddress(
-      {required this.account, required this.wallet});
+  const _SetupAptosMultisigAddress({required this.account, required this.wallet});
   final AptosChain account;
   final WalletProvider wallet;
 
   @override
-  State<_SetupAptosMultisigAddress> createState() =>
-      __SetupAptosMultisigAddressState();
+  State<_SetupAptosMultisigAddress> createState() => __SetupAptosMultisigAddressState();
 }
 
 class __SetupAptosMultisigAddressState
@@ -102,10 +100,8 @@ class __SetupAptosMultisigAddressState
             threshold > AptosAccountConst.multiKeyMaxRequiredSignature) {
           return "aptos_required_signature_validator"
               .tr
-              .replaceOne(
-                  AptosAccountConst.mulitKeyMinRequiredSignature.toString())
-              .replaceTwo(
-                  AptosAccountConst.multiKeyMaxRequiredSignature.toString());
+              .replaceOne(AptosAccountConst.mulitKeyMinRequiredSignature.toString())
+              .replaceTwo(AptosAccountConst.multiKeyMaxRequiredSignature.toString());
         }
       default:
         if (threshold == null ||
@@ -141,8 +137,9 @@ class __SetupAptosMultisigAddressState
       return "exceeded_multisig_maximum_publickey".tr;
     }
     if (signers.length < AptosAccountConst.mulitKeyMinRequiredSignature) {
-      return "at_least_n_account_required".tr.replaceOne(
-          AptosAccountConst.mulitKeyMinRequiredSignature.toString());
+      return "at_least_n_account_required"
+          .tr
+          .replaceOne(AptosAccountConst.mulitKeyMinRequiredSignature.toString());
     }
     final totalWeight = signers.length;
     if (totalWeight < threshold) {
@@ -167,8 +164,8 @@ class __SetupAptosMultisigAddressState
     allowAddAccount = signers.length < AptosAccountConst.multiEd25519MaxKeys;
   }
 
-  void onChangeThreshold(int threshold) {
-    this.threshold = threshold;
+  void onChangeThreshold(int? threshold) {
+    this.threshold = threshold ?? AptosAccountConst.mulitKeyMinRequiredSignature;
     updateState();
   }
 
@@ -185,13 +182,12 @@ class __SetupAptosMultisigAddressState
     if (address.multiSigAccount) {
       return "unavailable_multi_sig_public_key".tr;
     }
-    if (signers
-        .any((e) => BytesUtils.bytesEqual(e.publicKey, address.publicKey))) {
+    if (signers.any((e) => BytesUtils.bytesEqual(e.publicKey, address.publicKey))) {
       return "address_already_exist".tr;
     }
     if (signers.any((e) =>
         e.keyScheme.curve == address.keyScheme.curve &&
-        e.keyIndex == address.keyIndex)) {
+        e.keyIndex == address.derivationIndex)) {
       return "public_key_already_exist".tr;
     }
     if (algorithm == AptosSupportKeyScheme.multiEd25519) {
@@ -212,7 +208,7 @@ class __SetupAptosMultisigAddressState
       return;
     }
     final signer = _AptosSigner(
-        keyIndex: address.keyIndex.cast(),
+        keyIndex: address.derivationIndex.cast(),
         publicKey: address.publicKey,
         account: address);
     signers.add(signer);
@@ -237,10 +233,9 @@ class __SetupAptosMultisigAddressState
   }
 
   Future<void> addPublicKey() async {
-    final pubKey = await context
-        .openMaxExtendSliverBottomSheet<PublicKeyDerivationWithMode>('',
-            bodyBuilder: (c) =>
-                PublicKeyDerivationView(controller: c, coins: coins));
+    final pubKey =
+        await context.openMaxExtendSliverBottomSheet<PublicKeyDerivationWithMode>('',
+            bodyBuilder: (c) => PublicKeyDerivationView(controller: c, coins: coins));
     if (pubKey == null) return;
     final error = validatePublicKey(pubKey);
     if (error != null) {
@@ -250,9 +245,11 @@ class __SetupAptosMultisigAddressState
     final signer = _AptosSigner(
         keyIndex: pubKey.derivation.index.cast(),
         publicKey: pubKey.derivation.key.normalizedComprossedBytes,
-        account: account.addresses.firstWhereOrNull((e) =>
-            BytesUtils.bytesEqual(
-                e.publicKey, pubKey.derivation.key.normalizedComprossedBytes)));
+        account: account.addresses.firstWhereOrNull((e) {
+          if (e.multiSigAccount) return false;
+          return BytesUtils.bytesEqual(
+              e.publicKey, pubKey.derivation.key.normalizedComprossedBytes);
+        }));
     signers.add(signer);
     checkError();
     updateState();
@@ -300,37 +297,33 @@ class __SetupAptosMultisigAddressState
   }
 
   bool get canBack {
-    return (page == _Pages.review && progressKey.isSuccess) ||
-        page == _Pages.threshold;
+    return (page == _Pages.review && progressKey.isSuccess) || page == _Pages.threshold;
   }
 
   Future<void> generateAddress() async {
     progressKey.progressText("setup_address".tr);
-    final r = await MethodUtils.call(() async {
+    final r = await IResult.call(() async {
       final publicKeys = signers
           .map((e) => AptosMultisigAccountPublicKeyInfo.create(
-              keyIndex: e.keyIndex.cast(),
+              derivationIndex: e.keyIndex.cast(),
               keyScheme: e.keyScheme,
               publicKey: e.publicKey))
           .toList();
       final multisigAccount = AptosMultisigAccountInfo.create(
-          publicKeys: publicKeys,
-          requiredSignature: threshold,
-          keyScheme: algorithm);
+          publicKeys: publicKeys, requiredSignature: threshold, keyScheme: algorithm);
 
       return AptosMultiSigNewAddressParams(
-          multiSignatureAddress: multisigAccount,
-          coin: account.network.coins.first);
+          multiSignatureAddress: multisigAccount, coin: account.network.coins.first);
     }, delay: APPConst.oneSecoundDuration);
-    if (r.hasError) {
-      progressKey.errorText(r.localizationError,
+    if (r.isErr) {
+      progressKey.errorText(r.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
-    final import = await widget.wallet.wallet
-        .deriveNewAccount(newAccountParams: r.result, chain: account);
-    if (import.hasError) {
-      progressKey.errorText(import.localizationError,
+    final import = await widget.wallet.wallet.doAction(
+        WalletActionDeriveNewAccount(newAccountParams: r.unwrap(), chain: account));
+    if (import.isErr) {
+      progressKey.errorText(import.unwrapErr().localizationError,
           showBackButton: true, backToIdle: false);
       return;
     }
@@ -339,7 +332,7 @@ class __SetupAptosMultisigAddressState
         progressWidget: SuccessWithButtonView(
           buttonWidget: ContainerWithBorder(
               margin: WidgetConstant.paddingVertical8,
-              child: AddressDetailsView(address: import.result)),
+              child: AddressDetailsView(address: import.unwrap())),
           buttonText: "generate_new_address".tr,
           onPressed: () {
             clearState();
@@ -352,6 +345,8 @@ class __SetupAptosMultisigAddressState
   @override
   void onInitOnce() {
     super.onInitOnce();
+    algorithm = AptosSupportKeyScheme.multiKey;
+    coins = account.network.coins;
     algorithmTypesWidget = {
       for (final i in AptosSupportKeyScheme.values)
         if (i.isMultisig) i: Text(i.name)
@@ -376,8 +371,7 @@ class __SetupAptosMultisigAddressState
                     body: Column(children: [
                       Text("multisig_address_desc".tr),
                       AlertTextContainer(
-                          message: "mutlisig_address_alert".tr,
-                          enableTap: false)
+                          message: "mutlisig_address_alert".tr, enableTap: false)
                     ])),
               ),
               APPSliverAnimatedSwitcher<_Pages>(enable: page, widgets: {
@@ -461,8 +455,7 @@ class _PickAddress extends StatelessWidget {
           AptosSupportKeyScheme.multiKey: (context) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("required_signature".tr,
-                      style: context.textTheme.titleMedium),
+                  Text("required_signature".tr, style: context.textTheme.titleMedium),
                   Text("required_signature_desc".tr)
                 ],
               )
@@ -490,9 +483,7 @@ class _PickAddress extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final signer = state.signers.elementAt(index);
                     return _SelectedAddressView(
-                        signer: signer,
-                        state: state,
-                        onRemove: state.removeAddress);
+                        signer: signer, state: state, onRemove: state.removeAddress);
                   },
                   itemCount: state.signers.length,
                   separatorBuilder: (context, index) => WidgetConstant.divider,
@@ -568,12 +559,10 @@ class _SetupTreshold extends StatelessWidget {
                           child: NumberTextField(
                               label: "threshold".tr,
                               readOnly: false,
-                              onChange: state.onChangeThreshold,
+                              onChangeValue: state.onChangeThreshold,
                               validator: state.onValidateThreshold,
-                              max: AptosAccountConst
-                                  .multiKeyMaxRequiredSignature,
-                              min: AptosAccountConst
-                                  .mulitKeyMinRequiredSignature,
+                              max: AptosAccountConst.multiKeyMaxRequiredSignature,
+                              min: AptosAccountConst.mulitKeyMinRequiredSignature,
                               defaultValue: state.threshold),
                         ),
                       ],
@@ -583,8 +572,7 @@ class _SetupTreshold extends StatelessWidget {
             AptosSupportKeyScheme.multiKey: (context) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("required_signature".tr,
-                        style: context.textTheme.titleMedium),
+                    Text("required_signature".tr, style: context.textTheme.titleMedium),
                     Text("required_signature_desc".tr),
                     WidgetConstant.height8,
                     Row(
@@ -594,12 +582,10 @@ class _SetupTreshold extends StatelessWidget {
                           child: NumberTextField(
                               label: "required_signature".tr,
                               readOnly: false,
-                              onChange: state.onChangeThreshold,
+                              onChangeValue: state.onChangeThreshold,
                               validator: state.onValidateThreshold,
-                              max: AptosAccountConst
-                                  .multiKeyMaxRequiredSignature,
-                              min: AptosAccountConst
-                                  .mulitKeyMinRequiredSignature,
+                              max: AptosAccountConst.multiKeyMaxRequiredSignature,
+                              min: AptosAccountConst.mulitKeyMinRequiredSignature,
                               defaultValue: state.threshold),
                         ),
                       ],
@@ -628,8 +614,7 @@ class _SelectedAddressView extends StatelessWidget {
   final _AptosSigner signer;
   final _ONSELECTAPTOSSIGNER? onRemove;
   final __SetupAptosMultisigAddressState state;
-  const _SelectedAddressView(
-      {this.onRemove, required this.signer, required this.state});
+  const _SelectedAddressView({this.onRemove, required this.signer, required this.state});
   @override
   Widget build(BuildContext context) {
     return CustomizedContainer(
@@ -656,8 +641,7 @@ class _SelectedAddressView extends StatelessWidget {
                 children: [
                   OneLineTextWidget(signer.publicKeyHex,
                       style: context.primaryTextTheme.bodyMedium),
-                  AddressDrivationInfo(signer.keyIndex,
-                      color: context.primaryContainer),
+                  AddressDrivationInfo(signer.keyIndex, color: context.primaryContainer),
                 ],
               ),
             )),
@@ -667,16 +651,14 @@ class _SelectedAddressView extends StatelessWidget {
 }
 
 class _AptosSigner with Equality {
-  final Bip32AddressIndex keyIndex;
+  final Bip32DerivationIndex keyIndex;
   final List<int> publicKey;
   final IAptosAddress? account;
   final AptosSupportKeyScheme keyScheme;
   late final String publicKeyHex = BytesUtils.toHexString(publicKey);
-  _AptosSigner(
-      {required this.keyIndex, required this.publicKey, required this.account})
-      : keyScheme =
-            AptosSupportKeyScheme.fromCoin(keyIndex.currencyCoin as Bip44Coins);
+  _AptosSigner({required this.keyIndex, required this.publicKey, required this.account})
+      : keyScheme = AptosSupportKeyScheme.fromCoin(keyIndex.currencyCoin as Bip44Coins);
 
   @override
-  List get variabels => [publicKey];
+  List get variables => [publicKey];
 }

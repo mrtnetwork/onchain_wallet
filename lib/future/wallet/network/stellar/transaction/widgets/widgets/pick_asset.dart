@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/bip/address/xlm_addr.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/worker.dart';
+import 'package:on_chain_wallet/crypto/crypto.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
@@ -10,11 +10,15 @@ import 'package:stellar_dart/stellar_dart.dart';
 class StellarPickAssetView extends StatefulWidget {
   final StellarAccountResponse accountInfo;
   final StellarChain chain;
+  // final IStellarAddress address;
+  final List<StellarIssueToken> tokens;
   final bool allowNativeAssets;
   final bool allowCreate;
 
   const StellarPickAssetView(
       {required this.accountInfo,
+      // required this.address,
+      required this.tokens,
       required this.chain,
       this.allowCreate = false,
       this.allowNativeAssets = true,
@@ -38,7 +42,7 @@ class _PickFromAccountAssetsState extends State<StellarPickAssetView>
   @override
   void onInitOnce() {
     super.onInitOnce();
-    addressTokens = widget.chain.address.tokens;
+    addressTokens = widget.tokens;
     tokens = widget.accountInfo.issueAssetBalances.map((e) {
       return addressTokens.firstWhere(
           (i) =>
@@ -61,11 +65,10 @@ class _PickFromAccountAssetsState extends State<StellarPickAssetView>
 
   Future<void> onCreateAsset() async {
     if (!widget.allowCreate) return;
-    final StellarPickedIssueAsset? asset =
-        await context.openMaxExtendSliverBottomSheet<StellarPickedIssueAsset>(
-            "pick_an_asset".tr,
-            bodyBuilder: (controller) => StellarCreateAssetView(
-                chain: widget.chain, controller: controller));
+    final StellarPickedIssueAsset? asset = await context
+        .openMaxExtendSliverBottomSheet<StellarPickedIssueAsset>("pick_an_asset".tr,
+            bodyBuilder: (controller) =>
+                StellarCreateAssetView(chain: widget.chain, controller: controller));
     if (asset == null) return;
     context.pop(asset);
   }
@@ -83,8 +86,8 @@ class _PickFromAccountAssetsState extends State<StellarPickAssetView>
           title: Text("pick_an_asset".tr),
           actions: [
             ConditionalWidget(
-                onActive: (context) => IconButton(
-                    onPressed: onCreateAsset, icon: Icon(Icons.add_box)))
+                onActive: (context) =>
+                    IconButton(onPressed: onCreateAsset, icon: Icon(Icons.add_box)))
           ],
         ),
         SliverConstraintsBoxView(
@@ -110,10 +113,9 @@ class _PickFromAccountAssetsState extends State<StellarPickAssetView>
               ConditionalWidget(
                   enable: !widget.allowNativeAssets && tokens.isEmpty,
                   onActive: (context) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Icon(Icons.hourglass_empty,
-                              size: APPConst.double80),
+                          const Icon(Icons.hourglass_empty, size: APPConst.double80),
                           WidgetConstant.height8,
                           Text("assets_not_found_in_account".tr),
                         ],
@@ -207,8 +209,7 @@ class _StellarPickAssetViewState extends State<StellarCreateAssetView>
     if (assetType == AssetType.native) {
       return null;
     }
-    final isValid =
-        StellarHelper.isValidIssueAsset(code: v ?? '', type: assetType);
+    final isValid = StellarHelper.isValidIssueAsset(code: v ?? '', type: assetType);
     if (isValid) {
       return null;
     }
@@ -301,9 +302,7 @@ class _PickAssetIssuer extends StatelessWidget {
       ContainerWithBorder(
           validate: state.issueAddress != null,
           onRemove: () {
-            context
-                .selectAccount<StellarAddress>(account: state.widget.chain)
-                .then(
+            context.selectAccount<StellarAddress>(account: state.widget.chain).then(
               (value) {
                 state.onSetIssueAddress(value?.firstOrNull);
               },

@@ -8,16 +8,13 @@ import 'package:on_chain_wallet/future/wallet/network/monero/transaction/widgets
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-class MoneroTransactionTransferOperation
-    extends MoneroTransactionStateController {
+class MoneroTransactionTransferOperation extends MoneroTransactionStateController {
   MoneroTransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   MoneroTransferDetails? _lockedMax;
   @override
   Token get transferToken => network.token;
-  List<MoneroOutputDetailsWithAddress> _utxos = [];
+  List<MoneroUtxoWithBalanceInfo> _utxos = [];
 
   late final LiveFormFields<MoneroTransferDetails> recipients =
       LiveFormFields<MoneroTransferDetails>(
@@ -26,17 +23,15 @@ class MoneroTransactionTransferOperation
           subtitle: "amount_for_each_output".tr,
           onValidateError: (_, value) => _validateRecipients(value));
 
-  late final LiveFormField<MoneroTransferDetails, MoneroTransferDetails>
-      remainingAmount = LiveFormField(
+  late final LiveFormField<MoneroTransferDetails, MoneroTransferDetails> remainingAmount =
+      LiveFormField(
           title: "remaining_amount".tr,
           subtitle: "remaining_amount_and_receiver".tr,
           value: MoneroTransferDetails(
               allowNegativeAmount: true,
               recipientUpdateble: true,
-              recipient: account.getReceiptAddress(address.viewAddress) ??
-                  ReceiptAddress(
-                      view: address.viewAddress,
-                      networkAddress: address.networkAddress),
+              recipient:
+                  account.getOrCreateReceiptFromNetworkAddressSync(account: address),
               token: network.token),
           optional: false);
 
@@ -47,15 +42,15 @@ class MoneroTransactionTransferOperation
 
   void _onReceiptsUpdated() {
     final totalOutput = totalUtxos.value.balance;
-    final totalAmounts = recipients.value.fold(BigInt.zero,
-        (previousValue, element) => previousValue + element.amount.balance);
+    final totalAmounts = recipients.value.fold(
+        BigInt.zero, (previousValue, element) => previousValue + element.amount.balance);
     remainingAmount.value
         .updateBalance(totalOutput - totalAmounts - txFee.fee.fee.balance);
     remainingAmount.notify();
   }
 
   @override
-  void onSelectedUtxosChanged(List<MoneroOutputDetailsWithAddress> utxos) {
+  void onSelectedUtxosChanged(List<MoneroUtxoWithBalanceInfo> utxos) {
     _utxos = utxos;
     _lockedMax = null;
     _onReceiptsUpdated();
@@ -73,8 +68,7 @@ class MoneroTransactionTransferOperation
     estimateFee();
   }
 
-  void onUpdateRecipientAmount(
-      MoneroTransferDetails recipient, BigInt amount, bool max) {
+  void onUpdateRecipientAmount(MoneroTransferDetails recipient, BigInt amount, bool max) {
     _lockedMax = max ? recipient : null;
     recipient.updateBalance(amount);
     _onReceiptsUpdated();
@@ -93,9 +87,7 @@ class MoneroTransactionTransferOperation
 
   void onUpdateRemainingAccount(IMoneroAddress? address) {
     if (address == null || filterRemainAccount(address) != null) return;
-    final recipient = account.getReceiptAddress(address.viewAddress) ??
-        ReceiptAddress(
-            view: address.viewAddress, networkAddress: address.networkAddress);
+    final recipient = account.getOrCreateReceiptFromNetworkAddressSync(account: address);
     remainingAmount.value.updateRecipientAddress(recipient);
     remainingAmount.notify();
     onStateUpdated();
@@ -144,8 +136,7 @@ class MoneroTransactionTransferOperation
   }
 
   String? filterRemainAccount(IMoneroAddress address) {
-    if (address.networkAddress ==
-            remainingAmount.value.recipient.networkAddress ||
+    if (address.networkAddress == remainingAmount.value.recipient.networkAddress ||
         recipients.value
             .any((e) => e.recipient.networkAddress == address.networkAddress)) {
       return "address_already_exist".tr;
@@ -154,9 +145,9 @@ class MoneroTransactionTransferOperation
   }
 
   BigInt getMaxInput(MoneroTransferDetails recipient) {
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
-    final max = address.address.currencyBalance -
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final max = totalUtxos.value.balance -
         total +
         recipient.amount.balance -
         txFee.fee.fee.balance;
@@ -201,8 +192,7 @@ class MoneroTransactionTransferOperation
   }
 
   @override
-  Future<IMoneroTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IMoneroTransactionData> buildTransactionData({bool simulate = false}) async {
     return IMoneroTransactionData(
       // fee: txFee.fee,
       change: remainingAmount.value.hasAmount
@@ -211,8 +201,7 @@ class MoneroTransactionTransferOperation
               address: remainingAmount.value.recipient.networkAddress)
           : null,
       payments: _utxos,
-      destinations:
-          recipients.value.map((e) => e.toMoneroDestination()).toList(),
+      destinations: recipients.value.map((e) => e.toMoneroDestination()).toList(),
     );
   }
 
@@ -221,11 +210,10 @@ class MoneroTransactionTransferOperation
       buildWalletTransaction(
           {required IMoneroSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final List<IWalletTransaction<MoneroWalletTransaction, IMoneroAddress>>
-        transactions = [];
-    final signers = signedTx.transaction.transactionData.payments
-        .map((e) => e.address)
-        .toSet();
+    final List<IWalletTransaction<MoneroWalletTransaction, IMoneroAddress>> transactions =
+        [];
+    final signers =
+        signedTx.transaction.transactionData.payments.map((e) => e.account).toSet();
     final destinations = signedTx.transaction.transactionData.destinations
         .map((e) => MoneroWalletTransactionOutput(
             amount: WalletTransactionIntegerAmount(
@@ -234,28 +222,23 @@ class MoneroTransactionTransferOperation
         .toList();
     for (final i in signers) {
       final payments = signedTx.transaction.transactionData.payments
-          .where((e) => e.address == i)
+          .where((e) => e.account == i)
           .toList();
-      final total =
-          payments.fold<BigInt>(BigInt.zero, (p, c) => p + c.paymet.amount);
+      final total = payments.fold<BigInt>(BigInt.zero, (p, c) => p + c.utxo.amount);
       final transaction = MoneroWalletTransaction(
           txId: txId.txId,
           time: DateTime.now(),
           network: network,
-          totalOutput:
-              WalletTransactionIntegerAmount(amount: total, network: network),
+          totalOutput: WalletTransactionIntegerAmount(amount: total, network: network),
           outputs: destinations,
-          txKeys: signedTx.finalTransactionData.txData.txKeys
-              .map((e) => e.key)
-              .toList());
-      transactions
-          .add(IWalletTransaction(transaction: transaction, account: i));
+          txKeys: signedTx.finalTransactionData.txData.txKeys.map((e) => e.key).toList());
+      transactions.add(IWalletTransaction(transaction: transaction, account: i));
     }
     return transactions;
   }
 
   @override
-  TransactionStateController cloneController(IMoneroAddress address) {
+  Future<TransactionStateController> cloneController(IMoneroAddress address) async {
     return MoneroTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -269,8 +252,7 @@ class MoneroTransactionTransferOperation
   TransactionOperations get operation => MoneroTransactionOperations.transfer;
 
   @override
-  List<LiveFormField<Object?, Object?>> get fields =>
-      [recipients, remainingAmount];
+  List<LiveFormField<Object?, Object?>> get fields => [recipients, remainingAmount];
 
   @override
   void dispose() {
@@ -279,6 +261,5 @@ class MoneroTransactionTransferOperation
       i.dispose();
     }
     remainingAmount.value.dispose();
-    remainingAmount.dispose();
   }
 }

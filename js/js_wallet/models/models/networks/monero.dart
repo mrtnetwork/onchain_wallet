@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../utils/utils.dart';
 import '../../models.dart';
 import 'wallet_standard.dart';
@@ -14,35 +16,27 @@ class MoneroJSConst {
   static const String requestAccounts = "monero_requestAccounts";
 }
 
-extension type JSMoneroWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSMoneroWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSMoneroWalletAccount.setup(
-      {required String address,
-      required List<int>? publicKey,
-      required String chain}) {
+      {required String address, required List<int>? publicKey, required String chain}) {
     return JSMoneroWalletAccount._(JSObject())
       ..address = address
       ..chains = [chain.toJS].toJS
       ..features = MoneroJSConst.solanaDefaultAccountFeatures.freez
-      ..publicKey =
-          publicKey == null ? null : APPJSUint8Array.fromList(publicKey);
+      ..publicKey = publicKey == null ? null : APPJSUint8Array.fromList(publicKey);
   }
 }
 
 extension type JSMoneroWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSMoneroWalletStandardConnect.setup(
-      List<JSMoneroWalletAccount> accounts) {
-    return JSMoneroWalletStandardConnect._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSMoneroWalletStandardConnect.setup(List<JSMoneroWalletAccount> accounts) {
+    return JSMoneroWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSMoneroWalletAccount> get accounts;
   external set accounts(JSArray<JSMoneroWalletAccount> _);
 }
 extension type JSMoneroWalletConnectResponse._(JSObject _) implements JSAny {
-  factory JSMoneroWalletConnectResponse.setup(
-      List<JSMoneroWalletAccount> accounts) {
-    return JSMoneroWalletConnectResponse._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSMoneroWalletConnectResponse.setup(List<JSMoneroWalletAccount> accounts) {
+    return JSMoneroWalletConnectResponse._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSMoneroWalletAccount> get accounts;
   external set accounts(JSArray<JSMoneroWalletAccount> _);
@@ -62,8 +56,7 @@ extension type MoneroWalletAdapterMoneroSignAndSendTransactionFeature(JSAny _)
 }
 
 @JS()
-extension type MoneroWalletAdapterMoneroSignMessageFeature(JSAny _)
-    implements JSAny {
+extension type MoneroWalletAdapterMoneroSignMessageFeature(JSAny _) implements JSAny {
   factory MoneroWalletAdapterMoneroSignMessageFeature.setup(
       {required JSFunction signMessage,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -77,8 +70,7 @@ extension type MoneroWalletAdapterMoneroSignMessageFeature(JSAny _)
 @JS()
 extension type JSMoneroWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSMoneroWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSMoneroWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;
@@ -86,16 +78,14 @@ extension type JSMoneroWalletStandardConnectFeature(JSAny _) implements JSAny {
   external set version(String version);
   external set connect(JSFunction _);
 }
-extension type JSMoneroSendOrSignTransactionDestinationParams(JSAny _)
-    implements JSAny {
+extension type JSMoneroSendOrSignTransactionDestinationParams(JSAny _) implements JSAny {
   external String get amount;
   external String get address;
   static const List<String> properties = ['address', 'amount'];
 }
 
 extension type JSMoneroSendOrSignTransactionParams(JSAny _) implements JSAny {
-  external JSArray<JSMoneroSendOrSignTransactionDestinationParams>
-      get destinations;
+  external JSArray<JSMoneroSendOrSignTransactionDestinationParams> get destinations;
   external JSMoneroWalletAccount? account;
   external JSArray<JSMoneroWalletAccount>? accounts;
   static const List<String> properties = ['transaction'];

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/types/types.dart';
@@ -12,37 +12,34 @@ import 'package:ton_dart/ton_dart.dart';
 import 'fee.dart';
 import 'signer.dart';
 
-abstract class TonTransactionStateController2
-    extends BaseTonTransactionController
+abstract class TonTransactionStateController2 extends BaseTonTransactionController
     with
         TonTransactionApiController,
         TonTransactionFeeController,
         TonTransactionSignerController {
   final VersionedWalletContract walletContract;
   int get walletVesion => walletContract.type.version;
+  int get maxMessageLength => walletContract.type.maxMessageLength;
 
   TonTransactionStateController2(
-      {required super.walletProvider,
-      required super.account,
-      required super.address})
+      {required super.walletProvider, required super.account, required super.address})
       : walletContract = address.toWalletContract();
 
   @override
   Future<ITonTransaction> buildTransaction({bool simulate = false}) async {
     final transactionData = await buildTransactionData(simulate: simulate);
     final transaction = address.context.buildTransaction(
-        actions: transactionData.messages,
-        state: walletContract.state!,
-        seqno: transactionData.seqno,
-        chain: network.coinParam.chain,
-        timeOut: transactionData.timeout);
+      actions: transactionData.messages,
+      state: walletContract.state!,
+      seqno: transactionData.seqno,
+      timeout: transactionData.timeout,
+    );
     return ITonTransaction(
         account: address,
         transactionData: transactionData,
         transaction: transaction,
-        stateInit: transactionData.seqno == 0
-            ? walletContract.state!.initialState()
-            : null);
+        stateInit:
+            transactionData.seqno == 0 ? walletContract.state!.initialState() : null);
   }
 
   @override
@@ -62,8 +59,7 @@ abstract class TonTransactionStateController2
   @override
   Future<TonSimulateTransaction> simulateTransaction() async {
     final transaction = await buildTransaction(simulate: true);
-    final signedTransaction =
-        await signTransaction(transaction, fakeSignature: true);
+    final signedTransaction = await signTransaction(transaction, fakeSignature: true);
     return TonSimulateTransaction(
         message: signedTransaction.finalTransactionData,
         address: address,
@@ -87,14 +83,13 @@ abstract class TonTransactionStateController2
             ))
         .toList();
     final nativePayment = payments.where((e) => e.token == null).toList();
-    final totalNativeAmount =
-        nativePayment.fold(BigInt.zero, (p, c) => p + c.amount);
+    final totalNativeAmount = nativePayment.fold(BigInt.zero, (p, c) => p + c.amount);
     final transaction = TonWalletTransaction(
         txId: txId.txId,
         outputs: outputs,
         network: network,
-        totalOutput: WalletTransactionIntegerAmount(
-            amount: totalNativeAmount, network: network));
+        totalOutput:
+            WalletTransactionIntegerAmount(amount: totalNativeAmount, network: network));
     return [IWalletTransaction(transaction: transaction, account: address)];
   }
 
@@ -111,12 +106,11 @@ abstract class TonTransactionStateController2
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required TonClient client,
+    required TonNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     final state = await getAccountState(walletContract);
     if (state.state.isFrozen) {
       throw AppException("ton_address_is_freez_desc");

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/transaction/operations/transfer_token.dart';
@@ -17,18 +17,16 @@ class SolanaTransactionTransferTokenWidget extends StatelessWidget {
     return MultiSliver(children: [
       Text("token_transfer".tr, style: context.textTheme.titleMedium),
       WidgetConstant.height8,
-      AccountTokenDetailsView(
-          token: form.token, radius: APPConst.circleRadius25),
+      AccountTokenDetailsView(token: form.token, radius: APPConst.circleRadius25),
       WidgetConstant.height20,
       LiveFormWidgetList(
         field: form.recipients,
-        onCreate: (context, field) =>
-            LiveWidgetAddNewTransferDetails<SolAddress>(
-                onUpdateAddresses: form.onUpdateRecipients,
-                account: form.account,
-                onFilterAccount: form.filterAccount,
-                isReady: field.hasValue,
-                multipleSelect: true),
+        onCreate: (context, field) => LiveWidgetAddNewTransferDetails<SolAddress>(
+            onUpdateAddresses: form.onUpdateRecipients,
+            account: form.account,
+            onFilterAccount: form.filterAccount,
+            isReady: field.hasValue,
+            multipleSelect: true),
         builder: (context, field, value) =>
             LiveWidgetTransferDetails<SolanaTransferDetails>(
                 transfer: value,
@@ -43,8 +41,7 @@ class SolanaTransactionTransferTokenWidget extends StatelessWidget {
         onRemoveMemo: form.onRemoveMemo,
       ),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }

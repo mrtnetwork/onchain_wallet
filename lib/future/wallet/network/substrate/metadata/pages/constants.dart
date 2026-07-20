@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
@@ -14,28 +13,23 @@ class SubstrateMetadataConstantsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NetworkAccountControllerView<SubstrateClient, ISubstrateAddress,
+    return NetworkAccountControllerView<SubstrateNetworkClient, ISubstrateAddress,
             SubstrateChain>(
         addressRequired: true,
         clientRequired: true,
         account: account,
         title: 'constants'.tr,
-        childBulder: (wallet, account, client, address, onAccountChanged) =>
+        childBulder: (wallet, account, client, address) =>
             SubstrateMetadataConstantsWidget(
-                account: account,
-                scrollController: scrollController,
-                client: client));
+                account: account, scrollController: scrollController, client: client));
   }
 }
 
 class SubstrateMetadataConstantsWidget extends StatefulWidget {
   const SubstrateMetadataConstantsWidget(
-      {super.key,
-      required this.account,
-      required this.client,
-      this.scrollController});
+      {super.key, required this.account, required this.client, this.scrollController});
   final SubstrateChain account;
-  final SubstrateClient client;
+  final SubstrateNetworkClient client;
   final ScrollController? scrollController;
 
   @override
@@ -46,7 +40,7 @@ class SubstrateMetadataConstantsWidget extends StatefulWidget {
 class _SubstrateMetadataConstantsWidgetState
     extends SubstrateAccountState<SubstrateMetadataConstantsWidget> {
   @override
-  SubstrateClient get client => widget.client;
+  SubstrateNetworkClient get client => widget.client;
   late final List<PalletInfo> contantsPallets;
   final StreamPageProgressController progressKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
@@ -67,7 +61,7 @@ class _SubstrateMetadataConstantsWidgetState
   @override
   void onInitOnce() {
     super.onInitOnce();
-    MethodUtils.after(() => init());
+    MethodUtils.executeAfterDelay(() => init());
   }
 
   @override
@@ -82,8 +76,7 @@ class _SubstrateMetadataConstantsWidgetState
   Widget build(BuildContext context) {
     return StreamPageProgress(
       controller: progressKey,
-      initialWidget:
-          ProgressWithTextView(text: 'retrieving_constants_please_wait'.tr),
+      initialWidget: ProgressWithTextView(text: 'retrieving_constants_please_wait'.tr),
       builder: (context) {
         return CustomScrollView(
           controller: widget.scrollController,
@@ -94,9 +87,7 @@ class _SubstrateMetadataConstantsWidgetState
                 SliverPinnedHeaderSurface(
                     elevation: APPConst.elevation,
                     child: AppDropDownBottom(
-                        items: items,
-                        onChanged: onChangePallet,
-                        value: pallet)),
+                        items: items, onChanged: onChangePallet, value: pallet)),
                 SliverPadding(
                   padding: WidgetConstant.paddingHorizontal20,
                   sliver: APPSliverAnimatedSwitcher(enable: pallet, widgets: {

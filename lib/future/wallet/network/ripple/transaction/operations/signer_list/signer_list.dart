@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -14,9 +14,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionSignerListSetOperation
     extends RippleTransactionStateController<SignerListSet> {
   RippleTransactionSignerListSetOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionSignerListSetOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -25,9 +23,7 @@ class RippleTransactionSignerListSetOperation
         walletProvider: walletProvider, account: account, address: address);
   }
   final LiveFormFields<XRPSignerEntries> signerEntries = LiveFormFields(
-      title: "SignerEntries",
-      subtitle: "ripple_signer_entries_desc".tr,
-      optional: true);
+      title: "SignerEntries", subtitle: "ripple_signer_entries_desc".tr, optional: true);
   final LiveFormField<BigRational?, BigRational> signerQuorum = LiveFormField(
     title: "signerquorum".tr,
     subtitle: "ripple_signer_quorum_desc".tr,
@@ -67,18 +63,18 @@ class RippleTransactionSignerListSetOperation
     return SignerListSet(
         signerEntries: signerEntries.value
             .map((e) => SignerEntry(
-                account: e.address.networkAddress.address,
+                account: e.address.networkAddress.classicAddress,
                 signerWeight: e.weight.toBigInt().toInt()))
             .toList(),
         signerQuorum: signerQuorum.value!.toBigInt().toInt(),
-        account: address.networkAddress.toAddress(),
+        account: address.networkAddress.address,
         sourceTag: address.networkAddress.tag,
         memos: RippleUtils.toXrplMemos(memos),
         fee: txFee.fee.fee.balance);
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionSignerListSetOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -92,6 +88,5 @@ class RippleTransactionSignerListSetOperation
   SubmittableTransactionType get transactionType =>
       SubmittableTransactionType.signerListSet;
   @override
-  List<LiveFormField<Object?, Object>> get fields =>
-      [signerEntries, signerQuorum];
+  List<LiveFormField<Object?, Object>> get fields => [signerEntries, signerQuorum];
 }

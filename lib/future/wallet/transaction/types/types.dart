@@ -2,7 +2,6 @@ import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/controller.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -30,7 +29,7 @@ sealed class SubmitTransactionResult {
 
   T cast<T extends SubmitTransactionResult>() {
     if (this is! T) {
-      throw AppExceptionConst.internalError("SubmitTransactionResult");
+      throw AppInternalError.internalError("SubmitTransactionResult");
     }
     return this as T;
   }
@@ -43,10 +42,7 @@ class SubmitTransactionSuccess<SIGNEDTX extends ISignedTransaction>
   final String? warning;
   final int? block;
   const SubmitTransactionSuccess(
-      {required this.txId,
-      required this.signedTransaction,
-      this.warning,
-      this.block})
+      {required this.txId, required this.signedTransaction, this.warning, this.block})
       : super(SubmitTransactionResultStatus.success);
   @override
   String toString() {
@@ -56,8 +52,7 @@ class SubmitTransactionSuccess<SIGNEDTX extends ISignedTransaction>
 
 class SubmitTransactionFailed extends SubmitTransactionResult {
   final String error;
-  const SubmitTransactionFailed(this.error)
-      : super(SubmitTransactionResultStatus.failed);
+  const SubmitTransactionFailed(this.error) : super(SubmitTransactionResultStatus.failed);
   @override
   String toString() {
     return "Error: $error";
@@ -79,12 +74,24 @@ class TransactionStateStatus {
   factory TransactionStateStatus.insufficient(final BalanceCore balance,
       {String? warning}) {
     if (!balance.isNegative) {
-      return TransactionStateStatus._(
-          null, TransactionStateStatusType.ready, warning);
+      return TransactionStateStatus._(null, TransactionStateStatusType.ready, warning);
     }
     final String absBalance = balance.price.replaceFirst("-", "");
     return TransactionStateStatus.error(
         error: "insufficient_balance_error"
+            .tr
+            .replaceOne("$absBalance ${balance.token.symbol}"));
+  }
+  factory TransactionStateStatus.warningInsufficient(final BalanceCore balance,
+      {String? warning}) {
+    if (!balance.isNegative) {
+      return TransactionStateStatus._(null, TransactionStateStatusType.ready, warning);
+    }
+    final String absBalance = balance.price.replaceFirst("-", "");
+    return TransactionStateStatus._(
+        null,
+        TransactionStateStatusType.ready,
+        "insufficient_balance_error"
             .tr
             .replaceOne("$absBalance ${balance.token.symbol}"));
   }
@@ -129,7 +136,7 @@ abstract class TransactionFee with Equality {
   bool get hasFee => fee.largerThanZero;
 
   @override
-  List get variabels => [type, fee, error, description];
+  List get variables => [type, fee, error, description];
 }
 
 abstract class DefaultTransactionFee extends TransactionFee {
@@ -279,8 +286,7 @@ abstract class ITransaction<TXDATA extends ITransactionData,
   const ITransaction({required this.account, required this.transactionData});
 }
 
-abstract class ISignedTransaction<T extends ITransaction,
-    SERIALIZEDTX extends Object> {
+abstract class ISignedTransaction<T extends ITransaction, SERIALIZEDTX extends Object> {
   final T transaction;
   final List<List<int>> signatures;
   final SERIALIZEDTX finalTransactionData;
@@ -323,11 +329,10 @@ abstract class TransactionResourceRequirement<T extends Object?> {
 typedef TRANSACTIONSTATECONTROLLERFEE<FEE extends TransactionFeeData>
     = TransactionStateController<
         TokenCore,
+        WalletNetwork,
         ChainAccount,
         NetworkClient,
-        WalletNetwork,
-        APPCHAINACCOUNTCLIENTNETWORK<ChainAccount, NetworkClient,
-            WalletNetwork>,
+        APPCHAIN,
         ITransactionData,
         ITransaction<ITransactionData, ChainAccount>,
         ISignedTransaction<ITransaction, Object>,

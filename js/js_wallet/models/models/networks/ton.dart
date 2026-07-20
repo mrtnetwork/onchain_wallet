@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../utils/utils.dart';
 import '../../models.dart';
 import 'wallet_standard.dart';
@@ -16,8 +18,7 @@ class TonJSConst {
 }
 
 @JS()
-extension type JSTonSendOrSignTransactionMessageParams._(JSObject _)
-    implements JSAny {
+extension type JSTonSendOrSignTransactionMessageParams._(JSObject _) implements JSAny {
   external String? get address;
   external String? get amount;
   external String? stateInit;
@@ -39,8 +40,7 @@ extension type JSTonSignMessageParams._(JSObject _) implements JSAny {
 }
 
 @JS()
-extension type JSTonWalletAccount._(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSTonWalletAccount._(JSObject _) implements JSWalletStandardAccount {
   factory JSTonWalletAccount.setup(
       {required String address,
       required List<int> publicKey,
@@ -79,8 +79,7 @@ extension type TonWalletAdapterTonSignAndSendTransactionFeature(JSAny _)
 }
 
 @JS()
-extension type TonWalletAdapterTonSignTransactionFeature(JSAny _)
-    implements JSAny {
+extension type TonWalletAdapterTonSignTransactionFeature(JSAny _) implements JSAny {
   factory TonWalletAdapterTonSignTransactionFeature.setup(
       {required JSFunction signTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -106,8 +105,7 @@ extension type TonWalletAdapterTonSignMessageFeature(JSAny _) implements JSAny {
 @JS()
 extension type JSTonWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSTonWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSTonWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;
@@ -132,8 +130,7 @@ extension type JSTonSendTransactionResponse(JSAny _) implements JSAny {
 @JS()
 extension type JSTonSignTransactionResponse(JSAny _) implements JSAny {
   factory JSTonSignTransactionResponse.setup(String externalMessage) {
-    return JSTonSignTransactionResponse(JSObject())
-      ..externalMessage = externalMessage;
+    return JSTonSignTransactionResponse(JSObject())..externalMessage = externalMessage;
   }
   external String get externalMessage;
   external set externalMessage(String _);

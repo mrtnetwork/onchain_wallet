@@ -12,9 +12,9 @@ class BackupWalletView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseRequirePassword,
-            WalletCredentialRequirePassword>(
-        request: WalletCredentialRequirePassword(),
+    return AccessWalletView<WalletCredentialResponseCredential,
+            WalletCredentialPasswordRequire>(
+        request: WalletCredentialPasswordRequire(type: WalletCredentialType.backup),
         onAccsess: (credential) {
           return _BackupWallet(credential: credential.id);
         },
@@ -114,8 +114,8 @@ class _BackupWalletState extends State<_BackupWallet>
   Future<void> selectChains() async {
     final chains = await context.openDialogPage<List<Chain>>(
       '',
-      child: (context) => _SelectBackupChains(
-          chains: appChains, selectedChains: selectedChains),
+      child: (context) =>
+          _SelectBackupChains(chains: appChains, selectedChains: selectedChains),
     );
     if (chains == null) return;
     selectedChains = chains;
@@ -174,8 +174,7 @@ class _BackupWalletState extends State<_BackupWallet>
                             ],
                           )),
                       WidgetConstant.height20,
-                      Text("backup_options".tr,
-                          style: context.textTheme.titleMedium),
+                      Text("backup_options".tr, style: context.textTheme.titleMedium),
                       Text("backup_options_desc".tr),
                       WidgetConstant.height8,
                       AppCheckListTile(
@@ -204,8 +203,7 @@ class _BackupWalletState extends State<_BackupWallet>
                         title: Text("password".tr),
                         subtitle: ConditionalWidget(
                             enable: !setupPassword,
-                            onDeactive: (context) =>
-                                Text("use_new_password".tr),
+                            onDeactive: (context) => Text("use_new_password".tr),
                             onActive: (context) =>
                                 Text("use_current_wallet_password".tr)),
                         onChanged: (v) {
@@ -223,8 +221,7 @@ class _BackupWalletState extends State<_BackupWallet>
                                       obscureText: true,
                                       initialValue: password,
                                       onChanged: onChangePassword,
-                                      keyboardType:
-                                          TextInputType.visiblePassword,
+                                      keyboardType: TextInputType.visiblePassword,
                                       textInputAction: TextInputAction.go,
                                       disableContextMenu: true,
                                       nextFocus: nextFocus,
@@ -232,8 +229,7 @@ class _BackupWalletState extends State<_BackupWallet>
                                           WidgetConstant.sizedBox,
                                       validator: onValidatePassword,
                                       label: "enter_new_password".tr),
-                                  PasswordStrengthIndicator(
-                                      strength: passwordStrength),
+                                  PasswordStrengthIndicator(strength: passwordStrength),
                                   WidgetConstant.height20,
                                   AppTextField(
                                     obscureText: true,
@@ -270,8 +266,7 @@ class _BackupWalletState extends State<_BackupWallet>
                                       obscureText: true,
                                       initialValue: passphrase,
                                       onChanged: onChangePassPhrase,
-                                      keyboardType:
-                                          TextInputType.visiblePassword,
+                                      keyboardType: TextInputType.visiblePassword,
                                       textInputAction: TextInputAction.done,
                                       disableContextMenu: true,
                                       validator: passPhraseValidator,
@@ -306,8 +301,7 @@ class _BackupWalletState extends State<_BackupWallet>
 class _SelectBackupChains extends StatefulWidget {
   final List<Chain> chains;
   final List<Chain>? selectedChains;
-  const _SelectBackupChains(
-      {required this.chains, required this.selectedChains});
+  const _SelectBackupChains({required this.chains, required this.selectedChains});
 
   @override
   State<_SelectBackupChains> createState() => _SelectBackupChainsState();
@@ -365,8 +359,7 @@ class _SelectBackupChainsState extends State<_SelectBackupChains>
                 icon: ConditionalWidget(
                     enable: allSelected,
                     onActive: (context) => Icon(Icons.check_box),
-                    onDeactive: (context) =>
-                        Icon(Icons.check_box_outline_blank)),
+                    onDeactive: (context) => Icon(Icons.check_box_outline_blank)),
               )
             ],
             pinned: true,

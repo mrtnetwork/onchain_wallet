@@ -1,4 +1,4 @@
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/swap/controller/controller/controller.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
@@ -10,8 +10,7 @@ class RouteConfigView extends StatelessWidget {
   final APPSwapRoutes routes;
   final SwapStateController controller;
 
-  const RouteConfigView(
-      {required this.routes, required this.controller, super.key});
+  const RouteConfigView({required this.routes, required this.controller, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +48,10 @@ class RouteConfigView extends StatelessWidget {
                                       enable: route.bps?.bpsPercentage != null,
                                       onActive: (context) => Text(
                                             route.bps!.bpsPercentage,
-                                            style: context.textTheme.labelSmall
-                                                ?.copyWith(
-                                                    color: (route.bps?.minus ??
-                                                            false)
-                                                        ? context.colors.onError
-                                                        : context
-                                                            .colors.onGreen),
+                                            style: context.textTheme.labelSmall?.copyWith(
+                                                color: (route.bps?.minus ?? false)
+                                                    ? context.colors.onError
+                                                    : context.colors.onGreen),
                                           )),
                                   child: AnimatedContainer(
                                       padding: WidgetConstant.padding5,
@@ -83,12 +79,10 @@ class RouteConfigView extends StatelessWidget {
                               child: Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    Icon(Icons.timer,
-                                        color: context.onPrimaryContainer),
+                                    Icon(Icons.timer, color: context.onPrimaryContainer),
                                     Expanded(
                                       child: Text(timeout.toString(),
-                                          style: context
-                                              .onPrimaryTextTheme.labelLarge),
+                                          style: context.onPrimaryTextTheme.labelLarge),
                                     )
                                   ]),
                             );
@@ -150,8 +144,7 @@ class RouteInfoView extends StatelessWidget {
                           style: context.primaryTextTheme.labelSmall),
                       child: Row(
                         children: [
-                          Icon(Icons.arrow_downward,
-                              color: context.primaryContainer),
+                          Icon(Icons.arrow_downward, color: context.primaryContainer),
                           WidgetConstant.width8,
                           Expanded(
                             child: Column(
@@ -180,13 +173,11 @@ class RouteInfoView extends StatelessWidget {
                           backgroundColor: context.onPrimaryContainer,
                           child: Row(
                             children: [
-                              Icon(Icons.show_chart,
-                                  color: context.primaryContainer),
+                              Icon(Icons.show_chart, color: context.primaryContainer),
                               WidgetConstant.width8,
                               Expanded(
                                   child: Text("market_price_unavailable".tr,
-                                      style:
-                                          context.primaryTextTheme.bodyMedium)),
+                                      style: context.primaryTextTheme.bodyMedium)),
                             ],
                           ),
                         ),
@@ -202,8 +193,7 @@ class RouteInfoView extends StatelessWidget {
                         onRemove: () {},
                         child: Row(
                           children: [
-                            Icon(Icons.show_chart,
-                                color: context.primaryContainer),
+                            Icon(Icons.show_chart, color: context.primaryContainer),
                             WidgetConstant.width8,
                             Expanded(
                               child: Column(
@@ -229,12 +219,10 @@ class RouteInfoView extends StatelessWidget {
                       widget: (context) => _RouteFeesView(fees: route.fees),
                       label: 'fees'.tr);
                 },
-                onRemoveIcon:
-                    Icon(Icons.info, color: context.colors.primaryContainer),
+                onRemoveIcon: Icon(Icons.info, color: context.colors.primaryContainer),
                 child: Row(
                   children: [
-                    Icon(Icons.local_gas_station,
-                        color: context.colors.primaryContainer),
+                    Icon(Icons.local_gas_station, color: context.colors.primaryContainer),
                     WidgetConstant.width8,
                     Expanded(
                         child: ConditionalWidget(
@@ -267,13 +255,13 @@ class RouteInfoView extends StatelessWidget {
                         backgroundColor: context.onPrimaryContainer,
                         child: Row(
                           children: [
-                            Icon(Icons.timer,
-                                color: context.colors.primaryContainer),
+                            Icon(Icons.timer, color: context.colors.primaryContainer),
                             WidgetConstant.width8,
                             Expanded(
                                 child: Text(
-                                    "n_minutes".tr.replaceOne(
-                                        route.route.estimateTime.toString()),
+                                    "n_minutes"
+                                        .tr
+                                        .replaceOne(route.route.estimateTime.toString()),
                                     style: context.primaryTextTheme.bodyMedium))
                           ],
                         ),
@@ -284,8 +272,7 @@ class RouteInfoView extends StatelessWidget {
                 backgroundColor: context.onPrimaryContainer,
                 child: Row(
                   children: [
-                    Icon(Icons.timer_off,
-                        color: context.colors.primaryContainer),
+                    Icon(Icons.timer_off, color: context.colors.primaryContainer),
                     WidgetConstant.width8,
                     Expanded(
                         child: ConditionalWidget(
@@ -317,8 +304,7 @@ class ThorSwapConfigView extends StatelessWidget {
                 backgroundColor: context.onPrimaryContainer,
                 child: Row(
                   children: [
-                    Text("tolerance".tr,
-                        style: context.primaryTextTheme.bodyMedium),
+                    Text("tolerance".tr, style: context.primaryTextTheme.bodyMedium),
                     Expanded(
                       child: Slider(
                         min: 0.0,
@@ -363,24 +349,21 @@ class _FeeInfo extends StatelessWidget {
         WidgetConstant.height8,
         ContainerWithBorder(
           backgroundColor: context.onPrimaryContainer,
-          child: Text(fee.fee.type.camelCase,
-              style: context.primaryTextTheme.bodyMedium),
+          child: Text(fee.fee.type.camelCase, style: context.primaryTextTheme.bodyMedium),
         ),
         WidgetConstant.height20,
         ConditionalWidget(
             enable: fee.token != null,
             onDeactive: (context) =>
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text("asset".tr,
-                      style: context.onPrimaryTextTheme.titleMedium),
+                  Text("asset".tr, style: context.onPrimaryTextTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
                       child: Text(fee.fee.asset,
                           style: context.primaryTextTheme.bodyMedium)),
                   WidgetConstant.height20,
-                  Text("amount".tr,
-                      style: context.onPrimaryTextTheme.titleMedium),
+                  Text("amount".tr, style: context.onPrimaryTextTheme.titleMedium),
                   WidgetConstant.height8,
                   ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
@@ -390,8 +373,7 @@ class _FeeInfo extends StatelessWidget {
             onActive: (context) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("amount".tr,
-                        style: context.onPrimaryTextTheme.titleMedium),
+                    Text("amount".tr, style: context.onPrimaryTextTheme.titleMedium),
                     WidgetConstant.height8,
                     ContainerWithBorder(
                         backgroundColor: context.onPrimaryContainer,

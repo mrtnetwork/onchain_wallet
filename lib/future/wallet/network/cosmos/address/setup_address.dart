@@ -2,7 +2,7 @@ import 'package:cosmos_sdk/cosmos_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
@@ -13,9 +13,8 @@ class SetupCosmosAddressView extends StatefulWidget {
   State<SetupCosmosAddressView> createState() => _SetupCosmosAddressViewState();
 }
 
-class _SetupCosmosAddressViewState extends State<SetupCosmosAddressView>
-    with SafeState {
-  WalletCosmosNetwork get network => widget.controller.network.toNetwork();
+class _SetupCosmosAddressViewState extends State<SetupCosmosAddressView> with SafeState {
+  WalletCosmosNetwork get network => widget.controller.network.cast();
   late final List<CosmosKeysAlgs> keyAlgs;
   Map<CosmosKeysAlgs, Widget> algsItems = {};
   late CosmosKeysAlgs keyAlg;
@@ -40,8 +39,8 @@ class _SetupCosmosAddressViewState extends State<SetupCosmosAddressView>
   void generateAddress() async {
     final selectedAlg = keyAlg;
     final coin = selectedAlg.coin(network.coinParam.chainType);
-    final keyIndex = await widget.controller.getCoin(
-        context: context, seedGeneration: SeedTypes.bip39, selectedCoins: coin);
+    final keyIndex = await widget.controller
+        .getCoin(context: context, seedGeneration: SeedTypes.bip39, selectedCoins: coin);
     if (keyIndex == null) return;
 
     final newAccount = CosmosNewAddressParams(
@@ -61,10 +60,7 @@ class _SetupCosmosAddressViewState extends State<SetupCosmosAddressView>
         Text("cosmos_key_alg_desc".tr),
         WidgetConstant.height8,
         AppDropDownBottom(
-            items: algsItems,
-            hint: "key_alg".tr,
-            onChanged: onChangeAlg,
-            value: keyAlg),
+            items: algsItems, hint: "key_alg".tr, onChanged: onChangeAlg, value: keyAlg),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

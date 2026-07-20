@@ -18,9 +18,7 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
         SuiTransactionSignerController {
   Token get transferToken;
   SuiTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   late final LiveFormFields<SuiTransferDetails> recipients =
       LiveFormFields<SuiTransferDetails>(
@@ -91,8 +89,7 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
           return SuiArgumentInput(index + i);
         }),
         coin: object == null ? SuiArgumentGasCoin() : SuiArgumentInput(0));
-    final amounts =
-        destionations.map((e) => SuiCallArgPure.u64(e.amount)).toList();
+    final amounts = destionations.map((e) => SuiCallArgPure.u64(e.amount)).toList();
     final addresses = destionations.map((e) => e.recipient).toList();
     final transfers = List.generate(destionations.length, (i) {
       return SuiCommandTransferObjects(objects: [
@@ -100,8 +97,7 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
       ], address: SuiArgumentInput(index + i + amounts.length));
     });
     final kind = SuiProgrammableTransaction(inputs: [
-      if (object != null)
-        SuiCallArgObject(SuiObjectArgImmOrOwnedObject(object)),
+      if (object != null) SuiCallArgObject(SuiObjectArgImmOrOwnedObject(object)),
       ...amounts,
       ...addresses,
     ], commands: [
@@ -111,18 +107,16 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
     return SuiTransactionDataV1(
         expiration: const SuiTransactionExpirationNone(),
         sender: owner,
-        gasData: SuiGasData(
-            payment: [], owner: owner, price: gasPrice, budget: budget),
+        gasData: SuiGasData(payment: [], owner: owner, price: gasPrice, budget: budget),
         kind: SuiTransactionKindProgrammableTransaction(kind));
   }
 
   @override
-  Future<ISuiSignedTransaction<T>> signTransaction(
-      ISuiTransaction<T> transaction,
+  Future<ISuiSignedTransaction<T>> signTransaction(ISuiTransaction<T> transaction,
       {bool fakeSignature = false}) async {
     final transactionWithGas = await filledGasPayment(transaction.transaction);
-    final signedTx = await signTransactionInternal(
-        transaction: transactionWithGas, signer: address);
+    final signedTx =
+        await signTransactionInternal(transaction: transactionWithGas, signer: address);
     return ISuiSignedTransaction(
         transaction: ISuiTransaction(
             account: address,
@@ -140,8 +134,8 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
   @override
   Future<SuiTransactionDataV1> simulateTransaction(
       {required BigInt gasPrice, required BigInt budget}) async {
-    final transaction = await buildTransaction(
-        simulate: true, gasPrice: gasPrice, budget: budget);
+    final transaction =
+        await buildTransaction(simulate: true, gasPrice: gasPrice, budget: budget);
     return transaction.transaction;
   }
 
@@ -152,9 +146,7 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
         tx: signedTransaction.finalTransactionData,
         signatures: [signedTransaction.suiSignature]);
     return SubmitTransactionSuccess(
-        txId: txId.digest,
-        warning: txId.error,
-        signedTransaction: signedTransaction);
+        txId: txId.digest, warning: txId.error, signedTransaction: signedTransaction);
   }
 
   @override
@@ -163,7 +155,6 @@ abstract class SuiTransactionStateController<T extends ISuiTransactionData>
     for (final i in [...recipients.value]) {
       i.dispose();
     }
-    recipients.dispose();
   }
 
   @override

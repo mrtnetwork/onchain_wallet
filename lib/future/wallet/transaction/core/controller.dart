@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:flutter/widgets.dart';
+import 'package:on_chain_bridge/dev/dev.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/pages/state_warning.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
@@ -15,7 +17,7 @@ mixin TransactionStatePageController<
     SUCCESS extends SubmitTransactionSuccess,
     SIGNEDTX,
     CHAINTRANSACTION extends ChainTransaction,
-    ACCOUNT extends Chain> on DisposableMixin {
+    ACCOUNT extends APPCHAIN> on DisposableMixin {
   WalletNetwork get network;
   final StreamPageProgressController pageKey =
       StreamPageProgressController(initialStatus: StreamWidgetStatus.progress);
@@ -24,12 +26,8 @@ mixin TransactionStatePageController<
     pageKey.backToIdle();
   }
 
-  void setPageProgress({String? text}) {
-    if (text == null) {
-      pageKey.progress();
-    } else {
-      pageKey.progressText(text);
-    }
+  void setPageProgress(String text, {LivePercentProgressBar? progressBar}) {
+    pageKey.progressText(text, progressBar: progressBar);
   }
 
   Widget onTxCompleteWidget({
@@ -50,36 +48,30 @@ mixin TransactionStatePageController<
     required ACCOUNT account,
   }) {
     pageKey.success(
-        progressWidget: onTxCompleteWidget(
-            transaction: transaction, txId: txId, account: account),
+        progressWidget:
+            onTxCompleteWidget(transaction: transaction, txId: txId, account: account),
         backToIdle: false);
     final txUrl = network.getTransactionExplorer(txId.txId);
-    appLogger.debug(
-        runtime: runtimeType,
-        functionName: "setTxComplete",
-        msg: "txID: ${txId.txId}. $txUrl");
+    Logging.debug(
+      fn: () => AppLogData(
+          runtime: runtimeType,
+          function: "setTxComplete",
+          msg: "txID: ${txId.txId}. $txUrl"),
+    );
   }
 
-  void setPageError(String error,
-      {bool backToIdle = false, bool showBackButton = true}) {
-    pageKey.errorText(error,
-        backToIdle: backToIdle, showBackButton: showBackButton);
+  void setPageError(String error, {bool backToIdle = false, bool showBackButton = true}) {
+    pageKey.errorText(error, backToIdle: backToIdle, showBackButton: showBackButton);
   }
 
   @override
   void dispose() {
     pageKey.dispose();
     super.dispose();
-    appLogger.debug(functionName: "dispose", runtime: runtimeType, msg: "Page");
   }
 }
 
-enum TransactionStateControllerEventType {
-  transaction,
-  signedTx,
-  submitTx,
-  walletTxs
-}
+enum TransactionStateControllerEventType { transaction, signedTx, submitTx, walletTxs }
 
 class TransactionStateControllerEvent<
     ACCOUNT extends ChainAccount,
@@ -94,20 +86,15 @@ class TransactionStateControllerEvent<
   final SUCCESS? submitTx;
   final List<IWalletTransaction<T, ACCOUNT>>? walletTxs;
   const TransactionStateControllerEvent(
-      {required this.type,
-      this.tx,
-      this.signedTx,
-      this.submitTx,
-      this.walletTxs});
+      {required this.type, this.tx, this.signedTx, this.submitTx, this.walletTxs});
 }
 
 abstract class TransactionStateController<
         TOKEN extends TokenCore,
-        ACCOUNT extends ChainAccount<dynamic, TOKEN, NFTCore, ChainTransaction>,
-        CLIENT extends NetworkClient,
         NETWORK extends WalletNetwork,
-        C extends APPCHAINTOKENACCOUNTCLIENTNETWORK<TOKEN, ACCOUNT, CLIENT,
-            NETWORK>,
+        ACCOUNT extends ChainAccount<IAddress, TOKEN, NFTCore, ChainTransaction, NETWORK>,
+        CLIENT extends CLIENTNWORK<NETWORK>,
+        C extends APPCHAINTOKENNETWORKACCOUNTCLIENT<TOKEN, NETWORK, ACCOUNT, CLIENT>,
         TRANSACTIONDATA extends ITransactionData,
         TRANSACTION extends ITransaction<TRANSACTIONDATA, ACCOUNT>,
         SIGNEDTX extends ISignedTransaction<TRANSACTION, Object>,
@@ -118,30 +105,27 @@ abstract class TransactionStateController<
         DisposableMixin,
         StreamStateController,
         TransactionStatePageController<SUCCESS, SIGNEDTX, T, C> {
+  List<TOKEN> _addressTokens = [];
+  List<TOKEN> get addressTokens => _addressTokens;
   final lock = SafeAtomicLock();
   StreamSubscription<void>? _feeListener;
   StreamSubscription<IntegerBalance>? _accountListener;
-  final StreamValue<TransactionStateStatus> stateStatus =
-      StreamValue(TransactionStateStatus.error());
-  final StreamController<
-      TransactionStateControllerEvent<ACCOUNT, TRANSACTIONDATA, TRANSACTION,
-          SIGNEDTX, T, SUCCESS>> _event = StreamController.broadcast();
+  late final StreamValue<TransactionStateStatus> stateStatus =
+      StreamValue(TransactionStateStatus.error(), name: "$runtimeType");
+  late final SafeStreamController<
+          TransactionStateControllerEvent<ACCOUNT, TRANSACTIONDATA, TRANSACTION, SIGNEDTX,
+              T, SUCCESS>> _event =
+      SafeStreamController.broadcast(name: "TransactionStateController.$runtimeType");
   Stream<
-      TransactionStateControllerEvent<
-          ACCOUNT,
-          TRANSACTIONDATA,
-          TRANSACTION,
-          SIGNEDTX,
-          T,
+      TransactionStateControllerEvent<ACCOUNT, TRANSACTIONDATA, TRANSACTION, SIGNEDTX, T,
           SUCCESS>> onStateEvent({TransactionStateControllerEventType? type}) {
-    if (type == null) return _event.stream;
-    return _event.stream.where((e) => e.type == type);
+    if (type == null) return _event.stream();
+    return _event.stream().where((e) => e.type == type);
   }
 
   FEE get txFee;
   TransactionOperations get operation;
-  final ACCOUNT _address;
-  ACCOUNT get address => _address;
+  final ACCOUNT address;
   late CLIENT _client;
   CLIENT get client => _client;
   final WalletProvider walletProvider;
@@ -150,16 +134,12 @@ abstract class TransactionStateController<
   final NETWORK network;
   bool get swtichAddressEnabled => true;
   TransactionStateController(
-      {required this.walletProvider,
-      required this.account,
-      required ACCOUNT address})
-      : network = account.network,
-        _address = address;
-  TransactionStateController cloneController(ACCOUNT address);
+      {required this.walletProvider, required this.account, required this.address})
+      : network = account.network;
+  Future<TransactionStateController> cloneController(ACCOUNT address);
   Widget widgetBuilder(BuildContext context);
   Future<TRANSACTION> buildTransaction({bool simulate = false});
-  Future<SIGNEDTX> signTransaction(TRANSACTION transaction,
-      {bool fakeSignature = false});
+  Future<SIGNEDTX> signTransaction(TRANSACTION transaction, {bool fakeSignature = false});
   Future<SubmitTransactionResult> submitTransaction(
       {required SIGNEDTX signedTransaction});
   Future<List<IWalletTransaction<T, ACCOUNT>>> buildWalletTransaction(
@@ -167,7 +147,7 @@ abstract class TransactionStateController<
   Future<TRANSACTIONDATA> buildTransactionData({bool simulate = false});
   Future<void> estimateFee();
   BigInt getMaxFeeInput() {
-    return address.address.currencyBalance;
+    return address.addressData.currencyBalance;
   }
 
   void onFeeUpdated(void _) {
@@ -203,8 +183,8 @@ abstract class TransactionStateController<
     bool updateTokens = false,
   }) async {
     _feeListener = txFee.stream.listen(onFeeUpdated);
-    _accountListener = account.address.address.balance.stream
-        .listen((_) => onAccountUpdated());
+    _accountListener =
+        account.addressSync.addressData.balance.stream.listen((_) => onAccountUpdated());
     if (updateAccount || updateTokens) {
       account.updateAddressBalance(address, tokens: updateTokens);
     }
@@ -217,82 +197,94 @@ abstract class TransactionStateController<
       required SUCCESS txId}) async {
     final txes = await buildWalletTransaction(signedTx: signedTx, txId: txId);
     for (final i in txes) {
-      await account.saveTransaction(
-          address: i.account, transaction: i.transaction);
+      await account.saveTransaction(address: i.account, transaction: i.transaction);
     }
 
     return txes;
   }
 
+  Future<IResult<TRANSACTION>> onTranactionCreatedInternal({
+    required TRANSACTION transaction,
+    required BuildContext context,
+  }) async {
+    return ResultOk(transaction);
+  }
+
   Future<void> signAndSendTransaction({
-    BuildContext? context,
+    required BuildContext context,
     Future<TRANSACTION?> Function(TRANSACTION)? onTransactionCreated,
     Future<SIGNEDTX?> Function(SIGNEDTX)? onTransactionSigned,
   }) async {
     stateStatus.value = getStateStatus();
     if (stateStatus.value.status.hasError) return;
     final warning = stateStatus.value.warning;
-    if (context != null && warning != null) {
+    if (warning != null) {
       final accept = await context.openSliverDialog(
           widget: (context) => TransactionStateWarningView(warning: warning));
       if (accept != true) return;
     }
-    setPageProgress(text: "creating_transaction".tr);
-    final result = await MethodUtils.call(() async {
+    setPageProgress("creating_transaction".tr);
+    final result = await IResult.call(() async {
       TRANSACTION? transaction = await buildTransaction();
       if (onTransactionCreated != null) {
         transaction = await onTransactionCreated(transaction);
       }
-      if (transaction == null) return null;
+      if (transaction == null || closed) return null;
+      final txInternal =
+          await onTranactionCreatedInternal(transaction: transaction, context: context);
+      transaction = txInternal.unwrap();
       _event.add(TransactionStateControllerEvent(
-          type: TransactionStateControllerEventType.transaction,
-          tx: transaction));
-      setPageProgress(text: "signing_transaction_please_wait".tr);
+          type: TransactionStateControllerEventType.transaction, tx: transaction));
+      setPageProgress("signing_transaction_please_wait".tr);
       SIGNEDTX? signedTransaction = await signTransaction(transaction);
       if (onTransactionSigned != null) {
         signedTransaction = await onTransactionSigned(signedTransaction);
       }
-      if (signedTransaction == null) return null;
+      if (signedTransaction == null || closed) return null;
+
       _event.add(TransactionStateControllerEvent(
           type: TransactionStateControllerEventType.signedTx,
           signedTx: signedTransaction));
-      setPageProgress(text: "broadcast_to_the_network_please_wait".tr);
+      setPageProgress("broadcast_to_the_network_please_wait".tr);
+      if (closed) return null;
       SubmitTransactionResult result =
           await submitTransaction(signedTransaction: signedTransaction);
       return (transaction, signedTransaction, result);
     }, delay: APPConst.animationDuraion);
-    if (result.hasError) {
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "signAndSendTransaction",
-          msg: result.localizationError);
+    if (result.isErr) {
+      Logging.error(
+          fn: () => AppLogData(
+                runtime: runtimeType,
+                function: "signAndSendTransaction",
+                err: result.unwrapErr().exception,
+              ));
 
-      if (result.exception == WalletExceptionConst.rejectSigning) {
+      if (result.err()?.exception == WalletExceptionConst.rejectSigning) {
         setPageIdle();
       } else {
-        setPageError(result.localizationError);
+        setPageError(result.unwrapErr().localizationError);
       }
       return;
     }
-    final txResult = result.result;
+    final txResult = result.unwrap();
     if (txResult == null) {
+      if (closed) return;
       if (pageKey.status.inProgress) setPageIdle();
       return;
     }
     final submittionResult = txResult.$3;
     if (submittionResult.status.isFailed) {
       final error = (submittionResult as SubmitTransactionFailed).error;
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "signAndSendTransaction",
-          msg: error);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "signAndSendTransaction", msg: error),
+      );
       setPageError(error.tr);
       return;
     }
     final successResult = submittionResult as SUCCESS;
     _event.add(TransactionStateControllerEvent(
-        type: TransactionStateControllerEventType.submitTx,
-        submitTx: successResult));
+        type: TransactionStateControllerEventType.submitTx, submitTx: successResult));
     final walletTxs = await _buildWalletTransaction(
         transaction: txResult.$1, signedTx: txResult.$2, txId: successResult);
     IWalletTransaction<T, ACCOUNT>? currentTx;
@@ -300,14 +292,11 @@ abstract class TransactionStateController<
       currentTx = walletTxs.firstWhere((e) => e.account == address,
           orElse: () => walletTxs.first);
       _event.add(TransactionStateControllerEvent(
-          type: TransactionStateControllerEventType.walletTxs,
-          walletTxs: walletTxs));
+          type: TransactionStateControllerEventType.walletTxs, walletTxs: walletTxs));
     }
 
     setTxComplete(
-        transaction: currentTx?.transaction,
-        txId: successResult,
-        account: account);
+        transaction: currentTx?.transaction, txId: successResult, account: account);
   }
 
   void onStateUpdated() {
@@ -321,25 +310,35 @@ abstract class TransactionStateController<
   }
 
   Future<TransactionStateController> init(BuildContext context) async {
-    final init = await MethodUtils.call(() async {
-      _client = await account.client();
-      final controller = await initForm(client: _client, context: context);
-      onStateUpdated();
-      estimateFee();
-      return controller;
+    final client = await account.client();
+    final init = await client.andThenAsync((client) async {
+      final tokens = await address.getAccountTokens();
+      return tokens.mapCatchAsync((tokens) async {
+        _client = client;
+        _addressTokens = tokens;
+        final controller = await initForm(client: _client, context: context);
+        onStateUpdated();
+        estimateFee();
+        return controller;
+      });
     });
-    if (init.hasError) {
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "init",
-          msg: init.localizationError,
-          trace: init.trace);
-      setPageError(init.localizationError,
-          backToIdle: false, showBackButton: false);
-      return this;
-    }
-    setPageIdle();
-    return init.result;
+    return init.fold(
+      onErr: (error) {
+        Logging.error(
+          fn: () => AppLogData(
+              runtime: runtimeType,
+              function: "init",
+              err: error.exception,
+              trace: error.trace),
+        );
+        setPageError(error.localizationError, backToIdle: false, showBackButton: false);
+        return this;
+      },
+      onOk: (value) {
+        setPageIdle();
+        return value;
+      },
+    );
   }
 
   bool get fieldsReady => fieldsError == null;
@@ -369,9 +368,5 @@ abstract class TransactionStateController<
     for (final i in fields) {
       i.dispose();
     }
-    appLogger.debug(
-        functionName: "dispose",
-        runtime: runtimeType,
-        msg: "TransactionStateController");
   }
 }

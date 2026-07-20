@@ -1,45 +1,47 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:stellar_dart/stellar_dart.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-class StellarWalletTransaction extends ChainTransaction {
+class StellarWalletTransaction extends ChainTransaction<StellarWalletTransactionOutput> {
   StellarWalletTransaction(
-      {required super.txId,
+      {required String txId,
       DateTime? time,
       super.outputs = const [],
       super.web3Client,
       super.totalOutput,
       required WalletStellarNetwork network,
       super.type = WalletTransactionType.send,
-      super.status = WalletTransactionStatus.pending})
-      : super(time: time ?? DateTime.now());
+      super.status = WalletTransactionStatus.pending,
+      super.memos})
+      : super(time: time ?? DateTime.now(), txId: StringUtils.normalizeHex(txId));
 
   factory StellarWalletTransaction.deserialize(WalletStellarNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: NetworkType.stellar.tag);
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.stellar.identifier);
     return StellarWalletTransaction(
-        txId: values.elementAs(0),
-        time: values.elementAs(1),
+        txId: values.rawValueAt(0),
+        time: values.rawValueAt(1),
         network: network,
-        totalOutput: values.elemetMybeAs<WalletTransactionAmount, CborTagValue>(
+        totalOutput: values.maybeObjectAt<WalletTransactionAmount, CborTagValue>(
             2, (e) => WalletTransactionAmount.deserialize(network, object: e)),
         outputs: values
-            .elementAsListOf<CborTagValue>(3)
-            .map((e) =>
-                StellarWalletTransactionOutput.deserialize(network, object: e))
+            .listAt<CborTagValue>(3)
+            .map((e) => StellarWalletTransactionOutput.deserialize(network, object: e))
             .toList(),
-        web3Client:
-            values.elemetMybeAs<WalletWeb3ClientTransaction, CborTagValue>(
-                4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
-        type: WalletTransactionType.fromValue(values.elementAs(5)),
-        status: WalletTransactionStatus.fromValue(values.elementAs(6)));
+        web3Client: values.maybeObjectAt<WalletWeb3ClientTransaction, CborTagValue>(
+            4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
+        type: WalletTransactionType.fromValue(values.rawValueAt(5)),
+        status: WalletTransactionStatus.fromValue(values.rawValueAt(6)),
+        memos: values
+            .listAt<CborTagValue>(7)
+            .map((e) => WalletTransactionMemo.deserialize(object: e))
+            .toList());
   }
 
   @override
@@ -48,21 +50,18 @@ class StellarWalletTransaction extends ChainTransaction {
 
 abstract class StellarWalletTransactionOutput extends WalletTransactionOutput {
   const StellarWalletTransactionOutput({required super.type});
-  factory StellarWalletTransactionOutput.deserialize(
-      WalletStellarNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
+  factory StellarWalletTransactionOutput.deserialize(WalletStellarNetwork network,
+      {List<int>? bytes, CborObject? object}) {
     final CborTagValue tag =
-        CborSerializable.decode(cborBytes: bytes, hex: cborHex, object: object);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
     final type = WalletTransactionOutputType.fromTag(tag.tags);
     return switch (type) {
       WalletTransactionOutputType.transfer =>
         StellarWalletTransactionTransferOutput.deserialize(network,
-            bytes: bytes, cborHex: cborHex, object: object),
+            bytes: bytes, object: object),
       WalletTransactionOutputType.operation =>
         StellarWalletTransactionOperationOutput.deserialize(network,
-            bytes: bytes, cborHex: cborHex, object: object),
+            bytes: bytes, object: object),
       _ => throw WalletExceptionConst.invalidWalletTransactionData
     };
   }
@@ -74,35 +73,27 @@ class StellarWalletTransactionTransferOutput
   const StellarWalletTransactionTransferOutput(
       {required super.to, required super.amount});
 
-  factory StellarWalletTransactionTransferOutput.deserialize(
-      WalletStellarNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory StellarWalletTransactionTransferOutput.deserialize(WalletStellarNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.transfer.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.transfer.tag);
     return StellarWalletTransactionTransferOutput(
         amount: WalletTransactionIntegerAmount.deserialize(network,
-            object: values.elementAs<CborTagValue>(0)),
-        to: StellarAddress.fromBase32Addr(values.elementAs(1)));
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([amount.toCbor(), to.baseAddress]),
-        type.tag);
+            object: values.objectAt<CborTagValue>(0)),
+        to: StellarAddress.deserializeIAddress(bytes: values.rawValueAt(1)));
   }
 
   @override
   String get address => to.baseAddress;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [amount.toCbor(), CborBytesValue(to.encodeAsIAddress())];
 }
 
-class StellarWalletTransactionOperationOutput
-    extends WalletTransactionOperationOutput
+class StellarWalletTransactionOperationOutput extends WalletTransactionOperationOutput
     implements StellarWalletTransactionOutput {
   const StellarWalletTransactionOperationOutput(
       {required super.name, super.amount, super.content});
@@ -110,27 +101,19 @@ class StellarWalletTransactionOperationOutput
   factory StellarWalletTransactionOperationOutput.deserialize(
       WalletStellarNetwork network,
       {List<int>? bytes,
-      String? cborHex,
       CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.operation.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.operation.tag);
     return StellarWalletTransactionOperationOutput(
-        name: values.elementAs(0),
-        amount:
-            values.elemetMybeAs<WalletTransactionIntegerAmount, CborTagValue>(
-                1,
-                (e) => WalletTransactionIntegerAmount.deserialize(network,
-                    object: e)),
-        content: values.elementAs(2));
+        name: values.rawValueAt(0),
+        amount: values.maybeObjectAt<WalletTransactionIntegerAmount, CborTagValue>(
+            1, (e) => WalletTransactionIntegerAmount.deserialize(network, object: e)),
+        content: values.rawValueAt(2));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([name, amount?.toCbor(), content]),
-        type.tag);
-  }
+  List<CborObject?> get serializationItems =>
+      [name.toCbor(), amount?.toCbor(), content?.toCbor()];
 }

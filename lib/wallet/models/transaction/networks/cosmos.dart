@@ -1,50 +1,53 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:cosmos_sdk/cosmos_sdk.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 
-class CosmosWalletTransaction extends ChainTransaction {
+class CosmosWalletTransaction
+    extends ChainTransaction<CosmosWalletTransactionTransferOutput> {
   CosmosWalletTransaction(
-      {required super.txId,
+      {required String txId,
       required super.time,
       required super.outputs,
       super.web3Client,
       required super.totalOutput,
       required WalletCosmosNetwork network,
       WalletTransactionType? type,
-      super.status = WalletTransactionStatus.block})
+      super.memos,
+      super.status = WalletTransactionStatus.pending})
       : super(
             type: type ??
                 (web3Client != null
                     ? WalletTransactionType.web3
-                    : WalletTransactionType.send));
+                    : WalletTransactionType.send),
+            txId: StringUtils.normalizeHex(txId));
 
   factory CosmosWalletTransaction.deserialize(WalletCosmosNetwork network,
-      {List<int>? bytes, String? cborHex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: NetworkType.cosmos.tag);
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.cosmos.identifier);
     return CosmosWalletTransaction(
-        txId: values.elementAs(0),
-        time: values.elementAs(1),
+        txId: values.rawValueAt(0),
+        time: values.rawValueAt(1),
         network: network,
-        totalOutput: values.elemetMybeAs<WalletTransactionAmount, CborTagValue>(
+        totalOutput: values.maybeObjectAt<WalletTransactionAmount, CborTagValue>(
             2, (e) => WalletTransactionAmount.deserialize(network, object: e)),
         outputs: values
-            .elementAsListOf<CborTagValue>(3)
-            .map((e) => CosmosWalletTransactionTransferOutput.deserialize(
-                network,
-                object: e))
+            .listAt<CborTagValue>(3)
+            .map((e) =>
+                CosmosWalletTransactionTransferOutput.deserialize(network, object: e))
             .toList(),
-        web3Client:
-            values.elemetMybeAs<WalletWeb3ClientTransaction, CborTagValue>(
-                4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
-        type: WalletTransactionType.fromValue(values.elementAs(5)),
-        status: WalletTransactionStatus.fromValue(values.elementAs(6)));
+        web3Client: values.maybeObjectAt<WalletWeb3ClientTransaction, CborTagValue>(
+            4, (e) => WalletWeb3ClientTransaction.deserialize(object: e)),
+        type: WalletTransactionType.fromValue(values.rawValueAt(5)),
+        status: WalletTransactionStatus.fromValue(values.rawValueAt(6)),
+        memos: values
+            .listAt<CborTagValue>(7)
+            .map((e) => WalletTransactionMemo.deserialize(object: e))
+            .toList());
   }
 
   @override
@@ -53,31 +56,24 @@ class CosmosWalletTransaction extends ChainTransaction {
 
 class CosmosWalletTransactionTransferOutput
     extends WalletTransactionTransferOutput<CosmosBaseAddress> {
-  const CosmosWalletTransactionTransferOutput(
-      {required super.to, required super.amount});
+  const CosmosWalletTransactionTransferOutput({required super.to, required super.amount});
 
-  factory CosmosWalletTransactionTransferOutput.deserialize(
-      WalletCosmosNetwork network,
-      {List<int>? bytes,
-      String? cborHex,
-      CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory CosmosWalletTransactionTransferOutput.deserialize(WalletCosmosNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: cborHex,
-        object: object,
-        tags: WalletTransactionOutputType.transfer.tag);
+        cborObject: object,
+        identifier: WalletTransactionOutputType.transfer.tag);
     return CosmosWalletTransactionTransferOutput(
         amount: WalletTransactionIntegerAmount.deserialize(network,
-            object: values.elementAs<CborTagValue>(0)),
-        to: CosmosBaseAddress(values.elementAs(1)));
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([amount.toCbor(), to.address]), type.tag);
+            object: values.objectAt<CborTagValue>(0)),
+        to: CosmosBaseAddress.deserializeIAddress(bytes: values.rawValueAt(1)));
   }
 
   @override
   String get address => to.address;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [amount.toCbor(), CborBytesValue(to.encodeAsIAddress())];
 }

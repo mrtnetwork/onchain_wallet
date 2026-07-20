@@ -1,5 +1,5 @@
 import 'package:blockchain_utils/helper/helper.dart';
-import 'package:on_chain_wallet/app/utils/utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:ton_dart/ton_dart.dart';
@@ -31,8 +31,7 @@ class TonTransactionFee extends DefaultTransactionFee {
       required this.success,
       List<TonEmulatedMessage>? internalMessages,
       super.error})
-      : internalMessages =
-            List<TonEmulatedMessage>.unmodifiable(internalMessages ?? []);
+      : internalMessages = List<TonEmulatedMessage>.unmodifiable(internalMessages ?? []);
 
   factory TonTransactionFee.build(
       {required BigInt actionPhase,
@@ -44,19 +43,17 @@ class TonTransactionFee extends DefaultTransactionFee {
       required bool success,
       bool isEstimated = true,
       String? error}) {
-    final IntegerBalance actionPhaseP = IntegerBalance.token(
-        actionPhase, feeToken,
-        immutable: true, decimalPlaces: 2);
-    final IntegerBalance storageFeeP = IntegerBalance.token(
-        storageFee, feeToken,
-        immutable: true, decimalPlaces: 2);
-    final IntegerBalance gasFeeP = IntegerBalance.token(gasFee, feeToken,
-        immutable: true, decimalPlaces: 2);
+    final IntegerBalance actionPhaseP =
+        IntegerBalance.token(actionPhase, feeToken, immutable: true, decimalPlaces: 2);
+    final IntegerBalance storageFeeP =
+        IntegerBalance.token(storageFee, feeToken, immutable: true, decimalPlaces: 2);
+    final IntegerBalance gasFeeP =
+        IntegerBalance.token(gasFee, feeToken, immutable: true, decimalPlaces: 2);
     final IntegerBalance fee = IntegerBalance.token(
         actionPhase + storageFee + gasFee, feeToken,
         immutable: true, decimalPlaces: 2);
-    final internalFess = internalMessages.fold(BigInt.zero,
-        (previousValue, element) => previousValue + element.total.balance);
+    final internalFess = internalMessages.fold(
+        BigInt.zero, (previousValue, element) => previousValue + element.total.balance);
     final IntegerBalance totalFees = IntegerBalance.token(
         internalFess + fee.balance, feeToken,
         immutable: true, decimalPlaces: 2);
@@ -84,8 +81,8 @@ class TonTransactionFee extends DefaultTransactionFee {
         error: error);
   }
   @override
-  List get variabels => [
-        ...super.variabels,
+  List get variables => [
+        ...super.variables,
         storageFee,
         gasFee,
         actionPhase,
@@ -95,16 +92,15 @@ class TonTransactionFee extends DefaultTransactionFee {
       ];
 }
 
-class TonTransactionFeeData
-    extends TransactionDefaultFeeData<TonTransactionFee> {
+class TonTransactionFeeData extends TransactionDefaultFeeData<TonTransactionFee> {
   TonTransactionFeeData({required super.select, required super.feeToken});
 }
 
 abstract class BaseTonTransactionController extends TransactionStateController<
     TonJettonToken,
-    ITonAddress,
-    TonClient,
     WalletTonNetwork,
+    ITonAddress,
+    TonNetworkClient,
     TonChain,
     ITonTransactionData,
     ITonTransaction,
@@ -113,9 +109,7 @@ abstract class BaseTonTransactionController extends TransactionStateController<
     SubmitTransactionSuccess<ITonSignedTransaction>,
     TonTransactionFeeData> {
   BaseTonTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class ITonTransactionData extends ITransactionData {
@@ -154,8 +148,7 @@ class ITonTransaction extends ITransaction<ITonTransactionData, ITonAddress> {
       required this.stateInit});
 }
 
-class ITonSignedTransaction
-    extends ISignedTransaction<ITonTransaction, Message> {
+class ITonSignedTransaction extends ISignedTransaction<ITonTransaction, Message> {
   Cell get externalMessage => beginCell().store(finalTransactionData).endCell();
   ITonSignedTransaction(
       {required super.transaction,
@@ -174,7 +167,6 @@ class TonSimulateTransaction {
 class TonSignedTransaction {
   final Message message;
   final List<List<int>> signatures;
-  TonSignedTransaction(
-      {required this.message, required List<List<int>> signatures})
+  TonSignedTransaction({required this.message, required List<List<int>> signatures})
       : signatures = signatures.map((e) => e.asImmutableBytes).toImutableList;
 }

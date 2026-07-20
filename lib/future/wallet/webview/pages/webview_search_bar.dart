@@ -158,7 +158,7 @@ class _SearchSuggest with Equality {
   const _SearchSuggest({required this.url, this.title, required this.type});
 
   @override
-  List get variabels => [url];
+  List get variables => [url];
 }
 
 enum _SearchSuggestType { search, url, bookmark, history }

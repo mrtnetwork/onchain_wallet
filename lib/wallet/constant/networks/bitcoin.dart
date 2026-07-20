@@ -7,6 +7,7 @@ class BtcConst {
       BigRational.from(minMultiSigThreshold);
   static final BigRational maxMultiSigThresholdRational =
       BigRational.from(maxMultiSigThreshold);
-  static final int minMultiSigThreshold = 2;
-  static final int maxMultiSigThreshold = 16;
+  static const int minMultiSigThreshold = 2;
+  static const int maxMultiSigThreshold = 16;
+  static const int minCoinbaseConfirmation = 100;
 }

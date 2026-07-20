@@ -5,9 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:on_chain_bridge/models/device/models/platform.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/models/models/typedef.dart';
 
 class APPAndroidViewController<T> {
   final T controller;
@@ -22,13 +21,14 @@ class APPAndroidViewController<T> {
       required this.viewType});
   static Future<APPAndroidViewController> create(
       {required String viewType,
+      required AppPlatform platform,
       Map<String, String> createParms = const {},
       TextDirection layoutDirection = TextDirection.ltr}) async {
     final id = Random.secure().nextInt(10000) + 50;
     final node = FocusNode(debugLabel: "APPAndroidViewController $id");
     Object controller;
 
-    if (PlatformInterface.appPlatform == AppPlatform.android) {
+    if (platform.isAndroid) {
       controller = PlatformViewsService.initAndroidView(
         id: id,
         viewType: viewType,
@@ -56,16 +56,16 @@ class APPAndroidViewController<T> {
         controller: controller, id: id, node: node, viewType: viewType);
   }
 
-  Future<void> dispose() async {
-    if (PlatformInterface.appPlatform == AppPlatform.android) {
-      await (controller as AndroidViewController).dispose();
-    } else {
-      await PlatformInterface.webViewController.dispose(viewType);
-      await (controller as AppKitViewController).dispose();
-    }
+  // Future<void> dispose() async {
+  //   if (PlatformInterface.appPlatform == AppPlatform.android) {
+  //     await (controller as AndroidViewController).dispose();
+  //   } else {
+  //     await PlatformInterface.webViewController.dispose(viewType);
+  //     await (controller as AppKitViewController).dispose();
+  //   }
 
-    node.dispose();
-  }
+  //   node.dispose();
+  // }
 }
 
 class APPNativeView extends StatefulWidget {
@@ -76,18 +76,20 @@ class APPNativeView extends StatefulWidget {
       this.hitTestBehavior = PlatformViewHitTestBehavior.opaque,
       this.gestureRecognizers,
       this.clipBehavior = Clip.hardEdge,
-      this.creationParamsCodec});
+      this.creationParamsCodec,
+      required this.platform});
   final PlatformViewCreatedCallback? onPlatformViewCreated;
   final APPAndroidViewController controller;
   final PlatformViewHitTestBehavior hitTestBehavior;
   final MessageCodec<dynamic>? creationParamsCodec;
   final Set<Factory<OneSequenceGestureRecognizer>>? gestureRecognizers;
   final Clip clipBehavior;
+  final AppPlatform platform;
 
   @override
   // ignore: no_logic_in_create_state
   State<APPNativeView> createState() {
-    if (PlatformInterface.appPlatform == AppPlatform.android) {
+    if (platform.isAndroid) {
       return _AndroidViewState();
     }
     return _UiKitViewState();
@@ -123,8 +125,7 @@ class _AndroidViewState extends State<APPNativeView> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final TextDirection newLayoutDirection = _findLayoutDirection();
-    final bool didChangeLayoutDirection =
-        _layoutDirection != newLayoutDirection;
+    final bool didChangeLayoutDirection = _layoutDirection != newLayoutDirection;
     _layoutDirection = newLayoutDirection;
     if (didChangeLayoutDirection || !_initialized) {
       _initialized = true;
@@ -139,8 +140,7 @@ class _AndroidViewState extends State<APPNativeView> {
     super.didUpdateWidget(oldWidget);
 
     final TextDirection newLayoutDirection = _findLayoutDirection();
-    final bool didChangeLayoutDirection =
-        _layoutDirection != newLayoutDirection;
+    final bool didChangeLayoutDirection = _layoutDirection != newLayoutDirection;
     _layoutDirection = newLayoutDirection;
 
     if (didChangeLayoutDirection) {
@@ -198,8 +198,7 @@ class _AndroidPlatformView extends LeafRenderObjectWidget {
       );
 
   @override
-  void updateRenderObject(
-      BuildContext context, RenderAndroidView renderObject) {
+  void updateRenderObject(BuildContext context, RenderAndroidView renderObject) {
     renderObject.controller = controller;
     renderObject.hitTestBehavior = hitTestBehavior;
     renderObject.updateGestureRecognizers(gestureRecognizers);
@@ -208,10 +207,10 @@ class _AndroidPlatformView extends LeafRenderObjectWidget {
 }
 
 abstract class _DarwinViewState<
-    PlatformViewT extends APPNativeView,
-    RenderT extends RenderDarwinPlatformView,
-    ViewT extends _DarwinPlatformView<DarwinPlatformViewController,
-        RenderT>> extends State<PlatformViewT> {
+        PlatformViewT extends APPNativeView,
+        RenderT extends RenderDarwinPlatformView,
+        ViewT extends _DarwinPlatformView<DarwinPlatformViewController, RenderT>>
+    extends State<PlatformViewT> {
   AppKitViewController get controller =>
       widget.controller.controller as AppKitViewController;
   TextDirection? _layoutDirection;
@@ -225,8 +224,7 @@ abstract class _DarwinViewState<
   Widget build(BuildContext context) {
     return Focus(
         focusNode: focusNode,
-        onFocusChange: (bool isFocused) =>
-            _onFocusChange(isFocused, controller),
+        onFocusChange: (bool isFocused) => _onFocusChange(isFocused, controller),
         child: childPlatformView());
   }
 
@@ -236,8 +234,7 @@ abstract class _DarwinViewState<
   void didChangeDependencies() {
     super.didChangeDependencies();
     final TextDirection newLayoutDirection = _findLayoutDirection();
-    final bool didChangeLayoutDirection =
-        _layoutDirection != newLayoutDirection;
+    final bool didChangeLayoutDirection = _layoutDirection != newLayoutDirection;
     _layoutDirection = newLayoutDirection;
     if (didChangeLayoutDirection) {
       // The native view will update asynchronously, in the meantime we don't want
@@ -251,8 +248,7 @@ abstract class _DarwinViewState<
     super.didUpdateWidget(oldWidget);
 
     final TextDirection newLayoutDirection = _findLayoutDirection();
-    final bool didChangeLayoutDirection =
-        _layoutDirection != newLayoutDirection;
+    final bool didChangeLayoutDirection = _layoutDirection != newLayoutDirection;
     _layoutDirection = newLayoutDirection;
 
     if (didChangeLayoutDirection) {
@@ -276,8 +272,8 @@ abstract class _DarwinViewState<
   }
 }
 
-class _UiKitViewState extends _DarwinViewState<APPNativeView,
-    MyRenderAppKitView, _UiKitPlatformView> {
+class _UiKitViewState
+    extends _DarwinViewState<APPNativeView, MyRenderAppKitView, _UiKitPlatformView> {
   @override
   _UiKitPlatformView childPlatformView() {
     return _UiKitPlatformView(
@@ -289,8 +285,7 @@ class _UiKitViewState extends _DarwinViewState<APPNativeView,
   }
 }
 
-abstract class _DarwinPlatformView<
-        TController extends DarwinPlatformViewController,
+abstract class _DarwinPlatformView<TController extends DarwinPlatformViewController,
         TRender extends RenderDarwinPlatformView<TController>>
     extends LeafRenderObjectWidget {
   const _DarwinPlatformView({

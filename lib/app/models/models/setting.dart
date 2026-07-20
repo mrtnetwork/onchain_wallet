@@ -1,10 +1,10 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
 import 'package:on_chain_bridge/models/models.dart';
-import 'package:on_chain_wallet/app/constant/global/serialization.dart';
 import 'package:on_chain_wallet/app/models/models/currencies.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/app/serialization/serialization.dart';
 
-class APPWalletSetting with CborSerializable {
+class APPWalletSetting with AppSerialization {
   final bool showTestnetNetworks;
   final bool enableWebView;
   final bool enableSwap;
@@ -13,35 +13,29 @@ class APPWalletSetting with CborSerializable {
       this.enableWebView = true,
       this.enableSwap = true});
 
-  factory APPWalletSetting.deserialize({
-    List<int>? cborBytes,
-    CborObject? object,
-    String? hex,
-  }) {
+  factory APPWalletSetting.deserialize({List<int>? cborBytes, CborObject? object}) {
     try {
-      final CborListValue values = CborSerializable.cborTagValue(
+      final CborListValue values = AppSerialization.decodeTaggedValue(
           cborBytes: cborBytes,
-          hex: hex,
-          object: object,
-          tags: APPSerializationConst.walletSetting);
+          cborObject: object,
+          identifier: AppSerializationIdentifier.walletSetting);
 
       return APPWalletSetting(
-          showTestnetNetworks: values.elementAs(0),
-          enableWebView: values.elementAs(1),
-          enableSwap: values.elementAs(2));
+          showTestnetNetworks: values.rawValueAt(0),
+          enableWebView: values.rawValueAt(1),
+          enableSwap: values.rawValueAt(2));
     } catch (_) {
       return APPWalletSetting();
     }
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic(
-            [showTestnetNetworks, enableWebView, enableSwap]),
-        APPSerializationConst.walletSetting);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.walletSetting;
 
+  @override
+  List<CborObject?> get serializationItems =>
+      [showTestnetNetworks.toCbor(), enableWebView.toCbor(), enableSwap.toCbor()];
   APPWalletSetting copyWith(
       {bool? showTestnetNetworks, bool? enableWebView, bool? enableSwap}) {
     return APPWalletSetting(
@@ -51,90 +45,73 @@ class APPWalletSetting with CborSerializable {
   }
 }
 
-class APPSetting with CborSerializable {
+class APPSetting with AppSerialization {
   const APPSetting(
       {required this.appColor,
       required this.appBrightness,
       required this.currency,
-      required this.config,
       required this.walletSetting,
       this.size});
   final String? appColor;
   final String? appBrightness;
   final Currency currency;
-  final PlatformConfig config;
   final WidgetRect? size;
   final APPWalletSetting walletSetting;
 
-  bool get supportBarcodeScanner => config.hasBarcodeScanner;
-
-  APPSetting copyWith(
-      {String? appColor,
-      String? appBrightness,
-      Currency? currency,
-      WidgetRect? size,
-      APPWalletSetting? walletSetting}) {
+  APPSetting copyWith({
+    String? appColor,
+    String? appBrightness,
+    Currency? currency,
+    WidgetRect? size,
+    APPWalletSetting? walletSetting,
+  }) {
     return APPSetting(
         appColor: appColor ?? this.appColor,
         appBrightness: appBrightness ?? this.appBrightness,
         currency: currency ?? this.currency,
-        config: config,
         size: size ?? this.size,
         walletSetting: walletSetting ?? this.walletSetting);
   }
 
-  factory APPSetting.deserialize(
-    PlatformConfig config, {
-    List<int>? bytes,
-  }) {
+  factory APPSetting.defaultSetting() => APPSetting(
+      appColor: null,
+      appBrightness: null,
+      currency: Currency.USD,
+      walletSetting: APPWalletSetting());
+
+  factory APPSetting.deserialize(List<int>? bytes) {
     if (bytes == null) {
-      return APPSetting(
-          appColor: null,
-          appBrightness: null,
-          currency: Currency.USD,
-          config: config,
-          walletSetting: APPWalletSetting());
+      return APPSetting.defaultSetting();
     }
-    try {
-      final CborListValue cbor = CborSerializable.cborTagValue(
-          cborBytes: bytes, tags: APPSerializationConst.appSettingTag);
-      final String? colorHex = cbor.elementAs(0);
-      final String? brightnessName = cbor.elementAs(1);
-      final Currency currency =
-          Currency.fromName(cbor.elementAs(2)) ?? Currency.USD;
-      WidgetRect? rect = WidgetRect.fromString(cbor.elementAs(3));
-      APPWalletSetting walletSetting =
-          cbor.elemetMybeAs<APPWalletSetting, CborTagValue>(
-                  4, (e) => APPWalletSetting.deserialize(object: e)) ??
-              APPWalletSetting();
-      return APPSetting(
-          appColor: colorHex,
-          appBrightness: brightnessName,
-          currency: currency,
-          config: config,
-          size: rect,
-          walletSetting: walletSetting);
-    } catch (e) {
-      assert(false, 'setting deserialization failed. $e');
-      return APPSetting(
-          appColor: null,
-          appBrightness: null,
-          currency: Currency.USD,
-          config: config,
-          walletSetting: APPWalletSetting());
-    }
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, identifier: AppSerializationIdentifier.appSettingTag);
+    final String? colorHex = values.rawValueAt(0);
+    final String? brightnessName = values.rawValueAt(1);
+    final Currency currency = Currency.fromName(values.rawValueAt(2)) ?? Currency.USD;
+    WidgetRect? rect = values.maybeObjectAt<WidgetRect, CborTagValue>(
+        3, (e) => WidgetRect.deserialize(object: e));
+    APPWalletSetting walletSetting = values.maybeObjectAt<APPWalletSetting, CborTagValue>(
+            4, (e) => APPWalletSetting.deserialize(object: e)) ??
+        APPWalletSetting();
+    return APPSetting(
+      appColor: colorHex,
+      appBrightness: brightnessName,
+      currency: currency,
+      size: rect,
+      walletSetting: walletSetting,
+    );
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          appColor,
-          appBrightness,
-          currency.name,
-          size?.toString(),
-          walletSetting.toCbor()
-        ]),
-        APPSerializationConst.appSettingTag);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.appSettingTag;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        appColor?.toCbor(),
+        appBrightness?.toCbor(),
+        currency.name.toCbor(),
+        size?.toCbor(),
+        walletSetting.toCbor(),
+      ];
 }

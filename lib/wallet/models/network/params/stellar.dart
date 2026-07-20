@@ -1,9 +1,8 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 import 'package:stellar_dart/stellar_dart.dart';
@@ -18,8 +17,7 @@ enum StellarChainType {
   static StellarChainType fromValue(int? value) {
     return values.firstWhere(
       (e) => e.value == value,
-      orElse: () =>
-          throw AppSerializationException(objectName: "StellarChainType"),
+      orElse: () => throw AppInternalError.internalError("StellarChainType"),
     );
   }
 
@@ -41,19 +39,19 @@ enum StellarChainType {
 class StellarNetworkParams extends NetworkCoinParams {
   final StellarChainType stellarChainType;
 
-  factory StellarNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.stellarNetworkParam);
+  factory StellarNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.stellar.identifier);
 
     return StellarNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(2)),
-        chainType: ChainType.fromValue(values.elementAs(4)),
-        stellarChainType: StellarChainType.fromValue(values.elementAs(8)),
-        addressExplorer: values.elementAs(6),
-        transactionExplorer: values.elementAs(7));
+      token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+      chainType: ChainType.fromValue(values.rawValueAt(1)),
+      addressExplorer: values.rawValueAt(2),
+      transactionExplorer: values.rawValueAt(3),
+      stellarChainType: StellarChainType.fromValue(values.rawValueAt(4)),
+    );
   }
-  StellarNetworkParams(
+  const StellarNetworkParams(
       {required super.token,
       required super.chainType,
       required this.stellarChainType,
@@ -73,34 +71,27 @@ class StellarNetworkParams extends NetworkCoinParams {
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          chainType.name,
-          const CborNullValue(),
-          addressExplorer,
-          transactionExplorer,
-          stellarChainType.value
-        ]),
-        CborTagsConst.stellarNetworkParam);
-  }
+  SerializationIdentifier get serializationIdentifier => NetworkType.stellar.identifier;
 
+  @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor(),
+        stellarChainType.value.toCbor()
+      ];
   StellarChainType get identifier => stellarChainType;
 
   @override
   NetworkCoinParams updateParams(
-      {List<APIProvider>? updateProviders,
-      Token? token,
+      {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
     return StellarNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         stellarChainType: stellarChainType,
         addressExplorer: addressExplorer,

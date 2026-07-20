@@ -1,13 +1,14 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import '../../js_wallet.dart';
 import '../../models/models/networks/bitcoin_cash.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../core/network_handler.dart';
 
 class BitcoinCashWeb3JSStateAddress extends Web3JSStateAddress<
-    BitcoinBaseAddress,
+    BitcoinNetworkAddress,
     Web3BitcoinCashChainAccount,
     JSBitcoinCashWalletAccount,
     Web3BitcoinCashChainIdnetifier> {
@@ -18,7 +19,7 @@ class BitcoinCashWeb3JSStateAddress extends Web3JSStateAddress<
 }
 
 class BitcoinCashWeb3JSStateAccount extends Web3JSStateAccount<
-    BitcoinBaseAddress,
+    BitcoinNetworkAddress,
     Web3BitcoinCashChainAccount,
     JSBitcoinCashWalletAccount,
     Web3BitcoinCashChainIdnetifier,
@@ -32,8 +33,7 @@ class BitcoinCashWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory BitcoinCashWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return BitcoinCashWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return BitcoinCashWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory BitcoinCashWeb3JSStateAccount(
       Web3BitcoinCashChainAuthenticated? authenticated) {
@@ -50,7 +50,7 @@ class BitcoinCashWeb3JSStateAccount extends Web3JSStateAccount<
               address: e.addressStr,
               publicKey: e.publicKey,
               redeemScript: e.redeemScript,
-              type: e.type.value,
+              type: e.type.name,
               witnessScript: e.witnessScript,
               features: BitcoinCashJSConstant.accountFeatures(
                   network.wsIdentifier, e.type.supportBip137),
@@ -74,7 +74,7 @@ class BitcoinCashWeb3JSStateAccount extends Web3JSStateAccount<
                 jsAccount: JSBitcoinCashWalletAccount.setup(
                     address: defaultAddress.addressStr,
                     redeemScript: defaultAddress.redeemScript,
-                    type: defaultAddress.type.value,
+                    type: defaultAddress.type.name,
                     witnessScript: defaultAddress.witnessScript,
                     features: BitcoinCashJSConstant.accountFeatures(
                         networks[defaultAddress.id]!.wsIdentifier,
@@ -86,14 +86,16 @@ class BitcoinCashWeb3JSStateAccount extends Web3JSStateAccount<
 }
 
 class BitcoinCashWeb3JSStateHandler extends Web3JSStateHandler<
-        BitcoinBaseAddress,
+        BitcoinNetworkAddress,
         Web3BitcoinCashChainAccount,
         JSBitcoinCashWalletAccount,
         Web3BitcoinCashChainIdnetifier,
+        BitcoinCashWeb3JSStateAddress,
         BitcoinCashWeb3JSStateAccount>
     with
         BitcoinCashWeb3StateHandler<
             JSBitcoinCashWalletAccount,
+            BitcoinCashWeb3JSStateAddress,
             BitcoinCashWeb3JSStateAccount,
             WalletMessageResponse,
             Web3JsClientRequest,
@@ -105,8 +107,7 @@ class BitcoinCashWeb3JSStateHandler extends Web3JSStateHandler<
   Future<Web3MessageCore> request(Web3JsClientRequest params,
       {Web3BitcoinCashChainIdnetifier? network}) async {
     final state = await getState();
-    final method =
-        Web3BitcoinCashRequestMethods.fromName(params.request.method);
+    final method = Web3BitcoinCashRequestMethods.fromName(params.request.method);
     switch (method) {
       case Web3BitcoinCashRequestMethods.requestAccounts:
         return onConnect_(params);
@@ -115,8 +116,7 @@ class BitcoinCashWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3BitcoinCashRequestMethods.sendTransaction:
         return toTransferRequest(params: params, state: state, method: method!);
       case Web3BitcoinCashRequestMethods.signPersonalMessage:
-        return toSignMessageRequest(
-            params: params, state: state, method: method!);
+        return toSignMessageRequest(params: params, state: state, method: method!);
       case Web3BitcoinCashRequestMethods.getAccountAddresses:
         return toGetAccountAddressesRequest(
             params: params, state: state, method: method!);
@@ -133,35 +133,31 @@ class BitcoinCashWeb3JSStateHandler extends Web3JSStateHandler<
       {required Web3JsClientRequest message,
       required Web3RequestParams? params,
       required Web3WalletResponseMessage response}) async {
-    final method =
-        Web3BitcoinCashRequestMethods.fromName(message.request.method);
+    final method = Web3BitcoinCashRequestMethods.fromName(message.request.method);
     switch (method) {
       case Web3BitcoinCashRequestMethods.requestAccounts:
         return onConnectResponse(message);
       case Web3BitcoinCashRequestMethods.signTransaction:
         return WalletMessageResponse.success(
-            JSBitcoinCashSignTransactionResponse.setup(
-                response.resultAsString()));
+            JSBitcoinCashSignTransactionResponse.setup(response.resultAsString()));
       case Web3BitcoinCashRequestMethods.sendTransaction:
         return WalletMessageResponse.success(
-            JSBitcoinCashSendTransactionResponse.setup(
-                response.resultAsString()));
+            JSBitcoinCashSendTransactionResponse.setup(response.resultAsString()));
       case Web3BitcoinCashRequestMethods.signPersonalMessage:
         final signedMessage = Web3BitcoinSignMessageResponse.deserialize(
             bytes: response.resultAsList<int>());
-        return WalletMessageResponse.success(
-            JSBitcoinCashSignMessageResponse.setup(
-                digest: signedMessage.digest,
-                signature: signedMessage.signatureAsBase64()));
+        return WalletMessageResponse.success(JSBitcoinCashSignMessageResponse.setup(
+            digest: signedMessage.digest, signature: signedMessage.signatureAsBase64()));
       default:
         break;
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  BitcoinCashWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  BitcoinCashWeb3JSStateAccount createState(
+      Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return BitcoinCashWeb3JSStateAccount.init();
     return BitcoinCashWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

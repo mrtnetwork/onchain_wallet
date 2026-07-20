@@ -1,15 +1,15 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
+import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:on_chain/tron/tron.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class TronTransactionOperations with Equality implements TransactionOperations {
-  factory TronTransactionOperations.fromTransactionType(
-      TransactionContractType type) {
+  factory TronTransactionOperations.fromTransactionType(TransactionContractType type) {
     return TronTransactionOperations._(type.name);
   }
 
@@ -18,7 +18,7 @@ class TronTransactionOperations with Equality implements TransactionOperations {
   const TronTransactionOperations._(this.value);
 
   @override
-  List get variabels => [value];
+  List get variables => [value];
 }
 
 class TronTransactionFee extends DefaultTransactionFee {
@@ -30,6 +30,7 @@ class TronTransactionFee extends DefaultTransactionFee {
     required this.totalBurn,
     required this.burnedForResource,
     required super.fee,
+    super.error,
     this.isSimulate = false,
   });
   final bool isSimulate;
@@ -54,7 +55,7 @@ class TronTransactionFee extends DefaultTransactionFee {
         isSimulate: isSimulate);
   }
 
-  factory TronTransactionFee.defaultFee({required Token feeToken}) {
+  factory TronTransactionFee.defaultFee({required Token feeToken, String? error}) {
     return TronTransactionFee._(
         burnBandwidth: 0,
         burnEnergy: 0,
@@ -62,7 +63,8 @@ class TronTransactionFee extends DefaultTransactionFee {
         connsumedEnergy: 0,
         totalBurn: IntegerBalance.zero(feeToken),
         burnedForResource: IntegerBalance.zero(feeToken),
-        fee: IntegerBalance.zero(feeToken));
+        fee: IntegerBalance.zero(feeToken),
+        error: error);
   }
   factory TronTransactionFee.calculate(
       {required TransactionRaw raw,
@@ -75,10 +77,9 @@ class TronTransactionFee extends DefaultTransactionFee {
       bool hasMemo = false}) {
     final tr = Transaction(
         rawData: raw,
-        signature: List.generate(signature,
-            (index) => List<int>.filled(TronUtils.signatureLength, 1)));
-    final BigInt transactionFee =
-        BigInt.from(chainParameters.getTransactionFee!);
+        signature: List.generate(
+            signature, (index) => List<int>.filled(TronUtils.signatureLength, 1)));
+    final BigInt transactionFee = BigInt.from(chainParameters.getTransactionFee!);
     final size = tr.length + TronUtils.tronFeeRequiredSize;
     BigInt totalBurn = BigInt.zero;
     BigInt energy = BigInt.from(consumedEnergy);
@@ -86,8 +87,7 @@ class TronTransactionFee extends DefaultTransactionFee {
     BigInt burnedForResource = BigInt.zero;
     if (isNewAccount) {
       burnedForResource += BigInt.from(chainParameters.getCreateAccountFee!);
-      totalBurn +=
-          BigInt.from(chainParameters.getCreateNewAccountFeeInSystemContract!);
+      totalBurn += BigInt.from(chainParameters.getCreateNewAccountFeeInSystemContract!);
     }
     if (hasMemo) {
       totalBurn += BigInt.from(chainParameters.getMemoFee!);
@@ -129,8 +129,7 @@ class TronTransactionFee extends DefaultTransactionFee {
         consumedBandwidth: consumedBandwidth.toInt(),
         connsumedEnergy: consumedEnergy,
         totalBurn: fee,
-        burnedForResource:
-            IntegerBalance.token(burnedForResource, network.token),
+        burnedForResource: IntegerBalance.token(burnedForResource, network.token),
         fee: fee,
         isSimulate: true);
   }
@@ -138,8 +137,8 @@ class TronTransactionFee extends DefaultTransactionFee {
   @override
   bool get hasFee => isSimulate;
   @override
-  List get variabels => [
-        ...super.variabels,
+  List get variables => [
+        ...super.variables,
         isSimulate,
         burnBandwidth,
         burnEnergy,
@@ -148,17 +147,16 @@ class TronTransactionFee extends DefaultTransactionFee {
       ];
 }
 
-class TronTransactionFeeData
-    extends TransactionDefaultFeeData<TronTransactionFee> {
+class TronTransactionFeeData extends TransactionDefaultFeeData<TronTransactionFee> {
   TronTransactionFeeData({required super.select, required super.feeToken});
 }
 
 abstract class BaseTronTransactionController<T extends ITronTransactionData>
     extends TransactionStateController<
         TronToken,
+        WalletTronNetwork,
         ITronAddress,
         TronClient,
-        WalletTronNetwork,
         TronChain,
         T,
         ITronTransaction<T>,
@@ -174,9 +172,7 @@ abstract class BaseTronTransactionController<T extends ITronTransactionData>
       TronTransactionOperations.fromTransactionType(transactionType);
 
   BaseTronTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class TronSignedTransaction {
@@ -252,8 +248,7 @@ class ITronTransactionDataTokenTransfer {
       {required this.recipient, required this.amount, this.token});
 }
 
-class ITronTransactionData<T extends TronBaseContract>
-    extends ITransactionData {
+class ITronTransactionData<T extends TronBaseContract> extends ITransactionData {
   final TronTransactionFee fee;
   final T contract;
   final ITronTransactionDataRequirment blockData;
@@ -268,6 +263,17 @@ class ITronTransactionData<T extends TronBaseContract>
     required this.memo,
     this.tokenTransfer,
   });
+
+  WalletTransactionMemo? getMemo() {
+    final memo = this.memo;
+    if (memo == null) return null;
+    return WalletTransactionMemo.from(
+        memo,
+        switch (StringUtils.isHexBytes(memo)) {
+          true => WalletTransactionMemoType.binary,
+          false => WalletTransactionMemoType.string,
+        });
+  }
 }
 
 class ITronTransaction<TXDATA extends ITronTransactionData>

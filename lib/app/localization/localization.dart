@@ -4,8 +4,7 @@ class Localization {
   static Map<APPLocale, Map<String, String>> get languages => {
         APPLocale.en: {
           "wellcome": "Welcome To OnChain Wallet",
-          "your_gateway_to_decentralized_world":
-              "Your Gateway to Decentralized World",
+          "your_gateway_to_decentralized_world": "Your Gateway to Decentralized World",
           "setup": "Setup wallet",
           "use_mnemonic": "Use Existing Mnemonic",
           "generate_mnemonic": "Generate New Mnemonic",
@@ -19,10 +18,8 @@ class Localization {
               "If you have used a mnemonic passphrase to create the master key, use the following option to enter the passphrase",
           "enter_passphrase_desc2":
               " Warning: We do not store your passphrase in wallet storage or backups. The mnemonic passphrase is now required to validate the backup checksum and will also be required when restoring your backup. Please enter the passphrase if you selected one when generating your wallet.",
-          "g_mnemonic":
-              "Create a new wallet with a 12–24 word recovery phrase.",
-          "invalid_mnemonic_ordering":
-              "The entered mnemonic order is incorrect",
+          "g_mnemonic": "Create a new wallet with a 12–24 word recovery phrase.",
+          "invalid_mnemonic_ordering": "The entered mnemonic order is incorrect",
           "n_of_mnemonic_words": "Number of mnemonic words",
           "count_words": "___1__ Words",
           "n_word": "___1__-word",
@@ -65,7 +62,6 @@ class Localization {
           "wallet_data_is_invalid": "The wallet data is invalid",
           "invalid_mnemonic": "Invalid mnemonic",
           "invalid_account_details": "Invalid account details",
-          "invalid_serialization_data": "Invalid serialization data",
           "invalid_passphrase": "invalid mnemonic passphrase.",
           "close": "Close",
           "launch_the_wallet": "Launching the wallet",
@@ -93,8 +89,7 @@ class Localization {
           "setup_derivation": "Setup Derivation",
           "generate_address": "Generate address",
           "invalid_coin": "Invalid coin",
-          "to_many_accounts":
-              "Too many accounts, please use custom path derivation",
+          "to_many_accounts": "Too many accounts, please use custom path derivation",
           "incorrect_network": "Incorrect network",
           "invalid_provider_infomarion": "Invalid provider information.",
           "invalid_bip_key_index": "invalid bip proposal derivation index",
@@ -102,6 +97,7 @@ class Localization {
           "generating_new_addr": "Generating new address",
           "copied_to_clipboard": "Copied to cliboard.",
           "copied_to_clipboard_faild": "Copy action unsuccessful.",
+          "copy_to_clipboard": "Copy to cliboard.",
           "selected": "Selected",
           "switch_account": "Switch account",
           "new_address": "New Address",
@@ -109,8 +105,7 @@ class Localization {
           "invalid_request_type":
               "Invalid type, request result can be string, list, or map",
           "export_mnemonic": "Export mnemonic",
-          "export_mnemonic_desc":
-              "Export your mnemonic for secure backup and recovery",
+          "export_mnemonic_desc": "Export your mnemonic for secure backup and recovery",
           "export_mnemonic_desc2":
               "Safeguard your cryptographic assets by securely storing your mnemonic. Use a trusted hardware wallet, secure offline storage, or a reputable password manager to ensure the protection of your valuable information. Remember, the safety of your assets starts with the responsible management of your mnemonic and passphrase.",
           "export": "Export",
@@ -140,10 +135,9 @@ class Localization {
           "restore_backup": "Restore backup",
           "restore_backuo_desc": "Recover wallet from backup",
           "enter_backup": "Input backup text.",
-          "bcakup_validator":
-              "The backup must be a valid bytes as hexadecimal string.",
+          "bcakup_validator": "The backup must be a valid bytes as hexadecimal string.",
           "input_backup_password": "Input backup password.",
-          "backup_password_validator": "Backup password should not be empty.",
+          "password_validator_desc": "Password should not be empty.",
           "clipboard_empty": "Clipboard is empty.",
           "invalid_bitcoin_address_type": "Invalid BIP49 address type.",
           "retrieving_transaction": "Retrieving Transactions. Please Wait.",
@@ -151,8 +145,7 @@ class Localization {
           "recipient": "Recipient",
           "tap_to_select": "Tap to select",
           "receiver_address": "Receiver address",
-          "receiver_address_desc":
-              "Input the recipient's address in the field below.",
+          "receiver_address_desc": "Input the recipient's address in the field below.",
           "address": "Address",
           "invalid_network_address":
               "The provided address is not valid for ___1__ network.",
@@ -160,8 +153,7 @@ class Localization {
 
           "transaction_fee": "Transaction fee",
           "replace_by_fee": "Replace by fee",
-          "decimal_int_validator":
-              "Please enter the amount as a decimal or an integer",
+          "decimal_int_validator": "Please enter the amount as a decimal or an integer",
           "int_validator": "Please enter the amount as an integer",
           "price_less_than": "The value must be less than ___1__",
           "price_greather_than": "The amount must be greater than ___1__",
@@ -186,8 +178,7 @@ class Localization {
           "send_transaction": "Send transaction",
 
           "multi_sig_addr": "Multi-signature address",
-          "establishing_multi_sig_addr":
-              "Establishing a multi-signature address.",
+          "establishing_multi_sig_addr": "Establishing a multi-signature address.",
           "multi_sig_desc":
               "This feature is specifically crafted to enhance the security of your funds. It involves creating an account with the public keys of multiple chosen accounts. This address serves as an added layer of security, ensuring that even if one of your private keys is compromised, your funds remain both accessible and secure.",
           "mutli_sig_desc2":
@@ -202,6 +193,7 @@ class Localization {
               "By selecting the 'add' option from your accounts, you can obtain the public key of the chosen account to create the address.",
           "public_key_already_exist": "Public key already exist",
           "threshold_configuration": "Threshold configuration",
+
           // "threshhold_desc":
           //     "Specify the transaction signature threshold. This threshold indicates the number of signatures required to confirm the transaction. For example, setting it to 5 means that the transaction requires 5 signatures.",
 
@@ -215,8 +207,7 @@ class Localization {
           "review_address": "Review address",
           "review_address_desc":
               "Please ensure that important and critical information about the multi-signature account, including the public key and order used, the weight assigned to the added public key, as well as the script details, is in a safe and accessible place. This is vital to protect your funds.",
-          "public_keys_and_weight_of_each":
-              "Public keys and their respective weights",
+          "public_keys_and_weight_of_each": "Public keys and their respective weights",
           "public_key": "Public key",
           "multi_sig_script": "Multi-signature script",
           "address_script": "Address script",
@@ -244,8 +235,7 @@ class Localization {
               "Remember, the security of your private key is crucial for safeguarding your digital assets. Take these precautions seriously to minimize the risk of unauthorized access and potential loss of funds.",
           "private_key": "Private key",
           "extended_private_key": "Extended private key",
-          "remove_account_desc":
-              "Remove the account from the network accounts list.",
+          "remove_account_desc": "Remove the account from the network accounts list.",
           "remove_accounts_desc1":
               "Prior to account deletion, kindly ensure you have securely backed up the private key associated with this account.",
           "enter_wallet_password_to_continue":
@@ -261,11 +251,7 @@ class Localization {
               "The new account should align with the app's coin and network settings.",
           "import_account_desc2":
               "Please enter your private key, extended key, or Wallet Import Format (WIF) to proceed.",
-          "private_key_invalid": "The provided private key is not valid.",
-          "publick_key_invalid": "The provided public key is not valid.",
-          "extended_key_invalid": "The provided extended key is not valid.",
-          "wif_key_invalid": "Invalid WIF: incorrect key or wrong coin type.",
-          "key_type": "key type",
+          "key_type": "Key type",
           "imported": "Imported",
           "importing_key_pls_wait": "Importing key. please wait.",
           "setup_new_address": "Setup new address",
@@ -279,8 +265,7 @@ class Localization {
           "p2wsh_one_of_one_desc":
               "Generated from a standard P2WSH one-of-one multisig script",
           "non_derivation": "Non-derivation",
-          "import_key_derivation_desc2":
-              "The address is created without derivation.",
+          "import_key_derivation_desc2": "The address is created without derivation.",
           "imported_at": "Imported at ___1__",
           "address_added_success":
               "The address has been successfully added to the wallet",
@@ -357,13 +342,13 @@ class Localization {
           "invalid_wallet_backup": "Invalid wallet backup.",
           "invalid_wallet_backup_checksum":
               "Checksum verification failed: Invalid passphrase.",
+          "unsupported_backup_content": "Unsupported backup content",
+          "wrong_backup_password": "Wrong backup password",
           "adjust_app_brightness": "Adjust App Brightness",
-          "define_primary_of_app":
-              "Define the primary color scheme for the application",
+          "define_primary_of_app": "Define the primary color scheme for the application",
           "manage_imported_key": "Administer Imported Keys",
           "manage_key_desc1": "Delete Imported Keys from Your Wallet",
-          "retrieving_imported_keys_wait":
-              "Retrieving Imported Keys. Please Wait.",
+          "retrieving_imported_keys_wait": "Retrieving Imported Keys. Please Wait.",
           "no_imported_key_found": "No Imported Private Keys Detected",
           "manage_key_desc2":
               "If the key is removed, and an address has already been generated with the corresponding account, it will become inaccessible in the wallet.",
@@ -383,8 +368,7 @@ class Localization {
           "invalid_contact_details": "Contact details are invalid",
           "contacts": "Contacts",
           "add_to_contacts": "Add to Contacts",
-          "contact_name_validator":
-              "The contact name must be at least 3 characters long",
+          "contact_name_validator": "The contact name must be at least 3 characters long",
           "name_of_contact": "Name of contact",
           "contact_desc_1":
               "The contact will be saved in the ___1__ network contact list and will only be available within this network.",
@@ -392,14 +376,12 @@ class Localization {
           "contact_already_exist": "Contact already exists",
           "contact_saved": "Contact saved successfully",
           "tap_to_enter_amount": "Tap to enter amount",
-          "retrieving_network_condition":
-              "Retrieving network condition. Please Wait.",
+          "retrieving_network_condition": "Retrieving network condition. Please Wait.",
           "memo_data": "Memo data",
           "memo_format": "Memo format",
           "memo_type": "Memo type",
           "memos": "Memos",
-          "memo_desc":
-              "You can add multiple notes up to 1 KB to this transaction.",
+          "memo_desc": "You can add multiple notes up to 1 KB to this transaction.",
           "tap_to_create_memo": "Tap to create memo",
           "create_memo": "Create memo",
 
@@ -426,8 +408,7 @@ class Localization {
           "regular_exception_validate_desc":
               "The input must match the following regular expression ___1__",
           "enter_valid_number": "Please enter a valid number",
-          "minium_numnber_validator":
-              "The input number should not be less than ___1__",
+          "minium_numnber_validator": "The input number should not be less than ___1__",
           "maximum_number_validator":
               "The input number should not be greater than ___1__",
           "trust_set_quality_in": "Quality In",
@@ -475,15 +456,12 @@ class Localization {
               "Tick size to use for offers involving a currency issued by this address",
           "ripple_tick_size_desc2":
               "The exchange rates of those offers is rounded to this many significant digits. Valid values are 3 to 15 inclusive, or 0 to disable.",
-          "ripple_validate_tick_size":
-              "Please enter a valid number for the tick size.",
+          "ripple_validate_tick_size": "Please enter a valid number for the tick size.",
           "ripple_enable_account_set_flags": "Enable account set flags",
           "ripple_disable_account_set_flags": "Disable account set flags",
           "invalid_balance": "Invalid balance information",
-          "network_support_token_error":
-              "Token issuance not supported by the network.",
-          "network_support_nft_error":
-              "NFT issuance not supported by the network.",
+          "network_support_token_error": "Token issuance not supported by the network.",
+          "network_support_nft_error": "NFT issuance not supported by the network.",
           "invalid_token_information": "Invalid token information",
           "invalid_nft_information": "Invalid NFT information",
           "token_already_exists": "Token already exists.",
@@ -493,8 +471,7 @@ class Localization {
           "no_tokens_found": "No tokens found in the account.",
           "monitor_my_tokens": "Monitor my tokens.",
           "add_token": "Add Token",
-          "fetching_account_token_please_wait":
-              "Retrieving account tokens. please wait.",
+          "fetching_account_token_please_wait": "Retrieving account tokens. please wait.",
           "no_items_found": "No items found.",
           "yes": "Yes",
           "no": "No",
@@ -507,8 +484,7 @@ class Localization {
           "add_or_remove_tokens": "Add or Remove Tokens from Your Account",
           "nfts": "NFTs",
           "manage_nfts": "Manage NFTs",
-          "manage_nfts_desc":
-              "Administer NFTs: Burn, Manage, Create, or Cancel Offers",
+          "manage_nfts_desc": "Administer NFTs: Burn, Manage, Create, or Cancel Offers",
           "serial": "Serial",
           "nfts_id": "NFTs ID",
           "uri": "URI",
@@ -524,8 +500,7 @@ class Localization {
           "nft_flags_field_desc":
               "Transactions of the NFTokenMint type support additional values in the Flags field,",
           "ripple_nfttoken_fields": "NFTokenMint Fields",
-          "ripple_nftoken_burn_id":
-              "The NFToken to be removed by this transaction.",
+          "ripple_nftoken_burn_id": "The NFToken to be removed by this transaction.",
           "token_id": "Token ID",
           "owner": "Owner",
           "ripple_nftoken_burn_owner":
@@ -543,8 +518,7 @@ class Localization {
               "	Identifies the NFToken object that the offer references.",
           "token_issuer": "Generally, the account that issues this token.",
           "token_amount": "Token Amount",
-          "token_currency":
-              "Arbitrary currency code for the token. Cannot be XRP.",
+          "token_currency": "Arbitrary currency code for the token. Cannot be XRP.",
           "setup_currency_amount": "Setup currency amount",
           "nft_offer_flag_desc":
               "Transactions of the NFTokenCreateOffer type support additional values in the Flags field",
@@ -562,8 +536,7 @@ class Localization {
           "ripple_escrow_create_fields": "EscrowCreate Fields",
           "ripple_escrow_create_amount":
               "	Amount of XRP to deduct from the sender's balance and escrow.",
-          "ripple_escrow_create_destionation":
-              "Address to receive escrowed XRP.",
+          "ripple_escrow_create_destionation": "Address to receive escrowed XRP.",
           "ripple_escrow_create_cancel_after":
               "This value is immutable; the funds can only be returned to the sender after this time.",
           "ripple_escrow_create_finish_after":
@@ -623,8 +596,7 @@ class Localization {
           "key_algorithms": "Key algorithms",
           "invalid_ripple_privatekey_algorithm":
               "Invalid Ripple private key encryption algorithm.",
-          "ed25519_support_derivation_desc":
-              "ED25519 derivation only supports hardened indices.",
+          "coin_support_derivation_desc": "Selected coin only supports hardened indices.",
           "cannot_export_public_key": "Unable to export public key.",
           "regular_key": "RegularKey",
           "ripple_regular_key_desc":
@@ -668,8 +640,7 @@ class Localization {
           "ripple_multi_sig_address_desc2":
               "Please choose either a signer list or a regular key to create a multi-signature address.",
           "signer_list": "Signer list",
-          "account_does_not_support_feature":
-              "The account does not support this feature",
+          "account_does_not_support_feature": "The account does not support this feature",
           "multi_sig_feature_type": "Multi-signature Feature Type",
           "signerquorum": "SignerQuorum",
           "ripple_multi_sig_addres_signer_list_desc":
@@ -719,8 +690,7 @@ class Localization {
               "is the unit used to measure the amount of computational effort required to execute operations or smart contracts. Each operation consumes a certain amount of gas, and the gas limit determines the total computational resources available for the transaction.",
           "gas_limit_validator":
               "The gas limit must be set to a value greater than zero.",
-          "gas_limit_helper":
-              "The gas limit is below the current network conditions.",
+          "gas_limit_helper": "The gas limit is below the current network conditions.",
           "prority_fee_validator":
               "The priority fee should be a non-negative decimal value.",
           "max_base_fee_validator":
@@ -773,8 +743,7 @@ class Localization {
           "trc10": "TRC-10",
           "update_account_permission": "Update account permission",
           "permissions": "Permissions",
-          "tron_permission_desc":
-              "Choose the permission you wish to modify or remove.",
+          "tron_permission_desc": "Choose the permission you wish to modify or remove.",
           "permission_name": "Permission name",
           "input_the_permission_name": "Input the permission name",
           "operations": "Operations",
@@ -792,8 +761,7 @@ class Localization {
           "new_active_permission": "New active permission",
           "update_permission": "Update permission",
           "remove_permission": "Remove permission",
-          "tron_signer_validator_desc":
-              "The number of signers should not exceed 5.",
+          "tron_signer_validator_desc": "The number of signers should not exceed 5.",
           "tron_signer_validator_witness_desc":
               "The required number of witness signers is 1.",
           "tron_permission_threshhold_validator":
@@ -803,8 +771,7 @@ class Localization {
               "Tron supports multi-signature transactions, allowing you to select a specific permission and initiate transactions corresponding to that chosen permission.",
           "tron_multi_sig_desc2":
               "Kindly input the Tron address to which you intend to send transactions.",
-          "tron_multi_sig_select_permission":
-              "Kindly choose the permission you desire.",
+          "tron_multi_sig_select_permission": "Kindly choose the permission you desire.",
           "tron_multi_sig_addres_threshhold":
               "Please choose the required number of signers, matching the threshhold, If the desired account is not in your account list, you must first add it to your wallet through the settings.",
           "tron_account_permission_not_access_desc":
@@ -839,15 +806,13 @@ class Localization {
           "undelegated_balance_desc":
               "Amount of TRX staked for resources to be delegated",
           "undelegated_resource": "UnDelegate Resource",
-          "undelegated_resource_desc":
-              "Cancel the delegation of bandwidth or energy",
+          "undelegated_resource_desc": "Cancel the delegation of bandwidth or energy",
           "url": "Url",
           "create_witness": "Create Witness",
           "create_witness_desc": "Apply to become a witness.",
           "tron_create_witness_url_desc": "The website URL of the SR node",
           "update_witness": "Update witness",
-          "update_witness_desc":
-              "Edit the URL of the witness's official website.",
+          "update_witness_desc": "Edit the URL of the witness's official website.",
           "permission_type": "Permission type",
           "update_account": "Update account",
           "account_name_desc": "name of the account",
@@ -897,15 +862,12 @@ class Localization {
               "The network has been successfully imported to your wallet.",
           "providers": "Providers",
           "checking_rpc_network_info": "Checking RPC Network Information",
-          "rpc_url_already_exists":
-              "A provider already exists with this RPC URL.",
-          "tap_to_add_new_service_provider":
-              "Tap to add a new service provider.",
+          "rpc_url_already_exists": "A provider already exists with this RPC URL.",
+          "tap_to_add_new_service_provider": "Tap to add a new service provider.",
           "update_network": "Update Network",
           "chain_id_of_network": "The chain ID of the network",
           "updating_network": "Updating network information. Please Wait.",
-          "network_updated_successfully":
-              "The network has been successfully updated.",
+          "network_updated_successfully": "The network has been successfully updated.",
           "invalid_network_information": "Invalid network information.",
           "to_many_networks_imported": "Too many networks have been imported.",
           "import_network": "Import network",
@@ -915,8 +877,7 @@ class Localization {
           "remaining_amount_and_receiver":
               "Remaining amount of UTXO and receiver address.",
           "cost_for_transaction": "Cost for transactions",
-          "memo_desc2":
-              "Additional message or information attached to a transaction.",
+          "memo_desc2": "Additional message or information attached to a transaction.",
           "custom_derivation": "Custom derivation",
           "key_already_exists": "Private key already exists",
           "read_more": "Read more...",
@@ -952,8 +913,7 @@ class Localization {
           "inputs": "Inputs",
           "outputs": "Outputs",
           "save": "Save",
-          "bip_69_desc":
-              "Lexicographical Indexing of Transaction Inputs and Outputs",
+          "bip_69_desc": "Lexicographical Indexing of Transaction Inputs and Outputs",
           "shuffle_desc": "Mixing inputs and outputs (random)",
           "none_ordering_transaction_desc":
               "The order of selected UTXOs, added outputs, remaining output, and notes determines the shuffle.",
@@ -966,8 +926,7 @@ class Localization {
               "The transaction requires the input of ___1__ private keys for completion.",
           "node_connection_error":
               "The connection with the node could not be established",
-          "network_unbale_change_providers":
-              "Unable to modify default providers.",
+          "network_unbale_change_providers": "Unable to modify default providers.",
           "protocol": "Protocol",
           "network_protocol_not_supported":
               "The ___1__ protocol is not supported on this platform.",
@@ -978,11 +937,19 @@ class Localization {
               "Please supply the WebSocket address, including the WS or WSS prefix, and if necessary, specify the port. For example, wss://example.com.",
 
           "network_title_http_url":
-              "Please provide the HTTP or HTTPS address, including the http:// or https:// prefix. If applicable, include the port number. For example, https://example.com:8080",
+              "Provide the HTTP/HTTPS address with prefix (http:// or https://). Include port if needed. Example: https://example.com:8080",
+          "network_title_http_wss_url":
+              "Provide the address with appropriate prefix (http://, https://, ws://, or wss://). Include port if needed. Examples: https://example.com:8080 or wss://example.com:8080",
+          "network_title_socket_url":
+              "Provide the address with appropriate prefix (tcp://, tls://, ws://, or wss://). Include port if needed. Examples: tls://example.com:8080 or wss://example.com:8080",
           "network_tcp_address_validator":
               "Invalid TCP or IPv4 address. Please refer to the example address for proper formatting.",
           "network_websocket_address_validator":
               "Invalid Websocket address. Please refer to the example address for proper formatting.",
+          "invalid_protocol_url":
+              "Invalid URL format. Must include protocol prefix, host address, and port number. Follow the format shown in the example.",
+          "unsupported_protocol_by_selected_service":
+              "The URL protocol is not supported by this service",
           "network_waiting_for_response": "Awaiting a reply. please wait.",
           "network_verify_server_status": "Verify server status.",
           "network_update_node_provider": "Update node provider",
@@ -1006,16 +973,15 @@ class Localization {
           "validate_link_desc":
               "Please enter a valid URL starting with 'http' or 'https'.",
           "default_providers": "Default providers.",
-          "api_unknown_error":
-              "An unidentified error occurred during the request",
+          "api_unknown_error": "An unidentified error occurred during the request",
           "api_http_timeout_error":
               "Request Timeout: The server did not respond within the specified time frame",
           "api_http_client_error":
-              "ClientException: An error occurred on the client side during the request.",
+              "An error occurred on the client side during the request.",
           "network_genesis_hash_validator":
               "The Genesis Hash is incompatible with the current network.",
           "network_incorrect_chain_id":
-              "The Chain ID is not compatible with the current network. You may encounter inaccurate information, or the server may belong to another network. Are you certain about this?",
+              "The Chain ID is not compatible with the current network.",
           "network_provider_log_details": "Provider Log Details",
           "network_total_request": "Total requests",
           "network_total_success_request": "Total Success Requests",
@@ -1030,8 +996,7 @@ class Localization {
           "min": "MIN",
           "bitcoin_rbf_error":
               "When using RBF, make sure your UTXOs have been confirmed; otherwise, you may encounter a non-final error",
-          "inaccessible_key_algorithm":
-              "Key algorithm inaccessible in multisig account.",
+          "inaccessible_key_algorithm": "Key algorithm inaccessible in multisig account.",
           "select_era_for_generate_addr":
               "Please select the Cardano era to generate the address.",
           "shelly": "Shelley",
@@ -1042,8 +1007,7 @@ class Localization {
           "master_key_generation": "Master Key Generation",
           "cardano_bip32_master_key":
               "Cardano supports two different methods for generating the BIP32 master key.",
-          "choose_master_key_gen":
-              "Please choose the master key generation method.",
+          "choose_master_key_gen": "Please choose the master key generation method.",
           "ledger": "Ledger",
           "icarus": "Icarus",
           "shelley_address_format": "Shelley address format",
@@ -1051,8 +1015,7 @@ class Localization {
           "reward": "Reward",
           "enterprise": "Enterprise",
           "seed_generation": "Seed Generation",
-          "seed_generation_type":
-              "Please select the method for generating the seed",
+          "seed_generation_type": "Please select the method for generating the seed",
           "byron_legacy_seed": "Byron Legacy Seed",
           "bip39_seed": "BIP-39 Seed",
           "byron_legacy": "Byron legacy",
@@ -1117,17 +1080,13 @@ class Localization {
           "update_token": "Update token",
           "update_token_information": "Update token information",
           "update_token_desc": "Update the name and symbol of the token",
-          "token_symbol_validator":
-              "The token symbol must be at least 2 characters long",
-          "token_denom_validator":
-              "The token denom must be at least 2 characters long",
-          "token_name_validator":
-              "The token name must be at least 3 characters long",
+          "token_symbol_validator": "The token symbol must be at least 2 characters long",
+          "token_denom_validator": "The token denom must be at least 2 characters long",
+          "token_name_validator": "The token name must be at least 3 characters long",
           "asset_name": "Asset name",
           "tap_to_select_account": "Tap to select account",
           "certificates": "Certificates",
-          "add_certificate_to_transaction":
-              "Add certificates to the transaction",
+          "add_certificate_to_transaction": "Add certificates to the transaction",
           "tap_to_add_certificate": "Tap to add certificate",
           "deregistration": "Deregistration",
           "delegation": "Delegation",
@@ -1138,8 +1097,7 @@ class Localization {
           "stake_address": "Stake address",
           "setup_certificate": "Setup certificate",
           "stake_registration": "Stake Registration",
-          "stake_address_validator":
-              "The account does not possess a stake address",
+          "stake_address_validator": "The account does not possess a stake address",
           "stake_deregistration": "Stake Deregistration",
           "stake_delegation": "Stake Delegation",
           "deposit": "Deposit",
@@ -1163,12 +1121,10 @@ class Localization {
               "Please wait while we retrieve the account informations.",
           "public_keys": "Public keys",
           "Invalid_coin_default_path": "Invalid coin default path",
-          "invalid_hd_wallet_derivation_path":
-              "Invalid HD wallet derivation path",
+          "invalid_hd_wallet_derivation_path": "Invalid HD wallet derivation path",
           "invalid_substrate_path": "Invalid substrate path.",
           "derivation_path": "Derivation path",
-          "hd_wallet_path_max_indeqxes":
-              "only supports up to ___1__ HD wallet indexes.",
+          "hd_wallet_path_max_indeqxes": "only supports up to ___1__ HD wallet indexes.",
           "unsupported_hd_wallet_index": "Unsupported hd wallet index.",
           "hd_wallet_hardened_desc":
               "For hardened indices, append ' or h to the end of the index.",
@@ -1177,8 +1133,7 @@ class Localization {
           "imported_": "Imported(___1__)",
           "hd_path": "HD Path",
           "hd_path_key": "HD Path key",
-          "invalid_byron_legacy_hd_path_key":
-              "Invalid byron legacy HD path key",
+          "invalid_byron_legacy_hd_path_key": "Invalid byron legacy HD path key",
           "byron_legacy_hd_wallet_length_desc":
               "Byron Legacy only supports the first two HD wallet indexes, such as m/1/2.",
           "byron_legacy_hd_path_key_desc":
@@ -1193,7 +1148,8 @@ class Localization {
           "wallet_type": "Wallet type",
           "types_of_wallet_contracts": "Types of Wallet Contracts",
           "ton_wallet_contract_desc":
-              "Wallet Contracts on TON (V1, V2, V3, V4, V5) are smart contracts designed to manage cryptocurrency transactions with increasing levels of security, functionality, and customization.",
+              "TON wallet smart contracts with different features and security levels.",
+
           "sub_wallet_id_validator":
               "The sub wallet id must be a value between 0 and ___1__.",
           "sub_wallet_id": "Sub wallet id",
@@ -1202,8 +1158,7 @@ class Localization {
           "ton_mnemonic_feature_desc":
               "We are using standard BIP-39 seed generation for the TON network. To use the Ton Mnemonic feature, generate a private key from your mnemonic in the settings (import key feature).",
           "ton_mnemonic": "Ton Mnemonic",
-          "generate_ton_private_key":
-              "Generate a private key from your TON mnemonic.",
+          "generate_ton_private_key": "Generate a private key from your TON mnemonic.",
           "network_settings": "Network settings",
           "ton_mnemonic_desc":
               "The TON network uses its algorithm to generate private keys from mnemonics. You can create or import a TON mnemonic, convert it to a private key, and import it into your wallet.",
@@ -1257,8 +1212,7 @@ class Localization {
               "Please enter a valid string in base64 or hexadecimal format.",
           "update_messsage": "Update message.",
           "message_options": "Message options",
-          "ton_bounceable_vs_non_bounceable":
-              "Bounceable vs Non-Bounceable Addresses",
+          "ton_bounceable_vs_non_bounceable": "Bounceable vs Non-Bounceable Addresses",
           "ton_address_type_desc":
               "We recommend using a stable, non-bounceable address for the wallet contract.",
           "bouncable": "Bounceable",
@@ -1272,8 +1226,7 @@ class Localization {
           "select_jetton_desc": "Please select the jetton you want to transfer",
           "forward_amount": "Forward Ton amount",
           "total_amount": "Total amount",
-          "the_jetton_amount_is_unspecified":
-              "The jetton amount is unspecified.",
+          "the_jetton_amount_is_unspecified": "The jetton amount is unspecified.",
           "ton_total_amount_validator":
               "The total amount must be greater than the forward amount. (Forward amount + message fee = total amount)",
           "ton_jetton_transfer_desc":
@@ -1283,8 +1236,7 @@ class Localization {
           "remove_recipient": "Remove recipient",
           "remove_recipient_desc": "Remove the recipient?",
           "unknown_error": "Unknown error",
-          "some_action_failed":
-              "Some actions failed during the processing:  ___1__ .",
+          "some_action_failed": "Some actions failed during the processing:  ___1__ .",
           "arbitrary_request_number": "Arbitrary request number.",
           "query_id": "Query ID",
           "jetton_transfer_fields": "Jetton transfer fields.",
@@ -1298,12 +1250,10 @@ class Localization {
           "ripple_key": "Ripple key",
           "select_ripple_seed_or_entropy": "Please enter your Ripple key.",
           "example_s": "Example: ___1__ .",
-          "ripple_seed_entropy_validator":
-              "Please enter a valid ripple ___1__ .",
+          "ripple_seed_entropy_validator": "Please enter a valid ripple ___1__ .",
           "seed": "Seed",
           "entropy": "Entropy",
-          "inidicate_type_of_ripple_key":
-              "Indicate the type of your ripple key.",
+          "inidicate_type_of_ripple_key": "Indicate the type of your ripple key.",
           "ripple_key_type": "Ripple key type",
           "choose_key_algorithm_desc":
               "Which type of algorithm would you like to use to create the private key?",
@@ -1311,12 +1261,11 @@ class Localization {
               "Your private key has been successfully generated. click the 'Import to Wallet' button which can then be imported into a wallet to manage addresses, transactions, and other network operations.",
           "coin_type": "Coin type",
           "choose_key_coin_desc": "To which coin is your key-related?",
-          "invalid_key": "The provided key is invalid.",
-          "enter_extended_key_desc":
-              "Please enter your extended key in Base58 format.",
-          "enter_wif_key_desc": "Please enter your WIF key in Base58 format.",
-          "enter_private_key_desc":
-              "Please enter your private key in Hexadecimal format.",
+          "invalid_key_length": "Invalid key length.",
+          "invalid_key_encoding_format": "Invalid key encoding format.",
+          "enter_key_base58_desc": "Please enter your key in Base58 format.",
+          "enter_key_hex_desc": "Please enter your key in Hexadecimal format.",
+          "enter_key_bech32_desc": "Please enter your key in Bech32 format.",
           // "restore_from_backup": "Restore from backup.",
           "restore_backup_desc":
               "Restore your mnemonic, private key, or other information you generated with the app backup option.",
@@ -1331,12 +1280,10 @@ class Localization {
               "We can also provide live price updates for your token balance using CoinGecko. To enable this, locate your token on CoinGecko, find the API ID on the token's page, and select the appropriate name here.",
           "retrieving_token_information": "Retrieving token. Please wait.",
           "api_id": "API ID",
-          "coingecko_api_id_validator":
-              "The API ID must be at least 2 characters long",
+          "coingecko_api_id_validator": "The API ID must be at least 2 characters long",
           "retrieving_token_price": "Retrieving token price. Please wait.",
           "updating_token": "Updating token. Please wait. ",
-          "token_updated_successfully":
-              "The token has been successfully updated.",
+          "token_updated_successfully": "The token has been successfully updated.",
           "invalid_api_id": "Invalid API ID.",
           "token_decimals": "Token decimals",
           "token_decimals_validator":
@@ -1390,13 +1337,11 @@ class Localization {
           "unverified_account": "Unverified Account",
           "unverified_account_desc":
               "The verification of these accounts failed, so they cannot be imported into your wallet.",
-          "signing_auth_validator":
-              "This account is not authorized for signing.",
+          "signing_auth_validator": "This account is not authorized for signing.",
           "unsuported_key": "Unsupported key",
           "use_key_store_backup_desc":
               "A keystore backup can be unlocked by any compliant Web3 wallet, such as TronLink, MetaMask, and others.",
-          "invalid_backup_type_desc":
-              "Invalid backup type. Expected a ___1__ but received an ___2__.",
+
           "mnemonic": "Mnemonic",
           "keystore": "Keystore",
           "ton_wallet_validator_desc":
@@ -1410,21 +1355,18 @@ class Localization {
           "ripple_xaddress_tag_validator":
               "The provided tag does not match the x-address tag.",
           "retrive_barcode_data": "Retrieve barcode data",
-          "coin_not_found":
-              "Unable to locate a proposal with the given coin name.",
+          "coin_not_found": "Unable to locate a proposal with the given coin name.",
           "keypair_type": "Keypair type",
           "choose_key_algorithm_desc2":
               "Which type of algorithm would you like to use to create the address?",
-          "disable_standard_derivation_desc":
-              "You can manually setup a derivation path.",
+          "disable_standard_derivation_desc": "You can manually setup a derivation path.",
           "custom_path_derivation_desc":
               "Ensure you remember the chosen path for custom derivation. Forgetting it could result in losing your funds.",
           "connection_attempt_unsuccessful": "Connection attempt unsuccessful.",
-          "node_connectiong_please_wait":
-              "Connecting to the node. Please wait.",
+          "node_connectiong_please_wait": "Connecting to the node. Please wait.",
+
           "tip": "Tip",
-          "barcode_scanning_terminated":
-              "Barcode scanning has been terminated.",
+          "barcode_scanning_terminated": "Barcode scanning has been terminated.",
           "provider": "Provider",
           "account_options": "Account options",
           "node_connection_desc":
@@ -1442,8 +1384,7 @@ class Localization {
           "version": "Version",
           "primary_type": "Primary type",
           "decryption_failed": "Decryption process failed.",
-          "initializing_requirements":
-              "Initializing requirements. Please wait.",
+          "initializing_requirements": "Initializing requirements. Please wait.",
           "coin_type_desc2":
               "The coin type is always determined by a hardened index. You can also set up a custom derivation on the setup address page.",
           "authenticated": "Authentication",
@@ -1532,23 +1473,20 @@ class Localization {
           "simulate_transaction": "Simulate transaction",
           "transaction_simulation_failed": "Transaction simulation failed.",
           "transaction_simulation_success": "Transaction simulation success.",
-          "transaction_simulate_please_wait":
-              "Simulating transaction. Please wait.",
+          "transaction_simulate_please_wait": "Simulating transaction. Please wait.",
           "transaction_simulation_failed_retry":
               "Transaction simulation failed. Tap to retry",
           "transactions": "Transactions",
           "multiple_transaction_desc":
               "Multiple transaction requests detected. Please review each transaction before submitting.",
-          "signing_transaction_please_wait":
-              "Signing transaction. Please wait.",
+          "signing_transaction_please_wait": "Signing transaction. Please wait.",
           "send_transactions": "Send transactions",
           "sign_transactions": "Sign transactions",
           "total_transaction_fee": "Total transaction fee",
           "fee_estimate_failed": "Fee estimation failed",
           "total_transaction_const": "Total transaction cost",
           "change_balance": "Change balance",
-          "solana_change_balance_desc":
-              "Remaining balance after transaction submission.",
+          "solana_change_balance_desc": "Remaining balance after transaction submission.",
           "solana_change_balance_desc2":
               "In a multiple transaction request with the same owner, the balance change applies only to this instruction and does not affect previous or subsequent simulations.",
           "message_amount": "Message amount",
@@ -1601,14 +1539,11 @@ class Localization {
           "stellar_muxed_address_desc":
               "a new type of Stellar account that makes it easy to map a single Stellar address to multiple users.",
           "id": "Id",
-          "enter_stellar_muxed_id_desc":
-              "The Id must be a value between 0 and 2^64-1.",
-          "uint64_validator":
-              "The ___1__ must be a value between 0 and 2^64-1.",
+          "enter_stellar_muxed_id_desc": "The Id must be a value between 0 and 2^64-1.",
+          "uint64_validator": "The ___1__ must be a value between 0 and 2^64-1.",
           "recipient_account_active": "The recipient account is active.",
           "recipient_account_inactive": "The recipient account is inactive.",
-          "retrieve_account_activity_failed":
-              "Failed to retrieve account activity.",
+          "retrieve_account_activity_failed": "Failed to retrieve account activity.",
           "32bytes_hex_validator_desc":
               "The value must be a valid 32-byte hexadecimal string.",
           "text_max_validator": "Text must be ___1__ characters max.",
@@ -1627,8 +1562,7 @@ class Localization {
           "submit_transaction_error": "Transaction submission error. ___1__",
           "submit_transaction_failed": "Transaction submission failed.",
           "fee_zero_validator_desc": "Transaction fee must not be zero.",
-          "tap_to_add_new_operation":
-              "Tap to add a new operation to the transaction",
+          "tap_to_add_new_operation": "Tap to add a new operation to the transaction",
           "change_trust": "Change trust",
           "asset_type": "Asset type",
           "stellar_invalid_asset4_validator":
@@ -1646,8 +1580,7 @@ class Localization {
           "pick_an_asset": "Pick an asset",
           "change_trust_desc":
               "The Stellar changeTrust operation lets an account establish, modify, or remove trust lines for an asset. This is necessary before holding or transacting with non-native assets like tokens issued by other accounts.",
-          "modify_trust_line_desc":
-              "Please select an asset to modify the trust line.",
+          "modify_trust_line_desc": "Please select an asset to modify the trust line.",
           "change_trust_limit":
               "the maximum amount of an asset that an account is willing to trust",
           "limit": "Limit",
@@ -1706,8 +1639,7 @@ class Localization {
           "transaction_operation": "Transaction operation",
           "stellar_account_inactive_desc":
               "The destination account is inactive. Be sure to include a Create Account operation; otherwise, the transaction will fail.",
-          "assets_not_found_in_account":
-              "We couldn't detect any assets in your account",
+          "assets_not_found_in_account": "We couldn't detect any assets in your account",
           "account_is_active": "the account is already active.",
           "time_bound": "Time bound (Maximum time)",
           "stellar_time_bound_desc":
@@ -1742,10 +1674,8 @@ class Localization {
               "A unique identifier for the offer. An OfferID of 0 indicates that a new offer will be created, while a non-zero OfferID indicates that an existing offer will be updated.",
           "setup_price": "Setup price",
           "tap_to_setup_price": "Tap to setup price",
-          "exchange_entred_price_desc":
-              "You will receive ___1__ for each ___2__.",
-          "exchange_entred_price_buy_desc":
-              "You will pay ___1__ for each ___2__.",
+          "exchange_entred_price_desc": "You will receive ___1__ for each ___2__.",
+          "exchange_entred_price_buy_desc": "You will pay ___1__ for each ___2__.",
           "setup_offer_id": "Setup offer id",
           "different_selling_from_buying_validator_desc":
               "The buying asset must be different from the selling asset.",
@@ -1781,8 +1711,7 @@ class Localization {
           "bump_sequence": "Bump Sequence",
           "create_claimable_balance": "Create Claimable Balance",
           "claim_claimable_balance": "Claim Claimable Balance",
-          "begin_sponsoring_future_reserves":
-              "Begin Sponsoring Future Reserves",
+          "begin_sponsoring_future_reserves": "Begin Sponsoring Future Reserves",
           "end_sponsoring_future_reserves": "End Sponsoring Future Reserves",
           "revoke_sponsorship": "Revoke Sponsorship",
           "clawback": "Clawback",
@@ -1818,8 +1747,7 @@ class Localization {
               "Convert a Solana Base58 keypair into an Ed25519 private key for secure cryptographic operations on the Solana network.",
           "solana_base58_secret_key_validator":
               "Invalid Solana keypair. The key must be at least an 88-character Base58 string.",
-          "solana_base58_secret_key_desc2":
-              "Please enter a valid Solana Base58 keypair.",
+          "solana_base58_secret_key_desc2": "Please enter a valid Solana Base58 keypair.",
           "sub_address": "SubAddress",
           "xmr_sub_address_desc":
               "A Monero subaddress is a unique, privacy-enhancing address derived from a main wallet address, allowing users to segregate funds without revealing their main address.",
@@ -1828,8 +1756,7 @@ class Localization {
           "sync_options": "Sync options",
           "monero_sync_options_desc":
               "Options for synchronizing Monero accounts by fetching unspent transaction outputs (UTXOs).",
-          "monero_wallet_rpc_sync_desc":
-              "Monero Wallet RPC synchronization option.",
+          "monero_wallet_rpc_sync_desc": "Monero Wallet RPC synchronization option.",
           "monero_wallet_rpc_sync_desc1":
               "sends a request to your wallet and retrieves all incoming and outgoing transfers to synchronize with the current state.",
           "wallet_rpc_url": "Wallet RPC endpoint URL",
@@ -1837,8 +1764,7 @@ class Localization {
               "Enter your Wallet RPC endpoint URL, including the port if applicable.",
           "endpoint_url": "Endpoint URL",
           "sync_now": "Sync now",
-          "monero_wallet_transaction_sync_desc":
-              "Transaction synchronization option.",
+          "monero_wallet_transaction_sync_desc": "Transaction synchronization option.",
           "monero_wallet_transaction_sync_desc2":
               "Synchronize your wallet's current state with its transaction history by providing your transaction IDs. We will retrieve and validate your unspent transactions.",
           "enter_transaction_ids_desc":
@@ -1854,8 +1780,7 @@ class Localization {
               "At least one active address is required to access the requested page.",
           "page_required_multisig_address":
               "Multi-signature address is required to access the requested page.",
-          "duplicate_transaction_ids_detected":
-              "Duplicate transaction IDs detected.",
+          "duplicate_transaction_ids_detected": "Duplicate transaction IDs detected.",
           "invalid_daemon_repsone": "Invalid daemon response",
           "monero_empty_outputs_desc":
               "We did not find any outputs for your accounts in these transactions.",
@@ -1868,18 +1793,15 @@ class Localization {
           "monero_tx_integrated_address_alert":
               "Integrated addresses cannot be used in a transaction with multiple recipients.",
           "failed_to_unlock_output": "Failed to unlock the output.",
-          "output_is_not_ready_for_spending":
-              "The output is not yet ready for spending.",
+          "output_is_not_ready_for_spending": "The output is not yet ready for spending.",
           "show_proofs": "Show proofs",
           "proof": "Proof",
           "invalid_daemon_distribution_response":
               "Invalid daemon output Distribution response.",
-          "generate_rct_faild":
-              "Failed to generate Ring Confidential Transaction (RCT)",
+          "generate_rct_faild": "Failed to generate Ring Confidential Transaction (RCT)",
           "monero_utxo_lake_of_confirmatins_desc":
               "Lack of confirmations. UTXOs must have at least 10 confirmations before they can be spent.",
-          "account_tx_detected_desc":
-              "Account transaction detected. Tap to proceed.",
+          "account_tx_detected_desc": "Account transaction detected. Tap to proceed.",
           "monero_block_height_sync_desc":
               "Synchronizing transactions from a specified block height.",
           "monero_block_height_sync_desc2":
@@ -1890,11 +1812,9 @@ class Localization {
           "end_at_block": "End at block",
           "monero_rct_block_validator":
               "Wallet supports RCT Transactions only from block ___1__ onward.",
-          "monero_sync_block_validator":
-              "End block must be greater than start block.",
+          "end_block_number_validator": "End block must be greater than start block.",
           "submiting_sync_process": "Submitting synchronization process.",
-          "select_accounts_for_syncing":
-              "Select the accounts you want to sync.",
+          "select_accounts_for_syncing": "Select the accounts you want to sync.",
           "primary_address": "Primary address",
           "addresses": "Addresses",
           "at_least_one_account_required": "At least one address is required.",
@@ -1903,9 +1823,8 @@ class Localization {
           "tap_to_add_account": "Tap to add a new account.",
           "wallet_rpc": "Wallet RPC",
           "block": "Block",
-          "invalid_url": "Invalid url.",
-          "key_derivation_disabled_desc":
-              "Derivation disabled for this key type",
+          "invalid_url": "Invalid url format.",
+          "key_derivation_disabled_desc": "Derivation disabled for this key type",
           "monero_fetching_Wallet_available_transfers":
               "Fetching wallet available transfers. Please wait.",
           "monero_wallet_rpc_sync_desc2":
@@ -1914,8 +1833,7 @@ class Localization {
               "No incoming transactions were found for your current account or subaccounts",
           "wallet_rpc_different_account_response_desc":
               "Monero wallet returned an account that does not match any of your wallet accounts.",
-          "monero_fetching_Wallet_addresses":
-              "Fetching wallet addresses. Please wait.",
+          "monero_fetching_wallet_addresses": "Fetching wallet addresses. Please wait.",
           "monero_wallet_rpc_safty_interacting_desc":
               "For safety when interacting with Wallet RPC, ensure that you enable the '--restricted-rpc' option when running the Wallet RPC.",
           "sync_information": "Sync Information",
@@ -1926,8 +1844,7 @@ class Localization {
           "compressed_public_key": "Compressed public key",
           "generatare_from_compressed_public_key":
               "Generate from the compressed public key.",
-          "public_key_required_derive_address":
-              "Public key needed to derive the address",
+          "public_key_required_derive_address": "Public key needed to derive the address",
           "add_to_address": "Add to addresses",
           "account_tokens": "Account tokens",
           "choose_payment_currency": "Choose Payment Currency",
@@ -1947,8 +1864,7 @@ class Localization {
               "Enter the unique ID of your stake pool for delegation.",
           "setup_pool_id": "Setup pool ID",
           "cardano_pool_id_validator": "Please enter a valid Cardano pool ID.",
-          "signer_account_does_not_exists":
-              "The Signer account has not been found.",
+          "signer_account_does_not_exists": "The Signer account has not been found.",
           "reward_address": "Reward address",
           "cardano_network_magic_validator":
               "The network magic is incompatible with the current network.",
@@ -1965,8 +1881,7 @@ class Localization {
           "import_manually": "Import manually",
           "chain_not_found_import_manually_desc":
               "We couldn't find the chain with the provided name. Please import it manually.",
-          "select_network_to_import_desc":
-              "Select the network you want to import.",
+          "select_network_to_import_desc": "Select the network you want to import.",
           "fee_token": "Fee token",
           "denom": "Denom",
           "token_demination_desc": "Please enter the token denomination",
@@ -1974,12 +1889,14 @@ class Localization {
           "cosmos_key_alg_desc":
               "Algorithm used for key generation and transaction signing",
           "cosmos_key_alg_desc2":
-              "Unknown network key algorithm. Ensure you are selecting the correct key algorithm; otherwise, you may risk losing funds",
+              "Unable to verify the network key algorithm. Ensure the selected key algorithm is correct before continuing. An incorrect selection may generate an invalid address and result in permanent loss of funds.",
+          "cosmos_unknown_key_algorithm_desc":
+              "Unknown network key algorithm. Continuing with an incorrect algorithm may generate an invalid address and result in permanent loss of funds. Continue?",
+          "verify_key_algorithm": "Verify Key Algorithm",
           "native_token": "Native token",
           "enter_tendermint_rpc_desc":
               "Enter the Tendermint RPC URL of the chain for interaction.",
-          "unsupported_network_key_alg":
-              "The network's key algorithm is not supported.",
+          "unsupported_network_key_alg": "The network's key algorithm is not supported.",
           "import_network_experimental_feature_desc":
               "This feature is experimental. Please carefully verify all information about the chain before importing it into your wallet.",
           "cosmis_fee_limit_desc":
@@ -1989,13 +1906,11 @@ class Localization {
           "fee_tokens": "Fee tokens",
           "tap_to_add_new_fee_token": "Tap to add a new fee token",
           "token_name": "Token name",
-          "token_decimal_max18_validator":
-              "Token decimals must be between 0 and 18.",
+          "token_decimal_max18_validator": "Token decimals must be between 0 and 18.",
           "setup_token": "Setup token",
           "remove_token_from_fee_token_list_desc":
               "Remove token from the fee tokens list?",
-          "at_least_one_fee_token_required":
-              "At least one fee token is required.",
+          "at_least_one_fee_token_required": "At least one fee token is required.",
           "network_token_required": "The network's native token is required.",
           "cosmos_update_token_desc":
               "Ensure the token denomination and decimals are entered correctly; otherwise, the import operation will fail.",
@@ -2007,10 +1922,8 @@ class Localization {
           "high_gas_price": "High gas price",
           "comsos_gas_price_desc":
               "This field is multiplied by the transaction gas limit to calculate the transaction fee.",
-          "gas_price_validator":
-              "Please enter a valid gas price as a double value.",
-          "stellar_asset_trust_path_limit_exceeded":
-              "Asset trust path limit exceeded.",
+          "gas_price_validator": "Please enter a valid gas price as a double value.",
+          "stellar_asset_trust_path_limit_exceeded": "Asset trust path limit exceeded.",
           "stellar_destination_lacks_trust_path":
               "The destination lacks a trust path for this token.",
           "tx_submit_response_failed_desc":
@@ -2026,14 +1939,12 @@ class Localization {
               "The Monero network uses its algorithm to generate private keys from mnemonics. You can create or import a Monero mnemonic, convert it to a private key, and import it into your wallet.",
           "monero_menonic_validator":
               "Please enter your mnemonic phrase below, consisting of 12, 13, 24, or 25 words, separated by spaces.",
-          "addresses_and_initial_sync_block":
-              "The addresses and the initial sync block",
+          "addresses_and_initial_sync_block": "The addresses and the initial sync block",
           "default_chain_sync": "Default chain synchronization",
           "requested_synchronizations": "Requested synchronizations ___1__",
           "available_synchronizations": "Available synchronizations",
           "faliled_blocks": "Failed blocks",
-          "stream_closed_desc":
-              "Cannot access the stream. it has already been closed",
+          "stream_closed_desc": "Cannot access the stream. it has already been closed",
           "stream_does_not_exists": "Stream does not exist.",
           "canceled": "Canceled",
           "paused": "Paused",
@@ -2044,8 +1955,7 @@ class Localization {
               "Invalid or unsuported Digest Authentication headers.",
           "username": "Username",
           "realm": "Realm",
-          "maintain_monero_wallet_rpc_connection":
-              "Maintain Wallet RPC Connection",
+          "maintain_monero_wallet_rpc_connection": "Maintain Wallet RPC Connection",
           "store_wallet_rpc_connection":
               "Your Wallet RPC information is stored to assist in syncing accounts, UTXOs, and transactions.",
           "already_connected_to_monero_wallet_rpc":
@@ -2088,20 +1998,15 @@ class Localization {
               "Enter the network address prefix (HRP), or leave blank to determine it from the RPC.",
           "enter_network_hrp_validator": "Please enter a valid network HRP.",
           "address_prefix_hrp": "Address prefix (HRP)",
-          "unable_to_retrieve_hrp":
-              "Unable to retrieve HRP from RPC. Please provide it.",
-          "different_network_hrp":
-              "Invalid HRP. The network returned a different HRP.",
+          "unable_to_retrieve_hrp": "Unable to retrieve HRP from RPC. Please provide it.",
+          "different_network_hrp": "Invalid HRP. The network returned a different HRP.",
           "add_new_network": "Add new ___1__ network",
           "http_api_url": "HTTP API URL",
           "json_rpc_solidity_url": "JSON RPC URL(EVM)",
-          "network_title_http_wss_url":
-              "Please provide the HTTP or Websocket address, including the http or ws prefix. If applicable, include the port number. For example, https://example.com:8080",
           "paste_your_backup_here": "Paste your backup data here",
           "constants": "Constants",
           "access_network_constants": "Access network constants.",
-          "retrieving_constants_please_wait":
-              "Retrieving Constants, please wait",
+          "retrieving_constants_please_wait": "Retrieving Constants, please wait",
           "storages": "Storages",
           "query_network_storages": "Query network storages",
           "query_again": "Query again",
@@ -2143,8 +2048,7 @@ class Localization {
           "payload": "Payload",
           "fake_extrinsic_signature_desc":
               "The extrinsic contains a fake signature. The actual signature is added to the extrinsic when it is submitted.",
-          "token_decimal_maxn_validator":
-              "Token decimals must be between 0 and ___1__.",
+          "token_decimal_maxn_validator": "Token decimals must be between 0 and ___1__.",
           "unsuported_network_metadata": "Unsuported network metadata.",
           "extrinsic_encoding_failed": "Extrinsic encoding failed.",
           "websocket_authenticated_unsuported_desc":
@@ -2157,8 +2061,7 @@ class Localization {
           "add_or_updating_wallet_network":
               "Add or updating wallet network. please wait.",
           "page_not_found": "Page not found.",
-          "web3_retrieval_requirment":
-              "Web3 Retrieval Requirements. please wait.",
+          "web3_retrieval_requirment": "Web3 Retrieval Requirements. please wait.",
           "number_to_decimal": "10^___1__ (___2__)",
           "update_metadata": "Update metadata",
           "substrate_update_metadata_desc":
@@ -2167,8 +2070,7 @@ class Localization {
           "select_provider_to_use":
               "Please select one of the providers you want to use when interacting chain",
           "keep_unlock": "Keep unlock",
-          "wallet_lock_timer_desc":
-              "The wallet will be locked after ___1__ seconds",
+          "wallet_lock_timer_desc": "The wallet will be locked after ___1__ seconds",
           "web3_permission": "Web3 Application Permission",
           "aptos_select_provider_desc":
               "Choose a network service for Full Node and GraphQL interaction.",
@@ -2271,14 +2173,13 @@ class Localization {
           "save_channel_id": "Save channel ID",
           "channel_name": "Channel name",
           "channel_id_saved": "Channel ID has been saved.",
-          "channel_name_desc":
-              "Enter the channel name to retrieve its ID easily",
+          "channel_name_desc": "Enter the channel name to retrieve its ID easily",
           "pick_channel": "Pick channel",
           "saved_channels": "Saved channels",
           "check_channel_connection": "Check channel connection",
           "check_channel_connection_desc":
               "Verify the connection between the source and destination chain",
-          "channel_not_found_in": "Channel not found in ___1__",
+          "channel_not_found": "Channel not found.",
           "ibc_channel_incorrect_state":
               "Connection failed: Source channel is not in an open state.",
           "checking_chain_channel_id_connection":
@@ -2307,35 +2208,31 @@ class Localization {
           'sign_in_data': "Sig-In Data",
           'support_by_application': "Support by application",
           "unsupported_by_application": "Unsupported by application",
-          "some_required_field_not_filled":
-              "Some required fields are not filled",
+          "some_required_field_not_filled": "Some required fields are not filled",
           "back_to_previous_page": "Back to previous page",
-          "all_entered_information_will_be_lost":
-              "All entered information will be lost.",
+          "all_entered_information_will_be_lost": "All entered information will be lost.",
           "http_connection_closed": "The connection to the server was closed.",
           "swap": "Swap",
           "format_exception": "The data format is invalid.",
           "timeout_exception": "The operation took too long and timed out.",
-          "socket_exception":
-              "Network error. Please check your internet connection.",
+          "socket_exception": "Network error. Please check your internet connection.",
           "http_exception": "There was a problem with the HTTP request.",
           "range_error": "A value is out of the allowed range.",
           "argument_error": "An invalid argument was provided.",
-          "state_error":
-              "The operation couldn’t be performed in the current state.",
+          "state_error": "The operation couldn’t be performed in the current state.",
           "unimplemented_error": "This feature hasn’t been implemented yet.",
           "unsupported_error": "This operation is not supported.",
           "assertion_error": "An internal assertion failed.",
           "cast_error": "A value couldn’t be cast to the expected type.",
           "type_error": "An unexpected type was used.",
+          "api_connection_failed": "API connection failed.",
 
           /// swap
           'no_token_found': "Token not found.",
-          "n_minutes": "___1__ minutes",
+
           "routes": "Routes",
           "fees": "Fees",
-          "no_swap_route_found":
-              "No swap route was found for the selected tokens.",
+          "no_swap_route_found": "No swap route was found for the selected tokens.",
           "swap_now": "Swap Now",
           "connect": "Connect",
           "disconnect": "Disconnect",
@@ -2371,8 +2268,7 @@ class Localization {
           "transaction_confirmation_failed": "Transaction confirmation failed.",
           "mint_account_not_found": "Mint account not found.",
           "invalid_mint_account_owner": "Invalid mint account owner.",
-          "network_client_initialize_failed":
-              "Network client initialization failed.",
+          "network_client_initialize_failed": "Network client initialization failed.",
           "source_accounts": "Source accounts",
           "invalid_swap_information": "Invalid swap route information.",
           "bitcoin_account_must_spend":
@@ -2387,19 +2283,16 @@ class Localization {
               "Your TON address is currently frozen. This wallet does not support the unfreeze feature. Please use the official TON tools to unfreeze your account.",
           "custom_key_derivation_desc":
               "Key derivation path. If using a custom path, be sure to record it securely—losing it could result in loss of access to your address and funds.",
-          "cannot_send_transfer_to_your_self":
-              "can't send the transfer to yourself",
+          "cannot_send_transfer_to_your_self": "can't send the transfer to yourself",
           "op_return_length_validator":
               "Transactions are limited to a maximum of ___1__ bytes in the OP_RETURN output.",
-          "tap_to_generate_transaction_proof":
-              "Tap to Generate transaction proof",
+          "tap_to_generate_transaction_proof": "Tap to Generate transaction proof",
           "transaction_input_exceeds_16_desc":
               "Transaction input limit exceeded: only 16 UTXOs allowed.",
           "transaction_output_exceeds_16_desc":
               "Transaction output limit exceeded: only 16 recipients allowed.",
           "connecting_to_network": "Connecting to network",
-          "remove_transaction_from_account":
-              "Remove transaction from Your Account?",
+          "remove_transaction_from_account": "Remove transaction from Your Account?",
           "remove_transaction": "Remove transaction",
           "manage_your_account_contacts": "Manage your account contacts.",
           "remove_contact_from_account": "Remove contact from Your Account?",
@@ -2407,8 +2300,7 @@ class Localization {
           "add_new_contact_desc":
               "Contacts must have a unique name and address within an account. Otherwise, a 'Contact already exists' error will be shown.",
           "tabs": "Tabs",
-          "client_permission_have_been_updated":
-              "Client permissions have been updated",
+          "client_permission_have_been_updated": "Client permissions have been updated",
           "remove_histories": "Remove histories",
           "remove_all_histories": "Remove all histories?",
           "remove_bookmarks": "Remove bookmarks",
@@ -2435,8 +2327,7 @@ class Localization {
           "sync_request": "Sync request",
           "block_height_already_exists":
               "A request already exists within this block height range.",
-          "sync_account_with_blockchain_data":
-              "Sync account with blockchain data",
+          "sync_account_with_blockchain_data": "Sync account with blockchain data",
           "chain_synchronization_disabled_desc":
               "Synchronization is not active for the current chain.",
           "remove_sync_block_request_from_account":
@@ -2455,15 +2346,13 @@ class Localization {
           "duplicate_wallet_instance": "Duplicate Wallet Instance",
           "duplicate_wallet_instance_alert":
               "A wallet is already open in another instance.",
-          "manage_network_service_providers":
-              "Manage network service providers",
+          "manage_network_service_providers": "Manage network service providers",
           "unsuported_backup_version": "Unsuported backup version",
           "imported_key_derivation_not_allowed":
               "Key derivation is not supported for imported keys.",
 
           "invalid_key_derivation": "Invalid key derivation.",
-          "press_back_button_twice":
-              "Press the back button twice to exit the app.",
+          "press_back_button_twice": "Press the back button twice to exit the app.",
           "account_index": "Account index",
           "wallet_version": "Wallet version",
           "type": "Type",
@@ -2471,8 +2360,7 @@ class Localization {
           "muxed_id": "Muxed id",
           "base_address": "Base address",
           "sessions": "Sessions",
-          "loading_sessions_please_wait":
-              "Loading WalletConnect sessions. Please wait.",
+          "loading_sessions_please_wait": "Loading WalletConnect sessions. Please wait.",
           "remove_session": "Remove session",
           "remove_session_desc":
               "Are you sure you want to remove this session? All associated activity will be deleted.",
@@ -2483,8 +2371,7 @@ class Localization {
           "application_updated": "Application has been updated.",
           "application_removed": "Application has been removed.",
           "backup_options": "Backup Options",
-          "backup_options_desc":
-              "Choose the wallet sections you'd like to back up.",
+          "backup_options_desc": "Choose the wallet sections you'd like to back up.",
           "mnemonic_seed_hd_wallet_elements":
               "Mnemonic, seed, and other HD wallet elements",
           "encrypted": "Encrypted",
@@ -2498,19 +2385,18 @@ class Localization {
           /// wc
           "invalid_pairing_url": "Invalid pairing url.",
           "unsuported_pairing_url": "Unsuported pairing url.",
-          "unsuported_wc_method":
-              "Wallet does not support the required pairing methods.",
+          "unsuported_wc_method": "Wallet does not support the required pairing methods.",
           "pairing_canceled_by_dapp": "Pairing channel canceled by the client.",
           "unsuported_required_namespace": "Unsupported required namespaces.",
           "wc_internal_error": "An error occurred during the request",
-          "wc_publis_message_timeout":
-              "Failed to publish message: request timed out.",
+          "wc_publis_message_timeout": "Failed to publish message: request timed out.",
+          "wc_message_replaced": "Failed to publish message: message replaced.",
           "wc_client_request_timed_out": "Client request timed out.",
-          "pairing_request_timed_out": "Pairing request timed out.",
+          "pairing_request_timeout": "Pairing request timed out.",
 
           "enable_wallet_connect": "Enable wallet connect",
           "disable": "Disable",
-          "no_network": "No network",
+          "no_network_connection": "No network connection",
           "pairing_url": "Pairing url",
           "pairing_please_wait": "Pairing. Please wait",
           "pair_with_new_client": "Pair with New Client",
@@ -2521,14 +2407,12 @@ class Localization {
           "wallet_management": "Wallet Management",
           "wallet_management_desc": "Switch or create new wallet",
           "swap_setting_desc": "Configure providers and networks",
-          "connection_terminated":
-              "The connection to the server was terminated",
+          "connection_terminated": "The connection to the server was terminated",
           "dapps_management": "DApps Management",
           "dapps_permissions": "DApps Permissions",
           "invalid_backup_options": "Invalid backup options",
 
-          "loading_applications_please_wait":
-              "Loading applications. Please wait",
+          "loading_applications_please_wait": "Loading applications. Please wait",
           "dapps_management_desc": "Manage DApps permissions",
           "generate_backup_desc2":
               "Warning: Only a backup of the currently active wallet will be generated. If you have multiple wallets, make sure to switch to each wallet individually and generate a backup for each one.",
@@ -2537,36 +2421,30 @@ class Localization {
           "unable_to_verify_page_origin": "Unable to verify the page's origin.",
           "page_didnot_work_as_expected":
               "The page didn’t work as expected. Please reload.",
-          "client_disabled_desc":
-              "Client is disabled. All requests will be blocked.",
+          "client_disabled_desc": "Client is disabled. All requests will be blocked.",
           "field_is_required": "___1__ is required.",
-          "transaction_fee_has_been_updated":
-              "Transaction fee has been updated.",
+          "transaction_fee_has_been_updated": "Transaction fee has been updated.",
           "at_least_one_recipient_required": "At least one recipient required.",
           "some_amount_fields_not_filled": "Some amounts fields not filled.",
           "some_required_fields_not_filled": "Some required fields not filled.",
           "amount_required_for_create_account":
               "An amount is required to create the account.",
-          "send_to_self_not_allowed":
-              "Sending XRP to your own address is not allowed.",
+          "send_to_self_not_allowed": "Sending XRP to your own address is not allowed.",
           "add_jetton_to_transfer": "Add a jetton to transfer",
           "message_setting_updated": "Message settings have been updated.",
           "jetton_transfer_options": "Jetton transfer options",
           "storage_fee": "Storage fee",
           "gas_fee": "Gas fee",
           "action_fee": "Action fee",
-          "simulate_transaction_fee_failed":
-              "Failed to simulate transaction fee.",
+          "simulate_transaction_fee_failed": "Failed to simulate transaction fee.",
           "no_delegated_resources_found": "No delegated resources found.",
           "field_filled_incorrectly": "The field ___1__ is filled incorrectly.",
-          "maximum_item_for_field":
-              "A maximum of ___1__ items is allowed for ___2__",
+          "maximum_item_for_field": "A maximum of ___1__ items is allowed for ___2__",
           "add_stellar_new_operation_desc":
               "Please fill in all operation fields to add them to the transaction.",
           "skip_create_operations": "Skip operations?",
           "skip_operations_desc": "Do you want to skip creating operations?",
-          "enter_valid_address_validator":
-              "Please enter a valid ___1__ address.",
+          "enter_valid_address_validator": "Please enter a valid ___1__ address.",
           "convert_address_to_bytes": "Encode address as hexadecimal bytes.",
           "transaction_expired": "Transaction has been expired.",
           "setup_transfer": "Setup transfer",
@@ -2574,25 +2452,21 @@ class Localization {
               "Please fill in all transfer fields to add them to the transaction.",
           "skip_transfer_desc": "Do you want to skip creating transfer?",
           "skip_transfer": "Skip creating transfer?",
-          "transaction_submission_error":
-              "Transaction submission failed: ___1__",
-          "amount_must_be_greater_than_zero":
-              "The amount must be greater than zero",
+          "transaction_submission_error": "Transaction submission failed: ___1__",
+          "amount_must_be_greater_than_zero": "The amount must be greater than zero",
           "sending_token_to_non_bitcoin_cash_token_address_desc":
               "You are sending a Bitcoin Cash token to a non-Bitcoin Cash token address",
           "sending_large_bch_to_token_address_desc":
               "You are sending a large BCH amount to a Bitcoin Cash token address",
           "tap_to_create_burn_operation": "Tap to create burn operation",
-          "tokens_burn_in_transaction_desc":
-              "Tokens will be burned in this transaction.",
+          "tokens_burn_in_transaction_desc": "Tokens will be burned in this transaction.",
           "update_utxo_durning_build_transaction_desc":
               "Select all desired UTXOs before building the transaction. Modifying UTXOs during the process may discard your changes.",
           "n_item_selected": "___1__ item selected.",
           "ton_jetton_transfer_ton_amount_desc":
               "This amount is used to process the Jetton transfer. Any remaining amount will be returned to your account. If you want to transfer both TON and Jettons to the recipient address, please use the 'Forward Amount' option.",
           "creating_transaction": "Creating transaction. Please wait",
-          "broadcast_to_the_network_please_wait":
-              "Broadcast to the network. Please wait",
+          "broadcast_to_the_network_please_wait": "Broadcast to the network. Please wait",
           "text": "Text",
           "total_selected_amount": "Total selected amount",
           "ripple_choose_token_for_trust_path": "Choose Token for Trust Path",
@@ -2616,14 +2490,11 @@ class Localization {
               "Database initialization failed. unsupported format or missing files.",
           "block_tracking_per_thread": "Block Tracking per Thread",
           "generate_public_key": "Generate public key",
-          "generating_public_key_please_wait":
-              "Generating public key. Please wait",
+          "generating_public_key_please_wait": "Generating public key. Please wait",
           "base_credential": "Base credential",
           "stake_credential": "Stake credential",
-          "tap_to_chose_or_create_public_key":
-              "Tap to choose or create a public key",
-          "at_least_n_public_keys_required":
-              "At least ___1__ public keys required",
+          "tap_to_chose_or_create_public_key": "Tap to choose or create a public key",
+          "at_least_n_public_keys_required": "At least ___1__ public keys required",
           "fill_out_base_address_credential":
               "Fill out the form for your base address credential",
           "fill_out_base_address_stake_credential":
@@ -2632,12 +2503,10 @@ class Localization {
               "Choose a public key from your account or generate a new one",
           "credential_type": "Credential type",
           "reference_script": "Reference script",
-          "at_least_ada_for_collateral":
-              "at least ___1__ ADA required for collateral.",
+          "at_least_ada_for_collateral": "at least ___1__ ADA required for collateral.",
           "ada_max_collateral_amount_desc":
               "Collateral above 25.5 ADA is unnecessary — excess will be locked and at risk.",
-          "ada_min_collateral_amount_desc":
-              "At least 2 ADA is required for collateral",
+          "ada_min_collateral_amount_desc": "At least 2 ADA is required for collateral",
           "ada_multi_asset_utxo_not_allowed_for_collateral":
               "Multi-asset UTXOs are not allowed for collateral.",
           "select_collateral_utxos_desc":
@@ -2665,8 +2534,7 @@ class Localization {
               "BIP39 Mnemonic: Use a standard BIP39 mnemonic. allow derivation",
           "monero_mnemonic_desc2":
               "Monero Mnemonic: Monero-compatible mnemonic. no derivation.",
-          "ton_mnemonic_desc2":
-              "Ton Mnemonic: TON-compatible mnemonic, no derivation.",
+          "ton_mnemonic_desc2": "Ton Mnemonic: TON-compatible mnemonic, no derivation.",
           "monero": "Monero",
           "ton": "Ton",
           "mnemonic_passphrase_desc":
@@ -2690,8 +2558,7 @@ class Localization {
           "sub_wallet_import_to_current_main_wallet_desc":
               "This subwallet will be added to your current main wallet.",
           "setup_wallet_please_wait": "Setup wallet. Please wait",
-          "wallet_has_been_imported":
-              "The wallet has been successfully imported.",
+          "wallet_has_been_imported": "The wallet has been successfully imported.",
           "input_you_wallet_password": "Input your wallet password",
           "choose_your_mnemonic_type": "Choose your mnemonic type",
           "setup_mnemonic": "Setup mnemonic",
@@ -2731,33 +2598,28 @@ class Localization {
           "tranaction_received": "Transaction Received",
           "incomig_transaction_wallet_unlock_desc":
               "Please unlock your wallet to process incoming transactions.",
-          "unlocking_transaction_please_wait":
-              "Unlocking transaction. Please wait",
+          "unlocking_transaction_please_wait": "Unlocking transaction. Please wait",
           "monero_successful_unlock_tx_desc":
               "Unlock successful. transactions have been unlocked and merged into your account.",
           "no_biometric_enrolled": "No biometric enrolled",
           "no_error_found": "No error found.",
           "transaction_state_warning_desc":
               "There are warnings with this transaction. Do you want to continue?",
-          "invalid_file_content_desc":
-              "The file appears to be invalid or corrupted.",
+          "invalid_file_content_desc": "The file appears to be invalid or corrupted.",
           "failed_to_read_content": "Failed to read file content.",
           "tab_to_choose_backup_file": "Tab to select backup file",
           "file_save_failed": "File save failed.",
-          "invalid_backup_content":
-              "Invalid backup. wrong password or corrupted backup",
+          "invalid_backup_content": "Invalid backup. wrong password or corrupted backup",
+          "invalid_backup_encoding": "Invalid backup encoding.",
           "verify_backup_desc": "Regenerating each address for verification.",
           "verify_backup": "Verify backup",
           "create_network_please_wait": "Create network. Please wait",
           "multisig_account": "Multi Signature account",
-          "please_choose_a_multisig_account":
-              "Please choose a multi-signature account",
+          "please_choose_a_multisig_account": "Please choose a multi-signature account",
           "multisig_call_data": "Multisig Call Data",
           "multisig_call_hash": "Multisig Call Hash",
-          "multisig_call_data_desc":
-              "Encoded call information for multisig execution",
-          "multisig_call_hash_desc":
-              "Unique hash identifying the multisig call payload",
+          "multisig_call_data_desc": "Encoded call information for multisig execution",
+          "multisig_call_hash_desc": "Unique hash identifying the multisig call payload",
           "timepoint": "Timepoint",
           "transaction_timepoint": "Transaction timepoint",
           "substrate_timepoint_desc": "Timepoint of the initial approval call.",
@@ -2778,12 +2640,10 @@ class Localization {
               "Transaction is not ready for ___1__ execution.",
           "your_account_approved_transaction":
               "Your account has already approved this transaction.",
-          "transaction_ready_for_execution":
-              "Transaction is ready for ___1__ execution.",
+          "transaction_ready_for_execution": "Transaction is ready for ___1__ execution.",
           "choose_signer_address": "Choose a signer",
           "transaction_state_not_ready": "Transaction state is not ready.",
-          "invalid_multisig_transaction_data":
-              "Invalid multi-signature transaction data",
+          "invalid_multisig_transaction_data": "Invalid multi-signature transaction data",
           "substrate_chose_signer_desc":
               "Choose a signer, and make sure the address you select isn’t a multisig one.",
           "retrieving_transacton_condition":
@@ -2824,8 +2684,7 @@ class Localization {
           "no_transfable_asset_found": "No transferable assets found.",
           "tap_to_choose_destination": "Tap to choose a destination",
           "destination_network": "Destination network",
-          "choose_network_transfer_to_desc":
-              "Choose the network you want to transfer to",
+          "choose_network_transfer_to_desc": "Choose the network you want to transfer to",
           "transfers": "Transfers",
           "transfer_multiple_reserve_chains_not_allowed":
               "Transferring assets with multiple reserve chains is not allowed.",
@@ -2834,8 +2693,7 @@ class Localization {
               "Choose the token you want to pay fees with on the destination chain",
           "no_tokens_available_for_paying_fees_destination_desc":
               "No tokens available for paying fees on the destination chain.",
-          "failed_to_calculate_destination_fee":
-              "Failed to calculate destination fee.",
+          "failed_to_calculate_destination_fee": "Failed to calculate destination fee.",
           "dry_run_local_destination_desc":
               "Dry-run results for local and destination transaction execution.",
           "unknown_token": "Unknown token",
@@ -2843,8 +2701,7 @@ class Localization {
           "unsupport_simulation":
               "Transaction simulation is not supported on this network",
           "xcm_deliveries_fee": "XCM Deliveries fee",
-          "xcm_simulation_failed_desc":
-              "XCM simulation failed to complete successfully.",
+          "xcm_simulation_failed_desc": "XCM simulation failed to complete successfully.",
           "enable_disable_service_provider_desc":
               "Enable or disable the service provider for the current network.",
           "toggle_between_available_protocols":
@@ -2898,13 +2755,452 @@ class Localization {
 
           "substrate_multisig_network_uncertainty_desc":
               "Make sure the selected network supports multisig operations compatible with Substrate’s default multisig behavior.",
-          "switching_account_please_wait": "Switching account. Please wait."
+          "switching_account_please_wait": "Switching account. Please wait.",
+          "tor": "Tor",
+          "enable_disable_tor_service_desc":
+              "Enable or disable tor service for selected provider.",
+          "tor_service_error_desc": "Failed to start the Tor service.",
+          "tor_service": "Tor service",
+
+          /// net sdk errors
+          "net_sdk_tls_handshake_failed":
+              "TLS handshake failed. Secure connection could not be established.",
+          "net_sdk_network_connection_failed":
+              "Network connection failed. Unable to reach the server.",
+          "net_sdk_tor_connection_failed":
+              "Tor network connection failed. Unable to route through Tor.",
+          "net_sdk_socket_closed": "Socket closed unexpectedly during communication.",
+
+          "net_sdk_http2_connection_failed":
+              "HTTP/2 connection failed. Transport layer could not establish session.",
+
+          "net_sdk_invalid_request_parameters":
+              "Invalid request parameters provided. Please check inputs.",
+          "net_sdk_invalid_config_parameters":
+              "Invalid configuration parameters detected.",
+          "net_sdk_transport_not_found":
+              "Requested transport mechanism not found or unsupported.",
+          "net_sdk_sdk_not_initialized":
+              "SDK not initialized. Initialize before making requests.",
+          "net_sdk_sdk_already_initialized":
+              "SDK is already initialized. Multiple initialization is not allowed.",
+          "net_sdk_sdk_initialization_failed":
+              "SDK initialization failed. Check configuration and dependencies.",
+          "net_sdk_request_timeout": "Request timed out while waiting for a response.",
+          "net_sdk_invalid_tor_config": "Invalid Tor configuration provided.",
+          "net_sdk_tor_initialization_failed": "Tor client initialization failed.",
+          "net_sdk_tor_client_not_initialized":
+              "Tor client is not initialized. Start Tor before use.",
+          "net_sdk_internal_sdk_error": "Internal SDK error occurred.",
+          "net_sdk_tor_config_not_initialized": "Tor config not initialized.",
+
+          "net_sdk_invalid_sdk_config": "Invalid SDK configuration.",
+          "net_sdk_unknown_response": "Received unknown or unrecognized response.",
+          "net_sdk_unsupported_feature": "Requested feature is not supported.",
+          "net_sdk_closed": "SDK instance is closed and cannot process requests.",
+          "net_sdk_connection_closed":
+              "Connection was closed before operation completed.",
+          "net_sdk_invalid_content_error":
+              "The response content format was invalid and could not be parsed.",
+
+          ///
+          "service_internal_error":
+              "An internal error occurred while processing the service request.",
+
+          "connect_only_through_tor": "Connect only through the Tor network.",
+          "tor_not_supported_on_this_platform":
+              "This platform doesn’t support Tor (.onion) addresses.",
+          "only_work_through_tor_network":
+              ".onion addresses only work through the Tor network.",
+          "selected_service_required_tor_nework":
+              "Selected service only work through the Tor network.",
+          "tor_service_error_desc2":
+              "Something went wrong while enabling the Tor service. Please disable it to connect to the node.",
+          "unsupported_platform": "Unsupported platform",
+          "database_unexpected_error":
+              "An unexpected error occurred during the database operation",
+          "path_unexpected_error": "Unexpected error during app path initialization.",
+          "service_alraedy_running": "Service already running.",
+          "invalid_api_state": "Invalid API state.",
+          "invalid_app_config_resources": "Invalid app config resources.",
+
+          ///
+          "invalid_new_address_configuration":
+              "Invalid new address request configuration.",
+          "zcash_address_derivation_index_out_of_range":
+              "Unable to derive new address. diversifier index out of range.",
+          "zcash_transparent_address_derivation_index_out_of_range":
+              "Unable to derive new transparent address. sapling derived diversifier index out of range.",
+          "address_derivation_mode": "Address derivation mode",
+          "standard": "Standard",
+          "zcash_standard_derivation_desc": "Following zcash ZIP-32 address derivation.",
+          "zcash_custom_derivation_desc": "Custom ZIP-32 path, diversifier and etc,",
+          "zcash_transparent_derivation_desc": "Only generate transparent address.",
+          "transparent": "Transparent",
+          "unified_address": "Unified address",
+          "zcash_select_address_protocols_desc":
+              "Select the address types to add to your unified address.",
+          "orchard": "Orchard",
+          "orchard_desc": "Newest zcash protocol, shieled and focused on privacy",
+          "sapling": "Sapling",
+          "sapling_desc": "Wide range supported, shieled and focused on privacy",
+          "transparent_desc": "No-shild, easy to use and manage assets.",
+          "unsupported_protocol_on_this_platform":
+              "Unsupported protocol on this platform.",
+          "at_least_one_sapling_orchard_required":
+              "At least one sapling or orchard required.",
+          "path_must_exactly_at_n_level": "Derivation path must exactly at ___1__ level.",
+          "zip32_derivation_path": "ZIP-32 derivation path",
+          "bip32_derivation_path": "BIP-32 derivation path",
+          "scope": "Scope",
+          "external": "External",
+          "internal": "Internal",
+          "transparent_address_type": "Transparent address type",
+          "generate_multisignature_address_desc":
+              "Generate transparent Multi-signature address",
+          "address_does_not_contains_any_transparent_addr":
+              "Address does not cointains any transparent address.",
+          "diversifier_index": "Diversifier index",
+          "index": "Index",
+          "diversifier_strategy": "Diversifier strategy",
+          "sapling_diversifier_strategy":
+              "Attempt to try find sapling aiversifier index and then apply to orchard.",
+          "disable_sapling_diversifier_strategy_desc":
+              "The generate address will be failed, if sapling does not pass address generation with current index.",
+          "transparent_diversifier_strategy_multisig_desc":
+              "Diversifier index does not effect on transparent multisig address.",
+          "transparent_diversifier_strategy_desc":
+              "Diversifier index will be applied on transparent BIP-32 path at address level.",
+          "diversifier_index_validator_desc":
+              "Invalid diversifier index. index must be a valid non-negative number.",
+          "diversifier_index_validator_desc2": "Index is to large.",
+          "auto_diversifier_index": "Auto diversifier index",
+          "auto_diversifier_index_desc":
+              "Auto increment current index to find a valid one.",
+          "followng_sapling_diversifier_role": "Following sapling diversifier role",
+          "followng_sapling_diversifier_role_desc":
+              "Derive address with sapling diversifier configuration.",
+          "unsupported_derivation_increament": "Unsupported derivation increament.",
+          "bip32_index_out_of_range": "BIP-32 index out of range.",
+          "custom_derivation_with_following_sapling_role_desc":
+              "Customize derivation with following sapling role can only applied on account level and new path (change/address) level will be replaced by sapling role.",
+          "got_it": "Got it",
+          "sapling_role_can_only_applied_on_account_level_path":
+              "Sapling role can only applied on account level path.",
+          "orchard_upgrade": "Orchard upgrade",
+          "derive_new_unified_address": "Derive a new unified address.",
+          "zcash_address_derivation_bad_sapling_diversifier":
+              "Unable to derive new sapling address. bad diversifier index.",
+          "custom_zip32_path_desc": "Tap to insert custom ZIP-32 derivation path.",
+          "custom_bip32_path_desc": "Tap to insert custom BIP-32 derivation path.",
+          "zcash_derivation_scope_desc": "Address derivation scope.",
+          "diversifier_index_of_address": "Diversifier index of address.",
+          "diversifier_index_sapling_desc":
+              "For sapling. diversifier index must be acceptable by address generation proccess. we recommended select auto generation for that to find a valid index.",
+          "sapling_upgrade": "Sapling upgrade",
+          "derive_new_sapling_payment_address": "Derive a new sapling payment address.",
+          "extended_full_view_key": "Extended full viewing key",
+          "full_viewing_key": "Full viewing key",
+          "diversifiable_full_viewing_key": "Diversifiable full viewing key",
+          "multisig_keys_view": "Multi-signature derivation keys",
+          "transparent_type_n": "Transparent (___1__)",
+          "unified_full_viewing_key": "Unified full viewing key.",
+          "unified_incoming_viewing_key": "Unified incoming viewing key",
+          "keys": "keys",
+          "account_keys": "Account keys",
+          "orchard_spend_key": "Orchard spend key",
+          "sapling_extended_spend_key": "Sapling extended spending key",
+          "unified_full_spend_key": "Unified full spend key.",
+          "extended_key": "Extended key",
+          "invalid_encoded_key_data": "Invalid encoded key data.",
+          "sapling_spend_key": "Sapling spend key",
+          "different_backup_type_detected": "Different backup type detected.",
+          "import_key_name_validator":
+              "Key name must be between 3 and 20 characters long.",
+          "unsupported_address_type": "Unsupported address type",
+          "address_generation_failed": "Address generation failed.",
+          "chain_loging_request_desc": "Network requested loging for continue procceses.",
+          "invalid_storage_operation_parameters": "Invalid storage operation parameters.",
+          "wallet_already_initialized": "Wallet already initialized.",
+          "failed_to_fetch_sapling_parameters": "Failed to fetch sapling parameters.",
+          "invalid_signing_parameters": "Invalid signing parameters.",
+          // "isolate_terminated_error": "Isolate terminated.",
+          "message_canceled": "Message canceled.",
+          "memo_attached_to_transparent_output":
+              "This memo will be attached in transparent output.",
+          "missing_account_merkle_state": "Missing account merkle state.",
+          "unified": "Unified",
+          "transparent_p2pkh": "Transparent(P2PKH)",
+          "transparent_p2sh": "Transparent(P2SH)",
+
+          "transparent_p2ms": "Transparent(P2MS)",
+          "protocols_addresses": "Protocols addresses",
+
+          "add_a_new_contact": "Add a new contact",
+          "generate_ripple_x_addreess": "Generate ripple X-address",
+          "generate_ripple_x_addreess_desc":
+              "Generate a ripple X-address from classic address and tag.",
+          "enter_a_valid_ripple_classic_address":
+              "Please enter a valid ripple classic address.",
+          "address_not_supported_on_this_platform":
+              "Address not supported on this platform.",
+          "protocol_not_supported": "Protocol not supported on this platform.",
+          "invalid_service_configuration": "Invalid service configuration.",
+          "external_wallet": "External wallet",
+          "connect_to_external_wallet": "Connect to an external OnChain wallet app.",
+          "wallet_pairing": "Wallet pairing",
+          "wallet_pairing_desc":
+              "Please scan the QR code or enter the pairing link below.",
+          "pairing_link": "Pairing link",
+          "socket_is_not_initialized": "Socket has not been initialized.",
+          "validate_pairing_id_desc": "Please enter a valid pairing id.",
+          "bad_client_state": "Bad client state",
+          "input_main_wallet_password": "Enter your main wallet password.",
+          "validating_main_wallet_content_desc":
+              "Validating main wallet content. Please enter your main wallet password below.",
+          "review_wallet": "Review wallet",
+          "wrong_wallet_password": "Invalid wallet password.",
+          "invalid_pairing_content": "Invalid pairing content",
+          "internal_error_during_pairing":
+              "An internal error occurred while processing pairing request.",
+          "external_wallet_connection_already_exists":
+              "External wallet connection already exists.",
+          "external_wallet_authentication_failed":
+              "External wallet authentication failed.",
+          "pairing_wallet_desc": "Pairing wallet. please wait.",
+          "pairing_complete_successfully": "Pairing has been complete successfully.",
+          "client_not_found": "Client not found.",
+          "bad_publish_message_status": "Bad publish message status.",
+          "to_many_wallet_connections": "Too many wallet connections.",
+          "no_active_service_provider": "No active service provider.",
+          "too_many_web3_client": "Too many web3 clients.",
+          "publish_message_error": "An error occurred during publish message",
+          "topic_subscription_timeout":
+              "Failed to subscribe to topic: request timed out.",
+          "pairing_disconnected": "Pairing disconnected.",
+          "login_request_timeout": "Login request timeout.",
+          "wallet_context_not_available": "Wallet context not available",
+          "login_request_rejected": "Login request rejected.",
+          "provider_not_found": "Provider not found.",
+          "failed_to_parse_response_content": "Failed to parse response content.",
+          "service_provider_changed": "Service provider changed.",
+          "invalid_service_request": "Invalid service request.",
+          "token_not_found": "Token not found.",
+          "account_name_is_to_large": "Account name is too large.",
+          "contact_does_not_exists": "Contact does not exists.",
+          "bad_account_syncing_configuration": "Bad account syncing configuration.",
+          "invalid_network_provider_configuration":
+              "Invalid network provider configuration.",
+          "invalid_provider_authentication_configuration":
+              "Invalid provider authentication configuration.",
+          "provider_already_exists": "Provider already exists.",
+          "enable_tor_feature": "Enable tor feature.",
+          "disable_tor_feature": "Disable tor feature.",
+          "update_authentication": "Update authentication",
+          "unsupported_authentication_by_protocol":
+              "This protocol does not support authentication.",
+          "provider_url": "Provider url",
+          "worker_message_not_found": "Worker message not found.",
+          "tor_connecting_please_wait": "Connecting to tor service. Please wait.",
+          "provider_validation_failed_desc":
+              "Provider validation failed: Returned data does not match the expected network configuration.",
+          "connected": "Connected",
+          "auto_connection": "Auto-connect",
+          "auto_service_connection_desc":
+              "Automatically find and connect to the best available service.",
+          "provider_settings": "Provider settings",
+          "client_disposed": "Client disposed.",
+          "select_zcash_protocol": "Select Zcash Protocol",
+          "select_zcash_protocol_desc":
+              "Choose a protocol to generate your Zcash address",
+          "address_configuration": "Address configuration",
+          "address_configuration_desc":
+              "Please carefully fill in the following address generation settings.",
+          "protocol_activiation_height_validator":
+              "Activation height cannot precede the protocol upgrade height.",
+          "new_account": "New Account",
+          "enable_activation_height_desc": "Define as new or set activation height.",
+          "setup_activation_height_desc":
+              "Enter the activation height (first received funds). Incorrect values may cause missing transactions or longer sync time.",
+          "block_height": "Block height",
+          "failed_to_retrieve_block_height": "Unable to retrieve current block height.",
+          "invalid_activation_height":
+              "Invalid activation height. Height must not be greater than the current height.",
+          "update_account_configuration_please_wait":
+              "Update account configuration. Please wait.",
+          "an_error_during_block_scanning": "An error occurred during block scanning.",
+          "tap_to_create_block_synchronization_request":
+              "Tap to create a new block synchronization request.",
+          "only_sheild_account_allowed": "Only shield accounts allowed.",
+          "start_block_for_synchronization": "Start Block for Synchronization",
+          "end_block_for_synchronization": "End Block for Synchronization",
+          "synchronization_request": "Synchronization Request",
+          "update_synchronization_network": "Update synchronization network",
+          "no_active_account": "No active account.",
+          "select_network_to_enable_synchronization":
+              "Select a network to enable synchronization.",
+          "disable_synchronization": "Disable synchronization.",
+          "only_one_network_synchronization_desc":
+              "Only one network can be synchronized at a time.",
+          "reset_syncronization_state": "Reset Synchronization state.",
+          "reset_syncronization_state_desc":
+              "Be careful when resetting the synchronization state—this will remove all account UTXOs, and synchronization will restart from the current chain height.",
+          "block_must_be_lower_than_current_block":
+              "The provided block must be lower than the current block.",
+          "block_synchronization_canceled": "Block synchronization canceled",
+          "latest_status": "Latest status",
+          "syncing_status": "Syncing status",
+          "processing_progress": "Processing progress",
+          "no_active_processing": "No active processing",
+          "sync_not_complete_pending_utxos_will_be_removed":
+              "Sync not complete. Pending UTXOs from this request will be removed.",
+          "request_host_does_not_match_connected_host":
+              "Request host does not match connected host",
+          "checking_sapling_configruration_parameters":
+              "Checking Sapling configuration parameters",
+          "sapling_parameters_verification_failed":
+              "Sapling parameter verification failed",
+          "download_sapling_parameters_desc":
+              "Sapling ___1__ parameters are missing. Do you want to download the ___2__ MB parameter file?",
+          "spend": "Spend",
+          "output": "Output",
+          "download": "Download",
+          "sapling_parameters": "Sapling parameters",
+          "download_sapling_parameters_please_wait":
+              "Download sapling parameters. Please wait",
+          "syncing": "Syncing",
+          "n_address_configuration": "___1__ address configuration.",
+          "duplicate_recipients_detected": "Duplicate recipients detected.",
+          "current_account_address": "Current account address",
+          "ethereum_address": "Ethereum address",
+
+          "transaction_required_syncing_desc":
+              "To generate a transaction, syncing with the current chain is required.",
+          "account_utxos_not_synced_desc":
+              "Account not fully synced. Spending UTXOs may fail or show incorrect balance.",
+          "zcash_signing_internal_error_failed_to_build_utxo_merkle":
+              "Zcash internal signing error: UTXO Merkle tree construction failed.",
+          "zcash_signing_internal_error_construct_liberary":
+              "Zcash internal signing error: Failed to construct zcash liberary.",
+          "zcash_signing_internal_error_unexpected":
+              "Zcash internal signing error: Unexpected error occurred.",
+          "reset_sync_select_addresses": "Select addresses to reset sync state",
+          "tap_to_select_address": "Tap to select address",
+          "invalid_height_validator_desc": "Invalid block height.",
+          "monero_proof_generation_failed_desc":
+              "Proof generation failed: your account has not received any funds.",
+          "utxo_already_spent": "UTXO already spent",
+          "no_related_account_utxos": "No related account UTXOs found",
+          "an_error_during_export_transaction_utxos":
+              "An error occurred while exporting transaction UTXOs.",
+          "import_utxos": "Import UTXOs.",
+          "import_utoxs_from_transaction_ids": "Import UTXOs from transaction IDs.",
+          "utxo_successfully_imported_to_your_account":
+              "UTXO successfully imported to your account.",
+          "transactions_and_utxos_status": "Transactions and UTXOs status",
+          "no_related_account_found": "No related account found.",
+          "wallet_rpc_synchronization": "Wallet rpc synchronization.",
+          "synchronization_with_monero_wallet_rpc":
+              "Synchronization with monero wallet rpc.",
+          "utxo_cannot_be_spent_until_block_height":
+              "UTXO cannot be spent until block height ___1__.",
+          "utxo_cannot_be_spent_until_timestamp":
+              "UTXO cannot be spent until timestamp ___1__",
+          "create_synchronization_request": "Create synchronization request",
+          "create_synchronization_request_desc":
+              "Create a synchronization request for your accounts between specified blocks.",
+          "transparent_memos": "Transparent memos",
+          "utxo_restricted_by_tx_privacy_desc":
+              "This UTXO cannot be used due to privacy restrictions.",
+          "unknown_timelock_status": "UTXO timelock status is unknown",
+          "utxos_confirmed": "UTXO confirmed.",
+          "utxo_will_unlock_after_n_block":
+              "UTXO will unlock after ___1__ more block confirmation.",
+          "utxo_will_unlock_after_n_time": "UTXO will unlock after ___1__.",
+          "n_days": "___1__ days.",
+          "n_hours": "___1__ hours.",
+          "n_minutes": "___1__ minutes.",
+          "utxos_is_not_confirmed_yet": "UTXO is not confirmed yet.",
+          "coinbase": "Coinbase",
+          "at_n": "At ___1__",
+          "zcash_select_all_utxos_failed_desc":
+              "Some UTXO selections failed due to privacy restrictions, disable synchronization or unconfirmed status.",
+          "no_available_utxos_found": "No available UTXOs found.",
+          "spending_sheild_utxos_synchronization_required_desc":
+              "Spending shielded UTXOs requires a fully synchronized account",
+          "utxo_timelock": "UTXO Timelock",
+          "utxo_timelock_desc":
+              "Restrict when coins can be spent using either block height or time-based conditions",
+          "utxo_timelock_based_time_desc": "Funds become spendable after a time delay",
+          "utxo_timelock_based_blocks_desc":
+              "Funds become spendable after a number of blocks",
+          "utxo_time_based_lock": "Time-based lock",
+          "utxo_time_based_lock_desc":
+              "Lock coins using elapsed time instead of block height",
+          "utxo_lock_duration_minutes": "Lock duration (minutes)",
+          "utxo_lock_height_blocks": "Lock height (blocks)",
+          "utxo_lock_helper_minutes_n_desc":
+              "Maximum: ___1__. values are rounded to 8-minute intervals.",
+          "utxo_lock_helper_blocks_n_desc": "Maximum: ___1__ blocks",
+          "utxo_setup_time_lock": "Setup timelock.",
+          "tap_to_setup_timelock": "Tap to setup timelock.",
+          "locktime_must_between_0_n_blocks":
+              "Locktime must be between 0 and ___1__ blocks.",
+          "locktime_must_between_0_n_minutes":
+              "Locktime must be between 0 and ___1__ minutes.",
+          "n_blocks": "___1__ blocks",
+          "crypto_features_disabled": "Crypto features are disabled",
+          "required_service_is_disabled": "Required service is disabled.",
+          "failed_to_connect_to_crypto_service":
+              "Failed to connect to the crypto service.",
+          "crypto_operation_canceled": "Crypto operation was canceled.",
+          "crypto_service_request_timeout": "Crypto service request timed out.",
+          "mising_database_liberary": "Missing database liberary.",
+          "connection_already_closed": "Connection already closed.",
+          "resource_not_supported":
+              "This resource is not supported in the current environment.",
+          "missing_chrome_api": "Missing chrome api.",
+          "choose_a_permission": "Choose a permission",
+          "select_all_utxos_failed_due_unconfirmation_desc":
+              "Some UTXO selections failed due unconfirmed status.",
+          "confirmations": "Confirmations",
+          "at": "At",
+          "utxos_has_been_updated": "Utxos has been updated.",
+          "data_checksum_mismatch": "Data checksum mismatch",
+          "missing_sapling_parameters": "Missing sapling parameters.",
+          "failed_read_file_content_due_platform_error":
+              "Failed to read file contents due to a platform error",
+          "pick_file": "Pick file",
+          "verify_sapling_parameters_please_wait":
+              "verify sapling parameters. Please wait",
+          "links": "Links",
+          "mempool": "Mempool",
+          "basechain": "BaseChain",
+          "masterchain": "MasterChain",
+          "workchain": "WorkChain",
+          "ton_workchain_desc":
+              "Basechain is recommended for lower transaction costs and wider compatibility",
+
+          "outgoing_message_limit_exceeded": "Outgoing message limit exceeded",
+          "duplicate_output_addresses_not_allowed":
+              "Duplicate output addresses are not allowed",
+          "forward_symbol": "___1__ --> ___2__",
+          "port_id": "Port id",
+          "enter_a_valid_port_id": "Please enter a valid port id.",
+          "channels": "Channels",
+          "no_channel_found": "No channel found.",
+          "tap_to_choose_channel": "Tap to choose a channel",
+          "save_channel": "Save Channel",
+          "save_channel_desc": "Would you like to save this channel for next time?",
+          "fee_token_not_found": "Fee token not found.",
+          "service_out_of_sync": "Service is out of sync"
+
+          // "n_minutes": "___1__ minutes"
         }
       };
 }
 
-extension Translate on String {
-  static Map<APPLocale, Map<String, String>> get localization =>
-      Localization.languages;
+extension ExtTranslate on String {
+  static Map<APPLocale, Map<String, String>> get localization => Localization.languages;
   String get find => localization[APPLocale.en]?[this] ?? this;
 }

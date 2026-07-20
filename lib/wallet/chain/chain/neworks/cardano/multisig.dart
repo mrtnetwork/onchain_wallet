@@ -4,97 +4,94 @@ mixin CardanoMultiSigBase {
   abstract final CardanoMultiSignatureAddressDetails multiSignatureAddress;
 }
 
-class CardanoMultiSigSignerDetails with Equality, CborSerializable {
+class CardanoMultiSigSignerDetails with Equality, AppSerialization {
   CardanoMultiSigSignerDetails._(
-      {required List<int> publicKey, required this.keyIndex})
+      {required List<int> publicKey, required this.derivationIndex})
       : publicKey = publicKey.asImmutableBytes;
 
   factory CardanoMultiSigSignerDetails(
-      {required List<int> publicKey, required Bip32AddressIndex keyIndex}) {
-    if (keyIndex.currencyCoin.conf.type != EllipticCurveTypes.ed25519Kholaw) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CardanoMultiSigSignerDetails");
+      {required List<int> publicKey, required Bip32DerivationIndex derivationIndex}) {
+    if (derivationIndex.currencyCoin.conf.type != EllipticCurveTypes.ed25519Kholaw) {
+      throw WalletExceptionConst.invalidAccountData("CardanoMultiSigSignerDetails");
     }
     final key = Ed25519KholawPublicKey.fromBytes(publicKey)
         .compressed
         .sublist(Ed25519KeysConst.pubKeyPrefix.length);
 
-    return CardanoMultiSigSignerDetails._(publicKey: key, keyIndex: keyIndex);
+    return CardanoMultiSigSignerDetails._(
+        publicKey: key, derivationIndex: derivationIndex);
   }
   factory CardanoMultiSigSignerDetails.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.cardanoMultiSigSigner);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cardanoMultiSigSigner);
 
-    final List<int> publicKey = cbor.valueAs(0);
-    final keyIndex =
-        Bip32AddressIndex.deserialize(obj: cbor.indexAs<CborTagValue>(1));
+    final List<int> publicKey = cbor.rawValueAt(0);
+    final derivationIndex =
+        Bip32DerivationIndex.deserialize(object: cbor.objectAt<CborTagValue>(1));
     return CardanoMultiSigSignerDetails._(
-        publicKey: publicKey, keyIndex: keyIndex);
+        publicKey: publicKey, derivationIndex: derivationIndex);
   }
   final List<int> publicKey;
 
-  final Bip32AddressIndex keyIndex;
-  String get path => keyIndex.toString();
+  final Bip32DerivationIndex derivationIndex;
+  String get path => derivationIndex.toString();
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic(
-            [CborBytesValue(publicKey), keyIndex.toCbor()]),
-        CborTagsConst.cardanoMultiSigSigner);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cardanoMultiSigSigner;
 
+  @override
+  List<CborObject?> get serializationItems =>
+      [CborBytesValue(publicKey), derivationIndex.toCbor()];
   late final Ed25519KeyHash keyHash =
       Ed25519KeyHash(QuickCrypto.blake2b224Hash(publicKey));
 
   @override
-  List get variabels => [publicKey, keyIndex];
+  List get variables => [publicKey, derivationIndex];
 }
 
 enum CardanoCredentialType {
-  publicKey(tags: [0], name: 'public_key'),
-  script(tags: [1], name: 'script');
+  publicKey(tags: AppSerializationIdentifier.cardanoAccountPublicKey, name: 'public_key'),
+  script(tags: AppSerializationIdentifier.cardanoAccountScript, name: 'script');
 
   bool get isPublicKey => this == publicKey;
   bool get isScript => this == script;
 
-  final List<int> tags;
+  final AppSerializationIdentifier tags;
   final String name;
   const CardanoCredentialType({required this.tags, required this.name});
   static CardanoCredentialType fromValue(List<int>? tags) {
-    return values.firstWhere((e) => BytesUtils.bytesEqual(tags, e.tags),
-        orElse: () => throw AppSerializationException(
-            objectName: "CardanoCredentialType"));
+    return values.firstWhere((e) => e.tags.isValidTags(tags),
+        orElse: () => throw AppInternalError.internalError("CardanoCredentialType"));
   }
 }
 
-abstract class BaseCardanoMultiSignatureCredential with CborSerializable {
+abstract class BaseCardanoMultiSignatureCredential with AppSerialization {
   final CardanoCredentialType type;
   NativeScript get script;
-  List<Bip32AddressIndex> get keyIndexes;
+  List<Bip32DerivationIndex> get keyIndexes;
   int get threshold;
   abstract final PolicyID policyId;
   const BaseCardanoMultiSignatureCredential({required this.type});
   Credential get credential;
   factory BaseCardanoMultiSignatureCredential.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
+      {List<int>? bytes, CborObject? object}) {
     final CborTagValue tag =
-        CborSerializable.decode(cborBytes: bytes, object: obj);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
     final type = CardanoCredentialType.fromValue(tag.tags);
     return switch (type) {
       CardanoCredentialType.publicKey =>
-        CardanoMultiSignatureKey.deserialize(obj: tag),
+        CardanoMultiSignatureKey.deserialize(object: tag),
       CardanoCredentialType.script =>
-        CardanoMultiSignatureScript.deserialize(obj: tag),
+        CardanoMultiSignatureScript.deserialize(object: tag),
     };
   }
   T cast<T extends BaseCardanoMultiSignatureCredential>() {
     if (this is! T) {
-      throw WalletExceptionConst.internalError(
-          "BaseCardanoMultiSignatureCredential");
+      throw AppInternalError.internalError("BaseCardanoMultiSignatureCredential");
     }
     return this as T;
   }
@@ -110,74 +107,67 @@ class CardanoMultiSignatureScript extends BaseCardanoMultiSignatureCredential {
   @override
   late final NativeScriptScriptNOfK script = NativeScriptScriptNOfK(
       n: threshold,
-      nativeScripts:
-          signers.map((e) => NativeScriptScriptPubkey(e.keyHash)).toList());
+      nativeScripts: signers.map((e) => NativeScriptScriptPubkey(e.keyHash)).toList());
 
   CardanoMultiSignatureScript._(
-      {required this.signers,
-      required this.threshold,
-      required List<int> scriptHash})
+      {required this.signers, required this.threshold, required List<int> scriptHash})
       : scriptHash = scriptHash.asImmutableBytes,
         super(type: CardanoCredentialType.script);
 
   factory CardanoMultiSignatureScript(
-      {required int threshold,
-      required List<CardanoMultiSigSignerDetails> signers}) {
+      {required int threshold, required List<CardanoMultiSigSignerDetails> signers}) {
     final sumWeight = signers.length;
     if (threshold > CardanoUtils.maxMultisigThresholdInt || threshold < 1) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CardanoMultiSignatureScript");
+      throw WalletExceptionConst.invalidAccountData("CardanoMultiSignatureScript");
     }
     if (sumWeight < threshold) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CardanoMultiSignatureScript");
+      throw WalletExceptionConst.invalidAccountData("CardanoMultiSignatureScript");
     }
 
     final nOfK = NativeScriptScriptNOfK(
         n: threshold,
-        nativeScripts:
-            signers.map((e) => NativeScriptScriptPubkey(e.keyHash)).toList());
+        nativeScripts: signers.map((e) => NativeScriptScriptPubkey(e.keyHash)).toList());
     return CardanoMultiSignatureScript._(
         signers: signers, threshold: threshold, scriptHash: nOfK.toHash().data);
   }
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          CborSerializable.fromDynamic(signers.map((e) => e.toCbor()).toList()),
-          threshold,
-          CborBytesValue(scriptHash)
-        ]),
-        CardanoCredentialType.script.tags);
-  }
-
   factory CardanoMultiSignatureScript.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CardanoCredentialType.script.tags);
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: CardanoCredentialType.script.tags);
 
     final List<CardanoMultiSigSignerDetails> signers = values
-        .elementAsListOf<CborTagValue>(0)
+        .listAt<CborTagValue>(0)
         .map<CardanoMultiSigSignerDetails>(
-            (e) => CardanoMultiSigSignerDetails.deserialize(obj: e))
+            (e) => CardanoMultiSigSignerDetails.deserialize(object: e))
         .toList();
-    final int threshHold = values.elementAs(1);
+    final int threshHold = values.rawValueAt(1);
 
     return CardanoMultiSignatureScript._(
-        signers: signers,
-        threshold: threshHold,
-        scriptHash: values.elementAs(2));
+        signers: signers, threshold: threshHold, scriptHash: values.rawValueAt(2));
   }
 
-  List get variabels => [threshold, scriptHash, type];
+  List get variables => [threshold, scriptHash, type];
 
   @override
-  List<Bip32AddressIndex> get keyIndexes =>
-      signers.map((e) => e.keyIndex).toList();
+  List<Bip32DerivationIndex> get keyIndexes =>
+      signers.map((e) => e.derivationIndex).toList();
 
   @override
   late final PolicyID policyId = PolicyID(scriptHash);
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      CardanoCredentialType.script.tags;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        AppSerialization.listFromObjects(signers.map((e) => e.toCbor()).toList()),
+        threshold.toCbor(),
+        CborBytesValue(scriptHash)
+      ];
 }
 
 class CardanoMultiSignatureKey extends BaseCardanoMultiSignatureCredential {
@@ -190,32 +180,24 @@ class CardanoMultiSignatureKey extends BaseCardanoMultiSignatureCredential {
   CardanoMultiSignatureKey._({required this.signer})
       : super(type: CardanoCredentialType.publicKey);
 
-  factory CardanoMultiSignatureKey(
-      {required CardanoMultiSigSignerDetails signer}) {
+  factory CardanoMultiSignatureKey({required CardanoMultiSigSignerDetails signer}) {
     return CardanoMultiSignatureKey._(signer: signer);
   }
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([signer.toCbor()]), type.tags);
-  }
-
-  factory CardanoMultiSignatureKey.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory CardanoMultiSignatureKey.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CardanoCredentialType.publicKey.tags);
+        cborObject: object,
+        identifier: CardanoCredentialType.publicKey.tags);
     return CardanoMultiSignatureKey._(
         signer: CardanoMultiSigSignerDetails.deserialize(
-            obj: values.indexAs<CborTagValue>(0)));
+            object: values.objectAt<CborTagValue>(0)));
   }
 
-  List get variabels => [signer, type];
+  List get variables => [signer, type];
 
   @override
-  List<Bip32AddressIndex> get keyIndexes => [signer.keyIndex];
+  List<Bip32DerivationIndex> get keyIndexes => [signer.derivationIndex];
 
   @override
   NativeScript get script => NativeScriptScriptPubkey(signer.keyHash);
@@ -225,6 +207,11 @@ class CardanoMultiSignatureKey extends BaseCardanoMultiSignatureCredential {
     final keyScript = NativeScriptScriptPubkey(signer.keyHash);
     return PolicyID(keyScript.toHash().data);
   }();
+
+  @override
+  SerializationIdentifier get serializationIdentifier => type.tags;
+  @override
+  List<CborObject?> get serializationItems => [signer.toCbor()];
 }
 
 class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
@@ -232,7 +219,7 @@ class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
   final BaseCardanoMultiSignatureCredential? stakeCredential;
   List<NativeScript> get scripts =>
       [credential.script, if (stakeCredential != null) stakeCredential!.script];
-  List<Bip32AddressIndex> get keyIndexes =>
+  List<Bip32DerivationIndex> get keyIndexes =>
       [...credential.keyIndexes, ...stakeCredential?.keyIndexes ?? []];
 
   CardanoMultiSignatureAddressDetails._({
@@ -246,29 +233,26 @@ class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
       required BaseCardanoMultiSignatureCredential credential,
       required BaseCardanoMultiSignatureCredential? stakeCredential}) {
     if (credential == stakeCredential) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "CardanoMultiSignatureAddressDetails");
     }
     switch (addressType) {
       case ADAAddressType.byron:
       case ADAAddressType.pointer:
-        throw WalletExceptionConst.invalidAccountDeta(
+        throw WalletExceptionConst.invalidAccountData(
             "CardanoMultiSignatureAddressDetails");
       case ADAAddressType.base:
         if (stakeCredential == null) {
-          throw WalletExceptionConst.invalidAccountDeta(
+          throw WalletExceptionConst.invalidAccountData(
               "CardanoMultiSignatureAddressDetails");
         }
         break;
       case ADAAddressType.enterprise:
       case ADAAddressType.reward:
         if (stakeCredential != null) {
-          throw WalletExceptionConst.invalidAccountDeta(
+          throw WalletExceptionConst.invalidAccountData(
               "CardanoMultiSignatureAddressDetails");
         }
-      default:
-        throw WalletExceptionConst.invalidAccountDeta(
-            "CardanoMultiSignatureAddressDetails");
     }
 
     return CardanoMultiSignatureAddressDetails._(
@@ -278,30 +262,26 @@ class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          credential.toCbor(),
-          stakeCredential?.toCbor(),
-          CborIntValue(addressType.header)
-        ]),
-        CborTagsConst.cardanoMultiSignaturAddress);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.cardanoMultiSignaturAddress;
+  @override
+  List<CborObject?> get serializationItems =>
+      [credential.toCbor(), stakeCredential?.toCbor(), CborIntValue(addressType.header)];
 
   factory CardanoMultiSignatureAddressDetails.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.cardanoMultiSignaturAddress);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.cardanoMultiSignaturAddress);
 
     return CardanoMultiSignatureAddressDetails._(
-        credential: BaseCardanoMultiSignatureCredential.deserialize(
-            obj: values.indexAs(0)),
-        stakeCredential: values
-            .indexMaybeAs<BaseCardanoMultiSignatureCredential, CborTagValue>(1,
-                (e) => BaseCardanoMultiSignatureCredential.deserialize(obj: e)),
-        addressType: ADAAddressType.fromHeader(values.valueAs(2)));
+        credential:
+            BaseCardanoMultiSignatureCredential.deserialize(object: values.objectAt(0)),
+        stakeCredential:
+            values.maybeObjectAt<BaseCardanoMultiSignatureCredential, CborTagValue>(
+                1, (e) => BaseCardanoMultiSignatureCredential.deserialize(object: e)),
+        addressType: ADAAddressType.fromHeader(values.rawValueAt(2)));
   }
 
   @override
@@ -316,7 +296,7 @@ class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
       case ADAAddressType.base:
         final stake = stakeCredential;
         if (stake == null) {
-          throw WalletExceptionConst.invalidAccountDeta(
+          throw WalletExceptionConst.invalidAccountData(
               "CardanoMultiSignatureAddressDetails");
         }
         return ADABaseAddress.fromCredential(
@@ -324,7 +304,7 @@ class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
             stakeCredential: stakeCredential!.credential,
             network: network);
       default:
-        throw WalletExceptionConst.invalidAccountDeta(
+        throw WalletExceptionConst.invalidAccountData(
             "CardanoMultiSignatureAddressDetails");
     }
   }
@@ -346,7 +326,7 @@ class CardanoMultiSignatureAddressDetails extends BaseCardanoAddressDetails {
         _ => null,
       };
   @override
-  List get variabels => [credential, stakeCredential, addressType];
+  List get variables => [credential, stakeCredential, addressType];
 
   @override
   PolicyID get policyId => credential.policyId;

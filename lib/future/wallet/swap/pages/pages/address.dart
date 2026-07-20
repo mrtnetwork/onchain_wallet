@@ -22,17 +22,15 @@ class SwapAddressesView extends StatelessWidget {
           ...List.generate(controller.sourceAddresses.length, (i) {
             final account = controller.sourceAddresses[i];
             return ContainerWithBorder(
-              // validate: controller.hasBalance,
-              // validateText: "insufficient_balance".tr,
               onRemoveIcon: ConditionalWidget(
                 enable: controller.allowAddSource,
-                onActive: (context) => Icon(Icons.remove_circle,
-                    color: context.onPrimaryContainer),
+                onActive: (context) =>
+                    Icon(Icons.remove_circle, color: context.onPrimaryContainer),
                 onDeactive: (context) =>
                     Icon(Icons.edit, color: context.onPrimaryContainer),
               ),
-              child: AddressDetailsView(
-                  address: account, color: context.onPrimaryContainer),
+              child:
+                  AddressDetailsView(address: account, color: context.onPrimaryContainer),
               onRemove: () {
                 controller.onSelectUpdateAddress((acc) async {
                   return context.selectOrSwitchAccount<ChainAccount>(
@@ -45,8 +43,7 @@ class SwapAddressesView extends StatelessWidget {
               isActive: controller.allowAddSource,
               onActive: (context) => ContainerWithBorder(
                     validate: controller.sourceAddresses.isNotEmpty,
-                    onRemoveIcon:
-                        Icon(Icons.add_box, color: context.onPrimaryContainer),
+                    onRemoveIcon: Icon(Icons.add_box, color: context.onPrimaryContainer),
                     child: Text("tap_to_select_account".tr,
                         style: context.onPrimaryTextTheme.bodyMedium),
                     onRemove: () {
@@ -62,8 +59,8 @@ class SwapAddressesView extends StatelessWidget {
           APPAnimated(
               isActive: controller.hasBalance,
               onActive: (context) => WidgetConstant.sizedBox,
-              onDeactive: (context) => ErrorTextContainer(
-                  error: "insufficient_balance".tr, enableTap: false)),
+              onDeactive: (context) =>
+                  ErrorTextContainer(error: "insufficient_balance".tr, enableTap: false)),
           WidgetConstant.height20,
           ReceiptAddressView(
             address: controller.destinationAddress,
@@ -91,8 +88,7 @@ class SwapAddressesView extends StatelessWidget {
                       child: APPAnimated(
                           isActive: enable,
                           onActive: (context) => Text("swap_now".tr),
-                          onDeactive: (context) =>
-                              Text("generating_transaction".tr)),
+                          onDeactive: (context) => Text("generating_transaction".tr)),
                     ),
                 enable: controller.page == SwapPage.swap)
           ]),

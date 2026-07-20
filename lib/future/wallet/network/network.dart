@@ -11,3 +11,4 @@ export 'substrate/substrate.dart';
 export 'sui/sui.dart';
 export 'ton/ton.dart';
 export 'tron/tron.dart';
+export 'zcash/zcash.dart';

@@ -1,38 +1,32 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class CosmosNewAddressParams extends NewAccountParams<ICosmosAddress> {
-  @override
-  bool get isMultiSig => false;
+final class CosmosNewAddressParams extends NewDerivableAccountParams<ICosmosAddress> {
   @override
   final CryptoCoins coin;
 
   @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
 
   final CosmosKeysAlgs algorithm;
 
   const CosmosNewAddressParams._(
-      {required this.deriveIndex, required this.coin, required this.algorithm})
-      : super._();
+      {required this.deriveIndex, required this.coin, required this.algorithm});
   factory CosmosNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
+      {required DerivableIndex deriveIndex,
       required CryptoCoins coin,
       required CosmosKeysAlgs algorithm}) {
     return CosmosNewAddressParams._(
         deriveIndex: deriveIndex, coin: coin, algorithm: algorithm);
   }
-  factory CosmosNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory CosmosNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.cosmosNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.cosmosNewAddressParams.tag);
     return CosmosNewAddressParams(
-        deriveIndex:
-            AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-        coin: CustomCoins.getSerializationCoin(values.elementAs(1)),
-        algorithm: CosmosKeysAlgs.fromName(values.elementAs(2)));
+        deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(1)),
+        algorithm: CosmosKeysAlgs.fromValue(values.rawValueAt(2)));
   }
 
   CosmosPublicKey toPublicKey(List<int> publicKey) {
@@ -40,39 +34,42 @@ final class CosmosNewAddressParams extends NewAccountParams<ICosmosAddress> {
   }
 
   @override
-  ICosmosAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  ICosmosAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletCosmosNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "CosmosNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("CosmosNewAddressParams.toAccount");
     }
-    final publickKeyBytes =
-        publicKey.normalizedComprossedBytes.asImmutableBytes;
-    final address = CosmosBaseAddress.fromPublicKey(
-        pubkeyBytes: publickKeyBytes,
-        algorithm: algorithm,
-        hrp: network.coinParam.hrp);
+    final publickKeyBytes = publicKey.normalizedComprossedBytes.asImmutableBytes;
+    final pubKey = toPublicKey(publickKeyBytes);
+    final address = pubKey.toAddress(hrp: network.coinParam.hrp);
+    ETHAddress? ethAddress;
+    if (algorithm.isEthereum) {
+      if (pubKey case CosmosETHSecp256K1PublicKey()) {
+        ethAddress = ETHAddress(pubKey.toEthAddress());
+      } else {
+        throw AppInternalError.internalError("CosmosNewAddressParams.toAccount",
+            reason: "Invalud cosmos publicKey");
+      }
+    }
     return ICosmosAddress._newAccount(
         publicKey: publickKeyBytes,
         network: network,
         address: address,
-        keyIndex: deriveIndex,
+        database: database,
+        derivationIndex: deriveIndex,
         algorithm: algorithm,
         coin: coin,
-        identifier: NewAccountParams.toIdentifier(address.address));
+        ethAddress: ethAddress,
+        identifier: NewAccountParams.toIdentifier(address.address),
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic(
-            [deriveIndex.toCbor(), coin.toCbor(), algorithm.name]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems =>
+      [deriveIndex.toCbor(), coin.identifier.toCbor(), algorithm.value.toCbor()];
   @override
   NewAccountParamsType get type => NewAccountParamsType.cosmosNewAddressParams;
 }

@@ -1,11 +1,11 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/constant/global/serialization.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/app/serialization/serialization.dart';
 
 import 'image.dart';
 
-class WebViewTab with CborSerializable, Equality {
+class WebViewTab with AppSerialization, Equality {
   final String id;
   final String url;
   final String? path;
@@ -51,37 +51,35 @@ class WebViewTab with CborSerializable, Equality {
         path: path,
         host: host);
   }
-  factory WebViewTab.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory WebViewTab.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: APPSerializationConst.webviewTab);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.webviewTab);
     return WebViewTab(
-      id: values.elementAs(0),
-      url: values.elementAs(1),
-      title: values.elementAs(2),
-      image: values.elemetMybeAs<APPImage, CborTagValue>(
-          3, (e) => APPImage.deserialize(obj: e)),
-      lastVisit: values.elementAs(4),
+      id: values.rawValueAt(0),
+      url: values.rawValueAt(1),
+      title: values.rawValueAt(2),
+      image: values.maybeObjectAt<APPImage, CborTagValue>(
+          3, (e) => APPImage.deserialize(object: e)),
+      lastVisit: values.rawValueAt(4),
     );
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          id,
-          url,
-          title,
-          image?.toCbor(),
-          CborEpochIntValue(lastVisit),
-          path
-        ]),
-        APPSerializationConst.webviewTab);
-  }
+  List get variables => [url, lastVisit];
 
   @override
-  List get variabels => [url, lastVisit];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.webviewTab;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        id.toCbor(),
+        url.toCbor(),
+        title?.toCbor(),
+        image?.toCbor(),
+        CborEpochIntValue(lastVisit),
+        path?.toCbor()
+      ];
 }

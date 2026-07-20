@@ -2,7 +2,7 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
@@ -13,8 +13,7 @@ class SetupSuiAddressView extends StatefulWidget {
   State<SetupSuiAddressView> createState() => _SetupSuiAddressViewState();
 }
 
-class _SetupSuiAddressViewState extends State<SetupSuiAddressView>
-    with SafeState {
+class _SetupSuiAddressViewState extends State<SetupSuiAddressView> with SafeState {
   SuiSupportKeyScheme algorithm = SuiSupportKeyScheme.ed25519;
 
   late final Map<SuiSupportKeyScheme, Widget> algorithmTypesWidget;
@@ -41,13 +40,13 @@ class _SetupSuiAddressViewState extends State<SetupSuiAddressView>
   void generateAddress() async {
     final algorithm = this.algorithm;
     final coin = findCoin(algorithm);
-    final keyIndex = await widget.controller.getCoin(
-        context: context, seedGeneration: SeedTypes.bip39, selectedCoins: coin);
+    final keyIndex = await widget.controller
+        .getCoin(context: context, seedGeneration: SeedTypes.bip39, selectedCoins: coin);
     if (keyIndex == null || keyIndex.currencyCoin.conf.type != coin.conf.type) {
       return;
     }
-    final newAccount = SuiNewAddressParams(
-        deriveIndex: keyIndex, coin: coin, keyScheme: algorithm);
+    final newAccount =
+        SuiNewAddressParams(deriveIndex: keyIndex, coin: coin, keyScheme: algorithm);
     widget.controller.generateAddress(newAccount);
   }
 

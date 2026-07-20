@@ -8,26 +8,22 @@ import 'package:on_chain_wallet/future/wallet/network/tron/transaction/widgets/w
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-abstract class TronTransactionBaseTransferOperation<
-        CONTRACT extends TronBaseContract>
+abstract class TronTransactionBaseTransferOperation<CONTRACT extends TronBaseContract>
     extends TronTransactionStateController2<CONTRACT> {
   TronTransactionBaseTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   bool _lockedMax = false;
   Token get transferToken => network.token;
   bool get isTrc20Transfer => false;
 
-  final LiveFormField<ReceiptAddress<TronAddress>?, ReceiptAddress<TronAddress>>
-      receipt = LiveFormField(
+  final LiveFormField<ReceiptAddress<TronAddress>?, ReceiptAddress<TronAddress>> receipt =
+      LiveFormField(
           title: "recipient".tr,
           subtitle: "receiver_address_desc".tr,
           value: null,
           optional: false);
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "transfer_amount".tr,
     subtitle: "input_the_amout".tr,
     value: IntegerBalance.zero(transferToken),
@@ -61,7 +57,7 @@ abstract class TronTransactionBaseTransferOperation<
   }
 
   BigInt getMaxInput() {
-    final max = address.address.currencyBalance - txFee.fee.fee.balance;
+    final max = address.addressData.currencyBalance - txFee.fee.fee.balance;
     if (max.isNegative) return BigInt.zero;
     return max;
   }
@@ -76,14 +72,13 @@ abstract class TronTransactionBaseTransferOperation<
   }
 
   @override
-  TransactionStateController cloneController(ITronAddress address) {
+  Future<TransactionStateController> cloneController(ITronAddress address) async {
     return TronTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
 
   @override
-  TransactionContractType get transactionType =>
-      TransactionContractType.transferContract;
+  TransactionContractType get transactionType => TransactionContractType.transferContract;
 
   @override
   List<LiveFormField<Object?, Object>> get fields => [receipt, amount];
@@ -92,9 +87,7 @@ abstract class TronTransactionBaseTransferOperation<
 class TronTransactionTransferOperation
     extends TronTransactionBaseTransferOperation<TransferContract> {
   TronTransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   TransactionStateStatus getStateStatus() {
@@ -103,7 +96,7 @@ class TronTransactionTransferOperation
       return status;
     }
     final total = amount.value;
-    final max = address.address.balance.value - total - txFee.fee.fee;
+    final max = address.addressData.balance.value - total - txFee.fee.fee;
     if (max.isNegative) {
       return TransactionStateStatus.insufficient(max);
     }
@@ -119,8 +112,7 @@ class TronTransactionTransferOperation
         blockData: blockData,
         memo: memo.value,
         tokenTransfer: ITronTransactionDataTokenTransfer(
-            recipient: receipt.value!.networkAddress,
-            amount: amount.value.balance),
+            recipient: receipt.value!.networkAddress, amount: amount.value.balance),
         contract: TransferContract(
             ownerAddress: address.networkAddress,
             toAddress: receipt.value!.networkAddress,
@@ -130,44 +122,35 @@ class TronTransactionTransferOperation
   @override
   Future<List<IWalletTransaction<TronWalletTransaction, ITronAddress>>>
       buildWalletTransaction(
-          {required ITronSignedTransaction<
-                  ITronTransactionData<TransferContract>>
+          {required ITronSignedTransaction<ITronTransactionData<TransferContract>>
               signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final transfer = signedTx.transaction.transactionData.tokenTransfer;
+    final txData = signedTx.transaction.transactionData;
+
+    final transfer = txData.tokenTransfer;
     final token = transfer?.token;
     assert(transfer != null && token == null);
     if (transfer == null || token != null) {
       return super.buildWalletTransaction(signedTx: signedTx, txId: txId);
     }
-
+    final txMemo = txData.getMemo();
     final transaction = TronWalletTransaction(
         txId: txId.txId,
         network: network,
-        totalOutput: WalletTransactionIntegerAmount(
-            amount: transfer.amount, network: network),
+        memos: [if (txMemo != null) txMemo],
+        totalOutput:
+            WalletTransactionIntegerAmount(amount: transfer.amount, network: network),
         outputs: [
           TronWalletTransactionTransferOutput(
             to: transfer.recipient,
-            amount: WalletTransactionIntegerAmount(
-                amount: transfer.amount, network: network),
+            amount:
+                WalletTransactionIntegerAmount(amount: transfer.amount, network: network),
           ),
         ]);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
-
-  // @override
-  // Future<TronWalletTransaction> buildWalletTransaction(
-  //     {required ITronTransaction<ITronTransactionData<TransferContract>>
-  //         transaction,
-  //     required ITronSignedTransaction<ITronTransactionData<TransferContract>>
-  //         signedTx,
-  //     required SubmitTransactionSuccess txId}) async {
-
-  // }
 
   @override
   Widget widgetBuilder(BuildContext context) {

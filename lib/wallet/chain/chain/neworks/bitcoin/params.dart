@@ -1,16 +1,8 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-abstract final class BaseBitcoinNewAddressParams<T extends IBitcoinAddress>
-    implements NewAccountParams<T> {
-  const BaseBitcoinNewAddressParams();
-}
-
-final class BitcoinNewAddressParams
-    extends BaseBitcoinNewAddressParams<IBitcoinAddress> {
+final class BitcoinNewAddressParams extends NewDerivableAccountParams<IBitcoinAddress> {
   @override
-  bool get isMultiSig => false;
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
   final BitcoinAddressType bitcoinAddressType;
   final PubKeyModes keyType;
   @override
@@ -22,7 +14,7 @@ final class BitcoinNewAddressParams
       required this.coin,
       required this.keyType});
   factory BitcoinNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
+      {required DerivableIndex deriveIndex,
       required BitcoinAddressType bitcoinAddressType,
       required CryptoCoins coin,
       required PubKeyModes keyType}) {
@@ -32,81 +24,65 @@ final class BitcoinNewAddressParams
         coin: coin,
         keyType: keyType);
   }
-  factory BitcoinNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory BitcoinNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.bitcoinNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.bitcoinNewAddressParams.tag);
     return BitcoinNewAddressParams(
-        deriveIndex:
-            AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-        bitcoinAddressType: BitcoinAddressType.fromValue(values.elementAs(1)),
-        coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
-        keyType: PubKeyModes.fromValue(values.elementAs(3)));
+        deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+        bitcoinAddressType: BitcoinAddressType.fromTag(values.rawValueAt(1)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
+        keyType: PubKeyModes.fromValue(values.rawValueAt(3)));
   }
 
   @override
-  IBitcoinAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IBitcoinAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletBitcoinNetwork ||
         network.coinParam.transacationNetwork is BitcoinCashNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "BitcoinNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("BitcoinNewAddressParams.toAccount");
     }
     final pubkeyBytes = publicKey.keyBytes(mode: keyType, immutable: true);
-    final address = BlockchainAddressUtils.publicKeyToBitcoinAddress(
+    final address = BlockchainAddressUtils.publicKeyToBitcoinNetworkAddress(
         publicKey: pubkeyBytes,
         coin: coin,
         addressType: bitcoinAddressType,
-        keyType: keyType);
+        keyType: keyType,
+        network: network.coinParam.transacationNetwork);
     return IBitcoinAddress._newAccount(
-      publicKey: publicKey.keyBytes(mode: keyType),
-      network: network,
-      address: address,
-      addressType: bitcoinAddressType,
-      keyIndex: deriveIndex,
-      coin: coin,
-      pubKeyMode: keyType,
-      identifier: NewAccountParams.toIdentifier(
-          address.toAddress(network.coinParam.transacationNetwork)),
-    );
+        publicKey: publicKey.keyBytes(mode: keyType),
+        database: database,
+        network: network,
+        address: address,
+        addressType: bitcoinAddressType,
+        derivationIndex: deriveIndex,
+        coin: coin,
+        pubKeyMode: keyType,
+        identifier: NewAccountParams.toIdentifier(address.address),
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          deriveIndex.toCbor(),
-          CborStringValue(bitcoinAddressType.value),
-          coin.toCbor(),
-          CborIntValue(keyType.value)
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        deriveIndex.toCbor(),
+        bitcoinAddressType.id.toCbor(),
+        coin.identifier.toCbor(),
+        CborIntValue(keyType.value)
+      ];
   @override
   NewAccountParamsType get type => NewAccountParamsType.bitcoinNewAddressParams;
 }
 
-final class BitcoinMultiSigNewAddressParams implements BitcoinNewAddressParams {
-  @override
+final class BitcoinMultiSigNewAddressParams extends NewAccountParams<IBitcoinAddress> {
   final BitcoinAddressType bitcoinAddressType;
   final BitcoinMultiSignatureAddress multiSignatureAddress;
-  @override
-  final AddressDerivationIndex deriveIndex = MultiSigAddressIndex();
-  @override
-  bool get isMultiSig => true;
-  @override
-  final CryptoCoins coin;
 
   @override
-  PubKeyModes get keyType =>
-      throw WalletExceptionConst.featureUnavailableForMultiSignature;
+  final CryptoCoins coin;
 
   BitcoinMultiSigNewAddressParams._({
     required this.bitcoinAddressType,
@@ -126,64 +102,56 @@ final class BitcoinMultiSigNewAddressParams implements BitcoinNewAddressParams {
   }
 
   factory BitcoinMultiSigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.bitcoinMultiSigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.bitcoinMultiSigNewAddressParams.tag);
     return BitcoinMultiSigNewAddressParams(
-      bitcoinAddressType: BitcoinAddressType.fromValue(values.elementAs(0)),
+      bitcoinAddressType: BitcoinAddressType.fromTag(values.rawValueAt(0)),
       multiSignatureAddress: BitcoinMultiSignatureAddress.deserialize(
-          obj: values.elementAsCborTag(1)),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
+          object: values.objectAt<CborTagValue>(1)),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
     );
   }
 
   @override
-  IBitcoinAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IBitcoinAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (network is! WalletBitcoinNetwork ||
         network.coinParam.transacationNetwork is BitcoinCashNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "BitcoinMultiSigNewAddressParams.toAccount");
     }
     final address = multiSignatureAddress.fromType(
-        network: network.coinParam.transacationNetwork,
-        addressType: bitcoinAddressType);
+        network: network.coinParam.transacationNetwork, addressType: bitcoinAddressType);
     return IBitcoinMultiSigAddress._newAccount(
-      address: address,
-      coin: coin,
-      multiSignatureAddress: multiSignatureAddress,
-      network: network,
-      addressType: bitcoinAddressType,
-      identifier: NewAccountParams.toIdentifier(
-          address.toAddress(network.coinParam.transacationNetwork)),
-    );
+        database: database,
+        address: BitcoinNetworkAddress.fromBaseAddress(
+            address: address, network: network.coinParam.transacationNetwork),
+        coin: coin,
+        multiSignatureAddress: multiSignatureAddress,
+        network: network,
+        addressType: bitcoinAddressType,
+        identifier: NewAccountParams.toIdentifier(
+            address.toAddress(network.coinParam.transacationNetwork)),
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          CborStringValue(bitcoinAddressType.value),
-          multiSignatureAddress.toCbor(),
-          coin.toCbor()
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        bitcoinAddressType.id.toCbor(),
+        multiSignatureAddress.toCbor(),
+        coin.identifier.toCbor()
+      ];
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.bitcoinMultiSigNewAddressParams;
+  NewAccountParamsType get type => NewAccountParamsType.bitcoinMultiSigNewAddressParams;
 }
 
 final class BitcoinCashNewAddressParams
-    implements BaseBitcoinNewAddressParams<IBitcoinCashAddress> {
+    extends NewDerivableAccountParams<IBitcoinCashAddress> {
   @override
-  bool get isMultiSig => false;
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
   final BitcoinAddressType bitcoinAddressType;
   @override
   final CryptoCoins coin;
@@ -195,7 +163,7 @@ final class BitcoinCashNewAddressParams
       required this.coin,
       required this.keyType});
   factory BitcoinCashNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
+      {required DerivableIndex deriveIndex,
       required BitcoinAddressType bitcoinAddressType,
       required CryptoCoins coin,
       required PubKeyModes keyType}) {
@@ -206,84 +174,66 @@ final class BitcoinCashNewAddressParams
         keyType: keyType);
   }
   factory BitcoinCashNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.bitcoinCashNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.bitcoinCashNewAddressParams.tag);
     return BitcoinCashNewAddressParams(
-        deriveIndex:
-            AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-        bitcoinAddressType: BitcoinAddressType.fromValue(values.elementAs(1)),
-        coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
-        keyType: PubKeyModes.fromValue(values.elementAs(3),
+        deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+        bitcoinAddressType: BitcoinAddressType.fromTag(values.rawValueAt(1)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
+        keyType: PubKeyModes.fromValue(values.rawValueAt(3),
             defaultValue: PubKeyModes.compressed));
   }
 
   @override
-  IBitcoinCashAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IBitcoinCashAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     final pubKey = publicKey.keyBytes(mode: keyType, immutable: true);
-    final address = BlockchainAddressUtils.publicKeyToBitcoinAddress(
-        publicKey: pubKey,
-        coin: coin,
-        addressType: bitcoinAddressType,
-        keyType: keyType);
     if (network is! WalletBitcoinCashNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "BitcoinCashNewAddressParams.toAccount");
     }
+    final BitcoinCashAddress addr =
+        BlockchainAddressUtils.publicKeyToBitcoinNetworkAddress(
+                publicKey: pubKey,
+                coin: coin,
+                addressType: bitcoinAddressType,
+                keyType: keyType,
+                network: network.coinParam.transacationNetwork)
+            .cast();
     return IBitcoinCashAddress._newAccount(
-      identifier: NewAccountParams.toIdentifier(
-          address.toAddress(network.coinParam.transacationNetwork)),
-      coin: coin,
-      addressType: bitcoinAddressType,
-      keyIndex: deriveIndex,
-      pubkeyMode: keyType,
-      address: BlockchainAddressUtils.publicKeyToBitcoinAddress(
-          publicKey: pubKey,
-          coin: coin,
-          addressType: bitcoinAddressType,
-          keyType: keyType),
-      publicKey: pubKey,
-      network: network,
-    );
+        database: database,
+        identifier: NewAccountParams.toIdentifier(addr.address),
+        coin: coin,
+        addressType: bitcoinAddressType,
+        derivationIndex: deriveIndex,
+        pubkeyMode: keyType,
+        address: addr,
+        publicKey: pubKey,
+        network: network,
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          deriveIndex.toCbor(),
-          CborStringValue(bitcoinAddressType.value),
-          coin.toCbor(),
-          CborIntValue(keyType.value)
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        deriveIndex.toCbor(),
+        bitcoinAddressType.id.toCbor(),
+        coin.identifier.toCbor(),
+        CborIntValue(keyType.value)
+      ];
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.bitcoinCashNewAddressParams;
+  NewAccountParamsType get type => NewAccountParamsType.bitcoinCashNewAddressParams;
 }
 
 final class BitcoinCashMultiSigNewAddressParams
-    implements BitcoinCashNewAddressParams {
-  @override
+    extends NewAccountParams<IBitcoinCashAddress> {
   final BitcoinAddressType bitcoinAddressType;
   final BitcoinMultiSignatureAddress multiSignatureAddress;
-
-  @override
-  final AddressDerivationIndex deriveIndex = MultiSigAddressIndex();
-  @override
-  PubKeyModes get keyType =>
-      throw WalletExceptionConst.featureUnavailableForMultiSignature;
-  @override
-  bool get isMultiSig => true;
 
   @override
   final CryptoCoins coin;
@@ -301,52 +251,46 @@ final class BitcoinCashMultiSigNewAddressParams
         coin: coin);
   }
   factory BitcoinCashMultiSigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.bitcoinCashMultiSigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.bitcoinCashMultiSigNewAddressParams.tag);
     return BitcoinCashMultiSigNewAddressParams(
-      bitcoinAddressType: BitcoinAddressType.fromValue(values.elementAs(0)),
+      bitcoinAddressType: BitcoinAddressType.fromTag(values.rawValueAt(0)),
       multiSignatureAddress: BitcoinMultiSignatureAddress.deserialize(
-          obj: values.elementAsCborTag(1)),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
+          object: values.objectAt<CborTagValue>(1)),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
     );
   }
 
   @override
-  IBitcoinCashAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IBitcoinCashAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (network is! WalletBitcoinCashNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "BitcoinCashMultiSigNewAddressParams.toAccount");
     }
     final address = multiSignatureAddress.fromType(
-        network: network.coinParam.transacationNetwork,
-        addressType: bitcoinAddressType);
-
+        network: network.coinParam.transacationNetwork, addressType: bitcoinAddressType);
+    final bchAddr = BitcoinCashAddress.fromBaseAddress(address,
+        network: network.coinParam.transacationNetwork as BitcoinCashNetwork);
     return IBitcoinCashMultiSigAddress._newAccount(
-        address: address,
-        addressType: bitcoinAddressType,
+        address: bchAddr,
+        database: database,
         coin: coin,
         multiSignatureAddress: multiSignatureAddress,
-        identifier: NewAccountParams.toIdentifier(
-            address.toAddress(network.coinParam.transacationNetwork)),
+        identifier: NewAccountParams.toIdentifier(bchAddr.address),
+        id: id,
         network: network);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          CborStringValue(bitcoinAddressType.value),
-          multiSignatureAddress.toCbor(),
-          coin.toCbor()
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        bitcoinAddressType.id.toCbor(),
+        multiSignatureAddress.toCbor(),
+        coin.identifier.toCbor()
+      ];
   @override
   NewAccountParamsType get type =>
       NewAccountParamsType.bitcoinCashMultiSigNewAddressParams;

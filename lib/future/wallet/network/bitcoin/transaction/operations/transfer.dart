@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/crypto/utils/bitcoin_cash/bitcoin_cash_utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/bitcoin_cash/bitcoin_cash_utils.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
@@ -12,14 +13,11 @@ import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/widget
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-class BitcoinTransactionTransferOperation
-    extends BitcoinTransactionStateController {
+class BitcoinTransactionTransferOperation extends BitcoinTransactionStateController {
   BitcoinTransferDetails? _lockedMax;
   BitcoinTransactionTransferOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
-  List<BitcoinBaseOutput> _outputs = [];
+      {required super.walletProvider, required super.account, required super.address});
+  List<IBitcoinOutput> _outputs = [];
   List<BitcoinUtxoInfo> _inputs = [];
   List<BitcoinUtxoInfo> get inputs => _inputs;
 
@@ -34,15 +32,12 @@ class BitcoinTransactionTransferOperation
   }
 
   final LiveFormField<bool, bool> rbf = LiveFormField(
-      title: "replace_by_fee".tr,
-      subtitle: "bitcoin_rbf_error".tr,
-      value: false);
+      title: "replace_by_fee".tr, subtitle: "bitcoin_rbf_error".tr, value: false);
 
-  final LiveFormField<TransactionOrdering, TransactionOrdering> ordering =
-      LiveFormField(
-          title: "transaction_ordering".tr,
-          subtitle: "transaction_ordering_desc".tr,
-          value: TransactionOrdering.bip69);
+  final LiveFormField<TransactionOrdering, TransactionOrdering> ordering = LiveFormField(
+      title: "transaction_ordering".tr,
+      subtitle: "transaction_ordering_desc".tr,
+      value: TransactionOrdering.bip69);
 
   late final LiveFormFields<BitcoinTransferDetails> recipients =
       LiveFormFields<BitcoinTransferDetails>(
@@ -52,16 +47,13 @@ class BitcoinTransactionTransferOperation
     onValidateError: (field, value) => _validateRecipients(value),
   );
 
-  late final LiveFormField<BitcoinRemainTransferDetails,
-          BitcoinRemainTransferDetails> remainingAmount =
-      LiveFormField(
+  late final LiveFormField<BitcoinRemainTransferDetails, BitcoinRemainTransferDetails>
+      remainingAmount = LiveFormField(
           title: "remaining_amount".tr,
           subtitle: "remaining_amount_and_receiver".tr,
           value: BitcoinRemainTransferDetails(
-              recipient: account.getReceiptAddress(address.viewAddress) ??
-                  ReceiptAddress(
-                      view: address.viewAddress,
-                      networkAddress: address.networkAddress),
+              recipient:
+                  account.getOrCreateReceiptFromNetworkAddressSync(account: address),
               network: network),
           optional: false);
 
@@ -72,15 +64,13 @@ class BitcoinTransactionTransferOperation
           subtitle: "remaining_token_amount_and_receiver".tr,
           value: BitcoinRemainCashTokenTransferDetails(
               network: network,
-              recipient: account.getReceiptAddress(address.viewAddress) ??
-                  ReceiptAddress(
-                      view: address.viewAddress,
-                      networkAddress: address.networkAddress)),
+              recipient:
+                  account.getOrCreateReceiptFromNetworkAddressSync(account: address)),
           optional: false);
 
   BigInt getMaxInput([BitcoinTransferDetails? transfer]) {
-    final remain = remainingAmount.value.amount.balance +
-        (transfer?.amount.balance ?? BigInt.zero);
+    final remain =
+        remainingAmount.value.amount.balance + (transfer?.amount.balance ?? BigInt.zero);
     if (remain.isNegative) return BigInt.zero;
     return remain;
   }
@@ -102,9 +92,9 @@ class BitcoinTransactionTransferOperation
     await super.estimateFee();
   }
 
-  String? filterAccount(BitcoinBaseAddress address) {
+  String? filterAccount(BitcoinNetworkAddress address) {
     if (network.coinParam.isBCH) return null;
-    final addressStr = address.toAddress(network.coinParam.transacationNetwork);
+    final addressStr = address.address;
     if (address == this.address.networkAddress ||
         recipients.value.any((e) => e.recipient.view == addressStr)) {
       return "address_already_exist".tr;
@@ -167,15 +157,15 @@ class BitcoinTransactionTransferOperation
 
   void _onReceiptsUpdated() {
     final totalOutput = totalUtxos.value.balance;
-    final totalAmounts = recipients.value.fold(BigInt.zero,
-        (previousValue, element) => previousValue + element.amount.balance);
+    final totalAmounts = recipients.value.fold(
+        BigInt.zero, (previousValue, element) => previousValue + element.amount.balance);
     final tokenRemain = remainingCashTokenAmount.value.totalNativeAmount();
-    remainingAmount.value.updateBalance(
-        totalOutput - tokenRemain - totalAmounts - txFee.fee.fee.balance);
+    remainingAmount.value
+        .updateBalance(totalOutput - tokenRemain - totalAmounts - txFee.fee.fee.balance);
     _buildOutputs();
   }
 
-  void onUpdateRecipients(List<ReceiptAddress<BitcoinBaseAddress>> addressess) {
+  void onUpdateRecipients(List<ReceiptAddress<BitcoinNetworkAddress>> addressess) {
     _lockedMax = null;
     final recipients = addressess
         .map((e) => BitcoinTransferDetails(recipient: e, token: network.token))
@@ -209,21 +199,16 @@ class BitcoinTransactionTransferOperation
   }
 
   void onUpdateRemainingAccount(IBitcoinAddress address) {
-    final recipient = account.getReceiptAddress(address.viewAddress) ??
-        ReceiptAddress(
-            view: address.viewAddress, networkAddress: address.networkAddress);
+    final recipient = account.getOrCreateReceiptFromNetworkAddressSync(account: address);
     remainingAmount.value.onUpdateRecipient(recipient);
   }
 
   void onUpdateRemainingTokenAccount(IBitcoinAddress address) {
-    final recipient = account.getReceiptAddress(address.viewAddress) ??
-        ReceiptAddress(
-            view: address.viewAddress, networkAddress: address.networkAddress);
+    final recipient = account.getOrCreateReceiptFromNetworkAddressSync(account: address);
     remainingCashTokenAmount.value.onUpdateRecipient(recipient);
   }
 
-  void onUpdateTransferToken(
-      BitcoinTransferDetails recipient, BCHCashToken? token) {
+  void onUpdateTransferToken(BitcoinTransferDetails recipient, BCHCashToken? token) {
     if (token == null) return;
     remainingCashTokenAmount.value.onUpdateTransferToken(recipient, token);
     remainingCashTokenAmount.notify();
@@ -232,8 +217,8 @@ class BitcoinTransactionTransferOperation
     estimateFee();
   }
 
-  void onRemoveTransferToken(BitcoinTransferDetails recipient,
-      BitcoinCashCashTokenOperation transfer) {
+  void onRemoveTransferToken(
+      BitcoinTransferDetails recipient, BitcoinCashCashTokenOperation transfer) {
     remainingCashTokenAmount.value.onRemoveToken(transfer);
     recipient.onRemoveToken(transfer.cashToken);
     remainingCashTokenAmount.notify();
@@ -242,8 +227,7 @@ class BitcoinTransactionTransferOperation
     estimateFee();
   }
 
-  void onUpdateTrasferTokenAmount(
-      BitcoinTransferDetails recipient, BigInt amount) {
+  void onUpdateTrasferTokenAmount(BitcoinTransferDetails recipient, BigInt amount) {
     final transfer = recipient.token;
     assert(transfer != null);
     if (transfer == null) return;
@@ -255,8 +239,7 @@ class BitcoinTransactionTransferOperation
     estimateFee();
   }
 
-  void onUpdateBurnToken(BitcoinCashCashTokenRemainTransfer remain,
-      {BigInt? amount}) {
+  void onUpdateBurnToken(BitcoinCashCashTokenRemainTransfer remain, {BigInt? amount}) {
     remainingCashTokenAmount.value.onUpdateBurn(remain, amount: amount);
     remainingCashTokenAmount.notify();
     _buildOutputs();
@@ -301,28 +284,24 @@ class BitcoinTransactionTransferOperation
   }
 
   void _buildOutputs() {
-    _outputs = List<BitcoinBaseOutput>.unmodifiable([
-      ...recipients.value.map<BitcoinBaseOutput>((e) => e.toOutput()),
-      if (remainingAmount.value.amount.largerThanZero)
-        BitcoinOutput(
-            address: remainingAmount.value.recipient.networkAddress,
-            value: remainingAmount.value.amount.balance),
+    final change = remainingAmount.value.toOutput();
+    _outputs = [
+      ...recipients.value.map((e) => e.toOutput()),
+      if (change != null) change,
       ...remainingCashTokenAmount.value.toOutputs(),
-      ...memos.value.map((e) => e.script)
-    ]);
+      ...memos.value.map((e) => e.toOutput())
+    ].immutable;
   }
 
   @override
-  Future<IBitcoinTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IBitcoinTransactionData> buildTransactionData({bool simulate = false}) async {
     final ordering = this.ordering.output.ordering;
     return IBitcoinTransactionData(
         fee: txFee.fee,
         ordering: ordering,
         enableRBF: rbf.output,
-        utxos: _inputs.map((e) => e.utxo).toList(),
-        destinations:
-            recipients.value.expand((e) => e.toTransferInfo()).toList(),
+        utxos: _inputs.map((e) => e.toUtxoWithAdress()).toList(),
+        destinations: recipients.value.expand((e) => e.toTransferInfo()).toList(),
         outputs: _outputs);
   }
 
@@ -331,23 +310,29 @@ class BitcoinTransactionTransferOperation
       buildWalletTransaction(
           {required IBitcoinSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
-    List<IWalletTransaction<BitcoinWalletTransaction, IBitcoinAddress>>
-        transactions = [];
+    List<IWalletTransaction<BitcoinWalletTransaction, IBitcoinAddress>> transactions = [];
     final accounts = signedTx.transaction.accounts.toSet();
+    final memos = signedTx.transaction.transactionData.outputs
+        .whereType<MemoTxOutput>()
+        .map((e) => e.toWalletTxOutput())
+        .immutable;
+    final outputs = signedTx.transaction.transactionData.outputs
+        .whereType<SpendableTxOutput>()
+        .map((e) => e.toWalletTxOutput(network))
+        .whereType<BitcoinWalletTransactionOutput>()
+        .toList();
     for (final i in accounts) {
-      final totalInputs = inputs
-          .where((e) => e.address == i)
-          .map((e) => e.utxo)
-          .toList()
-          .sumOfUtxosValue();
+      final totalInputs =
+          inputs.where((e) => e.address == i).map((e) => e.utxo.utxo.value).toList().sum;
       if (totalInputs == BigInt.zero) continue;
       final tx = BitcoinWalletTransaction(
           txId: txId.txId,
           time: DateTime.now(),
-          totalOutput: WalletTransactionIntegerAmount(
-              amount: totalInputs, network: network),
+          memos: memos,
+          totalOutput:
+              WalletTransactionIntegerAmount(amount: totalInputs, network: network),
           scriptHash: i.networkAddress.pubKeyHash(),
-          outputs: [],
+          outputs: outputs,
           network: network);
       transactions.add(IWalletTransaction(transaction: tx, account: i));
     }
@@ -355,7 +340,7 @@ class BitcoinTransactionTransferOperation
   }
 
   @override
-  TransactionStateController cloneController(IBitcoinAddress address) {
+  Future<TransactionStateController> cloneController(IBitcoinAddress address) async {
     return BitcoinTransactionTransferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -387,24 +372,21 @@ class BitcoinTransactionTransferOperation
 
   @override
   Future<void> signAndSendTransaction({
-    BuildContext? context,
-    Future<IBitcoinTransaction?> Function(IBitcoinTransaction)?
-        onTransactionCreated,
+    required BuildContext context,
+    Future<IBitcoinTransaction?> Function(IBitcoinTransaction)? onTransactionCreated,
     Future<IBitcoinSignedTransaction?> Function(IBitcoinSignedTransaction)?
         onTransactionSigned,
   }) async {
-    assert(context != null);
     if (ordering.value == TransactionOrdering.manually) {
-      if (context == null) return;
-      final ordering = await context.openSliverBottomSheet<
-              (List<UtxoWithAddress>, List<BitcoinBaseOutput>)>(
-          "transaction_ordering".tr,
-          bodyBuilder: (c) => TransactionOrderingView(
-              inputs: _inputs.map((e) => e.utxo).toList(),
-              controller: c,
-              outputs: _outputs,
-              network: network),
-          initiaalExtend: 1);
+      final ordering = await context
+          .openSliverBottomSheet<(List<UtxoWithAddress>, List<IBitcoinOutput>)>(
+              "transaction_ordering".tr,
+              bodyBuilder: (c) => TransactionOrderingView(
+                  inputs: _inputs.map((e) => e.toUtxoWithAdress()).toList(),
+                  controller: c,
+                  outputs: _outputs,
+                  network: network),
+              initiaalExtend: 1);
       if (ordering == null) {
         return;
       }
@@ -414,7 +396,7 @@ class BitcoinTransactionTransferOperation
       });
       final inputs = ordering.$1;
       _inputs = List.generate(_inputs.length, (i) {
-        return _inputs.firstWhere((e) => e.utxo == inputs[i]);
+        return _inputs.firstWhere((e) => e.utxo.utxo == inputs[i].utxo);
       });
     }
     return super.signAndSendTransaction(context: context);

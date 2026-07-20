@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/future/wallet/network/aptos/address/setup.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/address/setup_address.dart';
-import 'package:on_chain_wallet/future/wallet/network/monero/address/setup_address.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/address/pages/setup_address.dart';
 import 'package:on_chain_wallet/future/wallet/network/stellar/stellar.dart';
 import 'package:on_chain_wallet/future/wallet/network/substrate/address/setup_address.dart';
@@ -25,8 +24,7 @@ class SetupGenericAddressView extends StatelessWidget {
         return SetupStellarAddressView(controller: controller);
       case NetworkType.ton:
         return SetupTonAddressView(controller: controller);
-      case NetworkType.monero:
-        return SetupMoneroAddressView(controller: controller);
+
       case NetworkType.substrate:
         return SetupSubstrateAddressView(controller: controller);
       case NetworkType.aptos:

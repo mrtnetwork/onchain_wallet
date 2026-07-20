@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/models/models/typedef.dart';
-import 'package:on_chain_wallet/app/utils/list/extension.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 
-class TransactionFeeView<FEE extends TransactionFeeData>
-    extends StatelessWidget {
+class TransactionFeeView<FEE extends TransactionFeeData> extends StatelessWidget {
   const TransactionFeeView(
       {super.key,
       this.onTapManual,
@@ -28,11 +26,10 @@ class TransactionFeeView<FEE extends TransactionFeeData>
   }
 }
 
-typedef TRANSACTIONFEEERRORBUILDER<FEE extends TransactionFeeData> = Widget
-    Function(BuildContext contet, FEE fee);
+typedef TRANSACTIONFEEERRORBUILDER<FEE extends TransactionFeeData> = Widget Function(
+    BuildContext contet, FEE fee);
 
-class TransactionFeeWidget<FEE extends TransactionFeeData>
-    extends StatelessWidget {
+class TransactionFeeWidget<FEE extends TransactionFeeData> extends StatelessWidget {
   const TransactionFeeWidget(
       {super.key,
       required this.fee,
@@ -73,10 +70,8 @@ class TransactionFeeWidget<FEE extends TransactionFeeData>
                                 showTokenImage: true),
                             ConditionalWidget(
                                 enable: fee.fee.description != null,
-                                onActive: (context) => Text(
-                                    fee.fee.description ?? '',
-                                    style:
-                                        context.onPrimaryTextTheme.bodySmall)),
+                                onActive: (context) => Text(fee.fee.description ?? '',
+                                    style: context.onPrimaryTextTheme.bodySmall)),
                             ConditionalWidget(
                                 enable: errorBuilder != null,
                                 onDeactive: (context) => ErrorTextContainer(
@@ -86,8 +81,7 @@ class TransactionFeeWidget<FEE extends TransactionFeeData>
                                         : Icons.refresh,
                                     enableTap: false,
                                     oTapError: onRetryFeeEstimate),
-                                onActive: (context) =>
-                                    errorBuilder!(context, fee)),
+                                onActive: (context) => errorBuilder!(context, fee)),
                           ],
                         ),
                       ),
@@ -103,71 +97,56 @@ class TransactionFeeWidget<FEE extends TransactionFeeData>
                                   },
                                   enabled: dynamicFee.allowChangeFee,
                                   title: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
                                       Text(fee.fee.type.value.tr,
-                                          style: context
-                                              .onPrimaryTextTheme.titleMedium),
+                                          style: context.onPrimaryTextTheme.titleMedium),
                                       WidgetConstant.height8,
                                       ContainerWithBorder(
-                                        backgroundColor:
-                                            context.onPrimaryContainer,
+                                        backgroundColor: context.onPrimaryContainer,
                                         child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               CoinAndMarketPriceView(
                                                   balance: fee.fee.fee,
                                                   style: context
-                                                      .primaryTextTheme
-                                                      .titleMedium,
-                                                  symbolColor:
-                                                      context.primaryContainer,
+                                                      .primaryTextTheme.titleMedium,
+                                                  symbolColor: context.primaryContainer,
                                                   showTokenImage: true),
                                               ConditionalWidget(
-                                                  enable: fee.fee.description !=
-                                                      null,
+                                                  enable: fee.fee.description != null,
                                                   onActive: (context) => Text(
                                                       fee.fee.description ?? '',
                                                       style: context
-                                                          .primaryTextTheme
-                                                          .bodySmall)),
+                                                          .primaryTextTheme.bodySmall)),
                                               ConditionalWidget(
                                                   enable: fee.fee.hasError,
                                                   onActive: (context) => ConditionalWidget(
-                                                      enable: errorBuilder !=
-                                                          null,
+                                                      enable: errorBuilder != null,
                                                       onDeactive: (context) =>
                                                           ErrorTextContainer(
-                                                              error: fee
-                                                                  .fee.error,
+                                                              error: fee.fee.error,
                                                               enableTap: false,
                                                               errorIcon:
                                                                   onRetryFeeEstimate ==
                                                                           null
-                                                                      ? Icons
-                                                                          .error
-                                                                      : Icons
-                                                                          .refresh,
+                                                                      ? Icons.error
+                                                                      : Icons.refresh,
                                                               oTapError:
                                                                   onRetryFeeEstimate),
                                                       onActive: (context) =>
-                                                          errorBuilder!(
-                                                              context, fee))),
+                                                          errorBuilder!(context, fee))),
                                             ]),
                                       )
                                     ],
                                   ),
                                   children: [
                                     ConditionalWidget(
-                                        enable:
-                                            (fee as TransactionDynamicFeeData)
-                                                .allowChangeFee,
+                                        enable: (fee as TransactionDynamicFeeData)
+                                            .allowChangeFee,
                                         onActive: (context) => _Fees(
-                                            fee: fee
-                                                as TransactionDynamicFeeData,
+                                            fee: fee as TransactionDynamicFeeData,
                                             onTapManual: onTapManual,
                                             getMaxFeeInput: getMaxFeeInput))
                                   ],
@@ -188,8 +167,7 @@ class _Fees extends StatelessWidget {
   final TransactionDynamicFeeData fee;
   final GETMAXFEEINPUT getMaxFeeInput;
   final DynamicVoid? onTapManual;
-  const _Fees(
-      {required this.fee, required this.getMaxFeeInput, this.onTapManual});
+  const _Fees({required this.fee, required this.getMaxFeeInput, this.onTapManual});
 
   @override
   Widget build(BuildContext context) {
@@ -217,8 +195,7 @@ class _Fees extends StatelessWidget {
                         message: e.error,
                         child: Icon(Icons.error),
                       )),
-              title: Text(e.type.value.tr,
-                  style: context.onPrimaryTextTheme.labelLarge),
+              title: Text(e.type.value.tr, style: context.onPrimaryTextTheme.labelLarge),
               subtitle: CoinAndMarketPriceView(
                   balance: e.fee,
                   style: context.onPrimaryTextTheme.titleMedium,
@@ -234,9 +211,7 @@ class _Fees extends StatelessWidget {
             final max = getMaxFeeInput();
             context
                 .setupAmount(
-                    token: fee.feeToken,
-                    title: "setup_transaction_fee".tr,
-                    max: max)
+                    token: fee.feeToken, title: "setup_transaction_fee".tr, max: max)
                 .then((value) {
               if (value == null) return;
               fee.setupManualFee(value);

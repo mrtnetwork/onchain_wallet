@@ -3,7 +3,7 @@ import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/ethereum/src/models/access_list.dart';
 import 'package:on_chain/ethereum/src/transaction/eth_transaction.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/controllers/fee.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/controllers/controllers.dart';
@@ -12,15 +12,14 @@ import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/pages/send_t
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/ethereum/params/models/send_transaction.dart';
+import 'package:on_chain_wallet/web3/web3/networks/ethereum/params/models/send_transaction.dart';
 
 class Web3EthereumSendTransactionStateController
-    extends Web3EthereumTransactionStateController<String,
-        Web3EthreumSendTransaction, IWeb3EthereumTransactionData>
-    with
-        SolidityWeb3TransactionApiController,
-        EthereumTransactionFeeController {
+    extends Web3EthereumTransactionStateController<String, Web3EthreumSendTransaction,
+        IWeb3EthereumTransactionData>
+    with SolidityWeb3TransactionApiController, EthereumTransactionFeeController {
   IWeb3EthereumTransactionData? _transactionData;
   IWeb3EthereumTransactionData get transactionData => _transactionData!;
 
@@ -30,19 +29,19 @@ class Web3EthereumSendTransactionStateController
   int? get fixedGasLimit => _gasLimit;
 
   @override
-  EthereumClient get solidityClient => client;
+  EthereumNetworkClient get solidityClient => client;
 
   Web3EthereumSendTransactionStateController(
       {required super.walletProvider, required super.request});
   @override
   BigInt getMaxFeeInput() {
     final account = defaultAccount;
-    return account.address.currencyBalance - params.value;
+    return account.addressData.currencyBalance - params.value;
   }
 
   @override
-  Future<IWeb3EthereumTransaction<IWeb3EthereumTransactionData>>
-      buildTransaction({bool simulate = false}) async {
+  Future<IWeb3EthereumTransaction<IWeb3EthereumTransactionData>> buildTransaction(
+      {bool simulate = false}) async {
     final account = defaultAccount;
     final fee = txFee.fee;
     final nonce = await client.getAccountNonce(account.networkAddress);
@@ -53,11 +52,10 @@ class Web3EthereumSendTransactionStateController
         data: params.data,
         nonce: nonce,
         accessList: params.accessList
-            ?.map((e) => AccessListEntry(
-                address: e.address.address,
-                storageKeys: e.storageKeys
-                    .map((e) => BytesUtils.toHexString(e))
-                    .toList()))
+            ?.map((e) => AccessEntry(
+                address: e.address,
+                storageKeys:
+                    e.storageKeys.map((e) => BytesUtils.toHexString(e)).toList()))
             .toList(),
         gasPrice: fee.gasPrice,
         maxFeePerGas: fee.maxFeePerGas,
@@ -66,9 +64,7 @@ class Web3EthereumSendTransactionStateController
         value: params.value,
         to: params.to);
     return IWeb3EthereumTransaction(
-        account: account,
-        transactionData: transactionData,
-        transaction: transaction);
+        account: account, transactionData: transactionData, transaction: transaction);
   }
 
   @override
@@ -83,10 +79,9 @@ class Web3EthereumSendTransactionStateController
   }
 
   @override
-  Future<List<IWalletTransaction<EthWalletTransaction, IEthAddress>>>
+  Future<List<IWalletTransaction<EthWalletTransaction, IEthereumAddress>>>
       buildWalletTransaction(
-          {required IWeb3EthereumSignedTransaction<IWeb3EthereumTransactionData>
-              signedTx,
+          {required IWeb3EthereumSignedTransaction<IWeb3EthereumTransactionData> signedTx,
           required SubmitTransactionSuccess? txId}) async {
     if (txId == null) return [];
     final EthWalletTransaction transaction = EthWalletTransaction(
@@ -100,8 +95,7 @@ class Web3EthereumSendTransactionStateController
             image: request.authenticated.icon),
         network: network);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
@@ -113,46 +107,43 @@ class Web3EthereumSendTransactionStateController
         from: address,
         to: params.to,
         nonce: 0,
-        gasLimit: BigInt.one,
+        gasLimit: BigInt.zero,
         data: params.data,
         value: BigInt.zero,
         accessList: params.accessList
-            ?.map((e) => AccessListEntry(
-                address: e.address.address,
-                storageKeys: e.storageKeys
-                    .map((e) => BytesUtils.toHexString(e))
-                    .toList()))
+            ?.map((e) => AccessEntry(
+                address: e.address,
+                storageKeys:
+                    e.storageKeys.map((e) => BytesUtils.toHexString(e)).toList()))
             .toList(),
         chainId: network.coinParam.chainId);
     return transaction.toEstimate();
   }
 
   @override
-  Future<IWeb3EthereumSignedTransaction<IWeb3EthereumTransactionData>>
-      signTransaction(
-          IWeb3EthereumTransaction<IWeb3EthereumTransactionData> transaction,
-          {bool fakeSignature = false}) async {
+  Future<IWeb3EthereumSignedTransaction<IWeb3EthereumTransactionData>> signTransaction(
+      IWeb3EthereumTransaction<IWeb3EthereumTransactionData> transaction,
+      {bool fakeSignature = false}) async {
     final account = transaction.account;
     final ethTransaction = transaction.transaction;
-    final WalletSigningRequest<ETHSignature> request =
-        WalletSigningRequest<ETHSignature>(
+    final WalletSigningRequest<ETHSignature> request = WalletSigningRequest<ETHSignature>(
       addresses: [account],
       network: network,
       sign: (generateSignature) async {
         final signRequest = GlobalSignRequest.eth(
-            digest: ethTransaction.serialized, index: account.keyIndex.cast());
+            digest: ethTransaction.serialized, index: account.derivationIndex.cast());
         final ethSignature = await generateSignature(signRequest);
         return ETHSignature.fromBytes(ethSignature.signature);
       },
     );
-    final signature =
-        await walletProvider.wallet.signTransaction(request: request);
+    final signature = await walletProvider.wallet
+        .signTransaction(params: WalletActionSign(request: request));
     final serializedData = BytesUtils.toHexString(
-        ethTransaction.signedSerialized(signature.result),
+        ethTransaction.signedSerialized(signature.unwrap()),
         prefix: "0x");
     return IWeb3EthereumSignedTransaction(
         transaction: transaction,
-        signatures: [signature.result.toBytes()],
+        signatures: [signature.unwrap().toBytes()],
         finalTransactionData: serializedData);
   }
 
@@ -203,7 +194,7 @@ class Web3EthereumSendTransactionStateController
   }
 
   @override
-  Future<void> initForm(EthereumClient client) async {
+  Future<void> initForm(EthereumNetworkClient client) async {
     _transactionData = await buildTransactionData(simulate: false);
     await buildFee();
     txFee.stream.listen((_) => onStateUpdated());
@@ -211,11 +202,11 @@ class Web3EthereumSendTransactionStateController
 
   @override
   Future<
-      Web3RequestTransactionResponseData<
-          String,
-          SubmitTransactionSuccess<
-              IWeb3EthereumSignedTransaction<
-                  IWeb3EthereumTransactionData>>>> getResponse() async {
+          Web3RequestTransactionResponseData<
+              String,
+              SubmitTransactionSuccess<
+                  IWeb3EthereumSignedTransaction<IWeb3EthereumTransactionData>>>>
+      getResponse() async {
     final txId = await buildSignAndSendTransaction();
     return Web3RequestTransactionResponseData.submitTx(
         response: txId.txId, txIds: [txId]);

@@ -1,36 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-typedef OBSERVERLISTENER = void Function(Route route, Route? previousRoute);
+typedef CbObserverListenter = void Function(Route route, Route? previousRoute);
 
 class WalletRouteObserver extends RouteObserver<PageRoute<dynamic>> {
-  final List<OBSERVERLISTENER> _pushListeners = [];
-  final List<OBSERVERLISTENER> _popListeners = [];
-  void addPushListener(OBSERVERLISTENER listener) {
+  final List<CbObserverListenter> _pushListeners = [];
+  final List<CbObserverListenter> _popListeners = [];
+  void addPushListener(CbObserverListenter listener) {
     _pushListeners.add(listener);
   }
 
-  void removePushListener(OBSERVERLISTENER listener) {
+  void removePushListener(CbObserverListenter listener) {
     _pushListeners.remove(listener);
   }
 
-  void addPopListener(OBSERVERLISTENER listener) {
+  void addPopListener(CbObserverListenter listener) {
     _popListeners.add(listener);
   }
 
-  void removePopListener(OBSERVERLISTENER listener) {
+  void removePopListener(CbObserverListenter listener) {
     _popListeners.remove(listener);
   }
 
   void _emitPushListeners(Route route, Route? previousRoute) {
     for (final i in [..._pushListeners]) {
-      MethodUtils.nullOnException(() => i(route, previousRoute));
+      MethodUtils.fallbackOnException(() => i(route, previousRoute));
     }
   }
 
   void _emitPopListeners(Route route, Route? previousRoute) {
     for (final i in [..._popListeners]) {
-      MethodUtils.nullOnException(() => i(route, previousRoute));
+      MethodUtils.fallbackOnException(() => i(route, previousRoute));
     }
   }
 

@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/substrate/substrate.dart';
+import 'package:on_chain_wallet/crypto/networks/substrate/substrate.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/chain_config.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
@@ -33,8 +33,7 @@ abstract class SubstrateKnownCallMethods {
   }
 
   static SubstrateKnownCallMethods _parseTransafer(
-      {required Map<String, dynamic> data,
-      required WalletSubstrateNetwork network}) {
+      {required Map<String, dynamic> data, required WalletSubstrateNetwork network}) {
     try {
       return SubstrateTransferMethod.fromJson(data, network);
     } catch (e) {
@@ -46,14 +45,14 @@ abstract class SubstrateKnownCallMethods {
   }
 
   static List<SubstrateKnownCallMethods> _parseUtility(
-      {required Map<String, dynamic> data,
-      required WalletSubstrateNetwork network}) {
+      {required Map<String, dynamic> data, required WalletSubstrateNetwork network}) {
     try {
       if (data.containsKey(SubtrateMetadataPallet.utility.name)) {
         final List<Map<String, dynamic>>? r = StringUtils.tryToJson(
-            MethodUtils.nullOnException(() =>
-                data[SubtrateMetadataPallet.utility.name]
-                    ?[APPSubstrateConst.utilityBatchVariantName]));
+            MethodUtils.fallbackOnException(
+                () => data[SubtrateMetadataPallet.utility.name]
+                    ?[APPSubstrateConst.utilityBatchVariantName],
+                logOnDebug: false));
         if (r != null) {
           return r
               .map((e) => parseTxMethod(data: e, network: network))
@@ -65,14 +64,12 @@ abstract class SubstrateKnownCallMethods {
     final Map<String, dynamic>? methodData =
         StringUtils.tryToJson(data[SubtrateMetadataPallet.utility.name]);
     return [
-      SubstrateUnknownMethod(
-          methodName: methodData?.keys.firstOrNull, content: data)
+      SubstrateUnknownMethod(methodName: methodData?.keys.firstOrNull, content: data)
     ];
   }
 
   static List<SubstrateKnownCallMethods> parseTxMethod(
-      {required Map<String, dynamic> data,
-      required WalletSubstrateNetwork network}) {
+      {required Map<String, dynamic> data, required WalletSubstrateNetwork network}) {
     List<SubstrateKnownCallMethods> knownMethods = [];
     if (data.containsKey(SubtrateMetadataPallet.utility.name)) {
       final method = _parseUtility(data: data, network: network);
@@ -84,11 +81,9 @@ abstract class SubstrateKnownCallMethods {
       final method = _parseTransafer(data: data, network: network);
       knownMethods.add(method);
     } else {
-      final Map<String, dynamic>? methodData =
-          StringUtils.tryToJson(data.values.first);
+      final Map<String, dynamic>? methodData = StringUtils.tryToJson(data.values.first);
       final method = SubstrateUnknownMethod(
-          methodName: methodData?.keys.firstOrNull,
-          content: methodData ?? data);
+          methodName: methodData?.keys.firstOrNull, content: methodData ?? data);
       knownMethods.add(method);
     }
     return knownMethods;
@@ -106,8 +101,7 @@ class SubstrateRemarkMethod extends SubstrateKnownCallMethods {
     }
     final String data = json[APPSubstrateConst.systemRemarkVariantName];
     return SubstrateRemarkMethod(
-        data: data,
-        content: StringUtils.tryDecode(BytesUtils.fromHexString(data)));
+        data: data, content: StringUtils.tryDecode(BytesUtils.fromHexString(data)));
   }
 }
 
@@ -128,9 +122,7 @@ class SubstrateTransferMethod extends SubstrateKnownCallMethods {
   @override
   BigInt get value => amount.balance;
   const SubstrateTransferMethod(
-      {required this.receiver,
-      required this.amount,
-      required this.transferType})
+      {required this.receiver, required this.amount, required this.transferType})
       : super(SubstrateKnownCallMethodsType.transfer);
   factory SubstrateTransferMethod.fromJson(
       Map<String, dynamic> json, WalletSubstrateNetwork network) {
@@ -147,18 +139,15 @@ class SubstrateTransferMethod extends SubstrateKnownCallMethods {
       type = BalancesCallPalletMethod.transferKeepAlive;
     }
     if (network.coinParam.substrateChainType.isEthereum) {
-      receiver = SubstrateEthereumAddress.fromBytes(
-          BytesUtils.fromHexString(data["dest"]));
+      receiver =
+          SubstrateEthereumAddress.fromBytes(BytesUtils.fromHexString(data["dest"]));
     } else {
-      receiver = SubstrateAddress.fromBytes(
-          BytesUtils.fromHexString(data["dest"]!["Id"]),
+      receiver = SubstrateAddress.fromBytes(BytesUtils.fromHexString(data["dest"]!["Id"]),
           ss58Format: network.coinParam.ss58Format);
     }
     return SubstrateTransferMethod(
-        receiver:
-            ReceiptAddress(view: receiver.address, networkAddress: receiver),
-        amount: IntegerBalance.token(
-            BigintUtils.parse(data["value"]), network.token,
+        receiver: ReceiptAddress(view: receiver.address, networkAddress: receiver),
+        amount: IntegerBalance.token(BigintUtils.parse(data["value"]), network.token,
             allowNegative: false, immutable: true),
         transferType: type);
   }
@@ -167,8 +156,7 @@ class SubstrateTransferMethod extends SubstrateKnownCallMethods {
 class SubstrateUnknownMethod extends SubstrateKnownCallMethods {
   final Map<String, dynamic> content;
   final String? methodName;
-  const SubstrateUnknownMethod(
-      {required this.content, required this.methodName})
+  const SubstrateUnknownMethod({required this.content, required this.methodName})
       : super(SubstrateKnownCallMethodsType.unknown);
   @override
   String get name => methodName ?? type.name;
@@ -187,7 +175,7 @@ class SubstrateTokenDetails with Equality {
   Token get token => balance.value.token;
 
   @override
-  List get variabels => [internalAsset, isNativeAsset];
+  List get variables => [internalAsset, isNativeAsset];
 }
 
 class SubstrateTransferToken {
@@ -197,9 +185,7 @@ class SubstrateTransferToken {
   bool get isNativeAsset => tokenDetails.isNativeAsset;
   Token get token => tokenDetails.token;
   const SubstrateTransferToken(
-      {required this.tokenDetails,
-      required this.transferMethod,
-      this.feeConfig});
+      {required this.tokenDetails, required this.transferMethod, this.feeConfig});
 }
 
 class SubstrateTransferDetails with DisposableMixin, StreamStateController {
@@ -254,14 +240,12 @@ class SubstrateTransferDetails with DisposableMixin, StreamStateController {
         method: method?.method,
         destinationAddress: recipient.networkAddress);
     if (token.isNativeAsset && controller == null) {
-      return SubstrateNetworkControllerLocalAssetTransferBuilder
-              .createLocalTransfer(
-                  params: transfer, metadata: metadata.metadata)
+      return SubstrateNetworkControllerLocalAssetTransferBuilder.createLocalTransfer(
+              params: transfer, metadata: metadata.metadata)
           .transfer;
     }
     if (controller == null) {
-      throw AppExceptionConst.internalError(
-          "SubstrateTransferDetails.createCall");
+      throw AppInternalError.internalError("SubstrateTransferDetails.createCall");
     }
     final assetTransfer = await controller.assetTransfer(params: transfer);
     return assetTransfer.transfer;
@@ -341,8 +325,8 @@ class SubstrateTransactionFee extends DefaultTransactionFee {
         (totalFee * APPSubstrateConst.feeRate).toBigInt(), network.token);
 
     if (assetFeeInfo != null) {
-      fee = assetFeeInfo.convertedAmount ??
-          IntegerBalance.zero(assetFeeInfo.config.token);
+      fee =
+          assetFeeInfo.convertedAmount ?? IntegerBalance.zero(assetFeeInfo.config.token);
     }
     return SubstrateTransactionFee(
         fee: fee,
@@ -353,7 +337,7 @@ class SubstrateTransactionFee extends DefaultTransactionFee {
   }
 
   @override
-  List get variabels => [...super.variabels, fee, isSimulate, xcmDeliveriesFee];
+  List get variables => [...super.variables, fee, isSimulate, xcmDeliveriesFee];
 }
 
 class SubstrateTransactionFeeData
@@ -361,13 +345,12 @@ class SubstrateTransactionFeeData
   SubstrateTransactionFeeData({required super.select, required super.feeToken});
 }
 
-abstract class BaseSubstrateTransactionController<
-        T extends ISubstrateTransactionData>
+abstract class BaseSubstrateTransactionController<T extends ISubstrateTransactionData>
     extends TransactionStateController<
         SubstrateToken,
-        ISubstrateAddress,
-        SubstrateClient,
         WalletSubstrateNetwork,
+        ISubstrateAddress,
+        SubstrateNetworkClient,
         SubstrateChain,
         T,
         ISubstrateTransaction<T>,
@@ -379,9 +362,7 @@ abstract class BaseSubstrateTransactionController<
         ChainConfigStateController<SubstrateChain, SubstrateChainConfig,
             SubstrateNetworkController> {
   BaseSubstrateTransactionController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 }
 
 class ISubstrateTransactionData extends ITransactionData {
@@ -401,9 +382,7 @@ class SubstrateXCMTransferEncodedParamsWithControllers {
   final BaseSubstrateNetworkController origin;
   final BaseSubstrateNetworkController destination;
   SubstrateXCMTransferEncodedParamsWithControllers(
-      {required this.origin,
-      required this.destination,
-      required this.xcmParams});
+      {required this.origin, required this.destination, required this.xcmParams});
 }
 
 class ISubstrateXCMTransactionData extends ISubstrateTransactionData {
@@ -460,9 +439,7 @@ class ISubstrateTransaction<T extends ISubstrateTransactionData>
     extends ITransaction<T, ISubstrateAddress> {
   final ExtrinsicPayloadInfo payload;
   const ISubstrateTransaction(
-      {required super.account,
-      required super.transactionData,
-      required this.payload});
+      {required super.account, required super.transactionData, required this.payload});
 }
 
 class ISubstrateSignedTransaction<T extends ISubstrateTransactionData>
@@ -558,8 +535,7 @@ class SubstrateMultisigTransactionData {
 
 class TransactionResourceRequirementSubstrateMultisig
     with DisposableMixin, StreamStateController
-    implements
-        TransactionResourceRequirement<SubstrateMultisigTransactionData> {
+    implements TransactionResourceRequirement<SubstrateMultisigTransactionData> {
   final lock = SafeAtomicLock();
   final Cancelable _cancelable = Cancelable();
   TransactionResourceRequirementSubstrateMultisig();
@@ -602,7 +578,7 @@ class TransactionResourceRequirementSubstrateMultisig
   }
 
   Future<SubstrateMultisigTransactionData> setValue(
-      {required SubstrateClient client,
+      {required SubstrateNetworkClient client,
       required SubstrateMultisigTransactionData info,
       required ISubstrateAddress signer,
       required SubstrateChain account}) async {
@@ -612,21 +588,21 @@ class TransactionResourceRequirementSubstrateMultisig
     final callBytes = info.callData.call.callData;
     SubstrateWeightV2? weight = info.callData.weight;
     if (callBytes != null) {
-      final fee = await MethodUtils.call(() async => client.callQueryInfo(
+      final fee = await IResult.call(() async => client.callQueryInfo(
           call: callBytes,
           owner: address.networkAddress,
           fakeSignatureAlgorithm: SubstrateKeyAlgorithm.ecdsa));
-      assert(fee.hasResult, "estimate fialed: ${fee.localizationError}");
-      weight = fee.resultOrNull?.weight;
+      assert(fee.isOk, "estimate fialed: ${fee.err()?.localizationError}");
+      weight = fee.ok()?.weight;
     }
     final method = info.method;
     final value = info.callData.multisig;
     final int approvals = value?.approvals.length ?? 0;
     final threshold = address.multiSignatureAddress.threshold;
     final signerRawAddress = signer.networkAddress.toHex();
-    bool signed = value?.approvals
-            .any((e) => StringUtils.hexEqual(e.toHex(), signerRawAddress)) ??
-        false;
+    bool signed =
+        value?.approvals.any((e) => StringUtils.hexEqual(e.toHex(), signerRawAddress)) ??
+            false;
     IntegerBalance? depositAmount;
     String? error;
     switch (method) {
@@ -634,14 +610,11 @@ class TransactionResourceRequirementSubstrateMultisig
         if (value == null) {
           error = "transaction_not_found".tr;
         } else if (approvals + 1 < threshold) {
-          error =
-              "transaction_not_ready_for_execution".tr.replaceOne(method.name);
+          error = "transaction_not_ready_for_execution".tr.replaceOne(method.name);
         } else if (signed) {
           error = "your_account_approved_transaction".tr;
         } else if (threshold == 1) {
-          error = "unsupported_multisig_account_operation"
-              .tr
-              .replaceOne(method.name);
+          error = "unsupported_multisig_account_operation".tr.replaceOne(method.name);
         }
         break;
       case MultisigCallPalletMethod.approveAsMulti:
@@ -653,9 +626,7 @@ class TransactionResourceRequirementSubstrateMultisig
           depositAmount = IntegerBalance.token(deposit, account.network.token);
         }
         if (threshold == 1) {
-          error = "unsupported_multisig_account_operation"
-              .tr
-              .replaceOne(method.name);
+          error = "unsupported_multisig_account_operation".tr.replaceOne(method.name);
         } else if (value != null) {
           if (signed) {
             error = "your_account_approved_transaction".tr;
@@ -664,9 +635,7 @@ class TransactionResourceRequirementSubstrateMultisig
         break;
       case MultisigCallPalletMethod.asMultiThreshold1:
         if (threshold != 1) {
-          error = "unsupported_multisig_account_operation"
-              .tr
-              .replaceOne(method.name);
+          error = "unsupported_multisig_account_operation".tr.replaceOne(method.name);
         }
         break;
       case MultisigCallPalletMethod.pokeDeposit:
@@ -681,26 +650,25 @@ class TransactionResourceRequirementSubstrateMultisig
       return info;
     } else {
       final update = info.copyWith(
-          callData: info.callData.copyWith(weight: weight),
-          depositAmount: depositAmount);
+          callData: info.callData.copyWith(weight: weight), depositAmount: depositAmount);
       _setResource(update);
       return update;
     }
   }
 
   Future<void> getResource(
-      {required SubstrateClient client,
+      {required SubstrateNetworkClient client,
       required SubstrateChain account,
       required ISubstrateMultiSigAddress address,
       required MultisigCallPalletMethod method,
       required ISubstrateAddress signer,
       required SubstrateMultisigCallData callData}) async {
     _setPendig();
-    final result = await MethodUtils.call(() async => await client.getMultisig(
-        call: callData.call, address: address.networkAddress));
-    if (result.isCancel) return;
-    if (result.hasError) {
-      _setError(error: result.localizationError);
+    final result = await IResult.call(() async =>
+        await client.getMultisig(call: callData.call, address: address.networkAddress));
+    if (result.err()?.canceled() ?? false) return;
+    if (result.isErr) {
+      _setError(error: result.unwrapErr().localizationError);
       return;
     }
     await setValue(
@@ -708,21 +676,20 @@ class TransactionResourceRequirementSubstrateMultisig
         signer: signer,
         account: account,
         info: SubstrateMultisigTransactionData(
-            callData: result.result, method: method, address: address));
+            callData: result.unwrap(), method: method, address: address));
   }
 }
 
 class SubmitSubstrateTransactionSuccess<T extends ISubstrateTransactionData>
     extends SubmitTransactionSuccess<ISubstrateSignedTransaction<T>> {
-  final List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>
-      txes;
+  final List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>> txes;
   final SubmitedXCMTransferDestinationTracker? xcmTransferDestinationTracker;
   SubmitSubstrateTransactionSuccess(
       {required super.signedTransaction,
       required super.txId,
       this.xcmTransferDestinationTracker,
-      List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>
-          txes = const [],
+      List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>> txes =
+          const [],
       super.warning,
       super.block})
       : txes = txes.immutable;

@@ -74,10 +74,8 @@ class SetupSwapAmoutView extends StatelessWidget {
                           hintText: "0.0",
                           fillColor: context.colors.onSecondaryContainer,
                           filled: false,
-                          focusedBorder:
-                              OutlineInputBorder(borderSide: BorderSide.none),
-                          enabledBorder:
-                              OutlineInputBorder(borderSide: BorderSide.none)),
+                          focusedBorder: OutlineInputBorder(borderSide: BorderSide.none),
+                          enabledBorder: OutlineInputBorder(borderSide: BorderSide.none)),
                     ),
                   ),
                 ],
@@ -121,8 +119,7 @@ class CircleSwapAssetImageView extends StatelessWidget {
 }
 
 class CircleServiceProviderImageView extends StatelessWidget {
-  const CircleServiceProviderImageView(this.provider,
-      {this.radius = 40, super.key});
+  const CircleServiceProviderImageView(this.provider, {this.radius = 40, super.key});
   final SwapServiceProvider? provider;
   final double radius;
 

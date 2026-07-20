@@ -1,3 +1,9 @@
-export 'models/account_related.dart';
-export 'models/chain.dart';
-export 'models/signing_response.dart';
+export 'account/chain.dart';
+export 'account/account.dart';
+export 'account/signing_response.dart';
+export 'account/utxo.dart';
+export 'syncing/request.dart';
+export 'syncing/sync_account.dart';
+export 'syncing/syncing.dart';
+export 'syncing/tracker.dart';
+export 'account/proof.dart';

@@ -1,97 +1,71 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class RippleNewAddressParams extends NewAccountParams<IXRPAddress> {
-  @override
-  bool get isMultiSig => false;
-
+final class RippleNewAddressParams extends NewDerivableAccountParams<IXRPAddress> {
   EllipticCurveTypes get curve => coin.conf.type;
   @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
 
   final int? tag;
   @override
   final CryptoCoins coin;
   const RippleNewAddressParams._(
-      {required this.deriveIndex, required this.coin, this.tag})
-      : super._();
+      {required this.deriveIndex, required this.coin, this.tag});
   factory RippleNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
-      required CryptoCoins coin,
-      int? tag}) {
-    return RippleNewAddressParams._(
-        deriveIndex: deriveIndex, coin: coin, tag: tag);
+      {required DerivableIndex deriveIndex, required CryptoCoins coin, int? tag}) {
+    return RippleNewAddressParams._(deriveIndex: deriveIndex, coin: coin, tag: tag);
   }
 
-  factory RippleNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory RippleNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.rippleNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.rippleNewAddressParams.tag);
     return RippleNewAddressParams(
-      deriveIndex:
-          AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-      tag: values.elementAs(1),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
+      deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+      tag: values.rawValueAt(1),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
     );
   }
   @override
-  IXRPAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IXRPAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey, String? id,
+      IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     if (network is! WalletXRPNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "RippleNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("RippleNewAddressParams.toAccount");
     }
     final keyBytes = publicKey.normalizedComprossedBytes.asImmutableBytes;
-    final keyAlgorithm = XRPKeyAlgorithm.values.firstWhere(
-        (e) => e.curveType == curve,
-        orElse: () => throw WalletExceptionConst.invalidAccountDeta(
+    final keyAlgorithm = XRPKeyAlgorithm.values.firstWhere((e) => e.curveType == curve,
+        orElse: () => throw WalletExceptionConst.invalidAccountData(
             "RippleNewAddressParams.toAccount"));
     final address = RippleUtils.publicKeyToRippleAddress(keyBytes,
-        algorithm: keyAlgorithm,
-        tag: tag,
-        isTenstNet: !network.coinParam.mainnet);
+        algorithm: keyAlgorithm, tag: tag, isTenstNet: !network.coinParam.mainnet);
     return IXRPAddress._newAccount(
         publicKey: keyBytes,
         network: network,
+        database: database,
         address: address,
         coin: coin,
-        keyIndex: deriveIndex,
+        derivationIndex: deriveIndex,
         tag: tag,
-        identifier: NewAccountParams.toIdentifier(address.toAddress()));
+        identifier: NewAccountParams.toIdentifier(address.address),
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic(
-            [deriveIndex.toCbor(), tag, coin.toCbor()]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems =>
+      [deriveIndex.toCbor(), tag?.toCbor(), coin.identifier.toCbor()];
   @override
   NewAccountParamsType get type => NewAccountParamsType.rippleNewAddressParams;
 }
 
-final class RippleMultiSigNewAddressParams implements RippleNewAddressParams {
-  @override
-  bool get isMultiSig => true;
-
-  final XRPAddress masterAddress;
-
-  @override
-  final AddressDerivationIndex deriveIndex = MultiSigAddressIndex();
+final class RippleMultiSigNewAddressParams extends NewAccountParams<IXRPAddress> {
+  final XRPBaseAddress masterAddress;
 
   final RippleMultiSignatureAddress multiSigAccount;
 
-  @override
   final int? tag;
-  @override
-  EllipticCurveTypes get curve =>
-      throw WalletExceptionConst.featureUnavailableForMultiSignature;
 
   @override
   final CryptoCoins coin;
@@ -103,7 +77,7 @@ final class RippleMultiSigNewAddressParams implements RippleNewAddressParams {
       this.tag});
   factory RippleMultiSigNewAddressParams(
       {required RippleMultiSignatureAddress multiSigAccount,
-      required XRPAddress masterAddress,
+      required XRPBaseAddress masterAddress,
       required CryptoCoins coin}) {
     return RippleMultiSigNewAddressParams._(
         multiSigAccount: multiSigAccount,
@@ -112,58 +86,47 @@ final class RippleMultiSigNewAddressParams implements RippleNewAddressParams {
         tag: masterAddress.tag);
   }
   factory RippleMultiSigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.rippleMultiSigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.rippleMultiSigNewAddressParams.tag);
     return RippleMultiSigNewAddressParams._(
-      masterAddress: XRPAddress(values.elementAs(0)),
+      masterAddress: XRPBaseAddress(values.rawValueAt(0)),
       multiSigAccount: RippleMultiSignatureAddress.deserialize(
-          obj: values.elementAsCborTag(1)),
-      tag: values.elementAs(1),
-      coin: CustomCoins.getSerializationCoin(values.elementAs(2)),
+          object: values.objectAt<CborTagValue>(1)),
+      tag: values.rawValueAt(1),
+      coin: CoinsUtils.getSerializationCoin(values.rawValueAt(2)),
     );
   }
 
   @override
-  IXRPMultisigAddress toAccount(
-      WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  IXRPMultisigAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey,
+      String? id, IAppDatabaseApi? database) {
     if (network is! WalletXRPNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "RippleMultiSigNewAddressParams.toAccount");
     }
-    final isTestnet = masterAddress.isTesnet;
-    if (isTestnet != null &&
-        isTestnet &&
-        network.coinParam.chainType.isMainnet) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "RippleMultiSigNewAddressParams.toAccount");
-    }
+
     return IXRPMultisigAddress._newAccount(
         network: network,
+        database: database,
         address: masterAddress,
         coin: coin,
-        identifier: NewAccountParams.toIdentifier(masterAddress.toAddress(),
+        identifier: NewAccountParams.toIdentifier(masterAddress.address,
             multisigAddress: multiSigAccount.toCbor().encode()),
         multiSigAccount: multiSigAccount,
-        tag: tag);
+        tag: tag,
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          masterAddress.address,
-          multiSigAccount.toCbor(),
-          tag,
-          coin.toCbor()
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        masterAddress.classicAddress.toCbor(),
+        multiSigAccount.toCbor(),
+        tag?.toCbor(),
+        coin.identifier.toCbor()
+      ];
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.rippleMultiSigNewAddressParams;
+  NewAccountParamsType get type => NewAccountParamsType.rippleMultiSigNewAddressParams;
 }

@@ -58,8 +58,8 @@ class AppDropDownBottom<T> extends StatelessWidget {
 
     return DropdownButtonFormField<T>(
       items: selectedItemBuilder?.keys
-              .map<DropdownMenuItem<T>>((e) => DropdownMenuItem<T>(
-                  value: e, child: selectedItemBuilder![e]!))
+              .map<DropdownMenuItem<T>>(
+                  (e) => DropdownMenuItem<T>(value: e, child: selectedItemBuilder![e]!))
               .toList() ??
           currentItems,
       icon: icon,
@@ -131,8 +131,7 @@ class AppDropDownBottomWithBorder<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor =
-        this.backgroundColor ?? context.colors.primaryContainer;
+    final backgroundColor = this.backgroundColor ?? context.colors.primaryContainer;
     final reverseColor = this.reverseColor ?? context.colors.onPrimaryContainer;
     final currentItems = menuItems ??
         items?.keys
@@ -152,8 +151,8 @@ class AppDropDownBottomWithBorder<T> extends StatelessWidget {
       ),
       child: DropdownButtonFormField<T>(
         items: selectedItemBuilder?.keys
-                .map<DropdownMenuItem<T>>((e) => DropdownMenuItem<T>(
-                    value: e, child: selectedItemBuilder![e]!))
+                .map<DropdownMenuItem<T>>(
+                    (e) => DropdownMenuItem<T>(value: e, child: selectedItemBuilder![e]!))
                 .toList() ??
             items?.keys
                 .map<DropdownMenuItem<T>>((e) => DropdownMenuItem<T>(
@@ -177,13 +176,11 @@ class AppDropDownBottomWithBorder<T> extends StatelessWidget {
         hint: hint == null
             ? null
             : Text(hint!,
-                style: context.textTheme.bodyMedium
-                    ?.copyWith(color: reverseColor)),
+                style: context.textTheme.bodyMedium?.copyWith(color: reverseColor)),
         decoration: InputDecoration(
             focusColor: backgroundColor,
             labelText: label,
-            labelStyle:
-                context.textTheme.labelLarge?.copyWith(color: reverseColor),
+            labelStyle: context.textTheme.labelLarge?.copyWith(color: reverseColor),
             // errorText: error,
             fillColor: backgroundColor,
             errorMaxLines: 3,

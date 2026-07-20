@@ -22,11 +22,11 @@ class SolanaAccountPageView extends StatelessWidget {
         transferBuilder: (p0) => SolanaTransactionTransferTokenOperation(
             walletProvider: context.wallet,
             account: chainAccount,
-            address: chainAccount.address,
+            address: chainAccount.addressSync,
             token: p0),
       ),
-      AccountTransactionActivityView<ISolanaAddress, SolanaWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<SolanaWalletTransaction, ISolanaAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -38,7 +38,6 @@ class _SolanaServices extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverToBoxAdapter(
         child: Column(
           children: [
@@ -47,11 +46,10 @@ class _SolanaServices extends StatelessWidget {
               subtitle: Text("create_associated_token_account".tr),
               trailing: const Icon(Icons.arrow_forward),
               onTap: () {
-                final operation =
-                    SolanaTransactionCreateAssociatedTokenAccountOperation(
-                        address: account.address,
-                        account: account,
-                        walletProvider: context.wallet);
+                final operation = SolanaTransactionCreateAssociatedTokenAccountOperation(
+                    address: account.addressSync,
+                    account: account,
+                    walletProvider: context.wallet);
                 context.to(PageRouter.transaction, argruments: operation);
               },
             ),
@@ -61,7 +59,7 @@ class _SolanaServices extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward),
               onTap: () {
                 final operation = SolanaTransactionCreateAccountOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet);
                 context.to(PageRouter.transaction, argruments: operation);
@@ -73,7 +71,7 @@ class _SolanaServices extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward),
               onTap: () {
                 final operation = SolanaTransactionInitializeMintOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet);
                 context.to(PageRouter.transaction, argruments: operation);
@@ -85,7 +83,7 @@ class _SolanaServices extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward),
               onTap: () {
                 final operation = SolanaTransactionMintToOperation(
-                    address: account.address,
+                    address: account.addressSync,
                     account: account,
                     walletProvider: context.wallet);
                 context.to(PageRouter.transaction, argruments: operation);

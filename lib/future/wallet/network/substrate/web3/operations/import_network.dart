@@ -8,26 +8,28 @@ import 'package:on_chain_wallet/future/wallet/network/substrate/web3/pages/impor
 import 'package:on_chain_wallet/future/wallet/network/substrate/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/web3/core/state.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
+import 'package:on_chain_wallet/wallet/api/types/types.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/substrate.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/network/params/substrate.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/substrate/constant/constants/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/substrate/params/models/add_chain.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/web3/networks/substrate/constant/constants/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/substrate/params/models/add_chain.dart';
 
 class Web3SubstrateImportOrUpdateNetworkStateController
-    extends Web3SubstrateStateController<bool, SubstrateClient?,
+    extends Web3SubstrateStateController<bool, SubstrateNetworkClient?,
         Web3SubstrateAddNewChain> {
   SubstrateChain? _chain;
   SubstrateChain? get chain => _chain;
   Web3SubstrateImportOrUpdateNetworkStateController(
       {required super.walletProvider, required super.request});
 
-  final GlobalKey<FormState> formKey = GlobalKey(
-      debugLabel: "Web3SubstrateImportOrUpdateNetworkStateController");
-  final GlobalKey<HTTPServiceProviderFieldsState> rpcKey = GlobalKey(
-      debugLabel: "Web3SubstrateImportOrUpdateNetworkStateController rpcKey");
+  final GlobalKey<FormState> formKey =
+      GlobalKey(debugLabel: "Web3SubstrateImportOrUpdateNetworkStateController");
+  final GlobalKey<HTTPServiceProviderFieldsState> rpcKey =
+      GlobalKey(debugLabel: "Web3SubstrateImportOrUpdateNetworkStateController rpcKey");
   RPCURL? uri;
 
   bool isWalletNetwork = false;
@@ -53,8 +55,8 @@ class Web3SubstrateImportOrUpdateNetworkStateController
     explorerTransaction = v;
   }
 
-  void onChangeDecimals(int v) {
-    decimal = v;
+  void onChangeDecimals(int? v) {
+    decimal = v ?? 0;
   }
 
   String? onValidateDecimals(String? v) {
@@ -74,8 +76,7 @@ class Web3SubstrateImportOrUpdateNetworkStateController
   }
 
   String? onValidateRpcUrl(String? v) {
-    final path =
-        StrUtils.validateUri(v, schame: ["http", "https", "ws", "wss"]);
+    final path = StrUtils.validateUri(v, schame: ["http", "https", "ws", "wss"]);
     if (path == null) return "rpc_url_validator".tr;
     return null;
   }
@@ -104,9 +105,7 @@ class Web3SubstrateImportOrUpdateNetworkStateController
   String? onValidateCoinType(String? v) {
     if (v?.trim().isEmpty ?? true) return null;
     final parse = int.tryParse(v ?? "");
-    if (parse == null ||
-        parse < 0 ||
-        parse > Bip32KeyDataConst.keyIndexMaxVal) {
+    if (parse == null || parse < 0 || parse > Bip32KeyDataConst.keyIndexMaxVal) {
       return "slip_44_desc".tr;
     }
     return null;
@@ -123,7 +122,7 @@ class Web3SubstrateImportOrUpdateNetworkStateController
   Future<Web3RequestResponseData<bool>> getResponse() async {
     final chain = this.chain;
     if (chain != null) {
-      final client = await chain.client();
+      final client = (await chain.client()).unwrap();
       if (chain.network.genesisBlock != params.genesisHash) {
         throw Web3SubstrateExceptionConstant.differentRuntimeMetadata;
       }
@@ -131,28 +130,31 @@ class Web3SubstrateImportOrUpdateNetworkStateController
       if (updateParams.specVersion == client.metadata.specVersion) {
         return Web3RequestResponseData(response: true);
       }
-      updateParams =
-          updateParams.updateSpecVersion(client.metadata.specVersion);
+      updateParams = updateParams.updateSpecVersion(client.metadata.specVersion);
       final updateNetwork = chain.network.copyWith(coinParam: updateParams);
-      await walletProvider.wallet.updateNetwork(updateNetwork);
+      (await walletProvider.wallet
+              .doAction(WalletActionUpdateNetwork(network: updateNetwork)))
+          .unwrap();
       return Web3RequestResponseData(response: true);
     }
     final rpcUrl = rpcKey.currentState?.getEndpoint();
     if (rpcUrl == null) {
       throw AppException("invalid_provider_infomarion".tr);
     }
-    final provider = SubstrateAPIProvider(
-        uri: rpcUrl.url,
-        identifier: APIUtils.getProviderIdentifier(),
+    final provider = DefaultAPIProvider.create(
+        url: rpcUrl.url,
+        service: APIProviderServices.substrateJsonRpc,
         auth: rpcUrl.auth);
-    final client = APIUtils.buildsubstrateClient(provider: provider);
-    final init = await MethodUtils.call(() async => client.loadApi());
-    if (init.hasError) {
-      throw AppException(init.localizationError);
-    } else if (init.result == null) {
+    final client = SubstrateClient.fromProviders(
+        provider: provider, netApi: walletProvider.wallet.config.netApi);
+    final init = await IResult.call(() async => client.loadApi());
+    client.dispose();
+    if (init.isErr) {
+      throw AppException(init.unwrapErr().localizationError);
+    } else if (init.ok() == null) {
       throw AppException("unsuported_network_metadata".tr);
     } else {
-      final chainInfo = init.result!;
+      final chainInfo = init.unwrap()!;
       final coinParam = SubstrateNetworkParams(
           token: Token(name: networkName, symbol: symbol, decimal: decimal),
           // providers: [provider],
@@ -167,8 +169,9 @@ class Web3SubstrateImportOrUpdateNetworkStateController
           keyAlgorithms: chainInfo.extrinsic.crypto.cryptoAlgoritms,
           specVersion: chainInfo.specVersion);
       final network = WalletSubstrateNetwork(-1, coinParam);
-      await walletProvider.wallet
-          .importNewNetwork(network: network, providers: [provider]);
+      (await walletProvider.wallet.doAction(
+              WalletActionImportNewNetwork(network: network, providers: [provider])))
+          .unwrap();
       return Web3RequestResponseData(response: true);
     }
   }
@@ -179,7 +182,7 @@ class Web3SubstrateImportOrUpdateNetworkStateController
   }
 
   @override
-  Future<void> initForm(SubstrateClient? client) async {
+  Future<void> initForm(SubstrateNetworkClient? client) async {
     await super.initForm(client);
     _chain = walletProvider.wallet
         .getChains<SubstrateChain>()
@@ -188,11 +191,11 @@ class Web3SubstrateImportOrUpdateNetworkStateController
     symbol = params.tokenSymbol;
     networkName = params.chain;
     final rpcUrl = params.rpcUrl;
-    SubstrateAPIProvider? provider;
+    DefaultAPIProvider? provider;
     if (rpcUrl != null) {
-      provider = SubstrateAPIProvider(
-          uri: rpcUrl, identifier: APIUtils.getProviderIdentifier());
-      uri = RPCURL(url: provider.callUrl, auth: provider.auth);
+      provider = DefaultAPIProvider.create(
+          url: rpcUrl, service: APIProviderServices.substrateJsonRpc);
+      uri = RPCURL(url: provider.url, auth: provider.auth);
     }
   }
 }

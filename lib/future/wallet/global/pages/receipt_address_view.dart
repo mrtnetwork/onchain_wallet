@@ -31,8 +31,7 @@ class ReceiptAddressView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null) ...[
-          Text(title?.tr ?? "recipient".tr,
-              style: context.textTheme.titleMedium),
+          Text(title?.tr ?? "recipient".tr, style: context.textTheme.titleMedium),
           if (subtitle != null) LargeTextView([subtitle!], maxLine: 2),
           WidgetConstant.height8,
         ],
@@ -43,8 +42,7 @@ class ReceiptAddressView extends StatelessWidget {
           onRemoveWidget: onEditWidget,
           onRemoveIcon: address == null
               ? Icon(Icons.add_box, color: context.onPrimaryContainer)
-              : onEditIcon ??
-                  Icon(Icons.edit, color: context.onPrimaryContainer),
+              : onEditIcon ?? Icon(Icons.edit, color: context.onPrimaryContainer),
           child: APPAnimated(
             isActive: true,
             onActive: (context) => ConditionalWidget(
@@ -69,69 +67,68 @@ class ReceiptAddressView extends StatelessWidget {
 
 class ReceiptAddressDetailsView extends StatelessWidget {
   const ReceiptAddressDetailsView(
-      {required this.address, super.key, required this.color});
+      {required this.address, super.key, required this.color, this.accountLable});
   final ReceiptAddress address;
   final Color color;
+  // final bool focus;
+  final InlineSpan? accountLable;
+
   @override
   Widget build(BuildContext context) {
+    final lable = accountLable;
+    final contact = address.contact;
+    final type = address.type;
+    final accountName = address.account?.accountName;
+    final account = address.account;
+    final bool hasLable =
+        lable != null || contact != null || type != null || accountName != null;
+
+    final labelStyle = context.textTheme.labelLarge?.copyWith(color: color);
+    final bodyStyle = context.textTheme.bodyMedium?.copyWith(color: color);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ConditionalWidget(
-          enable: address.account?.accountName != null,
-          onActive: (context) => Text(address.account!.accountName!,
-              style: context.textTheme.labelLarge?.copyWith(color: color)),
-          onDeactive: (context) {
-            if (address.hasContact) {
-              return RichText(
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  text: TextSpan(
-                      style:
-                          context.textTheme.bodyMedium?.copyWith(color: color),
-                      children: [
-                        WidgetSpan(
-                            child: Icon(
-                          Icons.contacts,
-                          size: context.textTheme.bodyMedium?.fontSize ??
-                              APPConst.smallIconSize,
-                          color: color,
-                        )),
-                        TextSpan(text: " "),
-                        TextSpan(
-                            text: address.contact!.name,
-                            style: context.textTheme.bodyMedium
-                                ?.copyWith(color: color))
-                      ]));
-            }
-            if (address.type != null) {
-              return Text(address.type!.tr,
-                  style: context.textTheme.labelLarge?.copyWith(color: color));
-            }
-            return WidgetConstant.sizedBox;
-          },
-        ),
+            enable: hasLable,
+            onActive: (context) => RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(style: labelStyle, children: [
+                  if (lable != null) ...[
+                    lable,
+                    TextSpan(text: " "),
+                  ],
+                  if (accountName != null)
+                    TextSpan(text: accountName, style: labelStyle)
+                  else if (contact != null)
+                    TextSpan(children: [
+                      WidgetSpan(
+                          child: Icon(
+                        Icons.contacts,
+                        size: labelStyle?.fontSize ?? APPConst.smallIconSize,
+                        color: color,
+                      )),
+                      TextSpan(text: " "),
+                      TextSpan(text: contact.name, style: labelStyle)
+                    ])
+                  else if (type != null)
+                    TextSpan(text: type.tr, style: labelStyle)
+                ]))),
         RichText(
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-                style: context.textTheme.bodyMedium?.copyWith(color: color),
-                children: [
-                  if (address.account != null) ...[
-                    WidgetSpan(
-                        child: AddressDerivationKeyIcon(
-                      address.account!.keyIndex,
-                      color: color,
-                      size: context.textTheme.bodyMedium?.fontSize ??
-                          APPConst.smallIconSize,
-                    )),
-                    TextSpan(text: " ")
-                  ],
-                  TextSpan(
-                      text: address.view,
-                      style:
-                          context.textTheme.bodyMedium?.copyWith(color: color))
-                ])),
+            text: TextSpan(style: bodyStyle, children: [
+              if (account != null) ...[
+                WidgetSpan(
+                    child: AddressDerivationKeyIcon(
+                  account.derivationIndex,
+                  color: color,
+                  size: context.textTheme.bodyMedium?.fontSize ?? APPConst.smallIconSize,
+                )),
+                TextSpan(text: " ")
+              ],
+              TextSpan(text: address.view, style: bodyStyle)
+            ])),
       ],
     );
   }

@@ -1,81 +1,85 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class ISolanaAddress extends ChainAccount<SolAddress, SolanaSPLToken,
-    NFTCore, SolanaWalletTransaction> {
+final class ISolanaAddress extends ChainAccount<SolAddress, SolanaSPLToken, NFTCore,
+    SolanaWalletTransaction, WalletSolanaNetwork> {
   ISolanaAddress._(
-      {required super.keyIndex,
+      {required super.derivationIndex,
+      required super.database,
       required super.coin,
       required super.address,
       required super.network,
       required super.networkAddress,
       required super.identifier,
-      super.accountName});
+      required super.id});
 
-  factory ISolanaAddress._newAccount(
-      {required List<int> publicKey,
-      required WalletSolanaNetwork network,
-      required AddressDerivationIndex keyIndex,
-      required SolAddress address,
-      required String identifier,
-      required CryptoCoins coin}) {
-    final balance =
-        ChainAccountBalance(address: address.address, network: network);
+  factory ISolanaAddress._newAccount({
+    required List<int> publicKey,
+    required WalletSolanaNetwork network,
+    required DerivationIndex derivationIndex,
+    required IAppDatabaseApi? database,
+    required SolAddress address,
+    required String identifier,
+    required CryptoCoins coin,
+    required String? id,
+  }) {
     return ISolanaAddress._(
         coin: coin,
-        address: balance,
-        keyIndex: keyIndex,
+        address: address.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: address,
-        network: network.value,
-        identifier: identifier);
+        network: network,
+        identifier: identifier,
+        id: id);
   }
 
-  factory ISolanaAddress.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.solAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
-    final keyIndex =
-        AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(1));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(2));
-    final SolAddress solAddress = SolAddress(address.toAddress);
-    final int networkId = values.elementAs(3);
+  factory ISolanaAddress.deserialize(
+      {required WalletSolanaNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.solAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final derivationIndex =
+        DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
+    final SolAddress solAddress =
+        SolAddress.deserializeIAddress(bytes: values.rawValueAt(2));
+    final int networkId = values.rawValueAt(3);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String? accountName = values.elementAs(4);
-    final String identifier = values.elementAs(5);
+    final String identifier = values.rawValueAt(4);
     return ISolanaAddress._(
         coin: coin,
-        address: address,
-        keyIndex: keyIndex,
+        address: solAddress.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: solAddress,
-        network: networkId,
-        accountName: accountName,
-        identifier: identifier);
+        network: network,
+        identifier: identifier,
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          keyIndex.toCbor(),
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          identifier
-        ]),
-        CborTagsConst.solAccount);
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.solAccount;
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        derivationIndex.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        identifier.toCbor()
+      ];
+  @override
+  List get variables {
+    return [derivationIndex, network.value];
   }
 
-  @override
-  List get variabels {
-    return [keyIndex, network];
-  }
-
-  @override
   List<int> get publicKey => networkAddress.toBytes();
 
   @override
@@ -90,6 +94,9 @@ final class ISolanaAddress extends ChainAccount<SolAddress, SolanaSPLToken,
 
   @override
   SolanaNewAddressParams toAccountParams() {
-    return SolanaNewAddressParams(deriveIndex: keyIndex, coin: coin);
+    return switch (derivationIndex) {
+      DerivableIndex index => SolanaNewAddressParams(deriveIndex: index, coin: coin),
+      _ => throw AppCryptoExceptionConst.invalidDerivationKey
+    };
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/live_listener/progress_bar.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
@@ -29,8 +28,7 @@ class ProgressWithTextView extends StatelessWidget {
         progressBar: progressBar,
         text: Column(
           children: [
-            LargeTextView([text],
-                maxLine: 3, textAligen: TextAlign.center, style: style),
+            LargeTextView([text], maxLine: 3, textAligen: TextAlign.center, style: style),
             if (bottomWidget != null) bottomWidget!
           ],
         ),
@@ -68,8 +66,8 @@ class ErrorWithTextView extends StatelessWidget {
           children: [
             ContainerWithBorder(
               backgroundColor: context.colors.errorContainer,
-              child: LargeTextContainer(
-                  color: context.colors.onErrorContainer, text: text),
+              child:
+                  LargeTextContainer(color: context.colors.onErrorContainer, text: text),
             ),
             if (progressKey != null) ...[
               WidgetConstant.height20,
@@ -118,8 +116,7 @@ class SuccessBarcodeProgressView extends StatefulWidget {
   final String? secureButtonText;
 
   @override
-  State<SuccessBarcodeProgressView> createState() =>
-      _SuccessBarcodeProgressViewState();
+  State<SuccessBarcodeProgressView> createState() => _SuccessBarcodeProgressViewState();
 }
 
 class _SuccessBarcodeProgressViewState extends State<SuccessBarcodeProgressView>
@@ -137,8 +134,7 @@ class _SuccessBarcodeProgressViewState extends State<SuccessBarcodeProgressView>
           children: [
             SecureContentView(
                 isSensitive: isSecure,
-                showButtonTitle:
-                    widget.secureButtonText?.tr ?? "show_content".tr,
+                showButtonTitle: widget.secureButtonText?.tr ?? "show_content".tr,
                 content: widget.text),
             WidgetConstant.height8,
             widget.bottomWidget
@@ -155,8 +151,8 @@ class SuccessWithButtonView extends StatelessWidget {
       required this.buttonText,
       this.buttonWidget,
       required this.onPressed})
-      : assert(text != null || buttonWidget != null,
-            "use text or buttonWidget for child");
+      : assert(
+            text != null || buttonWidget != null, "use text or buttonWidget for child");
   final String? text;
   final String buttonText;
   final Widget? buttonWidget;
@@ -177,8 +173,7 @@ class SuccessWithButtonView extends StatelessWidget {
 }
 
 class _ProgressWithTextView extends StatelessWidget {
-  const _ProgressWithTextView(
-      {this.progressBar, required this.text, this.icon});
+  const _ProgressWithTextView({this.progressBar, required this.text, this.icon});
   final Widget text;
   final Widget? icon;
   final LivePercentProgressBar? progressBar;
@@ -195,7 +190,7 @@ class _ProgressWithTextView extends StatelessWidget {
           onDeactive: (context) {
             if (progressBar != null) {
               return APPStreamBuilder(
-                value: progressBar!.percent,
+                value: progressBar!.progress,
                 builder: (context, value) {
                   return Column(
                     children: [
@@ -236,7 +231,7 @@ class TrackTransactionStatusView extends StatelessWidget {
     return ChainStreamBuilder(
         debugName: "SuccessTransactionTextView",
         allowNotify: [DefaultChainNotify.transaction],
-        builder: (context, chain, lastNotify) {
+        builder: (context, _) {
           final status = transaction?.status;
           final bool inBlock = status == WalletTransactionStatus.block;
           return Shimmer(
@@ -247,19 +242,17 @@ class TrackTransactionStatusView extends StatelessWidget {
                       ContainerWithBorder(
                         enableTap: false,
                         onRemove: () {},
-                        onRemoveWidget:
-                            Row(mainAxisSize: MainAxisSize.min, children: [
+                        onRemoveWidget: Row(mainAxisSize: MainAxisSize.min, children: [
                           ConditionalWidget(
                               enable: txUrl != null,
                               onActive: (context) => IconButton(
                                     icon: Icon(Icons.open_in_new,
-                                        color:
-                                            context.colors.onPrimaryContainer),
+                                        color: context.colors.onPrimaryContainer),
                                     color: context.colors.onPrimaryContainer,
                                     onPressed: () {
                                       final url = txUrl;
                                       if (url != null) {
-                                        UriUtils.lunch(url);
+                                        context.appContext.platformUtls.lunchUri(url);
                                       }
                                     },
                                   )),
@@ -270,30 +263,21 @@ class TrackTransactionStatusView extends StatelessWidget {
                                 WalletTransactionStatus.block: (context) =>
                                     TappedTooltipView(
                                         tooltipWidget: ToolTipView(
-                                            message:
-                                                "transaction_confirmed_in_block"
-                                                    .tr,
+                                            message: "transaction_confirmed_in_block".tr,
                                             child: Icon(Icons.check_circle,
-                                                color: context
-                                                    .onPrimaryContainer))),
+                                                color: context.onPrimaryContainer))),
                                 WalletTransactionStatus.failed: (context) =>
                                     TappedTooltipView(
                                         tooltipWidget: ToolTipView(
-                                            message:
-                                                "transaction_submission_failed"
-                                                    .tr,
+                                            message: "transaction_submission_failed".tr,
                                             child: Icon(Icons.error,
-                                                color: context
-                                                    .onPrimaryContainer))),
+                                                color: context.onPrimaryContainer))),
                                 WalletTransactionStatus.unknown: (context) =>
                                     TappedTooltipView(
                                         tooltipWidget: ToolTipView(
-                                            message:
-                                                "unable_to_confirm_transaction"
-                                                    .tr,
+                                            message: "unable_to_confirm_transaction".tr,
                                             child: Icon(Icons.warning,
-                                                color: context
-                                                    .onPrimaryContainer))),
+                                                color: context.onPrimaryContainer))),
                               })
                         ]),
                         child: CopyableTextWidget(
@@ -333,10 +317,8 @@ class SuccessTransactionTextView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        CircleTokenImageView(account.network.coinParam.token,
-            radius: APPConst.double80),
-        Text(account.network.coinParam.token.name,
-            style: context.textTheme.labelLarge),
+        CircleTokenImageView(account.network.coinParam.token, radius: APPConst.double80),
+        Text(account.network.coinParam.token.name, style: context.textTheme.labelLarge),
         ConditionalWidget(
           onActive: (context) =>
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -344,7 +326,10 @@ class SuccessTransactionTextView extends StatelessWidget {
             ContainerWithBorder(
               onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
               child: AddressDetailsView(
-                  address: address!, color: context.onPrimaryContainer),
+                address: address!,
+                color: context.onPrimaryContainer,
+                chain: account,
+              ),
             ),
           ]),
           enable: address != null,
@@ -425,15 +410,14 @@ class ProgressMultipleTextView extends StatelessWidget {
     return ChainStreamBuilder(
       account: account,
       allowNotify: [DefaultChainNotify.transaction],
-      builder: (context, account, notify) => Center(
+      builder: (context, _) => Center(
         child: SingleChildScrollView(
           child: ConstraintsBoxView(
             padding: WidgetConstant.paddingHorizontal20,
             child: Column(
               children: [
                 CircleAPPImageView(logo, radius: APPConst.double80),
-                if (title != null)
-                  Text(title!, style: context.textTheme.labelLarge),
+                if (title != null) Text(title!, style: context.textTheme.labelLarge),
                 WidgetConstant.height20,
                 ListView.separated(
                     physics: WidgetConstant.noScrollPhysics,
@@ -448,67 +432,52 @@ class ProgressMultipleTextView extends StatelessWidget {
                             onActive: (_, context) => ContainerWithBorder(
                                 enableTap: false,
                                 onRemove: () {},
-                                onRemoveWidget: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ConditionalWidget(
-                                          enable: tx.openUrl != null,
-                                          onActive: (context) => IconButton(
-                                                icon: Icon(Icons.open_in_new,
-                                                    color: context.colors
-                                                        .onPrimaryContainer),
-                                                color: context
-                                                    .colors.onPrimaryContainer,
-                                                onPressed: () {
-                                                  final url = tx.openUrl;
-                                                  if (url != null) {
-                                                    UriUtils.lunch(url);
-                                                  }
-                                                },
-                                              )),
-                                      ConditionalWidgets<
-                                              WalletTransactionStatus>(
-                                          enable: status,
-                                          widgets: {
-                                            null: (context) => Icon(
-                                                Icons.check_circle,
-                                                color:
-                                                    context.onPrimaryContainer),
-                                            WalletTransactionStatus.block:
-                                                (context) => TappedTooltipView(
-                                                    tooltipWidget: ToolTipView(
-                                                        message:
-                                                            "transaction_confirmed_in_block"
-                                                                .tr,
-                                                        child: Icon(
-                                                            Icons.check_circle,
-                                                            color: context
-                                                                .onPrimaryContainer))),
-                                            WalletTransactionStatus.failed:
-                                                (context) => TappedTooltipView(
-                                                    tooltipWidget: ToolTipView(
-                                                        message:
-                                                            "transaction_submission_failed"
-                                                                .tr,
-                                                        child: Icon(Icons.error,
-                                                            color: context
-                                                                .onPrimaryContainer))),
-                                            WalletTransactionStatus.unknown:
-                                                (context) => TappedTooltipView(
-                                                    tooltipWidget: ToolTipView(
-                                                        message:
-                                                            "unable_to_confirm_transaction"
-                                                                .tr,
-                                                        child: Icon(
-                                                            Icons.warning,
-                                                            color: context
-                                                                .onPrimaryContainer))),
-                                          })
-                                    ]),
+                                onRemoveWidget:
+                                    Row(mainAxisSize: MainAxisSize.min, children: [
+                                  ConditionalWidget(
+                                      enable: tx.openUrl != null,
+                                      onActive: (context) => IconButton(
+                                            icon: Icon(Icons.open_in_new,
+                                                color: context.colors.onPrimaryContainer),
+                                            color: context.colors.onPrimaryContainer,
+                                            onPressed: () {
+                                              final url = tx.openUrl;
+                                              if (url != null) {
+                                                context.appContext.platformUtls
+                                                    .lunchUri(url);
+                                              }
+                                            },
+                                          )),
+                                  ConditionalWidgets<
+                                      WalletTransactionStatus>(enable: status, widgets: {
+                                    null: (context) => Icon(Icons.check_circle,
+                                        color: context.onPrimaryContainer),
+                                    WalletTransactionStatus.block: (context) =>
+                                        TappedTooltipView(
+                                            tooltipWidget: ToolTipView(
+                                                message:
+                                                    "transaction_confirmed_in_block".tr,
+                                                child: Icon(Icons.check_circle,
+                                                    color: context.onPrimaryContainer))),
+                                    WalletTransactionStatus.failed: (context) =>
+                                        TappedTooltipView(
+                                            tooltipWidget: ToolTipView(
+                                                message:
+                                                    "transaction_submission_failed".tr,
+                                                child: Icon(Icons.error,
+                                                    color: context.onPrimaryContainer))),
+                                    WalletTransactionStatus.unknown: (context) =>
+                                        TappedTooltipView(
+                                            tooltipWidget: ToolTipView(
+                                                message:
+                                                    "unable_to_confirm_transaction".tr,
+                                                child: Icon(Icons.warning,
+                                                    color: context.onPrimaryContainer))),
+                                  })
+                                ]),
                                 child: CopyableTextWidget(
-                                    text: tx.message,
-                                    color: context.onPrimaryContainer)),
-                            enable: status?.inMempool ?? true);
+                                    text: tx.message, color: context.onPrimaryContainer)),
+                            enable: !(status?.inMempool ?? false));
                       }
                       return ContainerWithBorder(
                         enableTap: false,
@@ -520,8 +489,7 @@ class ProgressMultipleTextView extends StatelessWidget {
                             copyable: true),
                       );
                     },
-                    separatorBuilder: (context, index) =>
-                        WidgetConstant.divider,
+                    separatorBuilder: (context, index) => WidgetConstant.divider,
                     itemCount: texts.length),
               ],
             ),
@@ -551,8 +519,8 @@ class StreamPageProgressErrorView extends StatelessWidget {
           children: [
             ContainerWithBorder(
               backgroundColor: context.colors.errorContainer,
-              child: LargeTextContainer(
-                  color: context.colors.onErrorContainer, text: text),
+              child:
+                  LargeTextContainer(color: context.colors.onErrorContainer, text: text),
             ),
             if (controller != null) ...[
               WidgetConstant.height20,

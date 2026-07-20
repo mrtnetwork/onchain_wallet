@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/controllers/fee.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/transaction/types/types.dart';
@@ -34,8 +34,8 @@ class TonTransactionFeeDataView extends StatelessWidget {
                             tooltipWidget: ToolTipView(
                           backgroundColor: context.colors.inverseSurface,
                           child: Icon(Icons.help),
-                          tooltipWidget: (context) => ToolTipConstrainedBox(
-                              child: _TonFeeInfos(fee.fee)),
+                          tooltipWidget: (context) =>
+                              ToolTipConstrainedBox(child: _TonFeeInfos(fee.fee)),
                         )),
                       ),
                       child: Column(

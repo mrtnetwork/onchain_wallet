@@ -13,11 +13,7 @@ class UpdateCosmosTokenView extends StatefulWidget {
   final String? title;
   final String? subtitle;
   const UpdateCosmosTokenView(
-      {this.token,
-      this.title,
-      this.subtitle,
-      this.isFeeToken = false,
-      super.key});
+      {this.token, this.title, this.subtitle, this.isFeeToken = false, super.key});
 
   @override
   State<UpdateCosmosTokenView> createState() => _UpdateCosmosTokenViewState();
@@ -86,7 +82,8 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
     context.pop(t);
   }
 
-  void onChangeTokenDecimals(int tokenDecimals) {
+  void onChangeTokenDecimals(int? tokenDecimals) {
+    if (tokenDecimals == null) return;
     decimals = tokenDecimals;
   }
 
@@ -100,20 +97,20 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
   }
 
   void onChangeMinGasPrice(String v) {
-    minGasPrice = BigRational.tryParseDecimaal(v);
+    minGasPrice = BigRational.tryParse(v);
   }
 
   void onChangeAvarageGasPrice(String v) {
-    avarageGasPrice = BigRational.tryParseDecimaal(v);
+    avarageGasPrice = BigRational.tryParse(v);
   }
 
   void onChangeHighGasPrice(String v) {
-    highGasPrice = BigRational.tryParseDecimaal(v);
+    highGasPrice = BigRational.tryParse(v);
   }
 
   String? onValidateGasPrice(String? v) {
     if (v != null) {
-      final p = BigRational.tryParseDecimaal(v);
+      final p = BigRational.tryParse(v);
       if (p != null && !p.isNegative) return null;
     }
     return "gas_price_validator".tr;
@@ -137,8 +134,7 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageTitleSubtitle(
-              title: "token_info".tr,
-              body: Text("cosmos_update_token_desc".tr)),
+              title: "token_info".tr, body: Text("cosmos_update_token_desc".tr)),
           Text("denom".tr, style: context.textTheme.titleMedium),
           Text("token_demination_desc".tr),
           WidgetConstant.height8,
@@ -171,7 +167,7 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
           NumberTextField(
               label: "decimals".tr,
               defaultValue: decimals,
-              onChange: onChangeTokenDecimals,
+              onChangeValue: onChangeTokenDecimals,
               validator: onValidateTokenDecimals,
               max: CosmosConst.maxTokenExponent,
               min: 0),
@@ -181,8 +177,7 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
             Text("comsos_gas_price_desc".tr),
             WidgetConstant.height8,
             AppTextField(
-              keyboardType:
-                  TextInputType.numberWithOptions(signed: false, decimal: true),
+              keyboardType: TextInputType.numberWithOptions(signed: false, decimal: true),
               label: "min_gas_price".tr,
               hint: "example_s".tr.replaceOne(APPConst.exampleDouble),
               onChanged: onChangeMinGasPrice,
@@ -197,8 +192,7 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
             Text("comsos_gas_price_desc".tr),
             WidgetConstant.height8,
             AppTextField(
-              keyboardType:
-                  TextInputType.numberWithOptions(signed: false, decimal: true),
+              keyboardType: TextInputType.numberWithOptions(signed: false, decimal: true),
               label: "avarage_gas_price".tr,
               hint: "example_s".tr.replaceOne(APPConst.exampleDouble),
               onChanged: onChangeAvarageGasPrice,
@@ -213,8 +207,7 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
             Text("comsos_gas_price_desc".tr),
             WidgetConstant.height8,
             AppTextField(
-              keyboardType:
-                  TextInputType.numberWithOptions(signed: false, decimal: true),
+              keyboardType: TextInputType.numberWithOptions(signed: false, decimal: true),
               label: "high_gas_price".tr,
               onChanged: onChangeHighGasPrice,
               validator: onValidateGasPrice,
@@ -231,9 +224,8 @@ class _UpdateCosmosTokenViewState extends State<UpdateCosmosTokenView>
               FixedElevatedButton(
                   padding: WidgetConstant.paddingVertical40,
                   onPressed: onSetup,
-                  child: Text(widget.token == null
-                      ? "setup_token".tr
-                      : "update_token".tr))
+                  child:
+                      Text(widget.token == null ? "setup_token".tr : "update_token".tr))
             ],
           )
         ],

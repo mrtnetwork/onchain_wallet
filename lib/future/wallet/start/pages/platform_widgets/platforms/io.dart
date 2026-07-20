@@ -8,8 +8,7 @@ import 'package:on_chain_wallet/future/widgets/widgets/list_tile.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/widget_constant.dart';
 import 'package:on_chain_wallet/wallet/models/access/wallet_access.dart';
 
-Widget appbarWidgets(bool walletIsUnlock) =>
-    _AppbarExtentionWidget(walletIsUnlock);
+Widget appbarWidgets(bool walletIsUnlock) => _AppbarExtentionWidget(walletIsUnlock);
 
 class _AppbarExtentionWidget extends StatelessWidget {
   final bool walletIsUnlock;
@@ -42,8 +41,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
                 },
                 child: AppListTile(
                   trailing: const Icon(Icons.lock_open),
-                  title: Text("unlock_wallet".tr,
-                      style: context.textTheme.labelMedium),
+                  title: Text("unlock_wallet".tr, style: context.textTheme.labelMedium),
                 ),
               ),
             if (wallet.wallet.isUnlock)
@@ -53,8 +51,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
                 },
                 child: AppListTile(
                   trailing: const Icon(Icons.lock),
-                  title: Text("lock_wallet".tr,
-                      style: context.textTheme.labelMedium),
+                  title: Text("lock_wallet".tr, style: context.textTheme.labelMedium),
                 ),
               ),
             if (wallet.wallet.isOpen)
@@ -64,8 +61,7 @@ class _AppbarExtentionWidget extends StatelessWidget {
                 },
                 child: AppListTile(
                   trailing: const Icon(Icons.settings),
-                  title:
-                      Text("settings".tr, style: context.textTheme.labelMedium),
+                  title: Text("settings".tr, style: context.textTheme.labelMedium),
                 ),
               ),
             if (wallet.walletPage.inSwap)
@@ -73,15 +69,15 @@ class _AppbarExtentionWidget extends StatelessWidget {
                 onTap: () {
                   wallet.swap?.updateSettings((controller) {
                     return context.openSliverDialog(
-                        widget: (context) =>
-                            SelectSwapProvidersView(controller),
+                        widget: (context) => SelectSwapProvidersView(controller),
                         label: 'swap_settings'.tr);
-                  });
+                  }).then((e) => e.watch(
+                        onErr: (error) => context.showAlert(error.localizationError),
+                      ));
                 },
                 child: AppListTile(
                   trailing: const Icon(Icons.swap_horiz_outlined),
-                  title: Text("swap_settings".tr,
-                      style: context.textTheme.labelMedium),
+                  title: Text("swap_settings".tr, style: context.textTheme.labelMedium),
                 ),
               ),
           ];

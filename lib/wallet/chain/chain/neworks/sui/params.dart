@@ -1,10 +1,8 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class SuiNewAddressParams extends NewAccountParams<ISuiAddress> {
+final class SuiNewAddressParams extends NewDerivableAccountParams<ISuiAddress> {
   @override
-  bool get isMultiSig => false;
-  @override
-  final AddressDerivationIndex deriveIndex;
+  final DerivableIndex deriveIndex;
   @override
   final CryptoCoins coin;
   final SuiAddress? address;
@@ -13,160 +11,131 @@ final class SuiNewAddressParams extends NewAccountParams<ISuiAddress> {
       {required this.deriveIndex,
       required this.coin,
       this.address,
-      required this.keyScheme})
-      : super._();
+      required this.keyScheme});
   factory SuiNewAddressParams(
-      {required AddressDerivationIndex deriveIndex,
+      {required DerivableIndex deriveIndex,
       required CryptoCoins coin,
       SuiAddress? address,
       required SuiSupportKeyScheme keyScheme}) {
     return SuiNewAddressParams._(
-        deriveIndex: deriveIndex,
-        coin: coin,
-        keyScheme: keyScheme,
-        address: address);
+        deriveIndex: deriveIndex, coin: coin, keyScheme: keyScheme, address: address);
   }
 
   SuiNewAddressParams updateAddress(SuiAddress address) {
     assert(this.address == null, "Address must be null.");
     return SuiNewAddressParams(
-        deriveIndex: deriveIndex,
-        coin: coin,
-        address: address,
-        keyScheme: keyScheme);
+        deriveIndex: deriveIndex, coin: coin, address: address, keyScheme: keyScheme);
   }
 
-  factory SuiNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory SuiNewAddressParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.suiNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.suiNewAddressParams.tag);
     return SuiNewAddressParams(
-        deriveIndex:
-            AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(0)),
-        coin: CustomCoins.getSerializationCoin(values.elementAs(1)),
-        address: values.elemetMybeAs<SuiAddress, CborStringValue>(
+        deriveIndex: DerivableIndex.deserialize(object: values.objectAt<CborTagValue>(0)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(1)),
+        address: values.maybeObjectAt<SuiAddress, CborStringValue>(
             2, (e) => SuiAddress(e.value)),
-        keyScheme: SuiSupportKeyScheme.fromValue(values.elementAs(3)));
+        keyScheme: SuiSupportKeyScheme.fromValue(values.rawValueAt(3)));
   }
 
   @override
-  ISuiAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  ISuiAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey, String? id,
+      IAppDatabaseApi? database) {
     if (publicKey == null) {
       throw WalletExceptionConst.pubkeyRequired;
     }
     final address = this.address;
     if (address == null || network is! WalletSuiNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "SuiNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("SuiNewAddressParams.toAccount");
     }
     return ISuiAddress._newAccount(
         network: network,
+        database: database,
         address: address,
         publicKey: publicKey.normalizedComprossedBytes.asImmutableBytes,
         coin: coin,
         identifier: NewAccountParams.toIdentifier(address.address),
-        keyIndex: deriveIndex,
-        keyScheme: keyScheme);
+        derivationIndex: deriveIndex,
+        keyScheme: keyScheme,
+        id: id);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          deriveIndex.toCbor(),
-          coin.toCbor(),
-          address?.address,
-          keyScheme.value
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        deriveIndex.toCbor(),
+        coin.identifier.toCbor(),
+        address?.address.toCbor(),
+        keyScheme.value.toCbor()
+      ];
   @override
   NewAccountParamsType get type => NewAccountParamsType.suiNewAddressParams;
 }
 
-final class SuiMultiSigNewAddressParams implements SuiNewAddressParams {
-  @override
-  final AddressDerivationIndex deriveIndex;
-  @override
-  bool get isMultiSig => true;
+final class SuiMultiSigNewAddressParams extends NewAccountParams<ISuiAddress> {
   @override
   final CryptoCoins coin;
   final SuiMultisigAccountInfo multiSignatureAddress;
-  @override
   final SuiAddress address;
 
   SuiMultiSigNewAddressParams._({
     required this.multiSignatureAddress,
     required this.coin,
     required this.address,
-  }) : deriveIndex = MultiSigAddressIndex();
+  });
 
   factory SuiMultiSigNewAddressParams(
       {required SuiMultisigAccountInfo multiSignatureAddress,
       required CryptoCoins coin,
       required SuiAddress address}) {
     return SuiMultiSigNewAddressParams._(
-        multiSignatureAddress: multiSignatureAddress,
-        coin: coin,
-        address: address);
+        multiSignatureAddress: multiSignatureAddress, coin: coin, address: address);
   }
 
   factory SuiMultiSigNewAddressParams.deserialize(
-      {List<int>? bytes, CborObject? object, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: object,
-        hex: hex,
-        tags: NewAccountParamsType.suiMultisigNewAddressParams.tag);
+        cborObject: object,
+        identifier: NewAccountParamsType.suiMultisigNewAddressParams.tag);
     return SuiMultiSigNewAddressParams(
-        coin: CustomCoins.getSerializationCoin(values.elementAs(0)),
+        coin: CoinsUtils.getSerializationCoin(values.rawValueAt(0)),
         multiSignatureAddress:
-            SuiMultisigAccountInfo.deserialize(object: values.elementAs(1)),
-        address: SuiAddress(values.elementAs(2)));
+            SuiMultisigAccountInfo.deserialize(object: values.rawValueAt(1)),
+        address: SuiAddress(values.rawValueAt(2)));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          coin.toCbor(),
-          multiSignatureAddress.toCbor(),
-          CborStringValue(address.address),
-        ]),
-        type.tag);
-  }
-
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        multiSignatureAddress.toCbor(),
+        CborStringValue(address.address),
+      ];
   @override
-  NewAccountParamsType get type =>
-      NewAccountParamsType.suiMultisigNewAddressParams;
+  NewAccountParamsType get type => NewAccountParamsType.suiMultisigNewAddressParams;
 
-  @override
   SuiSupportKeyScheme get keyScheme => SuiSupportKeyScheme.multisig;
 
-  @override
-  SuiNewAddressParams updateAddress(SuiAddress address) {
+  NewAccountParams updateAddress(SuiAddress address) {
     return SuiMultiSigNewAddressParams(
-        multiSignatureAddress: multiSignatureAddress,
-        coin: coin,
-        address: address);
+        multiSignatureAddress: multiSignatureAddress, coin: coin, address: address);
   }
 
   @override
-  ISuiAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey) {
+  ISuiAddress toAccount(WalletNetwork network, CryptoPublicKeyData? publicKey, String? id,
+      IAppDatabaseApi? database) {
     if (network is! WalletSuiNetwork) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "SuiNewAddressParams.toAccount");
+      throw WalletExceptionConst.invalidAccountData("SuiNewAddressParams.toAccount");
     }
 
     return ISuiMultiSigAddress._newAccount(
         network: network,
         address: address,
+        database: database,
         coin: coin,
         identifier: NewAccountParams.toIdentifier(address.address),
-        multiSignatureAddress: multiSignatureAddress);
+        multiSignatureAddress: multiSignatureAddress,
+        id: id);
   }
 }

@@ -14,9 +14,7 @@ import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types
 class EthereumTransactionTransferOperation
     extends EthereumTransactionStateController<IEthereumTransactionData> {
   EthereumTransactionTransferOperation(
-      {required super.address,
-      required super.account,
-      required super.walletProvider});
+      {required super.address, required super.account, required super.walletProvider});
   String? filterAccount(ETHAddress address) {
     if (address == this.address.networkAddress) {
       return "address_already_exist".tr;
@@ -27,7 +25,7 @@ class EthereumTransactionTransferOperation
   @override
   BigInt getMaxInput() {
     final totalAmount = txFee.fee.fee.balance;
-    final max = address.address.currencyBalance - totalAmount;
+    final max = address.addressData.currencyBalance - totalAmount;
     if (max.isNegative) return BigInt.zero;
     return max;
   }
@@ -51,9 +49,8 @@ class EthereumTransactionTransferOperation
     final status = super.getStateStatus();
     if (!status.isReady) return status;
     final totalAmount = amount.value.balance + txFee.fee.fee.balance;
-    final r = address.address.currencyBalance - totalAmount;
-    return TransactionStateStatus.insufficient(
-        IntegerBalance.token(r, network.token));
+    final r = address.addressData.currencyBalance - totalAmount;
+    return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token));
   }
 
   @override
@@ -62,7 +59,7 @@ class EthereumTransactionTransferOperation
             from: address.networkAddress,
             to: receipt.value?.networkAddress ?? address.networkAddress,
             nonce: 0,
-            gasLimit: BigInt.one,
+            gasLimit: BigInt.zero,
             data: memoBytes() ?? [],
             value: BigInt.zero,
             chainId: network.coinParam.chainId)
@@ -71,8 +68,7 @@ class EthereumTransactionTransferOperation
   }
 
   @override
-  Future<IEthereumTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IEthereumTransactionData> buildTransactionData({bool simulate = false}) async {
     final nonce = await client.getAccountNonce(address.networkAddress);
     return IEthereumTransactionData(
         recipient: receipt.output.networkAddress,
@@ -83,10 +79,9 @@ class EthereumTransactionTransferOperation
   }
 
   @override
-  Future<List<IWalletTransaction<EthWalletTransaction, IEthAddress>>>
+  Future<List<IWalletTransaction<EthWalletTransaction, IEthereumAddress>>>
       buildWalletTransaction(
-          {required IEthereumSignedTransaction<IEthereumTransactionData>
-              signedTx,
+          {required IEthereumSignedTransaction<IEthereumTransactionData> signedTx,
           required SubmitTransactionSuccess txId}) async {
     final txData = signedTx.transaction.transactionData;
     final transaction = EthWalletTransaction(
@@ -94,11 +89,11 @@ class EthereumTransactionTransferOperation
         outputs: [
           EthWalletTransactionTransferOutput(
               to: txData.recipient,
-              amount: WalletTransactionIntegerAmount(
-                  amount: txData.amount, network: network))
+              amount:
+                  WalletTransactionIntegerAmount(amount: txData.amount, network: network))
         ],
-        totalOutput: WalletTransactionIntegerAmount(
-            amount: txData.amount, network: network),
+        totalOutput:
+            WalletTransactionIntegerAmount(amount: txData.amount, network: network),
         network: network);
     return [
       IWalletTransaction(transaction: transaction, account: address),
@@ -106,7 +101,8 @@ class EthereumTransactionTransferOperation
   }
 
   @override
-  EthereumTransactionTransferOperation cloneController(IEthAddress address) {
+  Future<EthereumTransactionTransferOperation> cloneController(
+      IEthereumAddress address) async {
     return EthereumTransactionTransferOperation(
         address: address, account: account, walletProvider: walletProvider);
   }

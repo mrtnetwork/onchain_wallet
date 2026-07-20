@@ -2,16 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:on_chain_wallet/app/core.dart'
-    show
-        APPConst,
-        BigIntVoid,
-        BoolVoid,
-        DynamicVoid,
-        IntVoid,
-        MethodUtils,
-        StringVoid;
+    show APPConst, BigIntVoid, BoolVoid, DynamicVoid, MethodUtils, StringVoid;
 import 'package:on_chain_wallet/app/models/models/typedef.dart'
-    show NullStringString;
+    show NullStringString, NullableIntVoid;
 import 'package:on_chain_wallet/future/text_field/input_formaters.dart';
 import 'constraints_box_view.dart';
 import 'paste_icon_widget.dart';
@@ -22,7 +15,7 @@ class NumberTextField extends StatefulWidget {
   const NumberTextField({
     super.key,
     this.label,
-    required this.onChange,
+    required this.onChangeValue,
     this.padding = WidgetConstant.paddingVertical8,
     this.helperText,
     this.hintText,
@@ -47,7 +40,7 @@ class NumberTextField extends StatefulWidget {
   final String? hintText;
   final String? error;
   final NullStringString? validator;
-  final IntVoid onChange;
+  final NullableIntVoid onChangeValue;
   final int? defaultValue;
   final FocusNode? focusNode;
   final FocusNode? nextFocus;
@@ -98,7 +91,7 @@ class NumberTextFieldState extends State<NumberTextField> with SafeState {
     _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       _add(isAdd);
     });
-    setState(() {});
+    updateState(() {});
   }
 
   void onLongPressCancel() {
@@ -106,7 +99,7 @@ class NumberTextFieldState extends State<NumberTextField> with SafeState {
     minus = false;
     _timer?.cancel();
     _timer = null;
-    setState(() {});
+    updateState(() {});
   }
 
   void onSubmitField(String v) {
@@ -116,14 +109,12 @@ class NumberTextFieldState extends State<NumberTextField> with SafeState {
   }
 
   void listener() {
-    final value =
-        controller.text.isEmpty ? widget.min : int.parse(controller.text);
-    widget.onChange(value);
+    final value = int.tryParse(controller.text);
+    widget.onChangeValue(value);
   }
 
   void changeIndex(int newIndex) {
-    if (newIndex < widget.min ||
-        (widget.max != null && newIndex > widget.max!)) {
+    if (newIndex < widget.min || (widget.max != null && newIndex > widget.max!)) {
       return;
     }
     controller.text = "$newIndex";
@@ -156,7 +147,7 @@ class NumberTextFieldState extends State<NumberTextField> with SafeState {
   void initState() {
     super.initState();
     controller.addListener(listener);
-    MethodUtils.after(() async {
+    MethodUtils.executeAfterDelay(() async {
       changeIndex(widget.defaultValue ?? widget.min);
     });
   }
@@ -302,14 +293,12 @@ class BigNumberTextFieldState extends State<BigNumberTextField> with SafeState {
   }
 
   void listener() {
-    final value =
-        _controller.text.isEmpty ? widget.min : BigInt.parse(_controller.text);
+    final value = _controller.text.isEmpty ? widget.min : BigInt.parse(_controller.text);
     widget.onChange(value);
   }
 
   void changeIndex(BigInt newIndex) {
-    if (newIndex < widget.min ||
-        (widget.max != null && newIndex > widget.max!)) {
+    if (newIndex < widget.min || (widget.max != null && newIndex > widget.max!)) {
       return;
     }
     _controller.text = "$newIndex";
@@ -439,9 +428,8 @@ class _NumberTextFieldView extends StatelessWidget {
                     AnimatedContainer(
                       duration: APPConst.animationDuraion,
                       decoration: BoxDecoration(
-                          color: minus
-                              ? context.theme.highlightColor
-                              : Colors.transparent,
+                          color:
+                              minus ? context.theme.highlightColor : Colors.transparent,
                           shape: BoxShape.circle),
                       child: GestureDetector(
                         onTap: () => onTap(false),
@@ -476,8 +464,7 @@ class _NumberTextFieldView extends StatelessWidget {
                         hintText: hintText,
                         helperText: helperText,
                         suffixIcon: showPasteIcon
-                            ? PasteTextIcon(
-                                onPaste: onPaste, isSensitive: false)
+                            ? PasteTextIcon(onPaste: onPaste, isSensitive: false)
                             : null,
                         errorText: error,
                         labelText: label,
@@ -492,9 +479,7 @@ class _NumberTextFieldView extends StatelessWidget {
                     AnimatedContainer(
                       duration: APPConst.animationDuraion,
                       decoration: BoxDecoration(
-                          color: add
-                              ? context.theme.highlightColor
-                              : Colors.transparent,
+                          color: add ? context.theme.highlightColor : Colors.transparent,
                           shape: BoxShape.circle),
                       child: GestureDetector(
                         onTap: () => onTap(true),

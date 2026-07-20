@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/select_provider.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/transaction_activity.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
@@ -12,8 +11,8 @@ class BitcoinAccountPageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return TabBarView(physics: WidgetConstant.noScrollPhysics, children: [
       _Services(chainAccount),
-      AccountTransactionActivityView<IBitcoinAddress, BitcoinWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<BitcoinWalletTransaction, IBitcoinAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -24,9 +23,7 @@ class _Services extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(
-      slivers: [
-        AccountManageProviderIcon(service: account.service),
-      ],
+      slivers: [],
     );
   }
 }

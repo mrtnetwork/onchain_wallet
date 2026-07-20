@@ -14,9 +14,7 @@ class SubstrateXCMTokenDetails {
   bool get isNativeAsset => tokenDetails.isNativeAsset;
   final bool canPayFee;
   SubstrateXCMTokenDetails(
-      {required this.tokenDetails,
-      required this.canPayFee,
-      required this.shareAsset})
+      {required this.tokenDetails, required this.canPayFee, required this.shareAsset})
       : reserveChain = tokenDetails.internalAsset.reserveChain();
   Token get token => tokenDetails.balance.value.token;
 }
@@ -84,18 +82,16 @@ class SubstrateXCMTransferRequirement {
 class SubstrateXCMTransferNetwork {
   final SubstrateChain network;
   final BaseSubstrateNetwork internalNetwork;
-  SubstrateClient? _client;
+  SubstrateNetworkClient? _client;
   SubstrateNetworkAssets? _assets;
-  final Map<BaseSubstrateAddress, SubstrateNetworkAccountBalances>
-      _accountsAssets = {};
-  SubstrateXCMTransferNetwork(
-      {required this.network, required this.internalNetwork});
-  Future<SubstrateClient> client() async {
-    return _client ??= (await network.client());
+  final Map<BaseSubstrateAddress, SubstrateNetworkAccountBalances> _accountsAssets = {};
+  SubstrateXCMTransferNetwork({required this.network, required this.internalNetwork});
+  Future<SubstrateNetworkClient> client() async {
+    return _client ??= (await network.client()).unwrap();
   }
 
-  Future<SubstrateClient?> clientOrNull() async {
-    return _client ??= (await network.clientOrNull());
+  Future<SubstrateNetworkClient?> clientOrNull() async {
+    return _client ??= (await network.client()).ok();
   }
 
   Future<SubstrateNetworkAssets> getAssets() async {
@@ -171,10 +167,7 @@ class SubstrateXCMTransactionDryRun {
       required this.destinationFees});
 
   Map<String, dynamic> toJson() {
-    return {
-      "call": call.toJson(),
-      "routes": routes.map((e) => e.toJson()).toList()
-    };
+    return {"call": call.toJson(), "routes": routes.map((e) => e.toJson()).toList()};
   }
 }
 
@@ -188,20 +181,19 @@ class SubstrateXCMTransferDestinationAccountInfo
 
   Future<void> getAccountBalances(SubstrateXCMTransferNetwork network) async {
     if (_accountBalance != null) return;
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       return await _lock.run(
         () async {
           final accountBalance = _accountBalance;
           if (accountBalance != null) return accountBalance;
           final controller = await network.controller();
-          return await controller.getAccountAssets(
-              address: receipt.networkAddress);
+          return await controller.getAccountAssets(address: receipt.networkAddress);
         },
       );
     }, cancelable: _cancelable);
-    if (result.isCancel) return;
-    assert(!result.hasError);
-    _accountBalance ??= result.resultOrNull;
+    if (result.err()?.canceled() ?? false) return;
+    assert(result.isOk);
+    _accountBalance ??= result.ok();
     if (_accountBalance != null) notify();
   }
 
@@ -212,8 +204,7 @@ class SubstrateXCMTransferDestinationAccountInfo
     if (minBalance <= BigInt.zero) return BigInt.zero;
     SubstrateAccountAssetBalance? balance;
     if (asset.destination.type.isNative) {
-      balance = accountBalances.balances
-          .firstWhereNullable((e) => e.asset.type.isNative);
+      balance = accountBalances.balances.firstWhereNullable((e) => e.asset.type.isNative);
     } else {
       balance = accountBalances.balances
           .firstWhereNullable((e) => e.asset == asset.destination);
@@ -236,8 +227,7 @@ class SubstrateXCMTransferSimulate with DisposableMixin, StreamStateController {
   String? get error => _error;
   SubstrateXCMTransactionDryRun? _xcmDryRun;
   SubstrateXCMTransactionDryRun? get xcmDryRun => _xcmDryRun;
-  SubstrateXCMDestinationFeeStatus _status =
-      SubstrateXCMDestinationFeeStatus.idle;
+  SubstrateXCMDestinationFeeStatus _status = SubstrateXCMDestinationFeeStatus.idle;
   SubstrateXCMDestinationFeeStatus get status => _status;
 
   void setIdle() {
@@ -337,8 +327,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
   final ISubstrateAddress address;
   Future<SubstrateXCMTransferNetwork?> _getNetworkClient(
       BaseSubstrateNetwork network) async {
-    final n = _relatedNetworks
-        .firstWhereNullable((e) => e.internalNetwork == network);
+    final n = _relatedNetworks.firstWhereNullable((e) => e.internalNetwork == network);
     final client = await n?.clientOrNull();
     if (client == null) return null;
     return n;
@@ -350,8 +339,8 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
       required this.address,
       required List<SubstrateXCMTransferNetwork> relayNetworks,
       required List<SubstrateTransferToken> transferAssets})
-      : deliveriesFee = IntegerBalance.zero(origin.network.network.token,
-            allowNegative: false),
+      : deliveriesFee =
+            IntegerBalance.zero(origin.network.network.token, allowNegative: false),
         transferAssets = transferAssets.immutable,
         relayNetworks = relayNetworks.immutable,
         nativeAsset = transferAssets.firstWhere((e) => e.isNativeAsset);
@@ -379,24 +368,21 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
         status == SubstrateTransactionXCMDryRunStatus.complete;
     if (!success) {
       return SubstrateXCMCallDryRun(
-          status: isOk
-              ? SubstrateXCMDryRunStatus.feeFailed
-              : SubstrateXCMDryRunStatus.failed,
+          status:
+              isOk ? SubstrateXCMDryRunStatus.feeFailed : SubstrateXCMDryRunStatus.failed,
           dryRunContent: dryRunContent,
           network: network);
     }
     List<SubstrateXCMTransferFeeToken> fees = [];
     final weightFee = weightToFee?.ok;
     if (weightFee != null) {
-      fees.add(
-          SubstrateXCMTransferFeeToken(token: feeToken, amount: weightFee));
+      fees.add(SubstrateXCMTransferFeeToken(token: feeToken, amount: weightFee));
     }
 
     for (final deleveriesFee in deleveriesFees) {
       final assets = deleveriesFee.amounts;
       if (assets.isNotEmpty) {
-        final accountAssets =
-            await origin.getAccountAssets(address.networkAddress);
+        final accountAssets = await origin.getAccountAssets(address.networkAddress);
         for (final i in assets) {
           final amount = i.amount;
           final asset = i.asset;
@@ -426,7 +412,8 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
                                       Token(
                                           name: asset.name,
                                           symbol: asset.symbol,
-                                          decimal: asset.decimals ?? 0)))),
+                                          decimal: asset.decimals ?? 0)),
+                                  name: "SubstrateXCMTransferDetails")),
                       canPayFee: false),
                   amount: amount));
               continue;
@@ -435,13 +422,12 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
                 token: SubstrateXCMTokenDetails(
                     shareAsset: null,
                     tokenDetails: transferAssets
-                            .firstWhereOrNull(
-                                (e) => e.tokenDetails.isNativeAsset)
+                            .firstWhereOrNull((e) => e.tokenDetails.isNativeAsset)
                             ?.tokenDetails ??
                         SubstrateTokenDetails(
                             internalAsset: asset,
                             asset: null,
-                            balance: address.address.balance),
+                            balance: address.addressData.balance),
                     canPayFee: false),
                 amount: amount));
             continue;
@@ -456,9 +442,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
                     symbol: asset.symbol,
                     decimal: asset.decimals ?? 0));
             return SubstrateTokenDetails(
-                asset: token,
-                internalAsset: asset,
-                balance: token.streamBalance);
+                asset: token, internalAsset: asset, balance: token.streamBalance);
           }();
           fees.add(SubstrateXCMTransferFeeToken(
               token: SubstrateXCMTokenDetails(
@@ -486,11 +470,10 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
     deliveriesFee.updateBalance(BigInt.zero);
     notify();
     SubstrateTransferEncodedParams? transfer;
-    final result = await MethodUtils.call(() async {
+    final result = await IResult.call(() async {
       return await _lock.run(() async {
         transfer = (await createCall()).xcmParams;
-        final dryRun =
-            await SubstrateNetworkControllerXCMTransferBuilder.dryRunXcm(
+        final dryRun = await SubstrateNetworkControllerXCMTransferBuilder.dryRunXcm(
           origin: origin.internalNetwork,
           destination: destinationChain.internalNetwork,
           destinationFee: destinationFee.token.tokenDetails.internalAsset,
@@ -509,8 +492,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
             feeToken: destinationFee.token,
             network: origin.internalNetwork,
             status: dryRun.status);
-        List<SubstrateXCMCallDryRun> xcmDryRun =
-            await Future.wait(dryRun.externalXcm.map(
+        List<SubstrateXCMCallDryRun> xcmDryRun = await Future.wait(dryRun.externalXcm.map(
           (e) {
             return _findSimulateAssets(
                 dryRunContent: e.xcmDryRun?.toJson(),
@@ -529,8 +511,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
           final dryRunFees = localDryRun.fees;
           final Map<SubstrateTokenDetails, BigInt> fees = {};
           for (final i in dryRunFees) {
-            fees.update(
-                i.token.tokenDetails, (value) => value + i.amount.balance,
+            fees.update(i.token.tokenDetails, (value) => value + i.amount.balance,
                 ifAbsent: () => i.amount.balance);
           }
           localFees.addAll(fees.entries
@@ -544,8 +525,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
           final dryRunFees = xcmDryRun.expand((e) => e.fees).toList();
           final Map<SubstrateTokenDetails, BigInt> fees = {};
           for (final i in dryRunFees) {
-            fees.update(
-                i.token.tokenDetails, (value) => value + i.amount.balance,
+            fees.update(i.token.tokenDetails, (value) => value + i.amount.balance,
                 ifAbsent: () => i.amount.balance);
           }
           destinationFees.addAll(fees.entries
@@ -562,11 +542,11 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
             destinationFees: destinationFees);
       });
     }, cancelable: _cancelable);
-    if (result.isCancel) return;
-    if (result.hasError) {
-      dryRun.setError(result.localizationError);
+    if (result.err()?.canceled() ?? false) return;
+    if (result.isErr) {
+      dryRun.setError(result.unwrapErr().localizationError);
     } else {
-      final simulate = result.result;
+      final simulate = result.unwrap();
       if (simulate == null) {
         dryRun.setUnsuported();
       } else {
@@ -605,8 +585,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
       return TransactionStateStatus.error();
     }
     if (_availableTokens.isEmpty) {
-      return TransactionStateStatus.error(
-          error: "no_transfable_asset_found".tr);
+      return TransactionStateStatus.error(error: "no_transfable_asset_found".tr);
     }
     if (_transfers.map((e) => e.token.reserveChain).toSet().length != 1) {
       return TransactionStateStatus.error(
@@ -625,10 +604,8 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
 
   void onStateUpdated({bool fromSimulate = false}) {
     _allowAddTransfer = transfers.length < 2;
-    _feeTokens =
-        transfers.where((e) => e.token.canPayFee).map((e) => e.token).toList();
-    if (!_feeTokens
-        .any((e) => e.tokenDetails == destinationFee?.token.tokenDetails)) {
+    _feeTokens = transfers.where((e) => e.token.canPayFee).map((e) => e.token).toList();
+    if (!_feeTokens.any((e) => e.tokenDetails == destinationFee?.token.tokenDetails)) {
       if (_feeTokens.isEmpty) {
         _destinationFee = null;
       } else {
@@ -663,8 +640,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
   }
 
   void onUpdateToken(SubstrateTokenDetails token) {
-    final xcmToken =
-        _availableTokens.firstWhereNullable((e) => e.tokenDetails == token);
+    final xcmToken = _availableTokens.firstWhereNullable((e) => e.tokenDetails == token);
     if (xcmToken == null || transfers.any((e) => e.token == xcmToken)) return;
     final transfer = SubstrateXCMTransferToken(token: xcmToken);
     _transfers.add(transfer);
@@ -684,8 +660,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
     onStateUpdated();
   }
 
-  void onUpdateAmount(
-      SubstrateXCMTransferToken transfer, BigInt amount, bool max) {
+  void onUpdateAmount(SubstrateXCMTransferToken transfer, BigInt amount, bool max) {
     transfer.onUpdateAmount(amount);
     onStateUpdated();
   }
@@ -698,7 +673,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
   }
 
   Future<SubstrateXCMTransferEncodedParamsWithControllers> createCall() async {
-    final client = await origin.network.client();
+    final client = (await origin.network.client()).unwrap();
     final result = await client.metadata.controller!.xcmTransfer(
         onControllerRequest: (network) async {
           final clinet = await (await _getNetworkClient(network))?.client();
@@ -707,8 +682,7 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
         params: SubstrateXCMTransferParams(
           assets: transfers
               .map((e) => SubstrateXCMTransferAsset(
-                  amount: e.amount.balance,
-                  asset: e.token.tokenDetails.internalAsset))
+                  amount: e.amount.balance, asset: e.token.tokenDetails.internalAsset))
               .toList(),
           destinationNetwork: destinationChain.internalNetwork,
           origin: origin.internalNetwork,
@@ -727,12 +701,12 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
     await _lock.run(() async {
       _initStatus = TransactionResourceRequirementFetchStatus.pending;
       notify();
-      final result = await MethodUtils.call(() async {
+      final result = await IResult.call(() async {
         final controller = await origin.controller();
-        SubstrateClient client = await origin.client();
+        SubstrateNetworkClient client = await origin.client();
         final assets = await client.getNetworkAssets();
 
-        await destinationChain.network.init();
+        (await destinationChain.network.initAsMainNetwork()).unwrap();
         client = await destinationChain.client();
         final destinationController = await destinationChain.controller();
         final destAssets = await client.getNetworkAssets();
@@ -744,18 +718,15 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
             network: origin.internalNetwork);
         transfableAssets = SubstrateNetworkAssets(
             assets: await destinationController.filterReceiveAssets(
-                assets: transfableAssets.assets,
-                origin: origin.internalNetwork),
+                assets: transfableAssets.assets, origin: origin.internalNetwork),
             network: transfableAssets.network);
-        final sharedFeeAssets =
-            assets.findShareAssets(destAssets, canPayFee: true);
+        final sharedFeeAssets = assets.findShareAssets(destAssets, canPayFee: true);
         List<SubstrateXCMTokenDetails> availableTokens = [];
         for (final i in transfableAssets.assets) {
-          final shareAsset =
-              sharedAssets.firstWhereNullable((e) => e.origin == i);
+          final shareAsset = sharedAssets.firstWhereNullable((e) => e.origin == i);
           final bool canPayFee = sharedFeeAssets.any((e) => e.origin == i);
-          final asset = transferAssets
-              .firstWhereNullable((e) => e.tokenDetails.internalAsset == i);
+          final asset =
+              transferAssets.firstWhereNullable((e) => e.tokenDetails.internalAsset == i);
           if (asset == null) continue;
           availableTokens.add(SubstrateXCMTokenDetails(
               shareAsset: shareAsset,
@@ -764,14 +735,15 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
         }
         return availableTokens;
       }, cancelable: _cancelable);
-      if (result.isCancel) return;
-      if (result.hasError) {
-        _status = TransactionStateStatus.error(error: result.localizationError);
+      if (result.err()?.canceled() ?? false) return;
+      if (result.isErr) {
+        _status =
+            TransactionStateStatus.error(error: result.unwrapErr().localizationError);
         _initStatus = TransactionResourceRequirementFetchStatus.failed;
         notify();
         return;
       }
-      _availableTokens = result.result;
+      _availableTokens = result.unwrap();
       _initStatus = TransactionResourceRequirementFetchStatus.success;
       onStateUpdated();
       return;
@@ -786,13 +758,11 @@ class SubstrateXCMTransferDetails with DisposableMixin, StreamStateController {
     _cancelable.cancel();
     for (final i in relayNetworks) {
       if (i == origin) continue;
-      i.network.closeClient();
     }
   }
 }
 
-class SubmitedXCMTransferDestinationTracker
-    with DisposableMixin, StreamStateController {
+class SubmitedXCMTransferDestinationTracker with DisposableMixin, StreamStateController {
   SubstrateXCMTransctionTrackerResult? _event;
   SubstrateXCMTransctionTrackerResult? get event => _event;
   Map<String, dynamic>? _content;

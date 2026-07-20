@@ -59,3 +59,6 @@ export 'widgets/fetch_object.dart';
 export 'widgets/tabbar.dart';
 export 'widgets/password_strength.dart';
 export 'widgets/text_or_file_picker.dart';
+export 'widgets/banner_widgets.dart';
+export 'widgets/opacity_widget.dart';
+export 'widgets/blinking_icon.dart';

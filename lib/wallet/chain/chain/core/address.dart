@@ -19,37 +19,36 @@ enum IAdressType {
 
 abstract class MultiSigCryptoAccountAddress {}
 
-typedef NETWORKCHAINACCOUNT<NETWORKADDRESS>
-    = ChainAccount<NETWORKADDRESS, TokenCore, NFTCore, ChainTransaction>;
-typedef NFTCHAINACCOUNT<NFT extends NFTCore>
-    = ChainAccount<dynamic, TokenCore, NFT, ChainTransaction>;
-
-class ChainAccountBalance {
-  ChainAccountBalance({
-    required this.address,
-    BigInt? balance,
+class ChainAddressData with AppSerialization {
+  ChainAddressData({
     required WalletNetwork network,
+    String? name,
+    BigInt? balance,
     DateTime? updated,
   })  : _updated = updated ?? DateTime.now(),
-        balance = InternalStreamValue.immutable(IntegerBalance.token(
-            balance ?? BigInt.zero, network.token,
-            immutable: true));
+        balance = InternalStreamValue.immutable(
+            IntegerBalance.token(balance ?? BigInt.zero, network.token, immutable: true),
+            name: "ChainAddressData.balance",
+            allowDispose: false),
+        _name = name;
 
-  factory ChainAccountBalance.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.address);
-    final String address = cbor.elementAs(0);
-    final BigInt balance = cbor.elementAs(1);
-    final DateTime updated = cbor.elementAs(2);
-    return ChainAccountBalance(
-        address: address, network: network, balance: balance, updated: updated);
+  factory ChainAddressData.deserialize(WalletNetwork network,
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.address);
+
+    return ChainAddressData(
+      network: network,
+      balance: cbor.rawValueAt(0),
+      updated: cbor.rawValueAt(1),
+      name: cbor.rawValueAt(2),
+    );
   }
 
-  final String address;
-  String get toAddress {
-    return address;
-  }
+  String? _name;
+  String? get name => _name;
 
   final InternalStreamValue<IntegerBalance> balance;
   BigInt get currencyBalance => balance.value.balance;
@@ -57,383 +56,757 @@ class ChainAccountBalance {
   DateTime _updated;
   DateTime get updated => _updated;
 
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic(
-            [address, currencyBalance, CborEpochIntValue(updated)]),
-        CborTagsConst.address);
-  }
-}
-
-abstract final class BaseChainAccount<X, T extends TokenCore, N extends NFTCore,
-    TRANSACTION extends ChainTransaction> with CborSerializable, Equality {
-  _WalletAddressStatus _status = _WalletAddressStatus.init;
-
-  BaseChainAccount({
-    required this.address,
-    required this.keyIndex,
-    required this.network,
-    required this.networkAddress,
-    required this.coin,
-    required String? accountName,
-    required this.identifier,
-  }) : _accountName = accountName;
-  // _WalletAddressStatus _status = _WalletAddressStatus.init;
-  final ChainAccountBalance address;
-  final AddressDerivationIndex keyIndex;
-  final int network;
-  String? get type;
-  final X networkAddress;
-  final CryptoCoins coin;
-  String get baseAddress => address.toAddress;
-  String get viewAddress => address.toAddress;
-  List<int>? get publicKey;
-  final String identifier;
-  WalletAccountTransactions<TRANSACTION> _transaction =
-      WalletAccountTransactions(transactions: []);
-  List<TRANSACTION> get transactions => _transaction.transactions;
-  List<N> _nfts = [];
-  List<N> get nfts => _nfts;
-  List<T> _tokens = [];
-  List<T> get tokens => _tokens;
-  String? _accountName;
-  String? get accountName => _accountName;
-  NewAccountParams toAccountParams();
-  List<AddressDerivationIndex> accessKeysIndexes() {
-    if (multiSigAccount) {
-      throw WalletExceptionConst.featureUnavailableForMultiSignature;
-    }
-    return signerKeyIndexes();
-  }
-
-  List<AddressDerivationIndex> signerKeyIndexes() {
-    if (multiSigAccount) {
-      throw WalletExceptionConst.featureUnavailableForMultiSignature;
-    }
-    return [keyIndex];
-  }
-
-  IAdressType get iAddressType => IAdressType.singleKey;
-  bool get multiSigAccount => iAddressType.isMultisig;
-  Future<List<T>> _getTokens();
-}
-
-abstract final class ChainAccount<X, T extends TokenCore, N extends NFTCore,
-        TRANSACTION extends ChainTransaction>
-    extends BaseChainAccount<X, T, N, TRANSACTION>
-    with
-        ChainAccountRepository<X, T, N, TRANSACTION>,
-        ChainAccountController<X, T, N, TRANSACTION> {
-  ChainAccount(
-      {required super.address,
-      required super.keyIndex,
-      required super.network,
-      required super.networkAddress,
-      required super.coin,
-      required super.accountName,
-      required super.identifier});
-
-  C cast<C extends ChainAccount>() {
-    if (this is C) return this as C;
-    throw WalletExceptionConst.internalError("ChainAccount");
-  }
-
-  final OnceRunner<WalletAccountTransactions<TRANSACTION>> _transactionRunner =
-      OnceRunner<WalletAccountTransactions<TRANSACTION>>();
-  final OnceRunner<List<T>> _tokenRunner = OnceRunner<List<T>>();
-
-  @override
-  Future<List<T>> _getTokens() async {
-    return _tokenRunner.get(
-        onFetch: () async {
-          final tokens = await _getTokensFromStorage();
-          _tokens = tokens.immutable;
-          for (final e in _tokens) {
-            e.streamBalance._disposeCallback = () => false;
-          }
-          return _tokens;
-        },
-        onFetched: () => _tokens);
-  }
-
-  Future<WalletAccountTransactions<TRANSACTION>> _getTransactions() async {
-    return _transactionRunner.get(
-        onFetch: () async {
-          final txes = await _getTransactionsFromStorage();
-          _transaction = WalletAccountTransactions(transactions: txes);
-          return _transaction;
-        },
-        onFetched: () => _transaction);
-  }
-
-  Future<void> init() async {
-    if (_status.isReady) return;
-    _status = _WalletAddressStatus.ready;
-    await _getTokens();
-    final nfts = await _getNfts();
-    await _getTransactions();
-    _nfts = nfts.immutable;
-  }
-
-  @override
-  String toString() {
-    return address.address;
-  }
-}
-
-base mixin ChainAccountController<X, T extends TokenCore, N extends NFTCore,
-        TRANSACTION extends ChainTransaction>
-    on
-        BaseChainAccount<X, T, N, TRANSACTION>,
-        ChainAccountRepository<X, T, N, TRANSACTION> {
-  Future<T> _addToken(T newToken) async {
-    if (_tokens.contains(newToken)) {
-      throw WalletExceptionConst.tokenAlreadyExist;
-    }
-    final t = newToken.clone() as T;
-    t.streamBalance._disposeCallback = () => false;
-    _tokens = [t, ..._tokens].immutable;
-    await _saveToken(token: newToken);
-    return t;
-  }
-
-  Future<void> _addTx(TRANSACTION tx) async {
-    _transaction.addTx(tx);
-    await _saveTransaction(transaction: tx);
-  }
-
-  Future<void> _removeTx(TRANSACTION tx) async {
-    _transaction.removeTx(tx);
-    await _removeTransaction(transaction: tx);
-  }
-
-  Future<T?> _updateToken(Token updateToken, T token) async {
-    if (await _removeToken(token)) {
-      final t = token.updateToken(updateToken) as T;
-      t.streamBalance._disposeCallback = () => false;
-      _tokens = [t, ..._tokens].immutable;
-      await _saveToken(token: token);
-      return t;
-    }
-    return null;
-  }
-
-  Future<bool> _removeToken(T token) async {
-    assert(tokens.contains(token), "token not found");
-    if (!tokens.contains(token)) return false;
-    final existTokens = _tokens.clone();
-    final currentToken = existTokens.firstWhereOrNull((e) => e == token);
-    assert(currentToken != null, "token not found.");
-    if (currentToken == null) return false;
-    existTokens.removeWhere((element) => element == currentToken);
-    _tokens = existTokens.immutable;
-    currentToken.streamBalance._disposeInternal();
-    await _removeTokenFromStorage(token: token);
-    return true;
-  }
-
-  Future<void> _addNFT(N newNft) async {
-    if (_nfts.contains(newNft)) {
-      throw WalletExceptionConst.nftsAlreadyExist;
-    }
-    _nfts = List.unmodifiable([newNft, ..._nfts]);
-    await _saveNFT(nft: newNft);
-  }
-
-  Future<void> _removeNFT(N nft) async {
-    if (!_nfts.contains(nft)) return;
-    final existNfts = List.from(_nfts);
-    existNfts.removeWhere((element) => element == nft);
-    _nfts = List.unmodifiable(_nfts);
-    await _removeNFTFromStorage(nft: nft);
-  }
-
-  Future<bool> _updateTokenBalance(
-      T token, _ONUUPDATETOKENBALANCE onUpdateBalance) async {
-    bool save = onUpdateBalance();
-    final tokens = await _getTokens();
-    final addressToken = tokens.firstWhereNullable((e) => e == token);
-    if (addressToken == null) return false;
-    if (!identical(token, addressToken)) {
-      save = addressToken.streamBalance.value
-          ._internalUpdateBalance(token.streamBalance.value.balance);
-    }
-    if (save) {
-      await _saveToken(token: token);
-    }
-    return save;
-  }
-
-  Future<bool> _updateAddressBalance([BigInt? updateBalance]) async {
-    if (address.balance.value._internalUpdateBalance(updateBalance)) {
-      address.balance.notify();
-      await _saveAddress();
+  bool updateName(String? name) {
+    if (name != _name) {
+      _name = name;
       return true;
     }
     return false;
   }
 
-  Future<void> _setAccountName(String? name) async {
-    if (name == _accountName) return;
-    _accountName = name;
-    await _saveAddress();
+  void _dispose() {
+    balance._disposeInternal();
+  }
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.address;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [currencyBalance.toCbor(), CborEpochIntValue(updated), name?.toCbor()];
+}
+
+abstract final class BaseChainAccount<
+    NETWORKADDRESS extends IAddress,
+    TOKEN extends TokenCore,
+    NFT extends NFTCore,
+    TRANSACTION extends ChainTransaction,
+    NETWORK extends WalletNetwork> with AppSerialization, Equality {
+  BaseChainAccount({
+    required this.address,
+    required this.derivationIndex,
+    required this.network,
+    required this.networkAddress,
+    required this.coin,
+    required this.identifier,
+    required String? id,
+    required IAppDatabaseApi? database,
+  }) : _storage = NetworkAddressStorageManager(
+            network: network, id: id, identifier: identifier, database: database);
+  final String address;
+  final DerivationIndex derivationIndex;
+  final NETWORK network;
+  final NetworkAddressStorageManager _storage;
+  String? get type;
+  final NETWORKADDRESS networkAddress;
+  final CryptoCoins coin;
+  String get baseAddress => address;
+  String get viewAddress => address;
+  final String identifier;
+  ChainAddressData get addressData;
+  String? get accountName;
+
+  NewAccountParams toAccountParams();
+
+  List<DerivableIndex> derivableIndexes(
+      {AccountDerivationIndexRequest? request =
+          const AccountDerivationIndexRequestAddress()}) {
+    switch (request) {
+      case null:
+      case AccountDerivationIndexRequestSigners():
+      case AccountDerivationIndexRequestAddress():
+        switch (derivationIndex) {
+          case DerivableIndex index:
+            return [index];
+          default:
+            throw WalletExceptionConst.featureUnavailableForMultiSignature;
+        }
+      default:
+        throw AppInternalError.internalError("Invalid request");
+    }
+  }
+
+  ReadAccountPublicKeyRequest createViewKeyRequest(
+      {AccountDerivationIndexRequest? request =
+          const AccountDerivationIndexRequestAddress()}) {
+    final indexes = derivableIndexes(request: request);
+    return ReadAccountPublicKeyRequestDefault(AccessCryptoKeysRequest(indexes));
+  }
+
+  ReadAccountPrivateKeyRequest createSecretKeyRequest(
+      {AccountDerivationIndexRequest? request =
+          const AccountDerivationIndexRequestAddress()}) {
+    final indexes = derivableIndexes(request: request);
+    return ReadAccountPrivateKeyRequestDefault(AccessCryptoKeysRequest(indexes));
+  }
+
+  IAdressType get iAddressType => IAdressType.singleKey;
+  bool get multiSigAccount => iAddressType.isMultisig;
+  List<TOKEN> get tokenSync;
+}
+
+abstract final class ChainAccount<
+        NETWORKADDRESS extends IAddress,
+        TOKEN extends TokenCore,
+        NFT extends NFTCore,
+        TRANSACTION extends ChainTransaction,
+        NETWORK extends WalletNetwork>
+    extends BaseChainAccount<NETWORKADDRESS, TOKEN, NFT, TRANSACTION, NETWORK>
+    with
+        ChainAccountRepository<NETWORKADDRESS, TOKEN, NFT, TRANSACTION, NETWORK>,
+        ChainAccountController<NETWORKADDRESS, TOKEN, NFT, TRANSACTION, NETWORK> {
+  ChainAccount(
+      {required super.address,
+      required super.derivationIndex,
+      required super.network,
+      required super.networkAddress,
+      required super.coin,
+      required super.identifier,
+      required super.id,
+      required super.database});
+
+  factory ChainAccount.deserialize(
+      {required WalletNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? obj}) {
+    final ChainAccount account = switch (network.type) {
+      NetworkType.bitcoinAndForked => IBitcoinAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.bitcoinCash => IBitcoinCashAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.xrpl => IXRPAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.ethereum => IEthereumAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.tron => ITronAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.solana => ISolanaAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.cardano => ICardanoAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.cosmos => ICosmosAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.ton => ITonAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.substrate => ISubstrateAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.stellar => IStellarAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.monero => IMoneroAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.aptos => IAptosAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.sui => ISuiAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+      NetworkType.zcash => IZcashAddress.deserialize(
+          network: network.cast(), id: id, bytes: bytes, database: database, object: obj),
+    };
+    return account.cast();
+  }
+
+  C cast<C extends ChainAccount>() {
+    if (this is C) return this as C;
+    throw AppInternalError.internalError("ChainAccount");
+  }
+
+  @override
+  String toString() {
+    return address;
   }
 }
-base mixin ChainAccountRepository<X, T extends TokenCore, N extends NFTCore,
-        TRANSACTION extends ChainTransaction>
-    on BaseChainAccount<X, T, N, TRANSACTION> {
-  NetworkStorageManager? _networkStorage;
-  NetworkStorageManager get _storage {
-    appLogger.error(
-      runtime: runtimeType,
-      functionName: "_storage",
-      msg: "storage not initialized: $network $_networkStorage $hashCode",
-      when: () => _networkStorage == null,
-    );
-    return _networkStorage!;
+
+base mixin ChainAccountController<
+        NETWORKADDRESS extends IAddress,
+        TOKEN extends TokenCore,
+        NFT extends NFTCore,
+        TRANSACTION extends ChainTransaction,
+        NETWORK extends WalletNetwork>
+    on
+        BaseChainAccount<NETWORKADDRESS, TOKEN, NFT, TRANSACTION, NETWORK>,
+        ChainAccountRepository<NETWORKADDRESS, TOKEN, NFT, TRANSACTION, NETWORK> {
+  // final OnceRunner<List<TOKEN>> _tokenRunner = OnceRunner<List<TOKEN>>();
+  // List<TOKEN> _addressTokens = [];
+
+  // final OnceRunner<List<NFT>> _nftRunner = OnceRunner<List<NFT>>();
+  // List<NFT> _addressNfts = [];
+
+  // final OnceRunner<WalletAccountTransactions<TRANSACTION>> _transactionRunner =
+  //     OnceRunner<WalletAccountTransactions<TRANSACTION>>();
+  // WalletAccountTransactions<TRANSACTION> _addressTxes =
+  //     WalletAccountTransactions(transactions: []);
+
+  // final OnceRunner<ChainAddressData> _addressDataRunner = OnceRunner<ChainAddressData>();
+
+  // late ChainAddressData _addressData = ChainAddressData(network: network);
+  // @override
+  // ChainAddressData get addressData => _addressData;
+
+  // Future<ChainAddressData> getAddressData() {
+  //   return _addressDataRunner.get(
+  //       onFetch: () async {
+  //         return _addressData = await _getAddressData();
+  //       },
+  //       onFetched: () => _addressData);
+  // }
+
+  // Future<List<TOKEN>> getTokens() async {
+  //   return _tokenRunner.get(
+  //       onFetch: () async {
+  //         final tokens = await _getTokensStorage();
+  //         _addressTokens = tokens.immutable;
+  //         for (final e in _addressTokens) {
+  //           e.streamBalance._disposeCallback = () => false;
+  //         }
+  //         return _addressTokens;
+  //       },
+  //       onFetched: () => _addressTokens);
+  // }
+
+  // Future<List<NFT>> getNfts() async {
+  //   return _nftRunner.get(
+  //       onFetch: () async {
+  //         final nfts = await _getNftsStorage();
+  //         _addressNfts = nfts.immutable;
+  //         for (final e in _addressTokens) {
+  //           e.streamBalance._disposeCallback = () => false;
+  //         }
+  //         return _addressNfts;
+  //       },
+  //       onFetched: () => _addressNfts);
+  // }
+
+  // Future<List<TRANSACTION>> getTransactions() async {
+  //   final tx = await _getTxController();
+  //   return tx.transactions;
+  // }
+
+  // Future<WalletAccountTransactions<TRANSACTION>> _getTxController() async {
+  //   return _transactionRunner.get(
+  //       onFetch: () async {
+  //         final txes = await _getTransactionsStorage();
+  //         _addressTxes = WalletAccountTransactions(transactions: txes);
+  //         return _addressTxes;
+  //       },
+  //       onFetched: () => _addressTxes);
+  // }
+
+  @override
+  ChainAddressData get addressData {
+    return _accountDataRunner.getDataOr(() => ChainAddressData(network: network));
   }
 
-  void _setStorage(NetworkStorageManager storage) {
-    _networkStorage = storage;
+  @override
+  List<TOKEN> get tokenSync => _accountTokenRunner.getDataOr(() => []);
+
+  @override
+  String? get accountName => addressData.name;
+
+  Future<IResult<TOKEN>> _addToken(TOKEN newToken) async {
+    final tokens = await getAccountTokens();
+    return tokens.andThenAsync((tokens) async {
+      if (tokens.contains(newToken)) {
+        return ResultErr.fromException(WalletExceptionConst.tokenAlreadyExist);
+      }
+      final result = await _storageSaveToken(newToken);
+      return result.map((_) {
+        final token = newToken.clone() as TOKEN;
+        token.streamBalance._allowDispose = false;
+        _accountTokenRunner.setOk([token, ...tokens].immutable);
+        return token;
+      });
+    });
   }
 
-  Future<List<T>> _getTokensFromStorage(
+  Future<IResult<TOKEN?>> _updateToken(Token updateToken, TOKEN token) async {
+    final result = await _removeToken(token);
+    return result.andThenAsync((_) async {
+      final tokens = await getAccountTokens();
+      return tokens.andThenAsync((tokens) async {
+        final t = token.updateToken(updateToken) as TOKEN;
+        t.streamBalance._allowDispose = false;
+        final save = await _storageSaveToken(token);
+        return save.map((e) {
+          _accountTokenRunner.setOk([t, ...tokens].immutable);
+          return t;
+        });
+      });
+    });
+  }
+
+  Future<IResult<bool>> _removeToken(TOKEN token) async {
+    final tokens = await getAccountTokens();
+    return tokens.andThenAsync((tokens) async {
+      if (!tokens.contains(token)) {
+        return ResultOk(false);
+      }
+      final result = await _storageRemoveToken(token);
+      return result.map((_) {
+        token.streamBalance._disposeInternal();
+        _accountTokenRunner.setOk(tokens.where((e) => e != token).toImutableList);
+        return true;
+      });
+    });
+  }
+
+  // Future<bool> _updateTokenBalance(
+  //     TOKEN token, _ONUUPDATETOKENBALANCE onUpdateBalance) async {
+  //   bool save = onUpdateBalance();
+  //   final tokens = await getTokens();
+  //   final addressToken = tokens.firstWhereNullable((e) => e == token);
+  //   if (addressToken == null) return false;
+  //   if (!identical(token, addressToken)) {
+  //     save = addressToken.streamBalance.value
+  //         ._internalUpdateBalance(token.streamBalance.value.balance);
+  //   }
+  //   if (save) {
+  //     await _storageSaveToken(token);
+  //   }
+  //   return save;
+  // }
+
+  // Future<void> _addTx(TRANSACTION tx) async {
+  //   final controller = await _getTxController();
+  //   controller.addTx(tx);
+  //   await _saveTransaction(transaction: tx);
+  // }
+
+  // Future<void> _removeTx(TRANSACTION tx) async {
+  //   final controller = await _getTxController();
+  //   controller.removeTx(tx);
+  //   await _removeTransaction(transaction: tx);
+  // }
+
+  // Future<void> _addNFT(NFT newNft) async {
+  //   await getNfts();
+  //   if (_addressNfts.contains(newNft)) {
+  //     throw WalletExceptionConst.nftsAlreadyExist;
+  //   }
+  //   _addressNfts = List.unmodifiable([newNft, ..._addressNfts]);
+  //   await _saveNFT(newNft);
+  // }
+
+  // Future<void> _removeNFT(NFT nft) async {
+  //   await getNfts();
+  //   if (!_addressNfts.contains(nft)) return;
+  //   final existNfts = List.from(_addressNfts);
+  //   existNfts.removeWhere((element) => element == nft);
+  //   _addressNfts = List.unmodifiable(_addressNfts);
+  //   await _removeNFTStorage(nft);
+  // }
+
+  // Future<bool> _updateAddressBalance([BigInt? updateBalance]) async {
+  //   if (_addressData.balance.value._internalUpdateBalance(updateBalance)) {
+  //     _addressData.balance.notify();
+  //     await _saveAddressData(_addressData);
+  //     return true;
+  //   }
+  //   return false;
+  // }
+
+  Future<IResult<bool>> _updateAccountName(String? name) async {
+    if (name != null && !APPConst.accountNameRegExp.hasMatch(name)) {
+      return ResultErr.fromException(WalletExceptionConst.accountNameIsToLarge);
+    }
+    final accountData = await _getAccountData();
+    return accountData.andThenAsync((accountData) async {
+      final oldName = accountName;
+      if (accountData.updateName(name)) {
+        final save = await _saveAccountData();
+        return save.map((value) => true).mapErr((e) {
+          accountData.updateName(oldName);
+          return e.exception;
+        });
+      }
+      return ResultOk(false);
+    });
+  }
+
+  /// new apis
+  final OnceRunnerWithData<ChainAddressData> _accountDataRunner = OnceRunnerWithData();
+  final OnceRunnerWithData<List<TOKEN>> _accountTokenRunner = OnceRunnerWithData();
+  final OnceRunnerWithData<WalletAccountTransactions<TRANSACTION>> _accountTxes =
+      OnceRunnerWithData();
+  Future<IResult<TOKEN>> getTokenFromIdentifier(String identifier) async {
+    final tokens = await getAccountTokens();
+    return tokens.andThenAsync((tokens) {
+      final token = tokens.firstWhereOrNull((e) => e.identifier == identifier);
+      if (token == null) {
+        return ResultErr.fromException(throw WalletExceptionConst.tokenNotFound);
+      }
+      return ResultOk(token);
+    });
+  }
+
+  Future<IResult<List<TOKEN>>> getAccountTokens() async {
+    return _accountTokenRunner.get(onFetch: () async {
+      final tokens = await _storageGetAccountTokens();
+      return tokens.map((e) {
+        for (final i in e) {
+          i.streamBalance._allowDispose = false;
+        }
+        return e;
+      });
+    });
+  }
+
+  Future<IResult<ChainAddressData>> _getAccountData() async {
+    return _accountDataRunner.get(onFetch: _storageGetAccountData);
+  }
+
+  Future<IResult<WalletAccountTransactions<TRANSACTION>>>
+      _getAccountTransactionsController() async {
+    return await _accountTxes.get(onFetch: () async {
+      final txes = await _storageGetTransactions();
+      return txes.map((e) => WalletAccountTransactions<TRANSACTION>(transactions: e));
+    });
+  }
+
+  Future<IResult<List<TRANSACTION>>> getAccountTransactions() async {
+    final result = await _getAccountTransactionsController();
+    return result.map((e) => e.transactions);
+  }
+
+  Future<IResult<void>> _removeAccountTransaction(TRANSACTION transaction) async {
+    final result = await _getAccountTransactionsController();
+    return result.andThenAsync((controller) async {
+      final save = await _storageRemoveTransaction(transaction: transaction);
+      return save.map((_) {
+        controller.removeTx(transaction);
+      });
+    });
+  }
+
+  Future<IResult<void>> _addAccountTransaction(TRANSACTION transaction) async {
+    final result = await _getAccountTransactionsController();
+    return result.andThenAsync((controller) async {
+      controller.addTx(transaction);
+      final save = await _storageSaveTransaction(transaction: transaction);
+      return save.mapErr((e) {
+        controller.removeTx(transaction);
+        return e.exception;
+      });
+    });
+  }
+
+  Future<IResult<void>> _updateAccountTransactionStatus(TRANSACTION transaction) async {
+    final result = await _getAccountTransactionsController();
+    return result.andThenAsync((controller) async {
+      if (controller.updateTx(transaction)) {
+        return await _storageSaveTransaction(transaction: transaction);
+      }
+      return ResultOk.okVoid;
+    });
+  }
+
+  Future<IResult<void>> _removeAccount() async {
+    final remove = await _storageRemoveAccount();
+    return remove.map((_) {
+      _dispose();
+    });
+  }
+
+  Future<IResult<bool>> _updateAccountBalance([BigInt? updateBalance]) async {
+    final accountData = await _getAccountData();
+    return accountData.andThenAsync((accountData) async {
+      if (accountData.balance.value._internalUpdateBalance(updateBalance)) {
+        accountData.balance.notify();
+        final result = await _saveAccountData();
+        return result.map((_) => true);
+      }
+      return ResultOk(false);
+    });
+  }
+
+  Future<IResult<bool>> _updateAccountTokenBalance(
+      TOKEN token, _ONUUPDATETOKENBALANCE onUpdateBalance) async {
+    bool save = onUpdateBalance();
+    final tokens = await getAccountTokens();
+    return tokens.andThenAsync((tokens) async {
+      final addressToken = tokens.firstWhereNullable((e) => e == token);
+      if (addressToken == null) return ResultOk(false);
+      if (!identical(token, addressToken)) {
+        save = addressToken.streamBalance.value
+            ._internalUpdateBalance(token.streamBalance.value.balance);
+      }
+      if (save) {
+        final result = await _storageSaveToken(token);
+        return result.map((e) => true);
+      }
+      return ResultOk(save);
+    });
+  }
+
+  Future<IResult<void>> _saveAccountData() async {
+    final data = await _getAccountData();
+    return data.andThenAsync((e) => _storageSaveAccountData(e));
+  }
+
+  Future<IResult<void>> _setupAddress() async {
+    final accountdata = await _saveAccountData();
+    return accountdata.andThenAsync((e) => _storageSaveAccount());
+  }
+
+  void _dispose() {
+    _storage.dispose();
+    _accountDataRunner.data?._dispose();
+    _accountDataRunner.dispose();
+    _accountTokenRunner.dispose();
+    final tokens = _accountTokenRunner.data ?? <TOKEN>[];
+    for (final i in tokens) {
+      i.streamBalance._disposeInternal();
+    }
+
+    _accountTxes.dispose();
+  }
+}
+
+base mixin ChainAccountRepository<
+        NETWORKADDRESS extends IAddress,
+        TOKEN extends TokenCore,
+        NFT extends NFTCore,
+        TRANSACTION extends ChainTransaction,
+        NETWORK extends WalletNetwork>
+    on BaseChainAccount<NETWORKADDRESS, TOKEN, NFT, TRANSACTION, NETWORK> {
+  // IResult<NetworkAddressStorageManager> _getStorage() {
+  //   return IResult.callSync(
+  //     () {
+  //       final storage = _addressStorage;
+  //       if (storage.disposed) {
+  //         throw WalletExceptionConst.storageIsNotAvailable;
+  //       }
+  //       return storage;
+  //     },
+  //     onError: (exception, message, trace) => LogMessageDefault.danger(
+  //         runtime: runtimeType,
+  //         functionName: "_getStorage",
+  //         msg: "${exception.message}:${network.type.name}:${message.toString()}"),
+  //   );
+  // }
+
+  // Future<List<TOKEN>> _getTokensStorage(
+  //     {int? offset,
+  //     int? limit,
+  //     IDatabaseQueryOrdering ordering = IDatabaseQueryOrdering.desc}) async {
+  //   final storagekey = DefaultNetworkStorageId.token;
+  //   final data = await _storage.queriesNetworkStorage(
+  //       address: this,
+  //       storage: storagekey,
+  //       limit: limit,
+  //       offset: offset,
+  //       ordering: ordering);
+  //   final tokens = data
+  //       .map((e) =>
+  //           MethodUtils.nullOnException(() => TokenCore.deserialize<TOKEN>(bytes: e)))
+  //       .toList()
+  //       .whereType<TOKEN>()
+  //       .toList();
+  //   Logging.error(
+  //       when: () => tokens.length != data.length,
+  //       runtime: runtimeType,
+  //       functionName: "_getTokens",
+  //       msg: "$viewAddress token deserialization fail.");
+  //   return tokens;
+  // }
+
+  Future<IResult<void>> _storageSaveToken(TOKEN token) async {
+    final storageKey = DefaultNetworkStorageId.token;
+    return await _storage.insertNetworkStorage(
+        storage: storageKey, value: token, keyA: token.identifier);
+  }
+
+  Future<IResult<void>> _storageRemoveToken(TOKEN token) async {
+    final storageKey = DefaultNetworkStorageId.token;
+    return await _storage.removeNetworkStorage(
+        storage: storageKey, keyA: token.identifier);
+  }
+
+  // Future<List<NFT>> _getNftsStorage(
+  //     {int? offset,
+  //     int? limit,
+  //     IDatabaseQueryOrdering ordering = IDatabaseQueryOrdering.desc}) async {
+  //   final storagekey = DefaultNetworkStorageId.nft;
+  //   final data = await _storage.queriesNetworkStorage(
+  //       address: this,
+  //       storage: storagekey,
+  //       limit: limit,
+  //       offset: offset,
+  //       ordering: ordering);
+  //   final nfts = data
+  //       .map((e) => MethodUtils.nullOnException(() => NFTCore.deserialize<NFT>(bytes: e)))
+  //       .toList()
+  //       .whereType<NFT>()
+  //       .toList();
+  //   Logging.debug(
+  //       when: () => nfts.isNotEmpty,
+  //       runtime: runtimeType,
+  //       functionName: "_getNfts",
+  //       msg: "$viewAddress ${nfts.length} founds.");
+  //   assert(nfts.length == data.length, "some nft deserialization failed.");
+  //   return nfts;
+  // }
+
+  // Future<void> _saveNFT(NFT nft) async {
+  //   final storagekey = DefaultNetworkStorageId.nft;
+  //   await _storage.insertNetworkStorage(
+  //       address: this, storage: storagekey, value: nft, keyA: nft.identifier);
+  // }
+
+  // Future<void> _removeNFTStorage(NFT nft) async {
+  //   final storagekey = DefaultNetworkStorageId.nft;
+  //   await _storage.removeNetworkStorage(
+  //       address: this, storage: storagekey, keyA: nft.identifier);
+  // }
+
+  // Future<List<TRANSACTION>> _getTransactionsStorage() async {
+  //   final storagekey = DefaultNetworkStorageId.transaction;
+  //   final data = await _storage.queriesNetworkStorage(
+  //       address: this,
+  //       storage: storagekey,
+  //       limit: NetworkStorageManager.maxAddressItemLimit);
+  //   final txes = data
+  //       .map((e) => MethodUtils.nullOnException(
+  //           () => ChainTransaction.deserialize<TRANSACTION>(_storage.network, bytes: e)))
+  //       .toList()
+  //       .whereType<TRANSACTION>()
+  //       .toList();
+  //   Logging.debug(
+  //       when: () => txes.isNotEmpty,
+  //       runtime: runtimeType,
+  //       functionName: "_getTransactions",
+  //       msg: "$viewAddress ${txes.length} founds.");
+  //   assert(txes.length == data.length, "some transaction deserialization failed.");
+  //   return txes;
+  // }
+
+  // Future<void> _saveTransaction({required TRANSACTION transaction}) async {
+  //   final storagekey = DefaultNetworkStorageId.transaction;
+  //   await _storage.insertNetworkStorage(
+  //       address: this,
+  //       storage: storagekey,
+  //       value: transaction,
+  //       keyA: transaction.storageIdentifier,
+  //       createdAt: transaction.time);
+  // }
+
+  // Future<void> _removeTransaction({required TRANSACTION transaction}) async {
+  //   final storagekey = DefaultNetworkStorageId.transaction;
+  //   await _storage.removeNetworkStorage(
+  //       address: this, storage: storagekey, keyA: transaction.storageIdentifier);
+  // }
+
+  Future<IResult<void>> _storageSaveAccountData(ChainAddressData data) async {
+    final storagekey = DefaultNetworkStorageId.addressInfo;
+    return await _storage.insertNetworkStorage(storage: storagekey, value: data);
+  }
+
+  Future<IResult<ChainAddressData>> _storageGetAccountData() async {
+    final storagekey = DefaultNetworkStorageId.addressInfo;
+    final storage = _storage;
+    final data = await storage.queryNetworkStorage(storage: storagekey);
+    return data.andThen((final data) {
+      final bytes = data?.data;
+      if (bytes == null) return ResultOk(ChainAddressData(network: network));
+      final result = IResult.callSync(
+        () => ChainAddressData.deserialize(network.cast(), bytes: bytes),
+        onError: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            function: "_storageGetAccountData",
+            err: exception,
+            trace: trace.toString()),
+      );
+      return result
+          .and((account, _) => ResultOk(account ?? ChainAddressData(network: network)));
+    });
+  }
+
+  /// new api
+  Future<IResult<List<TOKEN>>> _storageGetAccountTokens(
       {int? offset,
       int? limit,
       IDatabaseQueryOrdering ordering = IDatabaseQueryOrdering.desc}) async {
     final storagekey = DefaultNetworkStorageId.token;
     final data = await _storage.queriesNetworkStorage(
-        address: this,
-        storage: storagekey,
-        limit: limit,
-        offset: offset,
-        ordering: ordering);
-    final tokens = data
-        .map((e) => MethodUtils.nullOnException(
-            () => TokenCore.deserialize<T>(bytes: e)))
-        .toList()
-        .whereType<T>()
-        .toList();
-    appLogger.error(
-        when: () => tokens.length != data.length,
-        runtime: runtimeType,
-        functionName: "_getTokens",
-        msg: "$viewAddress token deserialization fail.");
-    return tokens;
+        storage: storagekey, limit: limit, offset: offset, ordering: ordering);
+    return data.andThen((data) {
+      return IResult.callSync(() => data.map((e) {
+            final data = e.data;
+            if (data == null) return null;
+            final dec = IResult.callSync(
+              () => TokenCore.deserialize<TOKEN>(bytes: data),
+              onError: (exception, trace) => AppLogData(
+                  runtime: runtimeType,
+                  function: "_storageGetAccountTokens",
+                  err: exception,
+                  trace: trace.toString()),
+            );
+            return dec.fold(
+                onOk: (e) => e,
+                onErr: (err) {
+                  _storage.removeNetworkStorageOperation(e.toRemoveOperation());
+                  return null;
+                });
+          }).toList());
+    }).map((e) => e.whereType<TOKEN>().toList());
   }
 
-  Future<void> _saveToken({required T token}) async {
-    final storageKey = DefaultNetworkStorageId.token;
-    if (!tokens.contains(token)) {
-      return;
-    }
-    await _storage.insertNetworkStorage(
-        address: this,
-        storage: storageKey,
-        value: token,
-        keyA: token.identifier);
-  }
-
-  Future<void> _removeTokenFromStorage({required T token}) async {
-    final storageKey = DefaultNetworkStorageId.token;
-    await _storage.removeNetworkStorage(
-        address: this, storage: storageKey, keyA: token.identifier);
-  }
-
-  Future<List<N>> _getNfts(
-      {int? offset,
-      int? limit,
-      IDatabaseQueryOrdering ordering = IDatabaseQueryOrdering.desc}) async {
-    final storagekey = DefaultNetworkStorageId.nft;
-    final data = await _storage.queriesNetworkStorage(
-        address: this,
-        storage: storagekey,
-        limit: limit,
-        offset: offset,
-        ordering: ordering);
-    final nfts = data
-        .map((e) =>
-            MethodUtils.nullOnException(() => NFTCore.deserialize<N>(bytes: e)))
-        .toList()
-        .whereType<N>()
-        .toList();
-    appLogger.debug(
-        when: () => nfts.isNotEmpty,
-        runtime: runtimeType,
-        functionName: "_getNfts",
-        msg: "$viewAddress ${nfts.length} founds.");
-    assert(nfts.length == data.length, "some nft deserialization failed.");
-    return nfts;
-  }
-
-  Future<void> _saveNFT({required N nft}) async {
-    final storagekey = DefaultNetworkStorageId.nft;
-    assert(nfts.contains(nft), 'asset not found an account');
-    if (!nfts.contains(nft)) {
-      return;
-    }
-    await _storage.insertNetworkStorage(
-        address: this, storage: storagekey, value: nft, keyA: nft.identifier);
-  }
-
-  Future<void> _removeNFTFromStorage({required N nft}) async {
-    final storagekey = DefaultNetworkStorageId.nft;
-    await _storage.removeNetworkStorage(
-        address: this, storage: storagekey, keyA: nft.identifier);
-  }
-
-  Future<List<TRANSACTION>> _getTransactionsFromStorage() async {
+  Future<IResult<List<TRANSACTION>>> _storageGetTransactions() async {
     final storagekey = DefaultNetworkStorageId.transaction;
     final data = await _storage.queriesNetworkStorage(
-        address: this,
-        storage: storagekey,
-        limit: NetworkStorageManager.maxAddressItemLimit);
-    final txes = data
-        .map((e) => MethodUtils.nullOnException(() =>
-            ChainTransaction.deserialize<TRANSACTION>(_storage.network,
-                bytes: e)))
-        .toList()
-        .whereType<TRANSACTION>()
-        .toList();
-    appLogger.debug(
-        when: () => txes.isNotEmpty,
-        runtime: runtimeType,
-        functionName: "_getTransactions",
-        msg: "$viewAddress ${txes.length} founds.");
-    assert(
-        txes.length == data.length, "some transaction deserialization failed.");
-    return txes;
+        storage: storagekey, limit: NetworkStorageManager.maxAddressItemLimit);
+    return data.andThen((data) {
+      return IResult.callSync(() => data.map((e) {
+            final data = e.data;
+            if (data == null) return null;
+            final dec = IResult.callSync(
+              () => ChainTransaction.deserialize<TRANSACTION>(network, bytes: data),
+              onError: (exception, trace) => AppLogData(
+                  runtime: runtimeType,
+                  function: "_storageGetTransactions",
+                  err: exception,
+                  trace: trace.toString()),
+            );
+            return dec.fold(
+                onOk: (e) => e,
+                onErr: (err) {
+                  _storage.removeNetworkStorageOperation(e.toRemoveOperation());
+                  return null;
+                });
+          }).toList());
+    }).map((e) => e.whereType<TRANSACTION>().toList());
   }
 
-  Future<void> _saveTransaction({required TRANSACTION transaction}) async {
+  Future<IResult<void>> _storageRemoveAccount() async {
+    final storagekey = DefaultNetworkStorageId.address;
+    final result = await _storage.removeNetworkStorage(storage: storagekey);
+    return result.andThenAsync((_) => _storage.removeNetworkStorage());
+  }
+
+  Future<IResult<void>> _storageSaveAccount() async {
+    final storagekey = DefaultNetworkStorageId.address;
+    final result = await _storage.insertNetworkStorage(storage: storagekey, value: this);
+    return result.map((_) {});
+  }
+
+  Future<IResult<void>> _storageSaveTransaction(
+      {required TRANSACTION transaction}) async {
     final storagekey = DefaultNetworkStorageId.transaction;
-    await _storage.insertNetworkStorage(
-        address: this,
+    return await _storage.insertNetworkStorage(
         storage: storagekey,
         value: transaction,
         keyA: transaction.storageIdentifier,
         createdAt: transaction.time);
   }
 
-  Future<void> _removeTransaction({required TRANSACTION transaction}) async {
+  Future<IResult<void>> _storageRemoveTransaction(
+      {required TRANSACTION transaction}) async {
     final storagekey = DefaultNetworkStorageId.transaction;
-    await _storage.removeNetworkStorage(
-        address: this,
+    return await _storage.insertNetworkStorage(
         storage: storagekey,
-        keyA: transaction.storageIdentifier);
-  }
-
-  Future<void> _saveAddress() async {
-    final storagekey = DefaultNetworkStorageId.address;
-    await _storage.insertNetworkStorage(
-        address: this, storage: storagekey, value: this);
-  }
-
-  Future<void> _removeAddress() async {
-    final storagekey = DefaultNetworkStorageId.address;
-    final storage = _storage;
-    _networkStorage = null;
-    await storage.removeNetworkStorage(address: this, storage: storagekey);
-    await storage.removeNetworkStorage(address: this);
+        value: transaction,
+        keyA: transaction.storageIdentifier,
+        createdAt: transaction.time);
   }
 }

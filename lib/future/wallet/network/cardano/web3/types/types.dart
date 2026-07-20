@@ -1,6 +1,5 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain/ada/ada.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/cardano/web3/operations/get_account_pub.dart';
@@ -17,15 +16,15 @@ import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart'
 import 'package:on_chain_wallet/wallet/models/networks/cardano/models/address_details.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/ada.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
-abstract class Web3CardanoStateController<RESPONSE, CLIENT extends ADAClient?,
+abstract class Web3CardanoStateController<RESPONSE, CLIENT extends ADANetworkClient?,
         T extends Web3ADARequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         ADAAddress,
         WalletCardanoNetwork,
-        ADAClient,
+        ADANetworkClient,
         CLIENT,
         ICardanoAddress,
         ADAChain,
@@ -34,19 +33,10 @@ abstract class Web3CardanoStateController<RESPONSE, CLIENT extends ADAClient?,
         Web3ADARequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         ADAWalletTransaction> {
-  Web3CardanoStateController(
-      {required super.walletProvider, required super.request});
+  Web3CardanoStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3ADARequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3CardanoStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3ADARequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3ADARequestMethods.signMessage:
         return Web3ADASignMessageStateController(
@@ -80,10 +70,10 @@ abstract class BaseWeb3CardanoTransactionStateController<RESPONSE,
     extends Web3TransactionStateController<
         RESPONSE,
         ADAAddress,
-        ICardanoAddress,
-        ADAClient,
-        ADAClient,
         WalletCardanoNetwork,
+        ICardanoAddress,
+        ADANetworkClient,
+        ADANetworkClient,
         ADAChain,
         Web3ADAChainAccount,
         T,
@@ -216,22 +206,16 @@ class Web3ADATransactionData {
   final List<Web3ADAWithdrawalDetails>? withdrawals;
   final List<Web3ADAVoteDetails>? votes;
   final List<Web3ADATransactionSigner?>? requiredSignatures;
-  late final List<Web3ADATransactionSigner> signers =
-      <Web3ADATransactionSigner>[
-    ...totalAccountsInputs.where((e) => e.isSigner).map((e) =>
-        Web3ADATransactionSigner(
-            address: e.address,
-            signer: ReceiptAddress(
-                view: e.address.networkAddress.address,
-                networkAddress: e.address.networkAddress,
-                account: e.address),
-            signMode: Web3ADATransactionSigningMode.payment)),
-    ...mintInfos?.map((e) => e.signer).whereType<Web3ADATransactionSigner>() ??
-        [],
-    ...withdrawals
-            ?.map((e) => e.signer)
-            .whereType<Web3ADATransactionSigner>() ??
-        [],
+  late final List<Web3ADATransactionSigner> signers = <Web3ADATransactionSigner>[
+    ...totalAccountsInputs.where((e) => e.isSigner).map((e) => Web3ADATransactionSigner(
+        address: e.address,
+        signer: ReceiptAddress(
+            view: e.address.networkAddress.address,
+            networkAddress: e.address.networkAddress,
+            account: e.address),
+        signMode: Web3ADATransactionSigningMode.payment)),
+    ...mintInfos?.map((e) => e.signer).whereType<Web3ADATransactionSigner>() ?? [],
+    ...withdrawals?.map((e) => e.signer).whereType<Web3ADATransactionSigner>() ?? [],
     ...certificates?.expand((e) => e.signers) ?? [],
     ...votes?.map((e) => e.signer).whereType<Web3ADATransactionSigner>() ?? [],
     ...requiredSignatures?.whereType<Web3ADATransactionSigner>() ?? []
@@ -242,11 +226,9 @@ class Web3ADATransactionData {
         .every((e) => e.utxo != null);
     final canSignMint = mintInfos?.every((e) => e.signer != null) ?? true;
     final canSignCertificate = certificates?.every((e) => e.allowSign) ?? true;
-    final canSignWithdrawals =
-        withdrawals?.every((e) => e.signer != null) ?? true;
+    final canSignWithdrawals = withdrawals?.every((e) => e.signer != null) ?? true;
     final canSignVotes = votes?.every((e) => e.signer != null) ?? true;
-    final requiredSignatures =
-        this.requiredSignatures?.every((e) => e != null) ?? true;
+    final requiredSignatures = this.requiredSignatures?.every((e) => e != null) ?? true;
     return canSignInputs &&
         canSignMint &&
         canSignCertificate &&
@@ -286,8 +268,7 @@ class Web3ADATransactionData {
         votes = votes?.immutable;
 }
 
-class IWeb3ADATransaction
-    extends ITransaction<IWeb3ADATransactionData, ICardanoAddress> {
+class IWeb3ADATransaction extends ITransaction<IWeb3ADATransactionData, ICardanoAddress> {
   final List<ADATransaction> transactions;
   IWeb3ADATransaction(
       {required super.account,

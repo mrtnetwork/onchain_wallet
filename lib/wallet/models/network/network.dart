@@ -13,3 +13,4 @@ export 'params/stellar.dart';
 export 'params/monero.dart';
 export 'params/aptos.dart';
 export 'params/sui.dart';
+export 'params/zcash.dart';

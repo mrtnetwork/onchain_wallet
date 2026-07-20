@@ -1,19 +1,21 @@
 import 'dart:async';
 
-import 'package:blockchain_utils/utils/atomic/atomic.dart';
+import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_bridge/on_chain_bridge.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:flutter/services.dart';
+import 'package:on_chain_bridge/interface/interface.dart';
+import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/impl/worker_impl.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/core/observer.dart';
-import 'package:on_chain_wallet/future/wallet/web3/controller/web3_request_controller.dart';
+import 'package:on_chain_wallet/future/wallet/web3/types/types.dart'
+    show LastWeb3ActiveClient;
 import 'package:on_chain_wallet/future/wallet/webview/controller/controller/tab_controller.dart';
 import 'package:on_chain_wallet/future/wallet/webview/repository/webview_repository.dart';
 import 'package:on_chain_wallet/future/wallet/webview/view/native_view.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
 
 class WebViewStateControllerConst {
   static const int viewIdLength = 12;
@@ -58,10 +60,12 @@ enum WebViewTabPage {
 //   }
 // }
 
-mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
+mixin WebViewTabImpl on WebViewListener {
   WalletRouteObserver get observer;
+  WebViewRepository get storage;
+  AppContext get context;
   bool get inited => _page != WebViewTabPage.init;
-  final StreamValue<bool> notifier = StreamValue<bool>(false);
+  final StreamValue<bool> notifier = StreamValue<bool>(false, name: "WebViewTabImpl");
   final TextEditingController textController = TextEditingController();
 
   String get _website {
@@ -81,24 +85,24 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
   }
 
   final _tabLocker = SafeAtomicLock();
-  final PlatformWebView webViewController = PlatformInterface.instance.webView;
-  final WebViewRepository _storage = WebViewRepository();
+  IPlatformWebViewInterface get webViewController;
+
   final Map<String, WebViewTabController> tabsAuthenticated = {};
   final GlobalKey searchBarKey = GlobalKey();
-  List<WebViewTab> get histories => _storage.histories;
-  List<WebViewTab> get bookmarks => _storage.bookmarks;
+  List<WebViewTab> get histories => storage.histories;
+  List<WebViewTab> get bookmarks => storage.bookmarks;
 
   WebViewTabController get controller => tabsAuthenticated[_currentViewId]!;
   WebViewTab get tab => controller.tab.value;
 
   int get tabsLength => tabsAuthenticated.length;
-  List<WebViewTabController> get controllers =>
-      tabsAuthenticated.values.toList();
+  List<WebViewTabController> get controllers => tabsAuthenticated.values.toList();
   StreamValue<LastWeb3ActiveClient> get latestClient;
 
-  final StreamValue<double?> _progress = StreamValue<double?>(null);
+  final StreamValue<double?> _progress =
+      StreamValue<double?>(null, name: "WebViewTabImpl");
   final StreamValue<PageNavigatorStatus> navigatorStatus =
-      StreamValue(PageNavigatorStatus(false, false));
+      StreamValue(PageNavigatorStatus(false, false), name: "WebViewTabImpl");
   StreamValue<double?> get progress => _progress;
   String? _currentViewId;
   @override
@@ -110,7 +114,7 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
 
   void removeHistory(WebViewTab tab) async {
     _tabLocker.run(() async {
-      await _storage.removeHistory(tab);
+      await storage.removeHistory(tab);
       if (histories.isEmpty) {
         backToBorwser();
       }
@@ -126,14 +130,14 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
 
   void clearHistory() {
     _tabLocker.run(() async {
-      await _storage.clearHistory();
+      await storage.clearHistory();
     });
     backToBorwser();
   }
 
   void removeBookmars(WebViewTab tab) async {
     await _tabLocker.run(() async {
-      await _storage.removeBookmark(tab);
+      await storage.removeBookmark(tab);
     });
     controller.setBookmark(tab, false);
     if (bookmarks.isEmpty) {
@@ -145,7 +149,7 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
 
   void clearBookmark() {
     _tabLocker.run(() async {
-      await _storage.clearBookmark();
+      await storage.clearBookmark();
     });
 
     backToBorwser();
@@ -213,35 +217,27 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
     APPImage? image = APPImage.network(event.favicon);
     image ??= APPImage.faviIcon(event.url!);
     return WebViewTab(
-        url: event.url!,
-        title: event.title,
-        id: controller.tabId,
-        image: image);
+        url: event.url!, title: event.title, id: controller.tabId, image: image);
   }
 
-  Future<APPAndroidViewController> _initContiller(String viewId,
-      {String? url}) async {
+  Future<APPAndroidViewController> _initContiller(String viewId, {String? url}) async {
     await webViewController.init(viewId,
-        url: url ?? _website,
-        jsInterface: WebViewStateControllerConst.interfaceName);
-    final controller = await APPAndroidViewController.create(viewType: viewId);
+        url: url ?? _website, jsInterface: WebViewStateControllerConst.interfaceName);
+    final controller = await APPAndroidViewController.create(
+        viewType: viewId, platform: context.platform);
     return controller;
   }
 
   Future<WebViewTabController> _buildController() async {
-    final viewId = await crypto.generateRandomHex(
+    final viewId = QuickCrypto.generateUniqueRandomHex(
         length: WebViewStateControllerConst.viewIdLength,
-        existsKeys:
-            tabsAuthenticated.values.map((e) => e.viewTypeBytes).toList());
-    final key = await crypto.generateRandomBytes();
+        existingKeys: tabsAuthenticated.values.map((e) => e.viewTypeBytes).toList());
+    final key = QuickCrypto.generateRandom();
     final controller = await _initContiller(viewId);
     final tab = WebViewTab(
-        id: viewId,
-        url: _website,
-        title: null,
-        image: APPImage.faviIcon(_website));
-    final auth = WebViewTabController(
-        controller: controller, viewId: viewId, key: key, tab: tab);
+        id: viewId, url: _website, title: null, image: APPImage.faviIcon(_website));
+    final auth =
+        WebViewTabController(controller: controller, viewId: viewId, key: key, tab: tab);
     tabsAuthenticated[auth.viewId] = auth;
     return auth;
   }
@@ -255,28 +251,26 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
   }
 
   Future<void> _initWebView() async {
-    await _storage.initRepository();
-    final tabs = _storage.tabs;
+    await storage.initRepository();
+    final tabs = storage.tabs;
     for (final i in tabs) {
-      final key = await crypto.generateRandomBytes();
-      final tabId = await crypto.generateRandomHex(
+      final key = QuickCrypto.generateRandom();
+      final tabId = QuickCrypto.generateUniqueRandomHex(
           length: WebViewStateControllerConst.viewIdLength,
-          existsKeys:
-              tabsAuthenticated.values.map((e) => e.viewTypeBytes).toList());
+          existingKeys: tabsAuthenticated.values.map((e) => e.viewTypeBytes).toList());
       final controller = await _initContiller(tabId, url: i.url);
-      final auth = WebViewTabController(
-          controller: controller, viewId: tabId, key: key, tab: i);
+      final auth =
+          WebViewTabController(controller: controller, viewId: tabId, key: key, tab: i);
       tabsAuthenticated[tabId] = auth;
     }
     WebViewTabController controller;
     if (tabsAuthenticated.isNotEmpty) {
-      final lastest = _storage.lastTab;
-      controller = tabsAuthenticated.values.firstWhere(
-          (e) => e.tab.value == lastest,
+      final lastest = storage.lastTab;
+      controller = tabsAuthenticated.values.firstWhere((e) => e.tab.value == lastest,
           orElse: () => tabsAuthenticated.values.first);
     } else {
       controller = await _buildController();
-      await _storage.updateTab(controller.tab.value);
+      await storage.updateTab(controller.tab.value);
     }
     await _initializeController(controller);
     _page = WebViewTabPage.browser;
@@ -284,9 +278,9 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
   }
 
   Future<void> removeTab(WebViewTabController auth) async {
-    await _storage.removeTab(auth.tab.value);
-    final remove = tabsAuthenticated.remove(auth.viewId);
-    final last = _storage.lastTab;
+    await storage.removeTab(auth.tab.value);
+    tabsAuthenticated.remove(auth.viewId);
+    final last = storage.lastTab;
     final WebViewTabController? authenticated =
         tabsAuthenticated.values.firstWhereOrNull((e) => e.tabId == last?.id);
     if (authenticated != null) {
@@ -298,12 +292,12 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
       await newTab((v) {});
     }
     notifier.notify();
-    remove?.dispose();
+    disposeTab(auth);
   }
 
   Future<void> addOrRemoveFromBookMark(WebViewTab newTab) async {
-    await _storage.addOrRemoveFromBookMark(newTab);
-    controller.setBookmark(tab, _storage.inBokmark(newTab));
+    await storage.addOrRemoveFromBookMark(newTab);
+    controller.setBookmark(tab, storage.inBokmark(newTab));
   }
 
   Future<void> newTab(IntVoid reachedLimit) async {
@@ -313,7 +307,7 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
         return;
       }
       final newController = await _buildController();
-      await _storage.updateTab(newController.tab.value);
+      await storage.updateTab(newController.tab.value);
       await _initializeController(newController);
       backToBorwser();
     });
@@ -350,17 +344,16 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
     _navigatorStatus();
     final String? url = event.url;
     final lastUrl = latestClient.value.url;
-    latestClient.value =
-        LastWeb3ActiveClient(identifier: event.viewId, url: event.url);
+    latestClient.value = LastWeb3ActiveClient(identifier: event.viewId, url: event.url);
     if (url == null) return;
     textController.text = url;
     _tabLocker.run(() async {
       final WebViewTab tab = _eventToTab(event);
-      final inBokmark = _storage.inBokmark(tab);
+      final inBokmark = storage.inBokmark(tab);
       controller.setTab(tab, inBokmark);
       final bool changed = url != lastUrl;
       if (changed) {
-        _storage.updateTab(tab);
+        storage.updateTab(tab);
       }
     });
   }
@@ -370,7 +363,7 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
     if (event.url == null) return;
     _progress.value = null;
     final WebViewTab tab = _eventToTab(event);
-    await _storage.saveHistory(tab);
+    await storage.saveHistory(tab);
   }
 
   @override
@@ -397,7 +390,7 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
     }
     if (current == '/') {
       _page = WebViewTabPage.hide;
-      MethodUtils.after(() async => notifier.notify(),
+      MethodUtils.executeAfterDelay(() async => notifier.notify(),
           duration: APPConst.animationDuraion);
     }
   }
@@ -419,8 +412,21 @@ mixin WebViewTabImpl on CryptoWokerImpl, WebViewListener {
     _progress.dispose();
     notifier.dispose();
     for (final i in tabsAuthenticated.values) {
-      i.dispose();
+      disposeTab(i);
     }
+  }
+
+  Future<void> disposeTab(WebViewTabController tab) async {
+    // final viewType = tab.viewType;
+    // await controller.dispose();
+    final controller = tab.controller;
+    if (context.platform.isAndroid) {
+      await (controller as AndroidViewController).dispose();
+    } else {
+      await webViewController.dispose(controller.viewType);
+      await (controller as AppKitViewController).dispose();
+    }
+    controller.node.dispose();
   }
 
   Future<void> init() async {

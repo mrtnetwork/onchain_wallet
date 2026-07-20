@@ -1,110 +1,101 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class IAptosAddress extends ChainAccount<AptosAddress, AptosFATokens,
-    NFTCore, AptosWalletTransaction> {
+final class IAptosAddress extends ChainAccount<AptosAddress, AptosFATokens, NFTCore,
+    AptosWalletTransaction, WalletAptosNetwork> {
   IAptosAddress._(
-      {required super.keyIndex,
+      {required super.derivationIndex,
+      required super.database,
       required super.coin,
       required super.address,
       required super.network,
       required super.networkAddress,
       required this.keyScheme,
       required super.identifier,
-      required List<int> publicKey,
-      super.accountName})
+      required super.id,
+      required List<int> publicKey})
       : publicKey = publicKey.asImmutableBytes;
 
-  factory IAptosAddress._newAccount(
-      {required AptosAddress address,
-      required WalletAptosNetwork network,
-      required List<int> publicKey,
-      required String identifier,
-      required AddressDerivationIndex keyIndex,
-      required AptosSupportKeyScheme keyScheme,
-      required CryptoCoins coin}) {
-    final addressDetauls =
-        ChainAccountBalance(address: address.address, network: network);
+  factory IAptosAddress._newAccount({
+    required AptosAddress address,
+    required WalletAptosNetwork network,
+    required List<int> publicKey,
+    required String identifier,
+    required DerivationIndex derivationIndex,
+    required IAppDatabaseApi? database,
+    required AptosSupportKeyScheme keyScheme,
+    required CryptoCoins coin,
+    required String? id,
+  }) {
     return IAptosAddress._(
         coin: coin,
-        address: addressDetauls,
-        keyIndex: keyIndex,
+        address: address.address,
+        derivationIndex: derivationIndex,
+        database: database,
         keyScheme: keyScheme,
         networkAddress: address,
-        network: network.value,
+        network: network,
         publicKey: publicKey,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
-  factory IAptosAddress.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
+  factory IAptosAddress.deserialize(
+      {required WalletAptosNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
     final CborTagValue cborTag =
-        CborSerializable.decode(cborBytes: bytes, object: obj);
-    if (BytesUtils.bytesEqual(
-        cborTag.tags, CborTagsConst.aptosMultisigAccount)) {
-      return IAptosMultiSigAddress.deserialize(network, obj: cborTag);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
+    if (AppSerializationIdentifier.aptosMultisigAccount.isValidTags(cborTag.tags)) {
+      return IAptosMultiSigAddress.deserialize(
+          network: network, id: id, object: cborTag, database: database);
     }
-    final CborListValue values = CborSerializable.cborTagValue(
-        object: cborTag, tags: CborTagsConst.aptosAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
-    final keyIndex =
-        AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(1));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(2));
-    final AptosAddress networkAddress = AptosAddress(address.address);
-    final int networkId = values.elementAs(3);
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborObject: cborTag, identifier: AppSerializationIdentifier.aptosAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final derivationIndex =
+        DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
+    final AptosAddress networkAddress =
+        AptosAddress.deserializeIAddress(bytes: values.rawValueAt(2));
+    final int networkId = values.rawValueAt(3);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String? accountName = values.elementAs(4);
     final AptosSupportKeyScheme keyScheme =
-        AptosSupportKeyScheme.fromValue(values.elementAs(5));
-    final List<int> publicKey = values.elementAs(6);
-    final String identifier = values.elementAs(7);
+        AptosSupportKeyScheme.fromValue(values.rawValueAt(4));
+    final List<int> publicKey = values.rawValueAt(5);
+    final String identifier = values.rawValueAt(6);
     return IAptosAddress._(
         coin: coin,
-        address: address,
-        keyIndex: keyIndex,
+        address: networkAddress.address,
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: networkAddress,
-        network: networkId,
-        accountName: accountName,
+        network: network.cast(),
         keyScheme: keyScheme,
         publicKey: publicKey,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
 
   final AptosSupportKeyScheme keyScheme;
-
-  @override
   final List<int> publicKey;
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          keyIndex.toCbor(),
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          keyScheme.value,
-          CborBytesValue(publicKey),
-          identifier
-        ]),
-        CborTagsConst.aptosAccount);
-  }
-
-  @override
-  List get variabels {
-    return [keyIndex, network, keyScheme];
+  List get variables {
+    return [derivationIndex, network, keyScheme];
   }
 
   @override
   String? get type => keyScheme.name;
 
   @override
-  AptosNewAddressParams toAccountParams() {
-    return AptosNewAddressParams(
-        deriveIndex: keyIndex, coin: coin, keyScheme: keyScheme);
+  NewAccountParams toAccountParams() {
+    return switch (derivationIndex) {
+      Bip32DerivationIndex index =>
+        AptosNewAddressParams(deriveIndex: index, coin: coin, keyScheme: keyScheme),
+      _ => throw AppCryptoExceptionConst.invalidDerivationKey
+    };
   }
 
   /// create transaction authenticated.
@@ -126,81 +117,97 @@ final class IAptosAddress extends ChainAccount<AptosAddress, AptosFATokens,
                 publicKeyBytes: publicKey, algorithm: keyScheme.curve),
             signature: signature);
       default:
-        throw WalletExceptionConst.invalidAccountDeta(
-            "createAccountAuthenticated");
+        throw WalletExceptionConst.invalidAccountData("createAccountAuthenticated");
     }
   }
 
   AptosAccountPublicKey aptosPublicKey() {
     switch (keyScheme) {
       case AptosSupportKeyScheme.ed25519:
-        return AptosEd25519AccountPublicKey(
-            AptosED25519PublicKey.fromBytes(publicKey));
+        return AptosEd25519AccountPublicKey(AptosED25519PublicKey.fromBytes(publicKey));
       case AptosSupportKeyScheme.signleKeyEd25519:
       case AptosSupportKeyScheme.signleKeySecp256k1:
         return AptosSingleKeyAccountPublicKey(AptosCryptoPublicKey.fromBytes(
             publicKeyBytes: publicKey, algorithm: keyScheme.curve));
       default:
-        throw WalletExceptionConst.invalidAccountDeta("aptosPublicKey");
+        throw WalletExceptionConst.invalidAccountData("aptosPublicKey");
     }
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.aptosAccount;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        derivationIndex.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        keyScheme.value.toCbor(),
+        CborBytesValue(publicKey),
+        identifier.toCbor()
+      ];
 }
 
 final class IAptosMultiSigAddress extends IAptosAddress
     implements MultiSigCryptoAccountAddress {
-  factory IAptosMultiSigAddress._newAccount(
-      {required WalletAptosNetwork network,
-      required AptosAddress address,
-      required AptosMultisigAccountInfo multiSignatureAddress,
-      required String identifier,
-      required AptosSupportKeyScheme keyScheme,
-      required CryptoCoins coin}) {
-    final addressDetauls =
-        ChainAccountBalance(address: address.address, network: network);
+  factory IAptosMultiSigAddress._newAccount({
+    required WalletAptosNetwork network,
+    required AptosAddress address,
+    required AptosMultisigAccountInfo multiSignatureAddress,
+    required String identifier,
+    required AptosSupportKeyScheme keyScheme,
+    required CryptoCoins coin,
+    required String? id,
+    required IAppDatabaseApi? database,
+  }) {
     return IAptosMultiSigAddress._(
         coin: coin,
-        address: addressDetauls,
+        address: address.address,
         networkAddress: address,
         multiSignatureAddress: multiSignatureAddress,
-        network: network.value,
+        network: network,
         keyScheme: keyScheme,
-        identifier: identifier);
+        identifier: identifier,
+        database: database,
+        id: id);
   }
 
-  factory IAptosMultiSigAddress.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory IAptosMultiSigAddress.deserialize(
+      {required WalletAptosNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: CborTagsConst.aptosMultisigAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
+        cborObject: object,
+        identifier: AppSerializationIdentifier.aptosMultisigAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
     final AptosMultisigAccountInfo multiSignatureAddress =
-        AptosMultisigAccountInfo.deserialize(
-            object: values.elementAsCborTag(1));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(2));
-    final AptosAddress networkAddress = AptosAddress(address.address);
-    final int networkId = values.elementAs(3);
+        AptosMultisigAccountInfo.deserialize(object: values.objectAt<CborTagValue>(1));
+    final AptosAddress networkAddress =
+        AptosAddress.deserializeIAddress(bytes: values.rawValueAt(2));
+    final int networkId = values.rawValueAt(3);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String? name = values.elementAs(4);
-    final keyScheme = AptosSupportKeyScheme.fromValue(values.elementAs(5));
+    final keyScheme = AptosSupportKeyScheme.fromValue(values.rawValueAt(4));
     if (keyScheme != multiSignatureAddress.keyScheme) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "IAptosMultiSigAddress.deserialize");
+      throw WalletExceptionConst.invalidAccountData("IAptosMultiSigAddress.deserialize");
     }
-    final String identifier = values.elementAs(6);
+    final String identifier = values.rawValueAt(5);
     return IAptosMultiSigAddress._(
         coin: coin,
-        address: address,
+        address: networkAddress.address,
         multiSignatureAddress: multiSignatureAddress,
-        network: network.value,
-        accountName: name,
+        network: network.cast(),
         networkAddress: networkAddress,
+        database: database,
         keyScheme: keyScheme,
-        identifier: identifier);
+        identifier: identifier,
+        id: id);
   }
   IAptosMultiSigAddress._({
     required super.coin,
@@ -209,9 +216,10 @@ final class IAptosMultiSigAddress extends IAptosAddress
     required super.network,
     required super.keyScheme,
     required super.identifier,
-    super.accountName,
     required super.networkAddress,
-  }) : super._(publicKey: const [], keyIndex: MultiSigAddressIndex());
+    required super.database,
+    required super.id,
+  }) : super._(publicKey: const [], derivationIndex: MultiSigAddressIndex());
 
   @override
   List<int> get publicKey =>
@@ -220,30 +228,37 @@ final class IAptosMultiSigAddress extends IAptosAddress
   final AptosMultisigAccountInfo multiSignatureAddress;
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          multiSignatureAddress.toCbor(),
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          keyScheme.value,
-          identifier
-        ]),
-        CborTagsConst.aptosMultisigAccount);
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.aptosMultisigAccount;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        multiSignatureAddress.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        keyScheme.value.toCbor(),
+        identifier.toCbor()
+      ];
+  @override
+  List get variables => [multiSignatureAddress];
+  @override
+  List<DerivableIndex> derivableIndexes(
+      {AccountDerivationIndexRequest? request =
+          const AccountDerivationIndexRequestAddress()}) {
+    switch (request) {
+      case null:
+      case AccountDerivationIndexRequestSigners():
+        return multiSignatureAddress.publicKeys.map((e) => e.derivationIndex).toList();
+      case AccountDerivationIndexRequestAddress():
+        return [];
+      default:
+        throw AppInternalError.internalError("Invalid request");
+    }
   }
 
   @override
-  List get variabels => [multiSignatureAddress];
-
-  @override
-  List<Bip32AddressIndex> signerKeyIndexes() {
-    return multiSignatureAddress.publicKeys.map((e) => e.keyIndex).toList();
-  }
-
-  @override
-  AptosNewAddressParams toAccountParams() {
+  NewAccountParams toAccountParams() {
     return AptosMultiSigNewAddressParams(
         coin: coin, multiSignatureAddress: multiSignatureAddress);
   }

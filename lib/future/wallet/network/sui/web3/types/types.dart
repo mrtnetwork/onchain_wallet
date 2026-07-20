@@ -1,5 +1,4 @@
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/web3/operations/send_transaction.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/web3/operations/sign_message.dart';
@@ -12,9 +11,10 @@ import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/others.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/sui.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/sui.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/types/types.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
 class SuiWeb3AccountChangeBalance {
   final IntegerBalance? amount;
@@ -39,16 +39,16 @@ class SuiTransferDetails extends TransferOutputDetails<SuiAddress> {
   }) : super(amount: IntegerBalance.zero(token, allowNegative: false));
 
   @override
-  List get variabels => [recipient];
+  List get variables => [recipient];
 }
 
-abstract class Web3SuiStateController<RESPONSE, CLIENT extends SuiClient?,
+abstract class Web3SuiStateController<RESPONSE, CLIENT extends SuiNetworkClient?,
         T extends Web3SuiRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         SuiAddress,
         WalletSuiNetwork,
-        SuiClient,
+        SuiNetworkClient,
         CLIENT,
         ISuiAddress,
         SuiChain,
@@ -57,19 +57,10 @@ abstract class Web3SuiStateController<RESPONSE, CLIENT extends SuiClient?,
         Web3SuiRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         SuiWalletTransaction> {
-  Web3SuiStateController(
-      {required super.walletProvider, required super.request});
+  Web3SuiStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3SuiRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3SuiStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3SuiRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3SuiRequestMethods.signMessage:
       case Web3SuiRequestMethods.signPersonalMessage:
@@ -87,17 +78,15 @@ abstract class Web3SuiStateController<RESPONSE, CLIENT extends SuiClient?,
   }
 }
 
-abstract class BaseWeb3SuiTransactionStateController<
-        RESPONSE,
-        T extends Web3SuiRequestParam<RESPONSE>,
-        E extends IWeb3SuiTransactionData>
+abstract class BaseWeb3SuiTransactionStateController<RESPONSE,
+        T extends Web3SuiRequestParam<RESPONSE>, E extends IWeb3SuiTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
         SuiAddress,
-        ISuiAddress,
-        SuiClient,
-        SuiClient,
         WalletSuiNetwork,
+        ISuiAddress,
+        SuiNetworkClient,
+        SuiNetworkClient,
         SuiChain,
         Web3SuiChainAccount,
         T,
@@ -142,8 +131,7 @@ class IWeb3SuiTransaction<TXDATA extends IWeb3SuiTransactionData>
 }
 
 class IWeb3SuiSignedTransaction<TXDATA extends IWeb3SuiTransactionData>
-    extends ISignedTransaction<IWeb3SuiTransaction<TXDATA>,
-        SuiTransactionDataV1> {
+    extends ISignedTransaction<IWeb3SuiTransaction<TXDATA>, SuiTransactionDataV1> {
   final SuiBaseSignature suiSignature;
   String get signatureAsBase64 => suiSignature.toVariantBcsBase64();
   String get transactionAsBase64 => finalTransactionData.toVariantBcsBase64();

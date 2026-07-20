@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/widgets.dart';
-import 'package:on_chain_wallet/app/utils/method/utiils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/animated/widgets/animated_size.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/paste_icon_widget.dart';
@@ -46,12 +46,12 @@ class _StringWriterViewState extends State<AddressDecoderView>
 
   final GlobalKey<AppTextFieldState> textFieldKey =
       GlobalKey(debugLabel: "_StringWriterViewState");
-  final GlobalKey<FormState> formKey =
-      GlobalKey(debugLabel: "_StringWriterViewState_1");
+  final GlobalKey<FormState> formKey = GlobalKey(debugLabel: "_StringWriterViewState_1");
   late String text = "";
   void onChange(String v) {
     text = v;
-    final decode = MethodUtils.nullOnException(() => this.decode(v));
+    final decode =
+        MethodUtils.fallbackOnException(() => this.decode(v), logOnDebug: false);
     if (decode != inHex) {
       inHex = decode;
       updateState();
@@ -77,7 +77,7 @@ class _StringWriterViewState extends State<AddressDecoderView>
         bytes = SolAddrDecoder().decodeAddr(v);
         break;
       case _SupportAddresses.ripple:
-        bytes = XRPAddressUtils.decodeAddress(v);
+        bytes = XRPAddressUtils.decodeAddress(v).hash;
         break;
     }
     return BytesUtils.toHexString(bytes);
@@ -120,8 +120,7 @@ class _StringWriterViewState extends State<AddressDecoderView>
           Text("address_decoder".tr, style: context.textTheme.titleMedium),
           Text("convert_address_to_bytes".tr),
           WidgetConstant.height20,
-          AppDropDownBottom(
-              items: addresses, value: address, onChanged: onChangeAddress),
+          AppDropDownBottom(items: addresses, value: address, onChanged: onChangeAddress),
           AppTextField(
             label: "address".tr,
             initialValue: text,

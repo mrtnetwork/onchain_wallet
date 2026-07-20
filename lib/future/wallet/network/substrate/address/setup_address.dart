@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
@@ -30,8 +30,7 @@ class SetupSubstrateAddressView extends StatefulWidget {
   final AddressDerivationController controller;
   const SetupSubstrateAddressView({super.key, required this.controller});
   @override
-  State<SetupSubstrateAddressView> createState() =>
-      _SetupSubstrateAddressViewState();
+  State<SetupSubstrateAddressView> createState() => _SetupSubstrateAddressViewState();
 }
 
 class _SetupSubstrateAddressViewState extends State<SetupSubstrateAddressView>
@@ -60,8 +59,9 @@ class _SetupSubstrateAddressViewState extends State<SetupSubstrateAddressView>
             .whereType<BipCoins>()
             .firstWhere((e) => e.conf.type == EllipticCurveTypes.ed25519);
       default:
-        return coins.whereType<SubstrateCoins>().firstWhere(
-            (element) => element.conf.type == algorithm.algorithm.curve);
+        return coins
+            .whereType<SubstrateCoins>()
+            .firstWhere((element) => element.conf.type == algorithm.algorithm.curve);
     }
   }
 
@@ -69,8 +69,7 @@ class _SetupSubstrateAddressViewState extends State<SetupSubstrateAddressView>
     final coin = findCoin();
     final keyIndex = await widget.controller.getCoin(
         context: context,
-        seedGeneration:
-            coin is BipCoins ? SeedTypes.bip39 : SeedTypes.bip39Entropy,
+        seedGeneration: coin is BipCoins ? SeedTypes.bip39 : SeedTypes.bip39Entropy,
         selectedCoins: coin);
     if (keyIndex == null || keyIndex.currencyCoin.conf.type != coin.conf.type) {
       return;
@@ -82,20 +81,16 @@ class _SetupSubstrateAddressViewState extends State<SetupSubstrateAddressView>
   @override
   void onInitOnce() {
     super.onInitOnce();
-    final network =
-        widget.controller.network.toNetwork<WalletSubstrateNetwork>();
+    final network = widget.controller.network.cast<WalletSubstrateNetwork>();
     supportedAlgorithms = network.coinParam.keyAlgorithms
-        .map((e) =>
-            _SubstrateKeyAlgorithm.values.where((i) => e.value == i.value))
+        .map((e) => _SubstrateKeyAlgorithm.values.where((i) => e.value == i.value))
         .expand((e) => e)
         .toList();
     algorithm = supportedAlgorithms.firstWhere(
       (e) => e == _SubstrateKeyAlgorithm.ed25519Slip,
       orElse: () => supportedAlgorithms.first,
     );
-    algorithmTypesWidget = {
-      for (final i in supportedAlgorithms) i: Text(i.name)
-    };
+    algorithmTypesWidget = {for (final i in supportedAlgorithms) i: Text(i.name)};
   }
 
   @override

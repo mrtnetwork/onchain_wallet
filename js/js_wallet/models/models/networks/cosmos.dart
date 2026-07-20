@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'package:on_chain_bridge/web/api/types/types.dart';
+
 import '../../../js_wallet.dart';
 import 'wallet_standard.dart';
 
@@ -36,8 +38,7 @@ extension type CosmosWalletAdapter(JSObject _) implements JSAny {
   }
 }
 
-extension type JSCosmosWalletAccount(JSObject _)
-    implements JSWalletStandardAccount {
+extension type JSCosmosWalletAccount(JSObject _) implements JSWalletStandardAccount {
   factory JSCosmosWalletAccount.setup(
       {required String address,
       required String algo,
@@ -158,8 +159,7 @@ extension type JSCosmosSignDoc(JSAny _) implements JSAny {
 
 extension type JSCosmosDirectSignResponse(JSAny _) implements JSAny {
   factory JSCosmosDirectSignResponse.setup(
-      {required JSCosmosStdSignature signature,
-      required JSCosmosSignDoc signed}) {
+      {required JSCosmosStdSignature signature, required JSCosmosSignDoc signed}) {
     return JSCosmosDirectSignResponse(JSObject())
       ..signature = signature
       ..signed = signed;
@@ -237,11 +237,7 @@ extension type JSCosmosSignDirectRequest(JSAny _) implements JSAny {
   external String? get chainId;
   external JSCosmosSignOption? get signOption;
   external set signOption(JSCosmosSignOption? _);
-  static const List<String> properties = [
-    'signerAddress',
-    'chainId',
-    'signDoc'
-  ];
+  static const List<String> properties = ['signerAddress', 'chainId', 'signDoc'];
 }
 
 extension type JSCosmosSignAminoRequest(JSAny _) implements JSAny {
@@ -256,11 +252,7 @@ extension type JSCosmosSignAminoRequest(JSAny _) implements JSAny {
       ..chainId = chainId
       ..signOption = signOption;
   }
-  static const List<String> properties = [
-    'signerAddress',
-    'chainId',
-    'signDoc'
-  ];
+  static const List<String> properties = ['signerAddress', 'chainId', 'signDoc'];
   external set signerAddress(String _);
   external String get signerAddress;
   external set signDoc(String _);
@@ -283,10 +275,8 @@ extension type CosmosWalletAdapterConnectFeature(JSAny _) implements JSAny {
   external set connect(JSFunction _);
 }
 extension type JSCosmosWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSCosmosWalletStandardConnect.setup(
-      List<JSCosmosWalletAccount> accounts) {
-    return JSCosmosWalletStandardConnect._(JSObject())
-      ..accounts = accounts.toJS;
+  factory JSCosmosWalletStandardConnect.setup(List<JSCosmosWalletAccount> accounts) {
+    return JSCosmosWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSCosmosWalletAccount> get accounts;
   external set accounts(JSArray<JSCosmosWalletAccount> _);
@@ -389,8 +379,7 @@ extension type JSCosmosSignMessageResponse(JSAny _) implements JSAny {
   external set signature(APPJSUint8Array _);
 }
 @JS()
-extension type CosmosWalletAdapterStandardSignMessageFeature(JSAny _)
-    implements JSAny {
+extension type CosmosWalletAdapterStandardSignMessageFeature(JSAny _) implements JSAny {
   factory CosmosWalletAdapterStandardSignMessageFeature.setup(
       {required JSFunction signMessage,
       String version = JSWalletStandardConst.defaultVersion}) {

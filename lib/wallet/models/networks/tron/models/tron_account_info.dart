@@ -1,21 +1,9 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/app/core.dart';
-
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
 import 'package:on_chain/tron/tron.dart';
 
-class _TronAccountCborConst {
-  static const List<int> tronAccountResource = [200, 195, 100, 1];
-  static const List<int> frozenAssetsNetUsage = [200, 195, 100, 2];
-  static const List<int> assetVersion2 = [200, 195, 100, 3];
-  static const List<int> assetUnfreezV2 = [200, 195, 100, 4];
-  static const List<int> assetFrozenV2 = [200, 195, 100, 5];
-  static const List<int> frozenSupply = [200, 195, 100, 6];
-  static const List<int> permissionKeys = [200, 195, 100, 7];
-  static const List<int> accountPermission = [200, 195, 100, 8];
-}
-
-class TronAccountInfo with CborSerializable, Equality {
+class TronAccountInfo with AppSerialization, Equality {
   final String? accountName;
   final String address;
   final BigInt balance;
@@ -45,89 +33,56 @@ class TronAccountInfo with CborSerializable, Equality {
         if (witnessPermission != null) witnessPermission!
       ];
 
-  factory TronAccountInfo.deserialize({List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.tronAccountInfo);
+  factory TronAccountInfo.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.tronAccountInfo);
 
-    final witness = cbor.elementAs<CborTagValue?>(14);
+    final witness = cbor.objectAt<CborTagValue?>(14);
     return TronAccountInfo._(
-        accountName: cbor.elementAs(0),
-        address: cbor.elementAs(1),
-        balance: cbor.elementAs(2),
-        createTime: cbor.elementAs(3),
-        latestOperationTime: cbor.elementAs(4),
+        accountName: cbor.rawValueAt(0),
+        address: cbor.rawValueAt(1),
+        balance: cbor.rawValueAt(2),
+        createTime: cbor.rawValueAt(3),
+        latestOperationTime: cbor.rawValueAt(4),
         frozenSupply: cbor
-            .elementAsListOf<CborObject>(5)
-            .map((e) => FrozenSupply.fromCborBytesOrObject(obj: e))
+            .listAt<CborObject>(5)
+            .map((e) => FrozenSupply.deserialize(object: e))
             .toList(),
-        assetIssuedName: cbor.elementAs(6),
-        freeNetUsage: cbor.elementAs(7),
-        latestConsumeFreeTime: cbor.elementAs(8),
-        netWindowSize: cbor.elementAs(9),
-        netWindowOptimized: cbor.elementAs(10),
-        accountResource: TronAccountResource.fromCborBytesOrObject(
-            obj: cbor.elementAsCborTag(11)),
-        ownerPermission: AccountPermission.fromCborBytesOrObject(
-            obj: cbor.elementAsCborTag(12)),
+        assetIssuedName: cbor.rawValueAt(6),
+        freeNetUsage: cbor.rawValueAt(7),
+        latestConsumeFreeTime: cbor.rawValueAt(8),
+        netWindowSize: cbor.rawValueAt(9),
+        netWindowOptimized: cbor.rawValueAt(10),
+        accountResource:
+            TronAccountResource.deserialize(object: cbor.objectAt<CborTagValue>(11)),
+        ownerPermission:
+            AccountPermission.deserialize(object: cbor.objectAt<CborTagValue>(12)),
         activePermissions: cbor
-            .elementAsListOf<CborObject>(13)
-            .map((e) => AccountPermission.fromCborBytesOrObject(obj: e))
+            .listAt<CborObject>(13)
+            .map((e) => AccountPermission.deserialize(object: e))
             .toList(),
-        witnessPermission: witness == null
-            ? null
-            : AccountPermission.fromCborBytesOrObject(obj: witness),
+        witnessPermission:
+            witness == null ? null : AccountPermission.deserialize(object: witness),
         frozenV2: cbor
-            .elementAsListOf<CborObject>(15)
-            .map((e) => FrozenV2.fromCborBytesOrObject(obj: e))
+            .listAt<CborObject>(15)
+            .map((e) => FrozenV2.deserialize(object: e))
             .toList(),
         unfrozenV2: cbor
-            .elementAsListOf<CborObject>(16)
-            .map((e) => UnfrozenV2.fromCborBytesOrObject(obj: e))
+            .listAt<CborObject>(16)
+            .map((e) => UnfrozenV2.deserialize(object: e))
             .toList(),
         assetV2: cbor
-            .elementAsListOf<CborObject>(17)
-            .map((e) => AssetV2.fromCborBytesOrObject(obj: e))
+            .listAt<CborObject>(17)
+            .map((e) => AssetV2.deserialize(object: e))
             .toList(),
-        assetIssuedID: cbor.elementAs(18),
+        assetIssuedID: cbor.rawValueAt(18),
         freeAssetNetUsageV2: cbor
-            .elementAsListOf<CborObject>(19)
-            .map((e) => FreeAssetNetUsageV2.fromCborBytesOrObject(obj: e))
+            .listAt<CborObject>(19)
+            .map((e) => FreeAssetNetUsageV2.deserialize(object: e))
             .toList(),
-        assetOptimized: cbor.elementAs(20));
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          accountName,
-          address,
-          balance,
-          createTime,
-          latestOperationTime,
-          CborSerializable.fromDynamic(
-              frozenSupply.map((e) => e.toCbor()).toList()),
-          assetIssuedName,
-          freeNetUsage,
-          latestConsumeFreeTime,
-          netWindowSize,
-          netWindowOptimized,
-          accountResource.toCbor(),
-          ownerPermission.toCbor(),
-          CborSerializable.fromDynamic(
-              activePermissions.map((e) => e.toCbor()).toList()),
-          witnessPermission?.toCbor(),
-          CborSerializable.fromDynamic(
-              frozenV2.map((e) => e.toCbor()).toList()),
-          CborSerializable.fromDynamic(
-              unfrozenV2.map((e) => e.toCbor()).toList()),
-          CborSerializable.fromDynamic(assetV2.map((e) => e.toCbor()).toList()),
-          assetIssuedID,
-          CborSerializable.fromDynamic(
-              freeAssetNetUsageV2.map((e) => e.toCbor()).toList()),
-          assetOptimized
-        ]),
-        CborTagsConst.tronAccountInfo);
+        assetOptimized: cbor.rawValueAt(20));
   }
 
   const TronAccountInfo._({
@@ -167,8 +122,7 @@ class TronAccountInfo with CborSerializable, Equality {
           <FrozenSupply>[],
       assetIssuedName: json['asset_issued_name'],
       freeNetUsage: json['free_net_usage'],
-      latestConsumeFreeTime:
-          BigintUtils.tryParse(json['latest_consume_free_time']),
+      latestConsumeFreeTime: BigintUtils.tryParse(json['latest_consume_free_time']),
       netWindowSize: json['net_window_size'],
       netWindowOptimized: json['net_window_optimized'],
       accountResource: TronAccountResource.fromJson(json['account_resource']),
@@ -205,10 +159,9 @@ class TronAccountInfo with CborSerializable, Equality {
               ?.map((unfrozen) => UnfrozenV2.fromJson(unfrozen))
               .toList() ??
           <UnfrozenV2>[],
-      assetV2: (json['assetV2'] as List?)
-              ?.map((asset) => AssetV2.fromJson(asset))
-              .toList() ??
-          <AssetV2>[],
+      assetV2:
+          (json['assetV2'] as List?)?.map((asset) => AssetV2.fromJson(asset)).toList() ??
+              <AssetV2>[],
       assetIssuedID: json['asset_issued_ID'],
       freeAssetNetUsageV2: (json['free_asset_net_usageV2'] as List?)
               ?.map((usage) => FreeAssetNetUsageV2.fromJson(usage))
@@ -219,7 +172,7 @@ class TronAccountInfo with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [
+  List get variables => [
         accountName,
         address,
         balance,
@@ -242,9 +195,40 @@ class TronAccountInfo with CborSerializable, Equality {
         freeAssetNetUsageV2,
         assetOptimized
       ];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.tronAccountInfo;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        accountName?.toCbor(),
+        address.toCbor(),
+        balance.toCbor(),
+        createTime.toCbor(),
+        latestOperationTime?.toCbor(),
+        AppSerialization.listFromObjects(frozenSupply.map((e) => e.toCbor()).toList()),
+        assetIssuedName?.toCbor(),
+        freeNetUsage?.toCbor(),
+        latestConsumeFreeTime?.toCbor(),
+        netWindowSize.toCbor(),
+        netWindowOptimized.toCbor(),
+        accountResource.toCbor(),
+        ownerPermission.toCbor(),
+        AppSerialization.listFromObjects(
+            activePermissions.map((e) => e.toCbor()).toList()),
+        witnessPermission?.toCbor(),
+        AppSerialization.listFromObjects(frozenV2.map((e) => e.toCbor()).toList()),
+        AppSerialization.listFromObjects(unfrozenV2.map((e) => e.toCbor()).toList()),
+        AppSerialization.listFromObjects(assetV2.map((e) => e.toCbor()).toList()),
+        assetIssuedID?.toCbor(),
+        AppSerialization.listFromObjects(
+            freeAssetNetUsageV2.map((e) => e.toCbor()).toList()),
+        assetOptimized.toCbor()
+      ];
 }
 
-class AccountPermission with CborSerializable, Equality {
+class AccountPermission with AppSerialization, Equality {
   final PermissionType type;
   final int? id;
   final String? permissionName;
@@ -257,9 +241,7 @@ class AccountPermission with CborSerializable, Equality {
   Permission toPermission() {
     return Permission(
         id: id,
-        keys: keys
-            .map((e) => TronKey(address: e.address, weight: e.weight))
-            .toList(),
+        keys: keys.map((e) => TronKey(address: e.address, weight: e.weight)).toList(),
         operations: BytesUtils.tryFromHexString(operations),
         type: type,
         permissionName: permissionName,
@@ -276,37 +258,22 @@ class AccountPermission with CborSerializable, Equality {
         keys: keys.map((e) => e.clone()).toList());
   }
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          type.name,
-          id,
-          permissionName,
-          threshold,
-          operations,
-          CborSerializable.fromDynamic(keys.map((e) => e.toCbor()).toList())
-        ]),
-        _TronAccountCborConst.accountPermission);
-  }
-
-  factory AccountPermission.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory AccountPermission.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.accountPermission);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.accountPermission);
     final keys = cbor
-        .elementAsListOf<CborObject>(5)
-        .map((e) => PermissionKeys.fromCborBytesOrObject(obj: e))
+        .listAt<CborObject>(5)
+        .map((e) => PermissionKeys.deserialize(object: e))
         .toList();
     return AccountPermission(
-        type: PermissionType.fromName(cbor.elementAs(0),
+        type: PermissionType.fromName(cbor.rawValueAt(0),
             defaultPermission: PermissionType.owner),
-        id: cbor.elementAs(1),
-        permissionName: cbor.elementAs(2),
-        threshold: cbor.elementAs(3),
-        operations: cbor.elementAs(4),
+        id: cbor.rawValueAt(1),
+        permissionName: cbor.rawValueAt(2),
+        threshold: cbor.rawValueAt(3),
+        operations: cbor.rawValueAt(4),
         keys: keys);
   }
 
@@ -321,15 +288,13 @@ class AccountPermission with CborSerializable, Equality {
 
   factory AccountPermission.fromJson(Map<String, dynamic> json) {
     return AccountPermission(
-      type: PermissionType.fromName(json["type"],
-          defaultPermission: PermissionType.owner),
+      type:
+          PermissionType.fromName(json["type"], defaultPermission: PermissionType.owner),
       id: json['id'],
       permissionName: json['permission_name'],
       threshold: BigintUtils.parse(json['threshold']),
       operations: json['operations'],
-      keys: (json['keys'] as List?)
-              ?.map((e) => PermissionKeys.fromJson(e))
-              .toList() ??
+      keys: (json['keys'] as List?)?.map((e) => PermissionKeys.fromJson(e)).toList() ??
           <PermissionKeys>[],
     );
   }
@@ -354,15 +319,28 @@ class AccountPermission with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [type, id, permissionName, threshold, operations, keys];
+  List get variables => [type, id, permissionName, threshold, operations, keys];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.accountPermission;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        type.name.toCbor(),
+        id?.toCbor(),
+        permissionName?.toCbor(),
+        threshold.toCbor(),
+        operations?.toCbor(),
+        AppSerialization.listFromObjects(keys.map((e) => e.toCbor()).toList())
+      ];
 }
 
-class PermissionKeys with CborSerializable, Equality {
+class PermissionKeys with AppSerialization, Equality {
   PermissionKeys({required this.address, required this.weight});
   factory PermissionKeys.fromJson(Map<String, dynamic> json) {
     return PermissionKeys(
-        address: TronAddress(json["address"]),
-        weight: BigintUtils.parse(json["weight"]));
+        address: TronAddress(json["address"]), weight: BigintUtils.parse(json["weight"]));
   }
   final TronAddress address;
   final BigInt weight;
@@ -370,46 +348,38 @@ class PermissionKeys with CborSerializable, Equality {
     return PermissionKeys(address: address, weight: weight);
   }
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([address.toAddress(), weight]),
-        _TronAccountCborConst.permissionKeys);
-  }
-
-  factory PermissionKeys.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory PermissionKeys.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.permissionKeys);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.permissionKeys);
     return PermissionKeys(
-        address: TronAddress(cbor.elementAs(0)), weight: cbor.elementAs(1));
+        address: TronAddress(cbor.rawValueAt(0)), weight: cbor.rawValueAt(1));
   }
 
   @override
-  List get variabels => [address, weight];
+  List get variables => [address, weight];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.permissionKeys;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [address.toAddress().toCbor(), weight.toCbor()];
 }
 
-class FrozenSupply with CborSerializable, Equality {
+class FrozenSupply with AppSerialization, Equality {
   final BigInt frozenBalance;
   final BigInt expireTime;
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([frozenBalance, expireTime]),
-        _TronAccountCborConst.frozenSupply);
-  }
-
-  factory FrozenSupply.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory FrozenSupply.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.frozenSupply);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.frozenSupply);
     return FrozenSupply._(
-        frozenBalance: cbor.elementAs(0), expireTime: cbor.elementAs(1));
+        frozenBalance: cbor.rawValueAt(0), expireTime: cbor.rawValueAt(1));
   }
 
   FrozenSupply._({
@@ -425,26 +395,28 @@ class FrozenSupply with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [frozenBalance, expireTime];
+  List get variables => [frozenBalance, expireTime];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.frozenSupply;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [frozenBalance.toCbor(), expireTime.toCbor()];
 }
 
-class FrozenV2 with CborSerializable, Equality {
+class FrozenV2 with AppSerialization, Equality {
   final BigInt amount;
   final ResourceCode type;
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(CborSerializable.fromDynamic([amount, type.name]),
-        _TronAccountCborConst.assetFrozenV2);
-  }
 
-  factory FrozenV2.fromCborBytesOrObject({List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory FrozenV2.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.assetFrozenV2);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.assetFrozenV2);
     return FrozenV2._(
-        type: ResourceCode.fromName(cbor.elementAs(1))!,
-        amount: cbor.elementAs(0));
+        type: ResourceCode.fromName(cbor.rawValueAt(1))!, amount: cbor.rawValueAt(0));
   }
 
   FrozenV2._({
@@ -455,41 +427,35 @@ class FrozenV2 with CborSerializable, Equality {
   factory FrozenV2.fromJson(Map<String, dynamic> json) {
     return FrozenV2._(
       amount: BigintUtils.tryParse(json["amount"]) ?? BigInt.zero,
-      type:
-          ResourceCode.fromName(json['type'], orElse: ResourceCode.bandWidth)!,
+      type: ResourceCode.fromName(json['type'], orElse: ResourceCode.bandWidth)!,
     );
   }
 
   @override
-  List get variabels => [amount, type];
+  List get variables => [amount, type];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.assetFrozenV2;
+
+  @override
+  List<CborObject?> get serializationItems => [amount.toCbor(), type.name.toCbor()];
 }
 
-class UnfrozenV2 with CborSerializable, Equality {
+class UnfrozenV2 with AppSerialization, Equality {
   final String? type;
   final BigInt unfreezeAmount;
   final BigInt unfreezeExpireTime;
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          type,
-          unfreezeAmount,
-          unfreezeExpireTime,
-        ]),
-        _TronAccountCborConst.assetUnfreezV2);
-  }
-
-  factory UnfrozenV2.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory UnfrozenV2.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.assetUnfreezV2);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.assetUnfreezV2);
     return UnfrozenV2._(
-        type: cbor.elementAs(0),
-        unfreezeAmount: cbor.elementAs(1),
-        unfreezeExpireTime: cbor.elementAs(2));
+        type: cbor.rawValueAt(0),
+        unfreezeAmount: cbor.rawValueAt(1),
+        unfreezeExpireTime: cbor.rawValueAt(2));
   }
 
   UnfrozenV2._({
@@ -507,30 +473,32 @@ class UnfrozenV2 with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [type, unfreezeAmount, unfreezeExpireTime];
+  List get variables => [type, unfreezeAmount, unfreezeExpireTime];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.assetUnfreezV2;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        type?.toCbor(),
+        unfreezeAmount.toCbor(),
+        unfreezeExpireTime.toCbor(),
+      ];
 }
 
-class AssetV2 with CborSerializable, Equality {
+class AssetV2 with AppSerialization, Equality {
   final String key;
   final BigInt value;
 
   AssetV2._({required this.key, required this.value});
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          key,
-          value,
-        ]),
-        _TronAccountCborConst.assetVersion2);
-  }
 
-  factory AssetV2.fromCborBytesOrObject({List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory AssetV2.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.assetVersion2);
-    return AssetV2._(key: cbor.elementAs(0), value: cbor.elementAs(1));
+        cborObject: object,
+        identifier: AppSerializationIdentifier.assetVersion2);
+    return AssetV2._(key: cbor.rawValueAt(0), value: cbor.rawValueAt(1));
   }
 
   factory AssetV2.fromJson(Map<String, dynamic> json) {
@@ -538,32 +506,31 @@ class AssetV2 with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [key, value];
+  List get variables => [key, value];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.assetVersion2;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        key.toCbor(),
+        value.toCbor(),
+      ];
 }
 
-class FreeAssetNetUsageV2 with CborSerializable, Equality {
+class FreeAssetNetUsageV2 with AppSerialization, Equality {
   final String key;
   final BigInt value;
 
   FreeAssetNetUsageV2._({required this.key, required this.value});
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          key,
-          value,
-        ]),
-        _TronAccountCborConst.frozenAssetsNetUsage);
-  }
 
-  factory FreeAssetNetUsageV2.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory FreeAssetNetUsageV2.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.frozenAssetsNetUsage);
-    return FreeAssetNetUsageV2._(
-        key: cbor.elementAs(0), value: cbor.elementAs(1));
+        cborObject: object,
+        identifier: AppSerializationIdentifier.frozenAssetsNetUsage);
+    return FreeAssetNetUsageV2._(key: cbor.rawValueAt(0), value: cbor.rawValueAt(1));
   }
 
   factory FreeAssetNetUsageV2.fromJson(Map<String, dynamic> json) {
@@ -574,10 +541,20 @@ class FreeAssetNetUsageV2 with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [key, value];
+  List get variables => [key, value];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.frozenAssetsNetUsage;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        key.toCbor(),
+        value.toCbor(),
+      ];
 }
 
-class TronAccountResource with CborSerializable, Equality {
+class TronAccountResource with AppSerialization, Equality {
   final int energyWindowSize;
   final BigInt? delegatedFrozenV2BalanceForEnergy;
   final bool energyWindowOptimized;
@@ -607,67 +584,48 @@ class TronAccountResource with CborSerializable, Equality {
     ''';
   }
 
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          energyWindowSize,
-          delegatedFrozenV2BalanceForEnergy,
-          energyWindowOptimized
-        ]),
-        _TronAccountCborConst.tronAccountResource);
-  }
-
-  factory TronAccountResource.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
+  factory TronAccountResource.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        object: obj,
-        tags: _TronAccountCborConst.tronAccountResource);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.tronAccountResource);
     return TronAccountResource._(
-        energyWindowSize: cbor.elementAs(0),
-        delegatedFrozenV2BalanceForEnergy: cbor.elementAs(1),
-        energyWindowOptimized: cbor.elementAs(2));
+        energyWindowSize: cbor.rawValueAt(0),
+        delegatedFrozenV2BalanceForEnergy: cbor.rawValueAt(1),
+        energyWindowOptimized: cbor.rawValueAt(2));
   }
 
   @override
-  List get variabels => [
-        energyWindowSize,
-        delegatedFrozenV2BalanceForEnergy,
-        energyWindowOptimized
+  List get variables =>
+      [energyWindowSize, delegatedFrozenV2BalanceForEnergy, energyWindowOptimized];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.tronAccountResource;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        energyWindowSize.toCbor(),
+        delegatedFrozenV2BalanceForEnergy?.toCbor(),
+        energyWindowOptimized.toCbor()
       ];
 }
 
-class TronAccountResourceInfo with CborSerializable, Equality {
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          freeNetUsed,
-          freeNetLimit,
-          netLimit,
-          netUsed,
-          energyLimit,
-          energyUsed,
-          tronPowerLimit,
-          tronPowerUsed,
-        ]),
-        CborTagsConst.tronAccountResource);
-  }
-
-  factory TronAccountResourceInfo.deserialize(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.tronAccountResource);
+class TronAccountResourceInfo with AppSerialization, Equality {
+  factory TronAccountResourceInfo.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.tronAccountResourceInfo);
     return TronAccountResourceInfo(
-      freeNetUsed: cbor.elementAs(0),
-      freeNetLimit: cbor.elementAs(1),
-      netLimit: cbor.elementAs(2),
-      netUsed: cbor.elementAs(3),
-      energyLimit: cbor.elementAs(4),
-      energyUsed: cbor.elementAs(5),
-      tronPowerLimit: cbor.elementAs(6),
-      tronPowerUsed: cbor.elementAs(7),
+      freeNetUsed: cbor.rawValueAt(0),
+      freeNetLimit: cbor.rawValueAt(1),
+      netLimit: cbor.rawValueAt(2),
+      netUsed: cbor.rawValueAt(3),
+      energyLimit: cbor.rawValueAt(4),
+      energyUsed: cbor.rawValueAt(5),
+      tronPowerLimit: cbor.rawValueAt(6),
+      tronPowerUsed: cbor.rawValueAt(7),
     );
   }
 
@@ -762,7 +720,7 @@ class TronAccountResourceInfo with CborSerializable, Equality {
   }
 
   @override
-  List get variabels => [
+  List get variables => [
         freeNetUsed,
         freeNetLimit,
         netLimit,
@@ -771,6 +729,22 @@ class TronAccountResourceInfo with CborSerializable, Equality {
         energyUsed,
         tronPowerLimit,
         tronPowerUsed
+      ];
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.tronAccountResourceInfo;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        freeNetUsed.toCbor(),
+        freeNetLimit.toCbor(),
+        netLimit.toCbor(),
+        netUsed.toCbor(),
+        energyLimit.toCbor(),
+        energyUsed.toCbor(),
+        tronPowerLimit.toCbor(),
+        tronPowerUsed.toCbor(),
       ];
 }
 

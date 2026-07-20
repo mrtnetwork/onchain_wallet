@@ -12,4 +12,5 @@ export 'networks/ton.dart';
 export 'networks/xrp.dart';
 export 'networks/tron.dart';
 export 'networks/substrate.dart';
+export 'networks/zcash.dart';
 export 'types/types.dart';

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/future/constant/constant.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/color.dart';
 
 class ThemeController {
@@ -10,8 +9,7 @@ class ThemeController {
   static ColorScheme colorScheme =
       ColorScheme.fromSeed(seedColor: _appColor, brightness: _appBrightness);
   static ColorScheme _buildColorSchame() {
-    return ColorScheme.fromSeed(
-        seedColor: _appColor, brightness: _appBrightness);
+    return ColorScheme.fromSeed(seedColor: _appColor, brightness: _appBrightness);
   }
 
   static ThemeData _buildTheme(ColorScheme colorScheme) {
@@ -24,9 +22,9 @@ class ThemeController {
             filled: true,
             helperMaxLines: 3,
             errorMaxLines: 3,
-            helperStyle: TextStyle(color: ColorConst.green)),
-        segmentedButtonTheme: const SegmentedButtonThemeData(
-            selectedIcon: Icon(Icons.check_circle)));
+            helperStyle: TextStyle(color: Colors.green)),
+        segmentedButtonTheme:
+            const SegmentedButtonThemeData(selectedIcon: Icon(Icons.check_circle)));
     return theme;
   }
 
@@ -58,18 +56,18 @@ class ThemeController {
 
   static TextTheme buildPrimary(ThemeData theme) {
     return theme.textTheme.copyWith(
-      bodyMedium: theme.textTheme.bodyMedium
-          ?.copyWith(color: theme.colorScheme.primaryContainer),
-      bodySmall: theme.textTheme.bodySmall
-          ?.copyWith(color: theme.colorScheme.primaryContainer),
-      bodyLarge: theme.textTheme.bodyLarge
-          ?.copyWith(color: theme.colorScheme.primaryContainer),
+      bodyMedium:
+          theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primaryContainer),
+      bodySmall:
+          theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primaryContainer),
+      bodyLarge:
+          theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.primaryContainer),
       labelMedium: theme.textTheme.labelMedium
           ?.copyWith(color: theme.colorScheme.primaryContainer),
-      labelLarge: theme.textTheme.labelLarge
-          ?.copyWith(color: theme.colorScheme.primaryContainer),
-      labelSmall: theme.textTheme.labelSmall
-          ?.copyWith(color: theme.colorScheme.primaryContainer),
+      labelLarge:
+          theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primaryContainer),
+      labelSmall:
+          theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primaryContainer),
       titleMedium: theme.textTheme.titleMedium
           ?.copyWith(color: theme.colorScheme.primaryContainer),
     );
@@ -102,14 +100,14 @@ class ThemeController {
     _rebuildTheme();
   }
 
-  static String get appColorHex => _appColor.toHex();
+  static String get appColorHex => _appColor.encodeString();
 
   static String get appBrightness => _appBrightness.name;
 
   static void fromAppSetting(APPSetting setting) {
     try {
       if (setting.appBrightness == null || setting.appColor == null) return;
-      final color = HexColor.fromHex(setting.appColor!);
+      final color = ExtHexColor.decodeString(setting.appColor!);
       final Brightness brightness = Brightness.values
           .firstWhere((element) => element.name == setting.appBrightness);
       _appColor = color;
@@ -118,7 +116,3 @@ class ThemeController {
     } catch (_) {}
   }
 }
-
-// extension MaterialLocale on APPLocale {
-//   Locale get locale => Locale(name);
-// }

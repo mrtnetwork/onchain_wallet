@@ -1,8 +1,8 @@
+import 'package:blockchain_utils/signer/const/constants.dart';
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
-import 'package:cosmos_sdk/cosmos_sdk.dart';
+import 'package:cosmos_sdk/proto_messages/cosmos/tx/v1beta1/src/tx.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/constant/const.dart';
 import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/constant/networks/cosmos.dart';
@@ -14,8 +14,7 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
 
   @override
   late final CosmosTransactionFeeData txFee = CosmosTransactionFeeData(
-      select: CosmosTransactionFee(
-          token: network.token, denom: network.coinParam.denom),
+      select: CosmosTransactionFee(token: network.token, denom: network.coinParam.denom),
       feeToken: network.token,
       denom: network.coinParam.denom,
       gasLimit: CosmosConst.defaultGasLimit,
@@ -24,8 +23,8 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
 
   @override
   BigInt getMaxFeeInput() {
-    final token = transactionRequirment.feeTokens
-        .firstWhere((e) => e.denom == txFee.denom);
+    final token =
+        transactionRequirment.feeTokens.firstWhere((e) => e.denom == txFee.denom);
     return token.balance.balance;
   }
 
@@ -42,9 +41,9 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
       if (messages > 1) {
         fee = fee * BigInt.from(messages);
       }
-      fees.add(_buildFixedFee(
-          denom: denom, gasLimit: gasUsed, amount: fee, error: error));
-    } else if (network.coinParam.networkType.isEthermint) {
+      fees.add(
+          _buildFixedFee(denom: denom, gasLimit: gasUsed, amount: fee, error: error));
+    } else if (network.coinParam.networkType.isEthreum) {
       final gasPrice = transactionRequirment.ethermintTxFee!;
       fees.add(_buildDynamicFee(
           gasUsed: gasUsed,
@@ -53,9 +52,9 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
           feeToken: token,
           error: error));
     } else {
-      final slow = feeToken.lowGasPrice;
-      final high = feeToken.highGasPrice;
-      final avg = feeToken.averageGasPrice;
+      final slow = feeToken.getLowGasPrice();
+      final high = feeToken.getHightGasPrice();
+      final avg = feeToken.getAverageGasPrice();
       if (slow != null) {
         fees.add(_buildDynamicFee(
             gasUsed: gasUsed,
@@ -82,26 +81,22 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
       }
     }
     txFee.updateCosmosFeeToken(
-        token: token,
-        fees: fees,
-        denom: denom,
-        gasLimit: gasUsed,
-        messages: messages);
+        token: token, fees: fees, denom: denom, gasLimit: gasUsed, messages: messages);
   }
 
   Future<(BigInt, int)> simulateFee() async {
     final transaction = await buildTransaction();
-    final signedTransaction =
-        await signTransaction(transaction, fakeSignature: true);
-    final tx = Tx(
-        body: transaction.transaction,
-        authInfo: signedTransaction.auth,
-        signatures: [CryptoConst.fakeEd25519Signature]);
+    final signedTransaction = await signTransaction(transaction, fakeSignature: true);
+    final tx =
+        Tx(body: transaction.transaction, authInfo: signedTransaction.auth, signatures: [
+      List<int>.filled(CryptoSignerConst.ecdsaSignatureLength, 0),
+    ]);
     final simulate = await client.simulateTx(tx.toBuffer());
-    return (
-      simulate.gasInfo.gasUsed,
-      transaction.transactionData.messages.length
-    );
+    final gasInfo = simulate.gasInfo;
+    if (gasInfo == null) {
+      throw APIErrorConst.serverUnexpectedResponse;
+    }
+    return (gasInfo.gasUsed ?? BigInt.zero, transaction.transactionData.messages.length);
   }
 
   @override
@@ -110,24 +105,20 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
     await _lock.run(() async {
       _setupFees(txFee.denom);
       txFee.setPending();
-      final fee = await MethodUtils.call(() async => await simulateFee());
-      if (fee.isCancel) return;
-      if (fee.hasError) {
-        _setupFees(txFee.denom, error: fee.localizationError);
+      final fee = await IResult.call(() async => await simulateFee());
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
+        _setupFees(txFee.denom, error: fee.unwrapErr().localizationError);
         return;
       }
+      final feeData = fee.unwrap();
       _setupFees(txFee.denom,
-          gasUsed: fee.result.$1,
-          token: txFee.feeToken,
-          messages: fee.result.$2);
+          gasUsed: feeData.$1, token: txFee.feeToken, messages: feeData.$2);
     });
   }
 
   CosmosTransactionFee _buildFixedFee(
-      {required String denom,
-      BigInt? gasLimit,
-      BigInt? amount,
-      String? error}) {
+      {required String denom, BigInt? gasLimit, BigInt? amount, String? error}) {
     return CosmosTransactionFee(
         token: txFee.feeToken,
         gasLimit: gasLimit,
@@ -143,8 +134,8 @@ mixin CosmosTransactionFeeController on BaseCosmosTransactionController {
       required Token feeToken,
       String? error,
       TxFeeTypes feeType = TxFeeTypes.normal}) {
-    final gp = (BigRational(gasUsed ?? CosmosConst.defaultGasLimit) *
-        CosmosConst.feeMultiplier);
+    final gp =
+        (BigRational(gasUsed ?? CosmosConst.defaultGasLimit) * CosmosConst.feeMultiplier);
 
     final fee = (gp * gasPrice).ceil();
     return CosmosTransactionFee(

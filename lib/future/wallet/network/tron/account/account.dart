@@ -23,18 +23,18 @@ class TronAccountPageView extends StatelessWidget {
               return TronTransactionTransferTRC10TokenOperation(
                   walletProvider: context.wallet,
                   account: chainAccount,
-                  address: chainAccount.address,
+                  address: chainAccount.addressSync,
                   token: p0 as TronTRC10Token);
             }
             return TronTransactionTransferTRC20TokenOperation(
                 walletProvider: context.wallet,
                 account: chainAccount,
-                address: chainAccount.address,
+                address: chainAccount.addressSync,
                 token: p0 as TronTRC20Token);
           },
         ),
-        AccountTransactionActivityView<ITronAddress, TronWalletTransaction>(
-            account: chainAccount, address: chainAccount.address)
+        AccountTransactionActivityView<TronWalletTransaction, ITronAddress>(
+            account: chainAccount, address: chainAccount.addressSync)
       ]),
     );
   }
@@ -43,11 +43,10 @@ class TronAccountPageView extends StatelessWidget {
 class _Services extends StatelessWidget {
   const _Services(this.chainAccount);
   final TronChain chainAccount;
-  ITronAddress get account => chainAccount.address;
+  ITronAddress get account => chainAccount.addressSync;
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: chainAccount.service),
       SliverToBoxAdapter(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,11 +64,10 @@ class _Services extends StatelessWidget {
               subtitle: Text("update_account_permissions".tr),
               trailing: const Icon(Icons.arrow_forward),
               onTap: () {
-                final r =
-                    TronTransactionAccountPermissionUpdateContractOperation(
-                        walletProvider: context.wallet,
-                        account: chainAccount,
-                        address: account);
+                final r = TronTransactionAccountPermissionUpdateContractOperation(
+                    walletProvider: context.wallet,
+                    account: chainAccount,
+                    address: account);
                 context.to(PageRouter.transaction, argruments: r);
               },
             ),

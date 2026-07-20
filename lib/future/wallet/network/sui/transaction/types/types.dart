@@ -78,8 +78,8 @@ class SuiTransactionFee extends DefaultTransactionFee {
   }
 
   @override
-  List get variabels =>
-      [...super.variabels, isSimulate, gasPrice, budget, requiredFee];
+  List get variables =>
+      [...super.variables, isSimulate, gasPrice, budget, requiredFee];
 }
 
 class SuiTransactionFeeData
@@ -90,9 +90,9 @@ class SuiTransactionFeeData
 abstract class BaseSuiTransactionController<T extends ISuiTransactionData>
     extends TransactionStateController<
         SuiToken,
-        ISuiAddress,
-        SuiClient,
         WalletSuiNetwork,
+        ISuiAddress,
+        SuiNetworkClient,
         SuiChain,
         T,
         ISuiTransaction<T>,

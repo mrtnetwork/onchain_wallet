@@ -1,7 +1,6 @@
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain/solidity/address/core.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/operations/eth_sign.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/operations/import_network.dart';
@@ -15,8 +14,9 @@ import 'package:on_chain_wallet/wallet/api/client/client.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/core/core.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/ethereum.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
 class EthereumInitFee {
   final BigInt? gasPrice;
@@ -24,13 +24,9 @@ class EthereumInitFee {
   final BigInt? maxFeePerGas;
   final int? gasLimit;
   const EthereumInitFee(
-      {this.gasPrice,
-      this.maxFeePerGas,
-      this.maxPriorityFeePerGas,
-      this.gasLimit});
+      {this.gasPrice, this.maxFeePerGas, this.maxPriorityFeePerGas, this.gasLimit});
 
-  bool get isEip1559Metrics =>
-      maxFeePerGas != null && maxPriorityFeePerGas != null;
+  bool get isEip1559Metrics => maxFeePerGas != null && maxPriorityFeePerGas != null;
   bool get isLegacyFeeMetrics => gasPrice != null;
   bool get hasGasMetrics => isEip1559Metrics || isLegacyFeeMetrics;
   bool get hasFee => hasGasMetrics || gasLimit != null;
@@ -182,34 +178,25 @@ class SolidityERC20TransferMethodInfo<T extends SolidityAddress>
 
 abstract class Web3EthereumStateController<
         RESPONSE,
-        CLIENT extends EthereumClient?,
+        CLIENT extends EthereumNetworkClient?,
         T extends Web3EthereumRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         ETHAddress,
         WalletEthereumNetwork,
-        EthereumClient,
+        EthereumNetworkClient,
         CLIENT,
-        IEthAddress,
+        IEthereumAddress,
         EthereumChain,
         Web3EthereumChainAccount,
         T,
         Web3EthereumRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         EthWalletTransaction> {
-  Web3EthereumStateController(
-      {required super.walletProvider, required super.request});
+  Web3EthereumStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3EthereumRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3EthereumStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3EthereumRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3EthereumRequestMethods.persoalSign:
         return Web3EthereumPersonalSignStateController(
@@ -239,10 +226,10 @@ abstract class BaseWeb3EthereumTransactionStateController<
     extends Web3TransactionStateController<
         RESPONSE,
         ETHAddress,
-        IEthAddress,
-        EthereumClient,
-        EthereumClient,
         WalletEthereumNetwork,
+        IEthereumAddress,
+        EthereumNetworkClient,
+        EthereumNetworkClient,
         EthereumChain,
         Web3EthereumChainAccount,
         T,
@@ -262,7 +249,7 @@ class IWeb3EthereumTransactionData extends ITransactionData {
 }
 
 class IWeb3EthereumTransaction<TXDATA extends IWeb3EthereumTransactionData>
-    extends ITransaction<TXDATA, IEthAddress> {
+    extends ITransaction<TXDATA, IEthereumAddress> {
   final ETHTransaction transaction;
   const IWeb3EthereumTransaction(
       {required super.account,
@@ -270,8 +257,7 @@ class IWeb3EthereumTransaction<TXDATA extends IWeb3EthereumTransactionData>
       required this.transaction});
 }
 
-class IWeb3EthereumSignedTransaction<
-        TXDATA extends IWeb3EthereumTransactionData>
+class IWeb3EthereumSignedTransaction<TXDATA extends IWeb3EthereumTransactionData>
     extends ISignedTransaction<IWeb3EthereumTransaction<TXDATA>, String> {
   IWeb3EthereumSignedTransaction(
       {required super.transaction,

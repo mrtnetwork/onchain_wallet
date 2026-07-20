@@ -5,15 +5,14 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class SetupStellarAddressView extends StatefulWidget {
   final AddressDerivationController controller;
   const SetupStellarAddressView({super.key, required this.controller});
   @override
-  State<SetupStellarAddressView> createState() =>
-      _SetupStellarAddressViewState();
+  State<SetupStellarAddressView> createState() => _SetupStellarAddressViewState();
 }
 
 class _SetupStellarAddressViewState extends State<SetupStellarAddressView>
@@ -22,23 +21,22 @@ class _SetupStellarAddressViewState extends State<SetupStellarAddressView>
   bool get isMuxedAddress => addressTyoe == StellarAddressType.muxedAddress;
   BigInt id = BigInt.zero;
   void onChangeTag(BigInt newTag) {
-    if (newTag.isNegative || newTag > maxU64) return;
+    if (newTag.isNegative || newTag > BinaryOps.maxU64) return;
     id = newTag;
   }
 
   String? validateTag(String? v) {
     if (!isMuxedAddress) return null;
     final newTag = BigInt.tryParse(v ?? "");
-    if (newTag == null || newTag.isNegative || newTag > maxU64) {
+    if (newTag == null || newTag.isNegative || newTag > BinaryOps.maxU64) {
       return "uint64_validator".tr.tr.replaceOne("id".tr);
     }
     return null;
   }
 
   void onSelectAddressType() {
-    addressTyoe = isMuxedAddress
-        ? StellarAddressType.pubkey
-        : StellarAddressType.muxedAddress;
+    addressTyoe =
+        isMuxedAddress ? StellarAddressType.pubkey : StellarAddressType.muxedAddress;
     setState(() {});
   }
 
@@ -86,7 +84,7 @@ class _SetupStellarAddressViewState extends State<SetupStellarAddressView>
                       onChange: onChangeTag,
                       validator: validateTag,
                       defaultValue: id,
-                      max: maxU64,
+                      max: BinaryOps.maxU64,
                       min: BigInt.zero),
                 ],
               )

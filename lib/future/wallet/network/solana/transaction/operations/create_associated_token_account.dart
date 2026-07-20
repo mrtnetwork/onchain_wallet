@@ -70,9 +70,8 @@ class SolanaTransactionCreateAssociatedTokenAccountOperation
               owner: owner,
               tokenProgramId: tokenProgram.value.networkAddress)
           .address;
-      final addr = account.getReceiptAddress(address.address) ??
-          ReceiptAddress<SolAddress>(
-              view: address.address, networkAddress: address);
+      final addr =
+          account.getOrCreateReceiptFromNetworkAddressSync(address: address);
       assosicatedAddress.setValue(addr);
     }
     onStateUpdated();
@@ -80,7 +79,8 @@ class SolanaTransactionCreateAssociatedTokenAccountOperation
   }
 
   @override
-  TransactionStateController cloneController(ISolanaAddress address) {
+  Future<TransactionStateController> cloneController(
+      ISolanaAddress address) async {
     return SolanaTransactionCreateAssociatedTokenAccountOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

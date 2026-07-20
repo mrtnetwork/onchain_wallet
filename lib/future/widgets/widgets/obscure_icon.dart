@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/constant.dart';
-import 'package:on_chain_wallet/app/models/models/typedef.dart'
-    show DynamicVoid;
+import 'package:on_chain_wallet/app/core.dart';
 
 class ObscureIcon extends StatelessWidget {
   const ObscureIcon({required this.show, required this.onTap, super.key});

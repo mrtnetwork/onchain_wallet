@@ -2,20 +2,26 @@ import 'package:on_chain/aptos/src/account/authenticator/authenticator.dart';
 import 'package:on_chain/aptos/src/address/address/address.dart';
 import 'package:on_chain/aptos/src/provider/models/fullnode/types.dart';
 import 'package:on_chain/aptos/src/transaction/types/types.dart';
-import 'package:on_chain_wallet/app/live_listener/live.dart';
-import 'package:on_chain_wallet/app/utils/sync/cached_object.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/aptos/aptos.dart';
 
 mixin AptosTransactionApiController on DisposableMixin {
   int? _chainId;
   final CachedObject<BigInt> _accountSequenceNumber = CachedObject();
   final CachedObject<BigInt> _gasUnitPrice = CachedObject();
-  AptosClient get client;
+  final CachedObject<BigInt> _accountBalance =
+      CachedObject(interval: Duration(minutes: 1));
+  AptosNetworkClient get client;
 
   Future<BigInt> getAccountSequenceNumber(AptosAddress address,
       {bool cache = false}) async {
     return _accountSequenceNumber.get(
         onFetch: () async => await client.getAccountSequence(address));
+  }
+
+  Future<BigInt> getAccountBalance(AptosAddress address, {bool cache = false}) async {
+    return _accountBalance.get(
+        onFetch: () async => await client.getAccountBalance(address));
   }
 
   Future<AptosApiUserTransaction> simulate(
@@ -36,8 +42,7 @@ mixin AptosTransactionApiController on DisposableMixin {
   }
 
   Future<BigInt> getGasPrice() async {
-    return _gasUnitPrice.get(
-        onFetch: () async => await client.getGasUnitPrice());
+    return _gasUnitPrice.get(onFetch: () async => await client.getGasUnitPrice());
   }
 
   AptosTransactionAuthenticator _buildSimulateAuthenticator({
@@ -51,12 +56,10 @@ mixin AptosTransactionApiController on DisposableMixin {
       return AptosTransactionAuthenticatorFeePayer(
           sender: AptosAccountAuthenticatorNoAccountAuthenticator(),
           feePayerAddress: feePayer,
-          feePayerAuthenticator:
-              AptosAccountAuthenticatorNoAccountAuthenticator(),
+          feePayerAuthenticator: AptosAccountAuthenticatorNoAccountAuthenticator(),
           secondarySignerAddressess: secondarySignerAddresses ?? [],
           secondarySigner: secondarySignerAddresses
-                  ?.map(
-                      (e) => AptosAccountAuthenticatorNoAccountAuthenticator())
+                  ?.map((e) => AptosAccountAuthenticatorNoAccountAuthenticator())
                   .toList() ??
               []);
     }

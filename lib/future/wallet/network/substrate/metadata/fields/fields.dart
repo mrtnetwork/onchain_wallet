@@ -11,13 +11,9 @@ import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart'
 import 'package:on_chain_wallet/wallet/models/networks/substrate/substrate.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
-class SubstrateMetadataAccess<T extends StateController>
-    extends InheritedWidget {
+class SubstrateMetadataAccess<T extends StateController> extends InheritedWidget {
   const SubstrateMetadataAccess(
-      {super.key,
-      required this.account,
-      required this.metadata,
-      required super.child});
+      {super.key, required this.account, required this.metadata, required super.child});
   final SubstrateChain account;
   WalletNetwork get network => account.network;
   final SubstrateChainMetadata metadata;
@@ -28,8 +24,7 @@ class SubstrateMetadataAccess<T extends StateController>
   }
 
   static SubstrateMetadataAccess of(BuildContext context) {
-    return context
-        .dependOnInheritedWidgetOfExactType<SubstrateMetadataAccess>()!;
+    return context.dependOnInheritedWidgetOfExactType<SubstrateMetadataAccess>()!;
   }
 
   @override
@@ -109,8 +104,7 @@ class _BooleanFieldValidatorView extends StatelessWidget {
                     children: [
                       Text("false".tr),
                       WidgetConstant.width8,
-                      Switch(
-                          value: value ?? false, onChanged: validator.setValue),
+                      Switch(value: value ?? false, onChanged: validator.setValue),
                       WidgetConstant.width8,
                       Text("true".tr)
                     ],
@@ -157,8 +151,7 @@ enum _QuickAccessOptions {
     }
   }
 
-  static List<_QuickAccessOptions> globalOptions(
-      SubstrateChainMetadata metadata) {
+  static List<_QuickAccessOptions> globalOptions(SubstrateChainMetadata metadata) {
     return [
       _QuickAccessOptions.constants,
       _QuickAccessOptions.storage,
@@ -189,8 +182,7 @@ class _NumericFieldValidatorView extends StatelessWidget {
                   onTapStackIcon: () {},
                   enableTap: false,
                   onStackWidget: _QuickAccessPopupMenuButton(
-                      checked:
-                          _QuickAccessOptions.fromScale(validator.maxScale),
+                      checked: _QuickAccessOptions.fromScale(validator.maxScale),
                       icon: ConditionalWidget(
                         onActive: (context) => Text("${validator.maxScale}^10",
                             style: context.primaryTextTheme.labelLarge),
@@ -202,12 +194,10 @@ class _NumericFieldValidatorView extends StatelessWidget {
                         final metadata = SubstrateMetadataAccess.of(context);
                         switch (value) {
                           case _QuickAccessOptions.transactionVersion:
-                            validator.setIntValue(
-                                metadata.metadata.transactionVersion);
+                            validator.setIntValue(metadata.metadata.transactionVersion);
                             break;
                           case _QuickAccessOptions.specVersion:
-                            validator
-                                .setIntValue(metadata.metadata.specVersion);
+                            validator.setIntValue(metadata.metadata.specVersion);
                             break;
                           case _QuickAccessOptions.powN:
                             validator.setPow(metadata.network.coinDecimal);
@@ -223,9 +213,7 @@ class _NumericFieldValidatorView extends StatelessWidget {
                             break;
                         }
                       },
-                      option: validator.enableDecimal
-                          ? _QuickAccessType.numbers
-                          : null),
+                      option: validator.enableDecimal ? _QuickAccessType.numbers : null),
                   child: BigRationalTextField(
                       key: validator.textFieldKey,
                       label: validator.info.viewName ?? '',
@@ -319,16 +307,13 @@ class _BytesFieldValidatorView extends StatelessWidget {
                             case _QuickAccessOptions.accounts:
                               context
                                   .selectAccount<BaseSubstrateAddress>(
-                                      account: metadata.account,
-                                      multipleSelect: false)
-                                  .then((v) =>
-                                      validator.setAddress(v?.firstOrNull));
+                                      account: metadata.account, multipleSelect: false)
+                                  .then((v) => validator.setAddress(v?.firstOrNull));
                               break;
                             case _QuickAccessOptions.addressDecoder:
-                              final r =
-                                  await context.openSliverBottomSheet<String>(
-                                      'address_decoder'.tr,
-                                      child: const AddressDecoderView());
+                              final r = await context.openSliverBottomSheet<String>(
+                                  'address_decoder'.tr,
+                                  child: const AddressDecoderView());
                               if (r == null) return;
                               validator.setValue(r);
                               break;
@@ -336,10 +321,9 @@ class _BytesFieldValidatorView extends StatelessWidget {
                               validator.setValue(metadata.metadata.genesis);
                               break;
                             case _QuickAccessOptions.utf8Encoder:
-                              final r =
-                                  await context.openSliverBottomSheet<String>(
-                                      'utf8_encoder'.tr,
-                                      child: const UTF8EncoderView());
+                              final r = await context.openSliverBottomSheet<String>(
+                                  'utf8_encoder'.tr,
+                                  child: const UTF8EncoderView());
                               if (r == null) return;
                               validator.setValue(r);
                               break;
@@ -403,8 +387,8 @@ class _SequenceFieldValidatorView extends StatelessWidget {
                       onRemove: () {
                         validator.add();
                       },
-                      onRemoveIcon: Icon(Icons.add_box,
-                          color: context.onPrimaryContainer),
+                      onRemoveIcon:
+                          Icon(Icons.add_box, color: context.onPrimaryContainer),
                       child: Text("tap_to_create_object"
                           .tr
                           .replaceOne(validator.info.viewName ?? '')),
@@ -475,8 +459,7 @@ class _VariantFieldValidatorView extends StatelessWidget {
                       onChanged: (variant) {
                         if (variant == null) return;
                         validator.setVariant(
-                            variant: variant,
-                            type: metadata.getTypeInfo(variant).cast());
+                            variant: variant, type: metadata.getTypeInfo(variant).cast());
                       },
                       value: validator.variant,
                       hint: validator.info.viewName),
@@ -619,24 +602,18 @@ class _QuickAccessPopupMenuButton extends StatelessWidget {
         switch (value) {
           case _QuickAccessOptions.constants:
             context.openMaxExtendSliverBottomSheet('constants'.tr,
-                bodyBuilder: (scrollController) =>
-                    SubstrateMetadataConstantsView(
-                        scrollController: scrollController,
-                        account: metadata.account));
+                bodyBuilder: (scrollController) => SubstrateMetadataConstantsView(
+                    scrollController: scrollController, account: metadata.account));
             break;
           case _QuickAccessOptions.storage:
             context.openMaxExtendSliverBottomSheet('storages'.tr,
-                bodyBuilder: (scrollController) =>
-                    SubstrateMetadataStoragesView(
-                        scrollController: scrollController,
-                        account: metadata.account));
+                bodyBuilder: (scrollController) => SubstrateMetadataStoragesView(
+                    scrollController: scrollController, account: metadata.account));
             break;
           case _QuickAccessOptions.runtimeApi:
             context.openMaxExtendSliverBottomSheet('runtime_apis'.tr,
-                bodyBuilder: (scrollController) =>
-                    SubstrateMetadataStoragesView(
-                        scrollController: scrollController,
-                        account: metadata.account));
+                bodyBuilder: (scrollController) => SubstrateMetadataStoragesView(
+                    scrollController: scrollController, account: metadata.account));
             break;
           case _QuickAccessOptions.bytesTools:
             context.openMaxExtendSliverBottomSheet('bytes_tools'.tr,
@@ -645,8 +622,7 @@ class _QuickAccessPopupMenuButton extends StatelessWidget {
           case _QuickAccessOptions.finalizBlock:
             context.openMaxExtendSliverBottomSheet('finaliz_block'.tr,
                 bodyBuilder: (scrollController) => SubstrateQuickAccessView(
-                    scrollController: scrollController,
-                    account: metadata.account));
+                    scrollController: scrollController, account: metadata.account));
             break;
           default:
             onselectOption(value);
@@ -662,10 +638,10 @@ class _ValueOrTapInputValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConditionalWidget(
-        onActive: (context) => Text(value!,
-            style: context.onPrimaryTextTheme.bodyMedium, maxLines: 3),
-        onDeactive: (context) => Text("tap_to_input_value".tr,
-            style: context.onPrimaryTextTheme.bodyMedium),
+        onActive: (context) =>
+            Text(value!, style: context.onPrimaryTextTheme.bodyMedium, maxLines: 3),
+        onDeactive: (context) =>
+            Text("tap_to_input_value".tr, style: context.onPrimaryTextTheme.bodyMedium),
         enable: value != null);
   }
 }

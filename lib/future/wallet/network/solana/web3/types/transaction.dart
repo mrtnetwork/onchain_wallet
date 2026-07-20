@@ -2,7 +2,7 @@ import 'package:blockchain_utils/helper/helper.dart';
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/solana/params/models/transaction.dart';
+import 'package:on_chain_wallet/web3/web3/networks/solana/params/models/transaction.dart';
 import 'package:on_chain/solana/solana.dart';
 import 'package:on_chain/solana/src/borsh_serialization/program_layout.dart';
 
@@ -12,10 +12,8 @@ class SolanaWeb3TransactionInstructionInfo {
   final Map<String, dynamic>? content;
 
   SolanaWeb3TransactionInstructionInfo(
-      {required this.layout,
-      required this.programAddress,
-      Map<String, dynamic>? content})
-      : content = content?.imutable;
+      {required this.layout, required this.programAddress, Map<String, dynamic>? content})
+      : content = content?.immutable;
 }
 
 enum SolanaWeb3KnownTransactionInstructionType { transfer }
@@ -35,7 +33,7 @@ class SolanaWeb3TransactionTransferTokenInstruction
 }
 
 class SolanaWeb3TransactionInfo with DisposableMixin, StreamStateController {
-  final SolanaClient client;
+  final SolanaNetworkClient client;
   final Web3SolanaSendTransactionOptions? sendTransactionOptions;
   SolanaTransaction _transaction;
   SolanaTransaction get transaction => _transaction;
@@ -60,13 +58,13 @@ class SolanaWeb3TransactionInfo with DisposableMixin, StreamStateController {
       if (!feeStatus.canRetry) return;
       _feeStatus = SolanaWeb3FeeStatus.pending;
       notify();
-      final result = await MethodUtils.call(() async {
+      final result = await IResult.call(() async {
         return await client.getFee(transaction);
       });
-      if (result.hasError) {
+      if (result.isErr) {
         _feeStatus = SolanaWeb3FeeStatus.error;
       } else {
-        fee.updateBalance(result.result);
+        fee.updateBalance(result.unwrap());
         if (fee.isZero) {
           _feeStatus = SolanaWeb3FeeStatus.error;
         } else {
@@ -84,7 +82,7 @@ class SolanaWeb3TransactionInfo with DisposableMixin, StreamStateController {
       notify();
       final preflightCommitment = sendTransactionOptions?.preflightCommitment;
       final slot = sendTransactionOptions?.minContextSlot;
-      final result = await MethodUtils.call(() async {
+      final result = await IResult.call(() async {
         return await client.simulate(
             transaction: transaction,
             account: signer.networkAddress,
@@ -94,10 +92,10 @@ class SolanaWeb3TransactionInfo with DisposableMixin, StreamStateController {
                 : Commitment.fromName(preflightCommitment));
       });
 
-      if (result.hasError) {
+      if (result.isErr) {
         _status = SolanaWeb3SimulationStatus.error;
       } else {
-        _simulate = result.result;
+        _simulate = result.unwrap();
         if (_simulate.err != null) {
           _status = SolanaWeb3SimulationStatus.simulateError;
         } else {
@@ -131,21 +129,21 @@ class SolanaWeb3TransactionInfo with DisposableMixin, StreamStateController {
     required this.signer,
     required this.client,
     this.sendTransactionOptions,
-  })  : instructions = instructions.imutable,
+  })  : instructions = instructions.immutable,
         _transaction = transaction;
   factory SolanaWeb3TransactionInfo({
     required SolanaTransaction transaction,
     required ISolanaAddress signer,
     Web3SolanaSendTransactionOptions? sendTransactionOptions,
     required WalletSolanaNetwork network,
-    required SolanaClient client,
+    required SolanaNetworkClient client,
   }) {
     final accounts = transaction.message.accountKeys;
     final List<SolanaWeb3TransactionInstructionInfo> instructions = [];
     for (final i in transaction.message.compiledInstructions) {
       final programId = accounts[i.programIdIndex];
-      final layout = ProgramLayout.fromBytes(
-          programId: programId, instructionBytes: i.data);
+      final layout =
+          ProgramLayout.fromBytes(programId: programId, instructionBytes: i.data);
 
       final content = layout.toJson();
       final instructionInfo = SolanaWeb3TransactionInstructionInfo(
@@ -169,8 +167,7 @@ class SolanaWeb3TransactionInfo with DisposableMixin, StreamStateController {
 class SolanaWeb3SignedTransactionInfo {
   final SolanaWeb3TransactionInfo info;
   final List<int> signature;
-  SolanaWeb3SignedTransactionInfo(
-      {required this.info, required List<int> signature})
+  SolanaWeb3SignedTransactionInfo({required this.info, required List<int> signature})
       : signature = signature.asImmutableBytes;
 }
 

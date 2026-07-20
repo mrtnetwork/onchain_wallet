@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/accsess_wallet.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 class EraseWalletView extends StatelessWidget {
   const EraseWalletView({super.key});
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseVerify,
-            WalletCredentialVerify>(
+    return AccessWalletView<WalletCredentialResponseVerify, WalletCredentialVerify>(
         request: WalletCredentialVerify(),
         onAccsess: (credential) {
           return _EraseWalletView(credential: credential);
@@ -47,14 +46,10 @@ class _EraseWalletViewState extends State<_EraseWalletView>
     List<_ViewWalletData> wallets = [];
     final wallet = context.wallet.wallet.wallet;
     wallets.add(_ViewWalletData(
-        name: wallet.name,
-        subwalletId: null,
-        createdAt: wallet.created.toOnlyDateStr()));
+        name: wallet.name, subwalletId: null, createdAt: wallet.created.toOnlyDateStr()));
     for (final i in wallet.subWallets) {
       wallets.add(_ViewWalletData(
-          name: i.name,
-          subwalletId: i.id,
-          createdAt: i.created.toOnlyDateStr()));
+          name: i.name, subwalletId: i.id, createdAt: i.created.toOnlyDateStr()));
     }
     return wallets;
   }
@@ -69,17 +64,14 @@ class _EraseWalletViewState extends State<_EraseWalletView>
             ConditionalWidget(
               enable: i.subwalletId == null,
               onActive: (context) => Icon(Icons.account_balance_wallet),
-              onDeactive: (context) =>
-                  Icon(Icons.account_balance_wallet_outlined),
+              onDeactive: (context) => Icon(Icons.account_balance_wallet_outlined),
             ),
             WidgetConstant.width8,
             Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(i.name, style: context.textTheme.bodyMedium),
-                    Text(i.createdAt, style: context.textTheme.bodySmall)
-                  ]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(i.name, style: context.textTheme.bodyMedium),
+                Text(i.createdAt, style: context.textTheme.bodySmall)
+              ]),
             )
           ],
         )
@@ -96,34 +88,32 @@ class _EraseWalletViewState extends State<_EraseWalletView>
   Future<void> onDelete() async {
     final accept = await context.openSliverDialog<bool>(
         widget: (p0) => DialogTextView(
-              widget: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(wallet.subwalletId == null
-                        ? "delete_main_wallet_desc".tr
-                        : "delete_sub_wallet_desc".tr),
-                    WidgetConstant.height20,
-                    AlertTextContainer(
-                        message: "delete_wallet_alert".tr, enableTap: false)
-                  ]),
+              widget: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(wallet.subwalletId == null
+                    ? "delete_main_wallet_desc".tr
+                    : "delete_sub_wallet_desc".tr),
+                WidgetConstant.height20,
+                AlertTextContainer(message: "delete_wallet_alert".tr, enableTap: false)
+              ]),
               buttonWidget: const DialogDoubleButtonView(),
             ),
         label: "erase_wallet".tr);
     if (accept != true) return;
     progressKey.progressText("deleting_wallet".tr);
-    final model = context.watch<WalletProvider>(StateConst.main);
+    final model = context.wallet;
     final result = switch (wallet.subwalletId) {
-      null => await model.wallet.eraseWallet(widget.credential),
-      _ => await model.wallet.removeSubWallet(
-          credential: widget.credential, subWalletId: wallet.subwalletId!)
+      null => await model.wallet
+          .doAction(WalletActionRemoveWallet(credential: widget.credential)),
+      int id => await model.wallet
+          .doAction(WalletActionRemoveSubWallet(id: id, credential: widget.credential))
     };
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError,
+    if (result.isErr) {
+      progressKey.errorText(result.unwrapErr().localizationError,
           backToIdle: false, showBackButton: true);
     } else {
       if (wallet.subwalletId == null) {
         progressKey.successText("wallet_deleted_success".tr, backToIdle: false);
-        await MethodUtils.wait();
+        await MethodUtils.delayed();
         navigatorKey?.currentContext?.popToHome();
         return;
       }
@@ -154,40 +144,38 @@ class _EraseWalletViewState extends State<_EraseWalletView>
             SliverConstraintsBoxView(
               padding: WidgetConstant.paddingHorizontal20,
               sliver: SliverToBoxAdapter(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      WidgetConstant.height20,
-                      PageTitleSubtitle(
-                          title: "delete_wallet".tr,
-                          body: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("delete_wallet_desc".tr),
-                            ],
-                          )),
-                      AppDropDownBottom(
-                          items: items,
-                          isDense: false,
-                          isExpanded: true,
-                          value: wallet,
-                          onChanged: onChangeWallet),
-                      WidgetConstant.height8,
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  WidgetConstant.height20,
+                  PageTitleSubtitle(
+                      title: "delete_wallet".tr,
+                      body: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          FixedElevatedButton(
-                            padding: WidgetConstant.paddingVertical40,
-                            onPressed: () {
-                              onDelete();
-
-                              // .then(onDelete);
-                            },
-                            child: Text("delete_wallet".tr),
-                          )
+                          Text("delete_wallet_desc".tr),
                         ],
+                      )),
+                  AppDropDownBottom(
+                      items: items,
+                      isDense: false,
+                      isExpanded: true,
+                      value: wallet,
+                      onChanged: onChangeWallet),
+                  WidgetConstant.height8,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FixedElevatedButton(
+                        padding: WidgetConstant.paddingVertical40,
+                        onPressed: () {
+                          onDelete();
+
+                          // .then(onDelete);
+                        },
+                        child: Text("delete_wallet".tr),
                       )
-                    ]),
+                    ],
+                  )
+                ]),
               ),
             ),
           ],

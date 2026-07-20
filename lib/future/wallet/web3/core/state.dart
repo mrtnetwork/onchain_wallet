@@ -1,17 +1,17 @@
 import 'dart:async';
 
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:flutter/widgets.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/widgets/parogress.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
-mixin Web3StatePageController<WEB3REQUEST extends Web3Request>
-    on StreamStateController {
+mixin Web3StatePageController<WEB3REQUEST extends Web3Request> on StreamStateController {
   WEB3REQUEST get request;
 
   Widget widgetBuilder(BuildContext context);
@@ -21,17 +21,19 @@ mixin Web3StatePageController<WEB3REQUEST extends Web3Request>
   }
 
   bool get web3Closed => request.info.isClosed;
-  StreamWeb3PageProgressController pageKey = StreamWeb3PageProgressController(
-      initialStatus: Web3ProgressStatus.progress);
+  StreamWeb3PageProgressController pageKey =
+      StreamWeb3PageProgressController(initialStatus: Web3RequestStatusProgress());
   StreamSubscription<dynamic>? _listener;
 
-  void _onChangeStatus(Web3RequestCompleterEvent event) {
+  void _onChangeStatus(Web3RequestCompleterEvent? event) {
+    if (event == null) return;
     switch (event.type) {
       case Web3RequestCompleterEventType.success:
         pageKey.successRequest();
         break;
       case Web3RequestCompleterEventType.closed:
-        pageKey.closedRequest(error: event.message);
+        pageKey.closedRequest(
+            error: event.latestError?.message, pageClosed: event.pageClosed);
         break;
       default:
     }
@@ -51,10 +53,6 @@ mixin Web3StatePageController<WEB3REQUEST extends Web3Request>
     _listener = null;
     pageKey.dispose();
     super.dispose();
-    appLogger.debug(
-        runtime: runtimeType,
-        functionName: "dispose",
-        msg: "Web3StatePageController");
   }
 }
 
@@ -76,13 +74,10 @@ class Web3RequestResponseData<RESPONSE> {
   final RESPONSE response;
   final String? message;
   Web3RequestResponseData._(
-      {required this.response,
-      List<SubmitTransactionResult>? txIds,
-      this.message});
+      {required this.response, List<SubmitTransactionResult>? txIds, this.message});
   Web3RequestResponseData({required this.response, this.message});
   factory Web3RequestResponseData.submitTx(
-      {required RESPONSE response,
-      required List<SubmitTransactionResult> txIds}) {
+      {required RESPONSE response, required List<SubmitTransactionResult> txIds}) {
     assert(txIds.isNotEmpty);
     return Web3RequestResponseData._(
         response: response, txIds: txIds.isEmpty ? null : txIds);
@@ -97,24 +92,21 @@ enum Web3SecurityLevel {
 
 abstract class Web3StateController<
         RESPONSE,
-        NETWORKADDRESS,
+        NETWORKADDRESS extends IAddress,
         NETWORK extends WalletNetwork,
-        CLIENT extends NetworkClient,
+        CLIENT extends CLIENTNADDRESSNETWORK<NETWORKADDRESS, NETWORK>,
         OUTCLIENT extends CLIENT?,
-        WALLETACCOUNT extends NETWORKCHAINACCOUNT<NETWORKADDRESS>,
-        CHAIN extends APPCHAINADDRESSACCOUNTCLIENTNETWORK<NETWORKADDRESS,
-            WALLETACCOUNT, CLIENT, NETWORK>,
-        CHANACCOUNT extends Web3ChainAccount,
-        PARAMS extends Web3RequestParams<RESPONSE, NETWORKADDRESS, CHAIN,
-            WALLETACCOUNT, CHANACCOUNT>,
-        WEB3REQUEST extends Web3NetworkRequest<RESPONSE, NETWORKADDRESS, CHAIN,
-            CHANACCOUNT, WALLETACCOUNT, PARAMS>,
+        WALLETACCOUNT extends ACCOUNADDRESSNETWORK<NETWORKADDRESS, NETWORK>,
+        CHAIN extends APPCHAINADDRESSNETWORKACCOUNTCLIENT<NETWORKADDRESS, NETWORK,
+            WALLETACCOUNT, CLIENT>,
+        CHANACCOUNT extends Web3ChainAccount<NETWORKADDRESS>,
+        PARAMS extends Web3RequestParams<RESPONSE, NETWORKADDRESS, WALLETACCOUNT, CHAIN,
+            CHANACCOUNT>,
+        WEB3REQUEST extends Web3NetworkRequest<RESPONSE, NETWORKADDRESS, WALLETACCOUNT, CHAIN,
+            CHANACCOUNT, PARAMS>,
         FINALRESULT extends Web3RequestResponseData<RESPONSE>,
         T extends ChainTransaction>
-    with
-        DisposableMixin,
-        StreamStateController,
-        Web3StatePageController<WEB3REQUEST>
+    with DisposableMixin, StreamStateController, Web3StatePageController<WEB3REQUEST>
     implements BaseWeb3StateController<WALLETACCOUNT> {
   Web3StateController({required this.walletProvider, required this.request});
   @override
@@ -122,7 +114,7 @@ abstract class Web3StateController<
   Web3SecurityLevel get securityLevel => Web3SecurityLevel.minimal;
   @override
   final StreamValue<TransactionStateStatus> stateStatus =
-      StreamValue(TransactionStateStatus.error());
+      StreamValue(TransactionStateStatus.error(), name: "Web3StateController");
   @override
   TransactionStateStatus getStateStatus() {
     return TransactionStateStatus.ready();
@@ -148,11 +140,8 @@ abstract class Web3StateController<
     return accounts.first;
   }
 
-  ReceiptAddress<NETWORKADDRESS> getOrCreateAddressInfo(
-      NETWORKADDRESS address, String viewAddress) {
-    return account.getReceiptAddress(viewAddress) ??
-        ReceiptAddress<NETWORKADDRESS>(
-            networkAddress: address, view: viewAddress);
+  ReceiptAddress<NETWORKADDRESS> getOrCreateAddressInfo(NETWORKADDRESS address) {
+    return account.getOrCreateReceiptFromNetworkAddressSync(address: address);
   }
 
   CHANACCOUNT? getWeb3Account(NETWORKADDRESS address) {
@@ -166,6 +155,21 @@ abstract class Web3StateController<
 
   late final OUTCLIENT client;
 
+  void _onInitStatus() {
+    final latestEvent = request.info.latestEvent;
+    if (latestEvent == null) return;
+    switch (latestEvent.type) {
+      case Web3RequestCompleterEventType.error:
+      case Web3RequestCompleterEventType.closed:
+      case Web3RequestCompleterEventType.success:
+        pageKey.closedRequest(
+            error: latestEvent.latestError?.message, pageClosed: latestEvent.pageClosed);
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   List<WALLETACCOUNT> get accounts => request.accounts;
   List<CHANACCOUNT> get web3Accounts => request.params.requiredAccounts;
@@ -173,7 +177,7 @@ abstract class Web3StateController<
     if (null is OUTCLIENT) {
       return null as OUTCLIENT;
     }
-    final client = await account.client();
+    final client = (await account.client()).unwrap();
     return client as OUTCLIENT;
   }
 
@@ -181,20 +185,21 @@ abstract class Web3StateController<
   Future<void> initForm(OUTCLIENT client) async {}
   @override
   Future<void> init() async {
-    if (web3Closed) {
-      pageKey.closedRequest();
-      return;
-    }
+    _onInitStatus();
+    if (web3Closed) return;
     _listener = request.info.stream.listen(_onChangeStatus);
     try {
       client = await _client();
+      (await account.initAsMainNetwork()).unwrap();
       await initForm(client);
       onStateUpdated();
       pageKey.idle();
     } catch (e) {
       pageKey.errorResponse(error: e);
-      request.error(e);
-      appLogger.error(runtime: runtimeType, functionName: "init", msg: e);
+      request.error(IExceptionUtils.findError(e));
+      Logging.error(
+        fn: () => AppLogData(runtime: runtimeType, function: "init", err: e),
+      );
     }
   }
 
@@ -205,32 +210,31 @@ abstract class Web3StateController<
       final response = await getResponse();
       request.completeResponse(response.response);
       pageKey.response();
-      appLogger.debug(
-          runtime: runtimeType, functionName: "acceptRequest", msg: response);
+      Logging.debug(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", msg: response.toString()),
+      );
     } on Web3RequestException catch (e, s) {
       pageKey.errorResponse(error: e);
       request.error(e);
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "acceptRequest",
-          msg: e,
-          trace: s);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", err: e, trace: s.toString()),
+      );
     } on AppException catch (e, s) {
       pageKey.error(error: e, showBackButton: true);
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "acceptRequest",
-          msg: e,
-          trace: s);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", err: e, trace: s.toString()),
+      );
     } catch (e, s) {
-      final exception = Web3RequestExceptionConst.fromException(e);
-      pageKey.errorResponse(error: exception);
-      request.error(e);
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "acceptRequest",
-          msg: e,
-          trace: s);
+      final error = IExceptionUtils.findError(e);
+      pageKey.errorResponse(error: error);
+      request.error(error);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", err: e, trace: s.toString()),
+      );
     }
   }
 
@@ -238,9 +242,5 @@ abstract class Web3StateController<
   void dispose() {
     super.dispose();
     stateStatus.dispose();
-    appLogger.debug(
-      runtime: runtimeType,
-      functionName: "dispose",
-    );
   }
 }

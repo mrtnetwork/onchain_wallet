@@ -1,9 +1,8 @@
 import 'package:blockchain_utils/cbor/cbor.dart';
-import 'package:on_chain_wallet/app/external/coingeko/coingeko.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
-class CoingeckoCoin with CborSerializable {
+class CoingeckoCoin with AppSerialization {
   final String apiId;
   final String? coinName;
   final String? symbol;
@@ -13,24 +12,27 @@ class CoingeckoCoin with CborSerializable {
         apiId: json["id"], coinName: json["name"], symbol: json["symbol"]);
   }
 
-  factory CoingeckoCoin.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.coingeckoInfo);
+  factory CoingeckoCoin.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.coingeckoInfo);
     return CoingeckoCoin(
-        apiId: cbor.elementAs(0),
-        coinName: cbor.elementAs(1),
-        symbol: cbor.elementAs(2));
-  }
-
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(CborSerializable.fromDynamic([apiId, coinName, symbol]),
-        CborTagsConst.coingeckoInfo);
+        apiId: cbor.rawValueAt(0),
+        coinName: cbor.rawValueAt(1),
+        symbol: cbor.rawValueAt(2));
   }
 
   String? get marketUri {
     if (coinName == null) return null;
     return CoinGeckoUtils.getTokenCoinGeckoURL(coinName!);
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.coingeckoInfo;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [apiId.toCbor(), coinName?.toCbor(), symbol?.toCbor()];
 }

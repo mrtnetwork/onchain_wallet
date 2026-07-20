@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/assets_image.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart'
     show APPToken, BalanceCore, IntegerBalance;
@@ -74,7 +73,7 @@ class _CoinAndMarketPriceViewState extends State<CoinAndMarketPriceView>
   IntegerBalance? onMarketPriceChange(String? price) {
     if (price == null) return null;
     final token = balance.token;
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     return wallet.currency.amount(price, token);
   }
 
@@ -124,8 +123,7 @@ class _CoinAndMarketPriceViewState extends State<CoinAndMarketPriceView>
   @override
   Widget build(BuildContext context) {
     return ToolTipView(
-      tooltipWidget:
-          widget.disableTooltip ? null : (c) => PriceTooltipWidget(balance),
+      tooltipWidget: widget.disableTooltip ? null : (c) => PriceTooltipWidget(balance),
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Column(
@@ -133,8 +131,7 @@ class _CoinAndMarketPriceViewState extends State<CoinAndMarketPriceView>
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
-              mainAxisSize:
-                  widget.isExpanded ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisSize: widget.isExpanded ? MainAxisSize.max : MainAxisSize.min,
               children: [
                 if (widget.showTokenImage) ...[
                   CircleTokenImageView(balance.token, radius: 10),
@@ -153,8 +150,8 @@ class _CoinAndMarketPriceViewState extends State<CoinAndMarketPriceView>
                           ])),
                 ),
                 Text(token.symbolView,
-                    style: context.textTheme.labelSmall?.copyWith(
-                        color: widget.symbolColor ?? context.colors.primary)),
+                    style: context.textTheme.labelSmall
+                        ?.copyWith(color: widget.symbolColor ?? context.colors.primary)),
               ],
             ),
             if (widget.enableMarketPrice)
@@ -204,8 +201,7 @@ class CoinPriceView extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       text: TextSpan(
                           style: style ??
-                              context.textTheme.labelSmall
-                                  ?.copyWith(color: symbolColor),
+                              context.textTheme.labelSmall?.copyWith(color: symbolColor),
                           children: [
                             TextSpan(text: balance.viewPrice),
                             const TextSpan(text: " "),
@@ -260,8 +256,7 @@ class MarketPriceView extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       text: TextSpan(
                           style: style ??
-                              context.textTheme.labelSmall
-                                  ?.copyWith(color: symbolColor),
+                              context.textTheme.labelSmall?.copyWith(color: symbolColor),
                           children: [
                             TextSpan(text: market.viewPrice),
                             const TextSpan(text: " "),
@@ -301,8 +296,7 @@ class CoinAndMarketLivePriceView extends StatefulWidget {
   final bool isExpanded;
 
   @override
-  State<CoinAndMarketLivePriceView> createState() =>
-      _CoinAndMarketLivePriceViewState();
+  State<CoinAndMarketLivePriceView> createState() => _CoinAndMarketLivePriceViewState();
 }
 
 class _CoinAndMarketLivePriceViewState extends State<CoinAndMarketLivePriceView>
@@ -325,7 +319,7 @@ class _CoinAndMarketLivePriceViewState extends State<CoinAndMarketLivePriceView>
   IntegerBalance? onMarketPriceChange(String? price) {
     if (price == null) return null;
     final token = balance.token;
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     final marketPrice = wallet.currency.amount(price, token);
     return marketPrice;
   }
@@ -391,8 +385,7 @@ class _CoinAndMarketLivePriceViewState extends State<CoinAndMarketLivePriceView>
   @override
   Widget build(BuildContext context) {
     return ToolTipView(
-      tooltipWidget:
-          widget.disableTooltip ? null : (c) => PriceTooltipWidget(balance),
+      tooltipWidget: widget.disableTooltip ? null : (c) => PriceTooltipWidget(balance),
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Column(
@@ -400,8 +393,7 @@ class _CoinAndMarketLivePriceViewState extends State<CoinAndMarketLivePriceView>
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
-              mainAxisSize:
-                  widget.isExpanded ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisSize: widget.isExpanded ? MainAxisSize.max : MainAxisSize.min,
               children: [
                 if (widget.showTokenImage) ...[
                   CircleTokenImageView(balance.token, radius: 10),
@@ -420,8 +412,8 @@ class _CoinAndMarketLivePriceViewState extends State<CoinAndMarketLivePriceView>
                           ])),
                 ),
                 Text(token.symbolView,
-                    style: context.textTheme.labelSmall?.copyWith(
-                        color: widget.symbolColor ?? context.colors.primary)),
+                    style: context.textTheme.labelSmall
+                        ?.copyWith(color: widget.symbolColor ?? context.colors.primary)),
               ],
             ),
             if (widget.enableMarketPrice)

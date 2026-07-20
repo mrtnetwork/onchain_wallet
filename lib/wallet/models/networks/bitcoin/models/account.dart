@@ -1,110 +1,126 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/serialization/cbor/cbor.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
+import 'package:on_chain_wallet/wallet/constant/networks/bitcoin.dart';
+import 'package:on_chain_wallet/wallet/models/others/models/utxo_timelock.dart';
 
-enum BitcoinUTXOStatus {
-  mempool(0),
-  comfirmed(1);
+enum BitcoinUtxoSpendableStatus {
+  /// related to shield request tracking and request not completed yet.
+  notReady(0),
 
-  bool get confirmed => this == comfirmed;
+  /// ready to spend
+  ready(1),
+
+  /// spended and now this is in mempool and should be removed
+  spended(2);
 
   final int value;
-  const BitcoinUTXOStatus(this.value);
-  static BitcoinUTXOStatus fromValue(int? value) {
+  const BitcoinUtxoSpendableStatus(this.value);
+  static BitcoinUtxoSpendableStatus fromValue(int? value) {
     return values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw AppSerializationException(
-          objectName: "BitcoinUTXOStatus.fromValue"),
+      orElse: () => throw AppInternalError.internalError("ZcashUtxoSpendableStatus",
+          details: {"value": value?.toString()}),
     );
   }
+
+  bool get isReady => this == ready;
 }
 
-class BitcoinUTXO with CborSerializable, Equality {
-  final String txId;
-  final BigInt value;
-  final int index;
-  final CashToken? token;
-  BitcoinUTXOStatus _status;
-  BitcoinUTXOStatus get status => _status;
-  BitcoinUTXO._(
-      {required this.txId,
-      required this.value,
-      required this.index,
-      required this.token,
-      BitcoinUTXOStatus staus = BitcoinUTXOStatus.mempool})
-      : _status = staus;
-  factory BitcoinUTXO(
-      {required String txId,
-      required BigInt value,
-      required int index,
-      required CashToken? token,
-      BitcoinUTXOStatus status = BitcoinUTXOStatus.mempool}) {
-    assert(!value.isNegative);
-    assert(!index.isNegative);
-    if (value.isNegative || index.isNegative) {
-      throw WalletExceptionConst.invalidAccountUtxo;
-    }
-    return BitcoinUTXO._(
-        txId: StringUtils.normalizeHex(txId),
-        value: value,
-        index: index,
-        token: token,
-        staus: status);
-  }
-  factory BitcoinUTXO.deserialize(
-      {CborObject? obj, List<int>? bytes, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        object: obj,
-        cborBytes: bytes,
-        hex: hex,
-        tags: CborTagsConst.bitcoinUtxo);
-    return BitcoinUTXO._(
-        txId: values.valueAs(0),
-        value: values.valueAs(1),
-        index: values.valueAs(2),
-        token: values.indexMaybeAs<CashToken, CborBytesValue>(
-          3,
-          (e) {
-            final data = CashToken.deserialize(e.value);
-            final token = data.item1;
-            if (token == null) {
-              throw AppSerializationException(
-                  objectName: "BitcoinAddressUtxo.deserialize");
-            }
-            return token;
-          },
-        ),
-        staus: BitcoinUTXOStatus.fromValue(values.valueAs(4)));
-  }
-  @override
-  CborTagValue<CborObject> toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          CborStringValue(txId),
-          CborBigIntValue(value),
-          CborIntValue(index),
-          token == null ? CborNullValue() : CborBytesValue(token!.toBytes()),
-          CborIntValue(_status.value),
-        ]),
-        CborTagsConst.bitcoinUtxo);
+final class BitcoinUtxoWithSpendingInfo with AppSerialization, PartialEquality {
+  final BitcoinUtxo utxo;
+  bool get coinbase => utxo.coinbase ?? false;
+  BitcoinUtxoSpendableStatus _status;
+  BitcoinUtxoSpendableStatus get status => _status;
+  final int? sequence;
+  final UtxoTimelock confirmation;
+  BigInt get value => utxo.value;
+  int get index => utxo.vout;
+
+  BitcoinUtxoWithSpendingInfo._(
+      {required this.utxo,
+      required this.confirmation,
+      this.sequence,
+      required BitcoinUtxoSpendableStatus status})
+      : _status = status;
+  factory BitcoinUtxoWithSpendingInfo.unconfirmed(BitcoinUtxo utxo,
+      {BitcoinUtxoSpendableStatus status = BitcoinUtxoSpendableStatus.ready}) {
+    assert(utxo.coinbase != null, "missing coinbase info");
+    return BitcoinUtxoWithSpendingInfo._(
+        utxo: utxo, confirmation: UtxoTimelock.unknown(), status: status);
   }
 
+  factory BitcoinUtxoWithSpendingInfo.fromBlockHeight(BitcoinUtxo utxo, int height,
+      {BitcoinUtxoSpendableStatus status = BitcoinUtxoSpendableStatus.ready}) {
+    UtxoTimelock timelock() {
+      assert(utxo.coinbase != null, "missing coinbase info");
+      if (!utxo.confirmed()) {
+        return UtxosTimelockMempool();
+      }
+      return UtxoTimelockBlock(
+          utxoBlock: utxo.blockHeight,
+          currentHeight: height,
+          minConfirmation: switch (utxo.coinbase ?? false) {
+            true => BtcConst.minCoinbaseConfirmation,
+            false => 1,
+          });
+    }
+
+    return BitcoinUtxoWithSpendingInfo._(
+      utxo: utxo,
+      confirmation: timelock(),
+      status: status,
+    );
+  }
+
+  factory BitcoinUtxoWithSpendingInfo.deserialize(
+      {List<int>? bytes, CborObject? object}) {
+    final values = AppSerialization.decodeTaggedValue(
+        identifier: AppSerializationIdentifier.bitcoinUtxo,
+        cborBytes: bytes,
+        cborObject: object);
+    return BitcoinUtxoWithSpendingInfo._(
+        utxo: BitcoinUtxo.deserialize(object: values.objectAt(0)),
+        confirmation: UtxoTimelock.unknown(),
+        sequence: values.rawValueAt(1),
+        status: BitcoinUtxoSpendableStatus.fromValue(values.rawValueAt(2)));
+  }
+  String txId() => utxo.txHash;
   @override
-  List get variabels => [txId, index];
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.bitcoinUtxo;
+
+  @override
+  List<CborObject?> get serializationItems =>
+      [utxo.toCbor(), sequence?.toCbor(), status.value.toCbor()];
+
+  @override
+  List<dynamic> get parts => [utxo];
 
   @override
   String toString() {
-    return "txId: $txId index: $index status:${_status.name}";
+    return "Utxo: $utxo confirmation: $confirmation";
   }
 }
 
-class BitcoinAddressUtxo with CborSerializable {
-  Set<BitcoinUTXO> _utxos;
-  Set<BitcoinUTXO> get utxos => _utxos;
-  bool updateUtxos(Iterable<BitcoinUTXO> utxos) {
+final class BitcoinUtxosWithAccountInfo {
+  final UtxoAddressDetails account;
+  final List<BitcoinUtxoWithSpendingInfo> utxos;
+  BitcoinUtxosWithAccountInfo(
+      {required this.account, required List<BitcoinUtxoWithSpendingInfo> utxos})
+      : utxos = utxos.immutable;
+
+  @override
+  String toString() {
+    return utxos.join(", ");
+  }
+}
+
+class BitcoinAddressUtxo with AppSerialization {
+  Set<BitcoinUtxoWithSpendingInfo> _utxos;
+  Set<BitcoinUtxoWithSpendingInfo> get utxos => _utxos;
+  bool updateUtxos(Iterable<BitcoinUtxoWithSpendingInfo> utxos) {
     _utxos = utxos.toImutableSet;
     return true;
   }
@@ -113,28 +129,27 @@ class BitcoinAddressUtxo with CborSerializable {
     return _utxos.fold<BigInt>(BigInt.zero, (p, c) => p + c.value);
   }
 
-  BitcoinAddressUtxo({Set<BitcoinUTXO> utxos = const {}})
+  BitcoinAddressUtxo({Set<BitcoinUtxoWithSpendingInfo> utxos = const {}})
       : _utxos = utxos.immutable;
-  factory BitcoinAddressUtxo.deserialize(
-      {CborObject? obj, List<int>? bytes, String? hex}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        object: obj,
+  factory BitcoinAddressUtxo.deserialize({CborObject? object, List<int>? bytes}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborObject: object,
         cborBytes: bytes,
-        hex: hex,
-        tags: CborTagsConst.bitcoinAddressUtxo);
+        identifier: AppSerializationIdentifier.bitcoinAddressUtxo);
     return BitcoinAddressUtxo(
       utxos: values
-          .elementAsListOf<CborTagValue>(0)
-          .map((e) => BitcoinUTXO.deserialize(obj: e))
+          .listAt<CborTagValue>(0)
+          .map((e) => BitcoinUtxoWithSpendingInfo.deserialize(object: e))
           .toSet(),
     );
   }
+
   @override
-  CborTagValue<CborObject> toCbor() {
-    return CborTagValue(
-        CborListValue.definite([
-          CborListValue.definite(_utxos.map((e) => e.toCbor()).toList()),
-        ]),
-        CborTagsConst.bitcoinAddressUtxo);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.bitcoinAddressUtxo;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        CborListValue.definite(_utxos.map((e) => e.toCbor()).toList()),
+      ];
 }

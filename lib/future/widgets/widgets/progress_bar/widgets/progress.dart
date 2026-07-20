@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 
 export 'page_progress.dart';
 export 'progress_widgets.dart';
 export 'stream_bottun.dart';
 
-extension QuickAccsessStreamButtonStateState on GlobalKey<StreamWidgetState> {
+extension ExtQuickAccsessStreamButtonStateState on GlobalKey<StreamWidgetState> {
   bool get inProgress => currentState?.isProgress ?? false;
   void error({String? message}) {
     currentState?.errorProgress(message: message);
@@ -20,20 +19,12 @@ extension QuickAccsessStreamButtonStateState on GlobalKey<StreamWidgetState> {
     currentState?.updateStream(StreamWidgetStatus.idle);
   }
 
-  void fromMethodResult(MethodResult result) {
-    if (result.hasError) {
-      error(message: result.localizationError);
-    } else {
-      success();
-    }
-  }
-
   void process() {
     currentState?.updateStream(StreamWidgetStatus.progress);
   }
 }
 
-extension QuickAccsessPageProgressState on GlobalKey<PageProgressBaseState> {
+extension ExtQuickAccsessPageProgressState on GlobalKey<PageProgressBaseState> {
   void progress([Widget? progressWidget]) {
     currentState?.updateStream(StreamWidgetStatus.progress,
         progressWidget: progressWidget);
@@ -49,16 +40,14 @@ extension QuickAccsessPageProgressState on GlobalKey<PageProgressBaseState> {
   }
 
   void error([Widget? progressWidget]) {
-    currentState?.updateStream(StreamWidgetStatus.error,
-        progressWidget: progressWidget);
+    currentState?.updateStream(StreamWidgetStatus.error, progressWidget: progressWidget);
   }
 
   void backToIdle([Widget? progressWidget]) {
     currentState?.updateStream(StreamWidgetStatus.idle);
   }
 
-  void errorText(String text,
-      {bool backToIdle = true, bool showBackButton = false}) {
+  void errorText(String text, {bool backToIdle = true, bool showBackButton = false}) {
     currentState?.updateStream(StreamWidgetStatus.error,
         progressWidget: ErrorWithTextView(
           text: text,

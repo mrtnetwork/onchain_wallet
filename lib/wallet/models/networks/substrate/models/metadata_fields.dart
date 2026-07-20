@@ -1,14 +1,13 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/crypto/utils/substrate/substrate.dart';
+import 'package:on_chain_wallet/crypto/networks/substrate/substrate.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
 abstract class LookupField {
   const LookupField();
   T cast<T extends LookupField>() {
     if (this is! T) {
-      throw WalletExceptionConst.internalError("LookupField");
+      throw AppInternalError.internalError("LookupField");
     }
     return this as T;
   }
@@ -83,8 +82,7 @@ class ExtrinsicPayloadInfo {
     final payload = SubstrateUtils.createPayload(serializedExtrinsic);
     return ExtrinsicPayloadInfo._(
         payload: BytesUtils.toHexString(payload, prefix: "0x"),
-        serializedExtrinsic:
-            BytesUtils.toHexString(serializedExtrinsic, prefix: "0x"),
+        serializedExtrinsic: BytesUtils.toHexString(serializedExtrinsic, prefix: "0x"),
         payloadInfo: payloadInfo,
         method: BytesUtils.toHexString(method, prefix: "0x"),
         payloadBytes: payload,
@@ -138,7 +136,8 @@ class ExtrinsicInfo {
   List<int> serialize({bool encodeLength = true}) {
     final extrinsicBytes = BytesUtils.fromHexString(serializedExtrinsic);
     if (encodeLength) {
-      final length = LayoutSerializationUtils.encodeLength(extrinsicBytes);
+      final length =
+          LayoutSerializationUtils.encodeLength(extrinsicBytes.length.toString());
       return [...length, ...extrinsicBytes];
     }
     return extrinsicBytes;
@@ -164,8 +163,7 @@ class SubstrateDefaultTransfer {
 
   Map<String, dynamic> toJson(
       {required SubstrateAddressEncodingType addressType,
-      BalancesCallPalletMethod method =
-          BalancesCallPalletMethod.transferAllowDeath,
+      BalancesCallPalletMethod method = BalancesCallPalletMethod.transferAllowDeath,
       bool usePallet = false}) {
     final toJson = {
       method.method: {"dest": _getDest(addressType), "value": value}
@@ -177,8 +175,7 @@ class SubstrateDefaultTransfer {
   List<int> encode(
       {required MetadataApi metadata,
       required SubstrateAddressEncodingType addressType,
-      BalancesCallPalletMethod method =
-          BalancesCallPalletMethod.transferAllowDeath}) {
+      BalancesCallPalletMethod method = BalancesCallPalletMethod.transferAllowDeath}) {
     final Map<String, dynamic> input = {
       method.method: {"dest": _getDest(addressType), "value": value}
     };

@@ -1,12 +1,12 @@
 import 'dart:async';
-
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/api/client/core/client.dart';
-import 'package:on_chain_wallet/wallet/api/provider/core/provider.dart';
-import 'package:on_chain_wallet/wallet/api/provider/networks/aptos.dart';
-import 'package:on_chain_wallet/wallet/api/services/service.dart';
+import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/provider.dart';
+import 'package:on_chain_wallet/wallet/api/service/services/default.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/network_providers.dart';
 import 'package:on_chain_wallet/wallet/constant/chain/const.dart';
 import 'package:on_chain_wallet/wallet/models/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/aptos/models/types.dart';
@@ -14,34 +14,23 @@ import 'package:on_chain_wallet/wallet/models/token/token.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/aptos.dart';
 import 'package:on_chain/aptos/aptos.dart';
-import 'package:on_chain_wallet/wallet/chain/account.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
-class AptosClient extends NetworkClient<AptosWalletTransaction,
-    AptosAPIProvider, AptosNetworkToken, AptosAddress> {
-  final AptosProvider provider;
-  @override
-  final WalletAptosNetwork? network;
-  AptosClient({required this.provider, this.network});
-  @override
-  AptosHTTPService get service => provider.rpc as AptosHTTPService;
-
-  @override
-  ProviderIdentifier get serviceIdentifier => AptosProviderIdentifier(
-      fullNodeIdentifier: service.provider.identifier,
-      graphQlIdentifier: service.graphQlProvider.identifier);
+abstract mixin class AptosClientMethods {
+  DefaultProvider<AptosProvider<MultiChainServiceClient>, AptosRequestDetails>
+      get fullNodeProvider;
+  DefaultProvider<AptosProvider<MultiChainServiceClient>, AptosRequestDetails>
+      get graphQlProvider;
 
   Future<BigInt> getAccountBalance(AptosAddress address) async {
-    final r = await provider.request(
+    final r = await fullNodeProvider.request(
         AptosRequestExecuteViewFunctionOfaModule<BigInt>.bcs(
             entry: AptosTransactionEntryFunction(
-                moduleId:
-                    AptosModuleId(address: AptosAddress.one, name: "coin"),
+                moduleId: AptosModuleId(address: AptosAddress.one, name: "coin"),
                 functionName: "balance",
                 typeArgs: [
           AptosTypeTagStruct(AptosStructTag(
-              address: AptosAddress.one,
-              moduleName: "aptos_coin",
-              name: "AptosCoin"))
+              address: AptosAddress.one, moduleName: "aptos_coin", name: "AptosCoin"))
         ],
                 args: [
           address
@@ -50,39 +39,31 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
   }
 
   Future<List<AptosAccountTokenInfo>> getAccountTokenBalances(
-      {required AptosAddress address,
-      List<String> assetTypes = const []}) async {
-    final balances =
-        await _getAccountTokenBalances(address, assetTypes: assetTypes);
+      {required AptosAddress address, List<String> assetTypes = const []}) async {
+    final balances = await _getAccountTokenBalances(address, assetTypes: assetTypes);
     if (assetTypes.isEmpty) return balances;
     final updatedAssets = balances.map((e) => e.assetType).toList();
     assetTypes = assetTypes.where((e) => !updatedAssets.contains(e)).toList();
     for (final i in assetTypes) {
-      final balance = await provider.request(
-          AptosRequestGetAccountAssetResources(address: address, assetType: i));
-      balances.add(
-          AptosAccountTokenInfo(balance: balance, frozen: false, assetType: i));
+      final balance = await fullNodeProvider
+          .request(AptosRequestGetAccountAssetResources(address: address, assetType: i));
+      balances.add(AptosAccountTokenInfo(balance: balance, frozen: false, assetType: i));
     }
     return balances;
   }
 
-  Future<List<AptosAccountTokenInfo>> _getAccountTokenBalances(
-      AptosAddress address,
+  Future<List<AptosAccountTokenInfo>> _getAccountTokenBalances(AptosAddress address,
       {List<String> assetTypes = const []}) async {
     List<AptosAccountTokenInfo> updated = [];
     try {
       const limit = 1;
       int offset = 0;
       while (true) {
-        final r = await provider.request(
-            AptosGraphQLRequestGetCurrentFungibleAssetBalances(
-                variables:
-                    AptosGraphQLPaginatedVariablesParams(whereCondition: {
+        final r = await graphQlProvider
+            .request(AptosGraphQLRequestGetCurrentFungibleAssetBalances(
+                variables: AptosGraphQLPaginatedVariablesParams(whereCondition: {
           "owner_address": {"_eq": address.address},
-          "asset_type": {
-            if (assetTypes.isNotEmpty) "_in": assetTypes,
-            "_nin": updated
-          }
+          "asset_type": {if (assetTypes.isNotEmpty) "_in": assetTypes, "_nin": updated}
         }, limit: limit, offset: offset)));
         for (final i in r) {
           final amount = BigintUtils.tryParse(i.amount);
@@ -112,22 +93,21 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
     List<AptosFATokens> tokens = [];
     List<String> nIn = [AptosConstants.aptosCoinAssetType];
     while (true) {
-      final r = await provider
+      final r = await graphQlProvider
           .request(AptosGraphQLRequestGetCurrentFungibleAssetBalances(
               variables: AptosGraphQLPaginatedVariablesParams(whereCondition: {
         "owner_address": {"_eq": address.address},
         "asset_type": {"_nin": nIn}
       }, limit: limit, offset: offset)));
       final metadata =
-          await provider.request(AptosGraphQLRequestGetFungibleAssetMetadata(
+          await graphQlProvider.request(AptosGraphQLRequestGetFungibleAssetMetadata(
               variables: AptosGraphQLPaginatedVariablesParams(whereCondition: {
         "asset_type": {"_in": r.map((e) => e.assetType).toList()}
       })));
 
       for (final i in metadata) {
         final token = r.firstWhereOrNull((e) => e.assetType == i.assetType);
-        if (token == null ||
-            token.assetType == AptosConstants.aptosCoinAssetType) {
+        if (token == null || token.assetType == AptosConstants.aptosCoinAssetType) {
           continue;
         }
         final ftToken = AptosFATokens.create(
@@ -152,17 +132,17 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
   }
 
   Future<BigInt> getAccountSequence(AptosAddress address) async {
-    final r = await provider.request(AptosRequestGetAccount(address: address));
+    final r = await fullNodeProvider.request(AptosRequestGetAccount(address: address));
     return r.sequenceNumber;
   }
 
   Future<BigInt> getGasUnitPrice() async {
-    final r = await provider.request(AptosRequestEstimateGasPrice());
+    final r = await fullNodeProvider.request(AptosRequestEstimateGasPrice());
     return BigInt.from(r.gasEstimate);
   }
 
   Future<int> getChainId() async {
-    final chainId = await provider.request(AptosRequestGetLedgerInfo());
+    final chainId = await fullNodeProvider.request(AptosRequestGetLedgerInfo());
     return chainId.chainId;
   }
 
@@ -173,60 +153,45 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
       List<AptosAddress>? secondarySignerAddresses}) async {
     final signedTransaction = AptosSignedTransaction(
         rawTransaction: rawTransaction, authenticator: authenticator);
-    final r = await provider.request(AptosRequestSimulateTransaction(
+    final r = await fullNodeProvider.request(AptosRequestSimulateTransaction(
         signedTransactionData: signedTransaction.toBcs(),
         estimateMaxGasAmount: true,
         estimateGasUnitPrice: true));
     return r.first;
   }
 
-  Future<(String, bool)> submitTransaction(
-      AptosSignedTransaction signedTx) async {
-    final r = await provider.requestDynamic(
+  Future<(String, bool)> submitTransaction(AptosSignedTransaction signedTx) async {
+    final r = await fullNodeProvider.requestDynamic(
         AptosRequestSubmitTransaction(signedTransactionData: signedTx.toBcs()));
     final String? txHash = r["hash"]?.toString();
     return (txHash ?? signedTx.txHash(), txHash != null);
   }
 
   Future<int> getCurrenctChainId() async {
-    final currentChainId = network?.coinParam.aptosChainType.id;
-    if (currentChainId != null) {
-      return currentChainId;
-    }
-    final chainId = await provider.request(AptosRequestGetLedgerInfo());
+    final chainId = await fullNodeProvider.request(AptosRequestGetLedgerInfo());
     return chainId.chainId;
   }
 
-  Future<bool> validateGraphQl() async {
-    final chainId = await provider.request(AptosGraphQLRequestChainId());
-    final aptosNetwork = AptosChainType.fromValue(chainId);
-    return aptosNetwork == network?.coinParam.aptosChainType;
-  }
-
-  Future<bool> validateFullNode() async {
-    final chainId = await getChainId();
-    final aptosNetwork = AptosChainType.fromValue(chainId);
-    return aptosNetwork == network?.coinParam.aptosChainType;
-  }
-
-  @override
   Future<WalletTransactionStatus> transactionStatus(
-      {required String txId}) async {
-    try {
-      final tx = await provider
-          .requestDynamic(AptosRequestWaitForTransactionByHash(txId));
-      final parsedTx =
-          MethodUtils.nullOnException(() => AptosApiTransaction.fromJson(tx));
-      assert(parsedTx != null, 'parsing aptos tx failed');
-      if (parsedTx != null && parsedTx is AptosApiUserTransaction) {
-        if (!parsedTx.success) {
-          return WalletTransactionStatus.failed;
-        }
+      AptosWalletTransaction transaction) async {
+    final tx = await fullNodeProvider
+        .requestDynamic(AptosRequestWaitForTransactionByHash(transaction.txId));
+    final parsedTx = MethodUtils.fallbackOnException(
+      () => AptosApiTransaction.fromJson(tx),
+      mode: LoggerMode.danger,
+      onError: (exception, trace) => AppLogData(
+          runtime: runtimeType,
+          function: "transactionStatus",
+          err: exception,
+          trace: trace.toString(),
+          msg: "Failed to decode aptos transaction"),
+    );
+    if (parsedTx != null && parsedTx is AptosApiUserTransaction) {
+      if (!parsedTx.success) {
+        return WalletTransactionStatus.failed;
       }
-      return WalletTransactionStatus.block;
-    } catch (e) {
-      return WalletTransactionStatus.unknown;
     }
+    return WalletTransactionStatus.block;
   }
 
   Future<void> _fetchTokenMetadata(List<AptosNetworkToken> tokens) async {
@@ -235,18 +200,15 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
     for (final i in unknowTokens) {
       i.setPending();
     }
-    final metadata = await MethodUtils.call(() async {
-      return await provider.request(AptosGraphQLRequestGetFungibleAssetMetadata(
+    final metadata = await IResult.call(() async {
+      return await graphQlProvider.request(AptosGraphQLRequestGetFungibleAssetMetadata(
           variables: AptosGraphQLPaginatedVariablesParams(whereCondition: {
-        "asset_type": {
-          "_in": unknowTokens.map((e) => e.token.assetType).toList()
-        }
+        "asset_type": {"_in": unknowTokens.map((e) => e.token.assetType).toList()}
       })));
     });
-    final result = metadata.resultOrNull ?? [];
+    final result = metadata.ok() ?? [];
     for (final i in unknowTokens) {
-      final token =
-          result.firstWhereOrNull((e) => e.assetType == i.token.assetType);
+      final token = result.firstWhereOrNull((e) => e.assetType == i.token.assetType);
       if (token != null) {
         final ftToken = AptosFATokens.create(
             balance: i.token.balance.balance,
@@ -264,9 +226,9 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
     }
   }
 
-  @override
   Stream<List<AptosNetworkToken>> getAccountTokensStream(AptosAddress address) {
-    final controller = StreamController<List<AptosNetworkToken>>();
+    final controller = SafeStreamController<List<AptosNetworkToken>>(
+        name: "AptosClientMethods.getAccountTokensStream");
     const limit = 50;
     int offset = 0;
 
@@ -274,23 +236,21 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
     Future<void> fetchTokens() async {
       while (true && !controller.isClosed) {
         List<AptosNetworkToken> tokens = [];
-        final r = await MethodUtils.call(() async {
-          return await provider.request(
-              AptosGraphQLRequestGetCurrentFungibleAssetBalances(
-                  variables:
-                      AptosGraphQLPaginatedVariablesParams(whereCondition: {
+        final r = await IResult.call(() async {
+          return await graphQlProvider
+              .request(AptosGraphQLRequestGetCurrentFungibleAssetBalances(
+                  variables: AptosGraphQLPaginatedVariablesParams(whereCondition: {
             "owner_address": {"_eq": address.address},
             "asset_type": {"_nin": nIn}
           }, limit: limit, offset: offset)));
         });
-        if (r.hasError) {
-          controller.addError(r.exception!);
+        if (r.isErr) {
+          controller.addError(r.unwrapErr().exception);
           return;
         }
-        for (final i in r.result) {
+        for (final i in r.unwrap()) {
           final assetType = i.assetType;
-          if (assetType == null ||
-              assetType == AptosConstants.aptosCoinAssetType) {
+          if (assetType == null || assetType == AptosConstants.aptosCoinAssetType) {
             continue;
           }
           final metadat = i.metadata;
@@ -310,8 +270,7 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
         }
         controller.add(tokens);
         _fetchTokenMetadata(tokens);
-        if (r.result.length < limit ||
-            offset * limit > ChainConst.maxAccountTokens) {
+        if (r.unwrap().length < limit || offset * limit > ChainConst.maxAccountTokens) {
           break;
         }
         offset++;
@@ -320,16 +279,95 @@ class AptosClient extends NetworkClient<AptosWalletTransaction,
     }
 
     fetchTokens();
-    return controller.stream;
+    return controller.stream();
+  }
+}
+
+class AptosNetworkClient extends NetworkClient<AptosWalletTransaction, AptosNetworkToken,
+    AptosAddress, WalletAptosNetwork> with AptosClientMethods {
+  @override
+  final DefaultProvider<AptosProvider<MultiChainServiceClient>, AptosRequestDetails>
+      fullNodeProvider;
+  @override
+  final DefaultProvider<AptosProvider<MultiChainServiceClient>, AptosRequestDetails>
+      graphQlProvider;
+  @override
+  final AptosNetworkProvider networkProvider;
+  AptosNetworkClient._(
+      {required this.fullNodeProvider,
+      required this.graphQlProvider,
+      required super.network,
+      required this.networkProvider});
+
+  factory AptosNetworkClient.fromProvider({
+    required AptosNetworkProvider provider,
+    required WalletAptosNetwork network,
+    required INetApi netApi,
+  }) {
+    return AptosNetworkClient._(
+        fullNodeProvider:
+            DefaultProvider(AptosProvider(MultiChainServiceClient.fromProvider(
+          provider: provider.fullNode,
+          netApi: netApi,
+        ))),
+        graphQlProvider: DefaultProvider(AptosProvider(
+            MultiChainServiceClient.fromProvider(
+                provider: provider.graphQl, netApi: netApi))),
+        network: network,
+        networkProvider: provider);
+  }
+  factory AptosNetworkClient.fromService({
+    required AptosNetworkProvider provider,
+    required WalletAptosNetwork network,
+    required MultiChainServiceClient fullNode,
+    required MultiChainServiceClient graphQl,
+  }) {
+    assert(provider.fullNode == fullNode.provider);
+    assert(provider.graphQl == graphQl.provider);
+    return AptosNetworkClient._(
+        fullNodeProvider: DefaultProvider(AptosProvider(fullNode)),
+        graphQlProvider: DefaultProvider(AptosProvider(graphQl)),
+        network: network,
+        networkProvider: provider);
   }
 
   @override
-  Future<bool> onInit() async {
-    final fullNode = await validateFullNode();
-    if (fullNode) return await validateGraphQl();
+  Future<int> getCurrenctChainId() async {
+    final currentChainId = network.coinParam.aptosChainType.id;
+    if (currentChainId != null) {
+      return currentChainId;
+    }
+    return super.getCurrenctChainId();
+  }
+
+  Future<bool> validateGraphQl() async {
+    final chainId = await graphQlProvider.request(AptosGraphQLRequestChainId());
+
+    final aptosNetwork = AptosChainType.fromValue(chainId);
+    return aptosNetwork == network.coinParam.aptosChainType;
+  }
+
+  Future<bool> validateFullNode() async {
+    final chainId = await getChainId();
+    final aptosNetwork = AptosChainType.fromValue(chainId);
+    return aptosNetwork == network.coinParam.aptosChainType;
+  }
+
+  @override
+  List<MultiChainServiceClient> services() {
+    return [fullNodeProvider.service, graphQlProvider.service];
+  }
+
+  @override
+  Future<bool> verifyService(DefaultAPIProvider provider) async {
+    if (provider == fullNodeProvider.service.provider) {
+      final verify = await validateFullNode();
+      return verify;
+    }
+    if (provider == graphQlProvider.service.provider) {
+      final verify = await validateGraphQl();
+      return verify;
+    }
     return false;
   }
-
-  @override
-  NetworkType get networkType => NetworkType.aptos;
 }

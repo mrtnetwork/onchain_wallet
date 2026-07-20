@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:on_chain/bcs/move/types/types.dart';
+import 'package:on_chain/serialization/bcs/move/types/types.dart';
 import 'package:on_chain/sui/src/transaction/types/types.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/sui/transaction/types/types.dart';
@@ -25,8 +25,8 @@ class SuiTransactionTransferTokenOperation
   Token get transferToken => token.token;
 
   BigInt getMaxInput(SuiTransferDetails recipient) {
-    final total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    final total =
+        recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
     final max = token.balance.balance - total + recipient.amount.balance;
     if (max.isNegative) return BigInt.zero;
     return max;
@@ -44,18 +44,16 @@ class SuiTransactionTransferTokenOperation
     if (!status.isReady) return status;
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
-    BigInt total = address.address.currencyBalance - txFee.fee.requiredFee;
+    BigInt total = address.addressData.currencyBalance - txFee.fee.requiredFee;
     if (total.isNegative) {
       return TransactionStateStatus.insufficient(
           IntegerBalance.token(total, network.token),
           warning: simulateError);
     }
-    total = recipients.value
-        .fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
+    total = recipients.value.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.balance);
     final r = token.balance.balance - total;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, transferToken),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, transferToken),
           warning: simulateError);
     }
     return TransactionStateStatus.ready(warning: simulateError);
@@ -84,8 +82,7 @@ class SuiTransactionTransferTokenOperation
     gasPrice ??= transaction.fee.gasPrice;
     budget ??= transaction.fee.budget;
     final assetType = transaction.token.assetType;
-    final coins =
-        transaction.coins.where((e) => e.coinType == assetType).toList();
+    final coins = transaction.coins.where((e) => e.coinType == assetType).toList();
     if (coins.isEmpty) {
       throw WalletExceptionConst.insufficientBalance;
     }
@@ -100,15 +97,13 @@ class SuiTransactionTransferTokenOperation
           account: address, transactionData: transaction, transaction: txV1);
     }
     List<SuiCallArguments> inputs = coins
-        .map((e) =>
-            SuiCallArgObject(SuiObjectArgImmOrOwnedObject(e.toObjectRef())))
+        .map((e) => SuiCallArgObject(SuiObjectArgImmOrOwnedObject(e.toObjectRef())))
         .cast<SuiCallArguments>()
         .toList();
     final destionations = transaction.recipients;
     List<SuiCommand> commands = [
       SuiCommandMergeCoins(
-          sources:
-              List.generate(coins.length - 1, (i) => SuiArgumentInput(i + 1)),
+          sources: List.generate(coins.length - 1, (i) => SuiArgumentInput(i + 1)),
           destination: SuiArgumentInput(0)),
       SuiCommandSplitCoins(
           amounts: List.generate(
@@ -116,8 +111,7 @@ class SuiTransactionTransferTokenOperation
           coin: SuiArgumentInput(0))
     ];
 
-    final amounts =
-        destionations.map((e) => SuiCallArgPure.u64(e.amount)).toList();
+    final amounts = destionations.map((e) => SuiCallArgPure.u64(e.amount)).toList();
     inputs.addAll(amounts);
     final transfers = List.generate(destionations.length, (i) {
       final index = inputs.length + i;
@@ -133,10 +127,7 @@ class SuiTransactionTransferTokenOperation
         expiration: const SuiTransactionExpirationNone(),
         sender: address.networkAddress,
         gasData: SuiGasData(
-            payment: [],
-            owner: address.networkAddress,
-            price: gasPrice,
-            budget: budget),
+            payment: [], owner: address.networkAddress, price: gasPrice, budget: budget),
         kind: SuiTransactionKindProgrammableTransaction(kind));
     return ISuiTransaction(
         account: address, transactionData: transaction, transaction: txV1);
@@ -145,8 +136,7 @@ class SuiTransactionTransferTokenOperation
   @override
   Future<List<IWalletTransaction<SuiWalletTransaction, ISuiAddress>>>
       buildWalletTransaction(
-          {required ISuiSignedTransaction<ISuiTransactionDataTokenTransfer>
-              signedTx,
+          {required ISuiSignedTransaction<ISuiTransactionDataTokenTransfer> signedTx,
           required SubmitTransactionSuccess txId}) async {
     final outputs = signedTx.transaction.transactionData.recipients
         .map((e) => SuiWalletTransactionTransferOutput(
@@ -157,8 +147,8 @@ class SuiTransactionTransferTokenOperation
                 token: e.token.token,
                 tokenIdentifier: e.token.issuer)))
         .toList();
-    final total = outputs.fold<BigInt>(
-        BigInt.zero, (p, c) => p + c.amount.amount.balance);
+    final total =
+        outputs.fold<BigInt>(BigInt.zero, (p, c) => p + c.amount.amount.balance);
     final transaction = SuiWalletTransaction(
         txId: txId.txId,
         outputs: outputs,
@@ -169,15 +159,14 @@ class SuiTransactionTransferTokenOperation
             tokenIdentifier: signedTx.transaction.transactionData.token.issuer),
         network: network);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   @override
-  TransactionStateController cloneController(ISuiAddress address) {
-    final addressToken = address.tokens.firstWhere(
-        (e) => e.assetType == token.assetType,
+  Future<TransactionStateController> cloneController(ISuiAddress address) async {
+    final tokens = (await address.getAccountTokens()).unwrap();
+    final addressToken = tokens.firstWhere((e) => e.assetType == token.assetType,
         orElse: () => token.clone(balance: BigInt.zero));
     return SuiTransactionTransferTokenOperation(
         walletProvider: walletProvider,
@@ -197,19 +186,17 @@ class SuiTransactionTransferTokenOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required SuiClient client,
+    required SuiNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super
-        .initForm(context: context, client: client, updateAccount: false);
-    if (!address.tokens.contains(token)) {
+    await super.initForm(context: context, client: client, updateAccount: false);
+    if (!addressTokens.contains(token)) {
       await account.updateTokenBalance(address: address, tokens: [token]);
     } else {
       account.updateTokenBalance(address: address, tokens: [token]);
     }
-    _tokenBalanceListener =
-        token.streamBalance.stream.listen((_) => onAccountUpdated());
+    _tokenBalanceListener = token.streamBalance.stream.listen((_) => onAccountUpdated());
     return this;
   }
 

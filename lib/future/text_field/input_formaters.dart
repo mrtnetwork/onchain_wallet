@@ -115,14 +115,10 @@ class BigRetionalTextInputFormatter extends TextInputFormatter {
   final bool allowSign;
 
   BigRetionalTextInputFormatter(
-      {this.max,
-      this.maxScale,
-      this.allowSign = true,
-      this.allowDecimal = true});
+      {this.max, this.maxScale, this.allowSign = true, this.allowDecimal = true});
 
   static TextEditingValue _buildOldValue(TextEditingValue oldValue) {
-    final BigRational? enteredNumber =
-        BigRational.tryParseDecimaal(oldValue.text);
+    final BigRational? enteredNumber = BigRational.tryParse(oldValue.text);
     if (enteredNumber == null) {
       return const TextEditingValue(
           text: "", selection: TextSelection.collapsed(offset: 0));
@@ -135,8 +131,7 @@ class BigRetionalTextInputFormatter extends TextInputFormatter {
       TextEditingValue oldValue, TextEditingValue newValue) {
     final String newString = newValue.text;
     if (newString.isNotEmpty) {
-      final BigRational? enteredNumber =
-          BigRational.tryParseDecimaal(newString);
+      final BigRational? enteredNumber = BigRational.tryParse(newString);
       if (enteredNumber != null) {
         if (max != null && enteredNumber > max!) {
           return _buildOldValue(oldValue);
@@ -153,16 +148,14 @@ class BigRetionalTextInputFormatter extends TextInputFormatter {
       }
     }
     return TextEditingValue(
-        text: newString,
-        selection: TextSelection.collapsed(offset: newString.length));
+        text: newString, selection: TextSelection.collapsed(offset: newString.length));
   }
 }
 
 class CurrencyTextEdittingController extends TextEditingController {
   String? _symbol;
   final bool showMarketPrice;
-  CurrencyTextEdittingController(
-      {super.text = '', this.showMarketPrice = true});
+  CurrencyTextEdittingController({super.text = '', this.showMarketPrice = true});
 
   String getText() {
     return text.replaceAll(",", '');
@@ -180,18 +173,13 @@ class CurrencyTextEdittingController extends TextEditingController {
 
   @override
   TextSpan buildTextSpan(
-      {required BuildContext context,
-      TextStyle? style,
-      required bool withComposing}) {
-    assert(!value.composing.isValid ||
-        !withComposing ||
-        value.isComposingRangeValid);
+      {required BuildContext context, TextStyle? style, required bool withComposing}) {
+    assert(!value.composing.isValid || !withComposing || value.isComposingRangeValid);
     final symbol = _symbol;
     // If the composing range is out of range for the current text, ignore it to
     // preserve the tree integrity, otherwise in release mode a RangeError will
     // be thrown and this EditableText will be built with a broken subtree.
-    final bool composingRegionOutOfRange =
-        !value.isComposingRangeValid || !withComposing;
+    final bool composingRegionOutOfRange = !value.isComposingRangeValid || !withComposing;
 
     if (composingRegionOutOfRange) {
       if (symbol == null) {
@@ -204,8 +192,7 @@ class CurrencyTextEdittingController extends TextEditingController {
           WidgetSpan(
               child: Opacity(
                   opacity: 0.4,
-                  child:
-                      Text(" $symbol", style: context.textTheme.labelLarge))),
+                  child: Text(" $symbol", style: context.textTheme.labelLarge))),
         ],
       );
     }
@@ -217,9 +204,7 @@ class CurrencyTextEdittingController extends TextEditingController {
       style: style,
       children: <TextSpan>[
         TextSpan(text: value.composing.textBefore(value.text)),
-        TextSpan(
-            style: composingStyle,
-            text: value.composing.textInside(value.text)),
+        TextSpan(style: composingStyle, text: value.composing.textInside(value.text)),
         TextSpan(text: value.composing.textAfter(value.text)),
       ],
     );
@@ -249,7 +234,7 @@ class BigRetionalWithSeperatorTextInputFormatter extends TextInputFormatter {
   static TextEditingValue _buildOldValue(TextEditingValue oldValue,
       {String sperator = ','}) {
     final String newString = oldValue.text.replaceAll(sperator, '');
-    final BigRational? enteredNumber = BigRational.tryParseDecimaal(newString);
+    final BigRational? enteredNumber = BigRational.tryParse(newString);
     if (enteredNumber == null) {
       return const TextEditingValue(
           text: "", selection: TextSelection.collapsed(offset: 0));
@@ -263,8 +248,7 @@ class BigRetionalWithSeperatorTextInputFormatter extends TextInputFormatter {
     bool isEnd = newValue.text.length == newValue.selection.end;
     String newString = newValue.text.replaceAll(sperator, '');
     if (newString.isNotEmpty) {
-      final BigRational? enteredNumber =
-          BigRational.tryParseDecimaal(newString);
+      final BigRational? enteredNumber = BigRational.tryParse(newString);
       if (newString == ".") {
         newString = "0.";
       } else if (enteredNumber != null) {
@@ -293,8 +277,8 @@ class BigRetionalWithSeperatorTextInputFormatter extends TextInputFormatter {
         return _buildOldValue(oldValue);
       }
     }
-    final newTxt = StrUtils.to3Digits(newString,
-        allowEmptyFractional: true, separator: sperator);
+    final newTxt =
+        StrUtils.to3Digits(newString, allowEmptyFractional: true, separator: sperator);
     if (!isEnd) {
       final current = newValue.text.substring(0, newValue.selection.end);
       final commaCount = speratorRegex.allMatches(current).length;
@@ -303,12 +287,10 @@ class BigRetionalWithSeperatorTextInputFormatter extends TextInputFormatter {
       final ss = scommaCount - commaCount;
       return TextEditingValue(
           text: newTxt,
-          selection:
-              TextSelection.collapsed(offset: newValue.selection.end + ss));
+          selection: TextSelection.collapsed(offset: newValue.selection.end + ss));
     }
     return TextEditingValue(
-        text: newTxt,
-        selection: TextSelection.collapsed(offset: newTxt.length));
+        text: newTxt, selection: TextSelection.collapsed(offset: newTxt.length));
   }
 }
 
@@ -323,18 +305,13 @@ class WebViewTextEditingController extends TextEditingController {
 
   @override
   TextSpan buildTextSpan(
-      {required BuildContext context,
-      TextStyle? style,
-      required bool withComposing}) {
-    assert(!value.composing.isValid ||
-        !withComposing ||
-        value.isComposingRangeValid);
+      {required BuildContext context, TextStyle? style, required bool withComposing}) {
+    assert(!value.composing.isValid || !withComposing || value.isComposingRangeValid);
     // final symbol = _symbol;
     // If the composing range is out of range for the current text, ignore it to
     // preserve the tree integrity, otherwise in release mode a RangeError will
     // be thrown and this EditableText will be built with a broken subtree.
-    final bool composingRegionOutOfRange =
-        !value.isComposingRangeValid || !withComposing;
+    final bool composingRegionOutOfRange = !value.isComposingRangeValid || !withComposing;
 
     if (composingRegionOutOfRange) {
       return TextSpan(style: style, text: text);
@@ -347,9 +324,7 @@ class WebViewTextEditingController extends TextEditingController {
       style: style,
       children: <TextSpan>[
         TextSpan(text: value.composing.textBefore(value.text)),
-        TextSpan(
-            style: composingStyle,
-            text: value.composing.textInside(value.text)),
+        TextSpan(style: composingStyle, text: value.composing.textInside(value.text)),
         TextSpan(text: value.composing.textAfter(value.text)),
       ],
     );

@@ -12,7 +12,7 @@ class XRPRPCFetchTokens
   @override
   String get method => XRPRequestMethod.gatewayBalances;
 
-  final XRPAddress account;
+  final XRPBaseAddress account;
   final bool strict;
   final bool allowObligations;
 
@@ -22,7 +22,7 @@ class XRPRPCFetchTokens
   @override
   Map<String, dynamic> toJson() {
     return {
-      "account": account.address,
+      "account": account.classicAddress,
       "strict": strict,
       "hotWallet": hotWallet
     };
@@ -39,7 +39,7 @@ class XRPRPCFetchTokens
             (assets[i] as List).cast();
         for (final c in currencies) {
           tokens.add(XRPIssueToken(
-              issuer: XRPAddress(i),
+              issuer: XRPBaseAddress(i),
               currency: c["currency"],
               balance: c["value"],
               account: account));

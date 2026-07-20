@@ -1,149 +1,234 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-final class ITronAddress
-    extends ChainAccount<TronAddress, TronToken, NFTCore, TronWalletTransaction>
-    with TronChainAccountRepository, TronChainAccountController {
+final class ITronAddress extends ChainAccount<TronAddress, TronToken, NFTCore,
+    TronWalletTransaction, WalletTronNetwork> with TronChainAccountRepository {
   ITronAddress._(
-      {required super.keyIndex,
+      {required super.derivationIndex,
+      required super.database,
       required super.coin,
       required List<int> publicKey,
       required super.address,
       required super.network,
       required super.networkAddress,
       required super.identifier,
-      super.accountName})
-      : publicKey = List.unmodifiable(publicKey);
+      required super.id})
+      : publicKey = publicKey.asImmutableBytes;
 
   factory ITronAddress._newAccount({
     required List<int> publicKey,
     required WalletTronNetwork network,
     required TronAddress address,
     required String identifier,
-    required AddressDerivationIndex keyIndex,
+    required DerivationIndex derivationIndex,
+    required IAppDatabaseApi? database,
     required CryptoCoins coin,
+    required String? id,
   }) {
-    final balance =
-        ChainAccountBalance(address: address.toAddress(), network: network);
     return ITronAddress._(
         coin: coin,
         publicKey: publicKey,
-        address: balance,
-        keyIndex: keyIndex,
+        address: address.toAddress(),
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: address,
-        network: network.value,
-        identifier: identifier);
+        network: network,
+        identifier: identifier,
+        id: id);
   }
 
-  factory ITronAddress.deserialize(WalletTronNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
+  factory ITronAddress.deserialize(
+      {required WalletTronNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
     final CborTagValue toCborTag =
-        CborSerializable.decode(cborBytes: bytes, object: obj);
-    if (BytesUtils.bytesEqual(
-        toCborTag.tags, CborTagsConst.tronMultisigAccount)) {
-      return ITronMultisigAddress.deserialize(network, obj: toCborTag);
+        AppSerialization.decode(cborBytes: bytes, cborObject: object);
+    if (AppSerializationIdentifier.tronMultisigAccount.isValidTags(toCborTag.tags)) {
+      return ITronMultisigAddress.deserialize(
+          network: network, id: id, object: toCborTag, database: database);
     }
-    final CborListValue values = CborSerializable.cborTagValue(
-        object: toCborTag, tags: CborTagsConst.tronAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
-    final keyIndex =
-        AddressDerivationIndex.deserialize(obj: values.elementAsCborTag(1));
-    final List<int> publicKey = values.elementAs(2);
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(3));
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborObject: toCborTag, identifier: AppSerializationIdentifier.tronAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
+    final derivationIndex =
+        DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
+    final List<int> publicKey = values.rawValueAt(2);
 
-    final TronAddress tronAddress = TronAddress(address.toAddress);
-    final int networkId = values.elementAs(4);
+    final TronAddress tronAddress =
+        TronAddress.deserializeIAddress(bytes: values.rawValueAt(3));
+    final int networkId = values.rawValueAt(4);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String? accountName = values.elementAs(5);
-    final String identifier = values.elementAs(6);
+    final String identifier = values.rawValueAt(5);
 
     return ITronAddress._(
         coin: coin,
         publicKey: publicKey,
-        address: address,
-        keyIndex: keyIndex,
+        address: tronAddress.toAddress(),
+        derivationIndex: derivationIndex,
+        database: database,
         networkAddress: tronAddress,
-        network: networkId,
-        accountName: accountName,
-        identifier: identifier);
+        network: network,
+        identifier: identifier,
+        id: id);
   }
-
-  @override
   final List<int> publicKey;
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          keyIndex.toCbor(),
-          publicKey,
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          identifier,
-        ]),
-        CborTagsConst.tronAccount);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.tronAccount;
   @override
-  List get variabels {
-    return [keyIndex, network];
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        derivationIndex.toCbor(),
+        CborBytesValue(publicKey),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        identifier.toCbor(),
+      ];
+  @override
+  List get variables {
+    return [derivationIndex, network.value];
   }
 
   @override
   String? get type => null;
 
-  TronAccountResourceInfo? _accountResource;
-  TronAccountResourceInfo? get accountResource => _accountResource;
-  TronAccountInfo? _account;
-  TronAccountInfo? get accountInfo => _account;
+  // TronAccountResourceInfo? _accountResources;
+  // TronAccountInfo? _accountInfo;
+  // final OnceRunner<void> _tronAccountRunner = OnceRunner();
+  // Future<void> _getAccountInfo() async {
+  //   await _tronAccountRunner.get(
+  //       onFetch: () async {
+  //         _accountInfo = await _getTronAccountInfoStorage();
+  //         _accountResources = await _getTronAccountResourceStorage();
+  //       },
+  //       onFetched: () {});
+  // }
 
-  Future<void> _updateAccountResource(
-      TronAccountResourceInfo? accResource) async {
-    if (accResource != _accountResource) {
-      _accountResource = accResource;
-      await _saveTronAccountResource(_accountResource);
-    }
+  // Future<TronAccountInfo?> getAccountInfo() async {
+  //   await _getAccountInfo();
+  //   return _accountInfo;
+  // }
+
+  // Future<TronAccountResourceInfo?> getAccountResource() async {
+  //   await _getAccountInfo();
+  //   return _accountResources;
+  // }
+
+  // Future<void> _updateAccountResource(TronAccountResourceInfo? accResource) async {
+  //   await _getAccountInfo();
+  //   if (accResource != _accountResources) {
+  //     _accountResources = accResource;
+  //     await _saveTronAccountResource(_accountResources);
+  //   }
+  // }
+
+  // Future<void> _updateTronAccount(TronAccountInfo? tronAcc) async {
+  //   await _getAccountInfo();
+  //   if (tronAcc != _accountInfo) {
+  //     await _setTronAccount(tronAcc);
+  //     await _saveTronAccountInfo(tronAcc);
+  //   }
+  // }
+
+  // Future<void> _setTronAccount(TronAccountInfo? tronAcc) async {
+  //   _accountInfo = tronAcc;
+  //   _updateAddressBalance(_accountInfo?.balance ?? BigInt.zero);
+  //   if (tronAcc != null) {
+  //     final tokens = await getTokens();
+  //     final trc10Tokens = tokens.where((e) => e.tronTokenType.isTrc10);
+  //     for (final i in trc10Tokens) {
+  //       final balance = tronAcc.assetV2.firstWhereNullable((e) => i.issuer == e.key);
+  //       _updateTokenBalance(i, () => i._updateBalance(balance?.value ?? BigInt.zero));
+  //     }
+  //   }
+  // }
+
+  @override
+  NewAccountParams toAccountParams() {
+    return switch (derivationIndex) {
+      DerivableIndex index => TronNewAddressParams(deriveIndex: index, coin: coin),
+      _ => throw AppCryptoExceptionConst.invalidDerivationKey
+    };
   }
 
-  Future<void> _updateTronAccount(TronAccountInfo? tronAcc) async {
-    if (tronAcc != _account) {
-      _setTronAccount(tronAcc);
-      await _saveTronAccountInfo(tronAcc);
-    }
+  /// newApi
+  // TronAccountResourceInfo? _accountResources;
+  // TronAccountInfo? _accountInfo;
+  final OnceRunnerWithData<TronAccountInfo?> _tronAccountInfoRunner =
+      OnceRunnerWithData();
+
+  final OnceRunnerWithData<TronAccountResourceInfo?> _tronAccountResourceRunner =
+      OnceRunnerWithData();
+  Future<IResult<TronAccountInfo?>> getAccountInfo_() async {
+    return _tronAccountInfoRunner.get(onFetch: () async {
+      final account = await _storageGetAccountInfoStorage();
+      return account.mapAsync((e) async {
+        await _updateAccountBalance(e?.balance ?? BigInt.zero);
+        return e;
+      });
+    });
   }
 
-  void _setTronAccount(TronAccountInfo? tronAcc) {
-    _account = tronAcc;
-    _updateAddressBalance(_account?.balance ?? BigInt.zero);
-    if (tronAcc != null) {
-      final trc10Tokens = tokens.where((e) => e.tronTokenType.isTrc10);
-      for (final i in trc10Tokens) {
-        final balance =
-            tronAcc.assetV2.firstWhereNullable((e) => i.issuer == e.key);
-        _updateTokenBalance(
-            i, () => i._updateBalance(balance?.value ?? BigInt.zero));
-      }
-    }
+  Future<IResult<TronAccountResourceInfo?>> getAccountResource_() async {
+    return _tronAccountResourceRunner.get(onFetch: _storageGetAccountResource);
+  }
+
+  Future<IResult<bool>> _updateAccountInfo(TronAccountInfo? tronAcc) async {
+    final accountInfo = await getAccountInfo_();
+    return accountInfo.andThenAsync((e) async {
+      if (e == tronAcc) return ResultOk(false);
+      final result = await _storageSaveTronAccountInfo(tronAcc);
+      return result.andThenAsync((e) async {
+        _tronAccountInfoRunner.setOk(tronAcc);
+        final result = await _updateAccountBalance(tronAcc?.balance ?? BigInt.zero);
+        return result.andThenAsync((e) async {
+          if (tronAcc == null) return result;
+          final tokens = await getAccountTokens();
+          return tokens.andThenAsync((tokens) async {
+            final trc10Tokens = tokens.where((e) => e.tronTokenType.isTrc10);
+            for (final i in trc10Tokens) {
+              final balance =
+                  tronAcc.assetV2.firstWhereNullable((e) => i.issuer == e.key);
+              final result = await _updateAccountTokenBalance(
+                  i, () => i._updateBalance(balance?.value ?? BigInt.zero));
+              if (result.isErr) return result;
+              e |= result.unwrap();
+            }
+            return ResultOk(e);
+          });
+        });
+      });
+    });
+    // if (accountInfo.isOk && accountInfo.ok() == tronAcc) {
+    //   return ResultOk(null);
+    // }
+
+    // await _getAccountInfo();
+    // if (tronAcc != _accountInfo) {
+    //   await _setTronAccount(tronAcc);
+    //   await _saveTronAccountInfo(tronAcc);
+    // }
+  }
+
+  Future<IResult<bool>> _updateAccountResource_(TronAccountResourceInfo? resource) async {
+    final accountInfo = await getAccountResource_();
+    return accountInfo.andThenAsync((e) async {
+      if (resource == e) return ResultOk(false);
+      _tronAccountResourceRunner.setOk(resource);
+      final result = await _storageSaveAccountResource(resource);
+      return result.map((_) => false);
+    });
   }
 
   @override
-  TronNewAddressParams toAccountParams() {
-    return TronNewAddressParams(deriveIndex: keyIndex, coin: coin);
-  }
-
-  @override
-  Future<void> init() async {
-    await super.init();
-    final resource = await _getTronAccountResource();
-    _accountResource = resource;
-    // _setAccountResource(resource);
-    final accountInfo = await _getTronAccountInfo();
-    _setTronAccount(accountInfo);
+  void _dispose() {
+    super._dispose();
+    _tronAccountInfoRunner.dispose();
+    _tronAccountResourceRunner.dispose();
   }
 }
 
@@ -156,56 +241,60 @@ final class ITronMultisigAddress extends ITronAddress
       required super.networkAddress,
       required super.identifier,
       required this.multiSignatureAccount,
-      super.accountName})
-      : super._(keyIndex: MultiSigAddressIndex(), publicKey: const []);
+      required super.database,
+      required super.id})
+      : super._(derivationIndex: MultiSigAddressIndex(), publicKey: const []);
 
   factory ITronMultisigAddress._newAccount({
-    // required TronMultisigNewAddressParams accountParams,
     required CryptoCoins coin,
     required TronAddress address,
     required TronMultiSignatureAddress multiSigAccount,
     required WalletTronNetwork network,
     required String identifier,
+    required String? id,
+    required IAppDatabaseApi? database,
   }) {
-    final balance =
-        ChainAccountBalance(address: address.toAddress(), network: network);
-
     return ITronMultisigAddress._(
         coin: coin,
         multiSignatureAccount: multiSigAccount,
-        address: balance,
+        address: address.toAddress(),
         networkAddress: address,
-        network: network.value,
-        accountName: null,
-        identifier: identifier);
+        network: network,
+        identifier: identifier,
+        database: database,
+        id: id);
   }
 
-  factory ITronMultisigAddress.deserialize(WalletNetwork network,
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.tronMultisigAccount);
-    final CryptoCoins coin =
-        CustomCoins.getSerializationCoin(values.elementAs(0));
+  factory ITronMultisigAddress.deserialize(
+      {required WalletTronNetwork network,
+      required String? id,
+      required IAppDatabaseApi? database,
+      List<int>? bytes,
+      CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: AppSerializationIdentifier.tronMultisigAccount);
+    final CryptoCoins coin = CoinsUtils.getSerializationCoin(values.rawValueAt(0));
     final TronMultiSignatureAddress multiSignatureAddress =
-        TronMultiSignatureAddress.deserialize(obj: values.elementAsCborTag(1));
-    final ChainAccountBalance address = ChainAccountBalance.deserialize(network,
-        obj: values.elementAsCborTag(2));
-    final TronAddress ethAddress = TronAddress(address.toAddress);
-    final int networkId = values.elementAs(3);
+        TronMultiSignatureAddress.deserialize(object: values.objectAt<CborTagValue>(1));
+    final TronAddress tronAddr =
+        TronAddress.deserializeIAddress(bytes: values.rawValueAt(2));
+    final int networkId = values.rawValueAt(3);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
 
-    final String? accountName = values.elementAs(4);
-    final String identifier = values.elementAs(5);
+    final String identifier = values.rawValueAt(4);
     return ITronMultisigAddress._(
         coin: coin,
         multiSignatureAccount: multiSignatureAddress,
-        address: address,
-        networkAddress: ethAddress,
-        network: networkId,
-        accountName: accountName,
-        identifier: identifier);
+        address: tronAddr.toAddress(),
+        networkAddress: tronAddr,
+        network: network,
+        identifier: identifier,
+        database: database,
+        id: id);
   }
   final TronMultiSignatureAddress multiSignatureAccount;
   @override
@@ -213,34 +302,41 @@ final class ITronMultisigAddress extends ITronAddress
       throw WalletExceptionConst.featureUnavailableForMultiSignature;
 
   @override
-  List get variabels {
-    return [keyIndex, network, multiSignatureAccount];
+  List get variables {
+    return [derivationIndex, network.value, multiSignatureAccount];
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          coin.toCbor(),
-          multiSignatureAccount.toCbor(),
-          address.toCbor(),
-          network,
-          accountName ?? const CborNullValue(),
-          identifier
-        ]),
-        CborTagsConst.tronMultisigAccount);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.tronMultisigAccount;
+  @override
+  List<CborObject?> get serializationItems => [
+        coin.identifier.toCbor(),
+        multiSignatureAccount.toCbor(),
+        CborBytesValue(networkAddress.encodeAsIAddress()),
+        network.value.toCbor(),
+        identifier.toCbor()
+      ];
   @override
   bool get multiSigAccount => true;
 
   @override
-  List<Bip32AddressIndex> signerKeyIndexes() {
-    return multiSignatureAccount.signers.map((e) => e.keyIndex).toList();
+  List<DerivableIndex> derivableIndexes(
+      {AccountDerivationIndexRequest? request =
+          const AccountDerivationIndexRequestAddress()}) {
+    switch (request) {
+      case null:
+      case AccountDerivationIndexRequestSigners():
+        return multiSignatureAccount.signers.map((e) => e.derivationIndex).toList();
+      case AccountDerivationIndexRequestAddress():
+        return [];
+      default:
+        throw AppInternalError.internalError("Invalid request");
+    }
   }
 
   @override
-  TronMultisigNewAddressParams toAccountParams() {
+  NewAccountParams toAccountParams() {
     return TronMultisigNewAddressParams(
         coin: coin,
         masterAddress: networkAddress,
@@ -251,53 +347,61 @@ final class ITronMultisigAddress extends ITronAddress
   IAdressType get iAddressType => IAdressType.multisigByAddress;
 }
 
-base mixin TronChainAccountController
-    on
-        ChainAccount<TronAddress, TronToken, NFTCore, TronWalletTransaction>,
-        TronChainAccountRepository {}
-base mixin TronChainAccountRepository
-    on ChainAccount<TronAddress, TronToken, NFTCore, TronWalletTransaction> {
-  Future<TronAccountInfo?> _getTronAccountInfo() async {
+base mixin TronChainAccountRepository on ChainAccount<TronAddress, TronToken, NFTCore,
+    TronWalletTransaction, WalletTronNetwork> {
+  /// new api
+  Future<IResult<TronAccountInfo?>> _storageGetAccountInfoStorage() async {
     final storagekey = TronNetworkStorageId.accountInfo;
-    final data =
-        await _storage.queryNetworkStorage(address: this, storage: storagekey);
-    if (data == null) return null;
-    final accountInfo = MethodUtils.nullOnException(
-        () => TronAccountInfo.deserialize(bytes: data));
-    assert(accountInfo != null, 'tron account info deserialization failed.');
-    return accountInfo;
+    final data = await _storage.queryNetworkStorage(storage: storagekey);
+
+    return data.andThen((final data) {
+      final bytes = data?.data;
+      if (bytes == null) return ResultOk(null);
+      final result = IResult.callSync(
+        () => TronAccountInfo.deserialize(bytes: bytes),
+        onError: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            function: "_storageGetAccountInfoStorage",
+            err: exception,
+            trace: trace.toString()),
+      );
+      return result.unwrapOrNull();
+    });
   }
 
-  Future<void> _saveTronAccountInfo(TronAccountInfo? accountInfo) async {
+  Future<IResult<void>> _storageSaveTronAccountInfo(TronAccountInfo? accountInfo) async {
     final storageKey = TronNetworkStorageId.accountInfo;
     if (accountInfo == null) {
-      await _storage.removeNetworkStorage(address: this, storage: storageKey);
-      return;
+      return await _storage.removeNetworkStorage(storage: storageKey);
     }
-    await _storage.insertNetworkStorage(
-        address: this, storage: storageKey, value: accountInfo);
+    return await _storage.insertNetworkStorage(storage: storageKey, value: accountInfo);
   }
 
-  Future<TronAccountResourceInfo?> _getTronAccountResource() async {
+  Future<IResult<TronAccountResourceInfo?>> _storageGetAccountResource() async {
     final storagekey = TronNetworkStorageId.accountResource;
-    final data =
-        await _storage.queryNetworkStorage(address: this, storage: storagekey);
-    if (data == null) return null;
-    final accountInfo = MethodUtils.nullOnException(
-        () => TronAccountResourceInfo.deserialize(bytes: data));
-    assert(
-        accountInfo != null, 'tron account resource deserialization failed.');
-    return accountInfo;
+    final data = await _storage.queryNetworkStorage(storage: storagekey);
+    return data.andThen((final data) {
+      final bytes = data?.data;
+      if (bytes == null) return ResultOk(null);
+      final result = IResult.callSync(
+        () => TronAccountResourceInfo.deserialize(bytes: bytes),
+        onError: (exception, trace) => AppLogData(
+            runtime: runtimeType,
+            function: "_storageGetAccountResource",
+            err: exception,
+            trace: trace.toString()),
+      );
+      return result.unwrapOrNull();
+    });
   }
 
-  Future<void> _saveTronAccountResource(
+  Future<IResult<void>> _storageSaveAccountResource(
       TronAccountResourceInfo? accountResource) async {
     final storagekey = TronNetworkStorageId.accountResource;
     if (accountResource == null) {
-      await _storage.removeNetworkStorage(address: this, storage: storagekey);
-      return;
+      return await _storage.removeNetworkStorage(storage: storagekey);
     }
-    await _storage.insertNetworkStorage(
-        address: this, storage: storagekey, value: accountResource);
+    return await _storage.insertNetworkStorage(
+        storage: storagekey, value: accountResource);
   }
 }

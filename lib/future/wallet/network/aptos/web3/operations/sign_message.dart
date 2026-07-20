@@ -1,22 +1,22 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/aptos/aptos.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
-import 'package:on_chain_wallet/crypto/keys/keys.dart';
-import 'package:on_chain_wallet/crypto/requets/messages.dart';
-import 'package:on_chain_wallet/crypto/utils/aptos/aptos.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages.dart';
+import 'package:on_chain_wallet/crypto/networks/aptos/aptos.dart';
 import 'package:on_chain_wallet/future/wallet/network/aptos/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/web3_request_page_builder.dart';
 import 'package:on_chain_wallet/future/wallet/web3/core/state.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/signing/signing.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/aptos/constant/constants/constant.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/aptos/params/models/sign_message.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
+import 'package:on_chain_wallet/web3/web3/networks/aptos/constant/constants/constant.dart';
+import 'package:on_chain_wallet/web3/web3/networks/aptos/params/models/sign_message.dart';
 
 class Web3AptosSignInMessageStateController extends Web3AptosStateController<
-    Web3AptosSignMessageResponse, AptosClient?, Web3AptosSignMessage> {
+    Web3AptosSignMessageResponse, AptosNetworkClient?, Web3AptosSignMessage> {
   late final String? content;
   late final String message;
   late final List<int> payloadMessage;
@@ -28,11 +28,11 @@ class Web3AptosSignInMessageStateController extends Web3AptosStateController<
       {required super.walletProvider, required super.request});
 
   @override
-  Future<Web3RequestResponseData<Web3AptosSignMessageResponse>>
-      getResponse() async {
+  Future<Web3RequestResponseData<Web3AptosSignMessageResponse>> getResponse() async {
     final address = defaultAccount;
     final signedTr = await walletProvider.wallet.signTransaction(
-        request: WalletSigningRequest(
+        params: WalletActionSign(
+            request: WalletSigningRequest(
       network: network,
       addresses: [address],
       sign: (generateSignature) async {
@@ -42,7 +42,7 @@ class Web3AptosSignInMessageStateController extends Web3AptosStateController<
               address.cast<IAptosMultiSigAddress>().multiSignatureAddress;
           for (int i = 0; i < multisigAddress.requiredSignature; i++) {
             final publicKey = multisigAddress.publicKeys[i];
-            final Bip32AddressIndex signer = publicKey.keyIndex;
+            final Bip32DerivationIndex signer = publicKey.derivationIndex;
             final signRequest =
                 GlobalSignRequest.aptos(digest: payloadMessage, index: signer);
             final signature = await generateSignature(signRequest);
@@ -51,18 +51,17 @@ class Web3AptosSignInMessageStateController extends Web3AptosStateController<
           }
           return signatures;
         }
-        final Bip32AddressIndex signer = address.keyIndex.cast();
+        final Bip32DerivationIndex signer = address.derivationIndex.cast();
         final signRequest =
             GlobalSignRequest.aptos(digest: payloadMessage, index: signer);
         final signature = await generateSignature(signRequest);
         return [
-          AptosUtils.generateSignature(
-              signature.signature, address.keyScheme.curve)
+          AptosUtils.generateSignature(signature.signature, address.keyScheme.curve)
         ];
       },
-    ));
+    )));
 
-    final auth = address.createAccountAuthenticated(signedTr.result);
+    final auth = address.createAccountAuthenticated(signedTr.unwrap());
     final signature = auth.signature.toBytes();
     final result = Web3AptosSignMessageResponse.aptos(
         message: request.params.message!,
@@ -77,7 +76,7 @@ class Web3AptosSignInMessageStateController extends Web3AptosStateController<
   }
 
   @override
-  Future<void> initForm(AptosClient? client) async {
+  Future<void> initForm(AptosNetworkClient? client) async {
     if (params.messageBytes != null) {
       message = params.messageBytes!;
       payloadMessage = BytesUtils.fromHexString(message).asImmutableBytes;
@@ -108,16 +107,6 @@ class Web3AptosSignInMessageStateController extends Web3AptosStateController<
 
   @override
   Widget widgetBuilder(BuildContext context) {
-    return Web3StateSignMessageView(
-        controller: this, message: message, content: content);
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    appLogger.debug(
-        runtime: runtimeType,
-        functionName: "dispose",
-        msg: "Web3AptosSignInMessageStateController");
+    return Web3StateSignMessageView(controller: this, message: message, content: content);
   }
 }

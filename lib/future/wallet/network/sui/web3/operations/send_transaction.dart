@@ -15,10 +15,9 @@ import 'package:on_chain_wallet/future/wallet/network/sui/web3/types/types.dart'
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/sui/params/models/transaction.dart';
+import 'package:on_chain_wallet/web3/web3/networks/sui/params/models/transaction.dart';
 
-class WebSuiSignTransactionStateController
-    extends Web3SuiTransactionStateController<
+class WebSuiSignTransactionStateController extends Web3SuiTransactionStateController<
         Web3SuiSignOrExcuteTransactionResponse,
         Web3SuiSignOrExecuteTransaction,
         IWeb3SuiTransactionRawData>
@@ -31,7 +30,7 @@ class WebSuiSignTransactionStateController
   IWeb3SuiTransactionRawData? _transactionData;
   IWeb3SuiTransactionRawData get transactionData => _transactionData!;
   final StreamValue<List<SuiWeb3AccountChangeBalance>?> balanceChanged =
-      StreamValue(null);
+      StreamValue(null, name: "WebSuiSignTransactionStateController");
   WebSuiSignTransactionStateController(
       {required super.walletProvider, required super.request});
   bool get isExecute => request.params.isExecute;
@@ -42,8 +41,7 @@ class WebSuiSignTransactionStateController
           signedTransaction}) async {
     final txId = await client.executeWeb3Transaction(
         signatures: [signedTransaction.suiSignature.toVariantBcsBase64()],
-        transactionBcs:
-            signedTransaction.finalTransactionData.toVariantBcsBase64(),
+        transactionBcs: signedTransaction.finalTransactionData.toVariantBcsBase64(),
         options: params.executeOptions,
         type: params.executeType);
     return SubmitSuiTransactionSuccess<IWeb3SuiTransactionRawData>(
@@ -54,8 +52,7 @@ class WebSuiSignTransactionStateController
   }
 
   @override
-  Future<IWeb3SuiTransactionRawData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<IWeb3SuiTransactionRawData> buildTransactionData({bool simulate = false}) async {
     return _transactionData ??= await () async {
       final transaction = await resolveWeb3Transaction(
           transaction: params.transaction, address: defaultAccount);
@@ -67,12 +64,11 @@ class WebSuiSignTransactionStateController
       ReceiptAddress<SuiAddress>? sender;
       if (owner != null && owner != defaultAccount.networkAddress) {
         isAccountFeePayer = false;
-        feePayer = getOrCreateAddressInfo(owner, owner.address);
+        feePayer = getOrCreateAddressInfo(owner);
       }
       if (transaction.sender != defaultAccount.networkAddress) {
         isAccountFeePayer = false;
-        sender = getOrCreateAddressInfo(
-            transaction.sender, transaction.sender.address);
+        sender = getOrCreateAddressInfo(transaction.sender);
       }
       return IWeb3SuiTransactionRawData(
           transaction: transaction,
@@ -111,8 +107,7 @@ class WebSuiSignTransactionStateController
   @override
   Future<List<IWalletTransaction<SuiWalletTransaction, ISuiAddress>>>
       buildWalletTransaction(
-          {required IWeb3SuiSignedTransaction<IWeb3SuiTransactionRawData>
-              signedTx,
+          {required IWeb3SuiSignedTransaction<IWeb3SuiTransactionRawData> signedTx,
           required SubmitTransactionSuccess<
                   IWeb3SuiSignedTransaction<IWeb3SuiTransactionRawData>>?
               txId}) async {
@@ -130,10 +125,8 @@ class WebSuiSignTransactionStateController
 
   @override
   Future<
-          Web3RequestTransactionResponseData<
-              Web3SuiSignOrExcuteTransactionResponse,
-              SubmitSuiTransactionSuccess<IWeb3SuiTransactionRawData>>>
-      getResponse() async {
+      Web3RequestTransactionResponseData<Web3SuiSignOrExcuteTransactionResponse,
+          SubmitSuiTransactionSuccess<IWeb3SuiTransactionRawData>>> getResponse() async {
     if (isExecute) {
       final result = await buildSignAndSendTransaction();
 
@@ -149,8 +142,7 @@ class WebSuiSignTransactionStateController
     final signedTransaction = await signTransaction(transaction);
     return Web3RequestTransactionResponseData(
         response: Web3SuiSignTransactionResponse(
-            transactionBytes:
-                signedTransaction.finalTransactionData.toVariantBcs(),
+            transactionBytes: signedTransaction.finalTransactionData.toVariantBcs(),
             signature: signedTransaction.suiSignature.toVariantBcs(),
             digest: signedTransaction.finalTransactionData.txHash()));
   }
@@ -182,31 +174,28 @@ class WebSuiSignTransactionStateController
     }
     return transactionData.transaction.copyWith(
       gasData: params.transaction.gasData.toTransactionGasData(
-          owner: defaultAccount.networkAddress,
-          budget: budget,
-          price: gasPrice),
+          owner: defaultAccount.networkAddress, budget: budget, price: gasPrice),
     );
   }
 
   final Cancelable _cancelable = Cancelable();
 
-  Future<void> _onBalanceChanged(
-      SuiApiDryRunTransactionBlockResponse simulate) async {
-    final balanceChanged = await MethodUtils.call(() async {
+  Future<void> _onBalanceChanged(SuiApiDryRunTransactionBlockResponse simulate) async {
+    final balanceChanged = await IResult.call(() async {
       return getSimulateBalanceChanges(
           address: defaultAccount.networkAddress,
           changes: simulate.balanceChanges,
           account: account);
     }, cancelable: _cancelable);
-    if (balanceChanged.hasError) return;
-    this.balanceChanged.value = balanceChanged.result;
+    if (balanceChanged.isErr) return;
+    this.balanceChanged.value = balanceChanged.unwrap();
   }
 
   @override
   Future<SuiTransactionFee> simulateFee() async {
     final gasPrice = await getGasPrice();
-    final transaction = await simulateTransaction(
-        gasPrice: gasPrice, budget: SuiTransactionConst.maxGas);
+    final transaction =
+        await simulateTransaction(gasPrice: gasPrice, budget: SuiTransactionConst.maxGas);
     final simulate = await client.simulateTransaction(transaction);
     final content = StringUtils.fromJson(simulate.toJson(), indent: ' ');
     if (simulate.effects.status.status != SuiApiExecutionStatusType.success) {
@@ -214,8 +203,7 @@ class WebSuiSignTransactionStateController
           gasPrice: BigInt.zero,
           feeToken: network.token,
           simulateData: simulate,
-          error: simulate.effects.status.error ??
-              "transaction_simulation_failed".tr,
+          error: simulate.effects.status.error ?? "transaction_simulation_failed".tr,
           simulateContent: content);
     }
     return SuiTransactionFee(
@@ -231,9 +219,10 @@ class WebSuiSignTransactionStateController
     if (txFee.isPending) {
       return TransactionStateStatus.error();
     }
-    return TransactionStateStatus.ready(
-        warning:
-            txFee.fee.hasError ? 'transaction_simulation_failed'.tr : null);
+    final r = defaultAccount.addressData.currencyBalance - txFee.fee.requiredFee;
+    return TransactionStateStatus.warningInsufficient(
+        IntegerBalance.token(r, network.token),
+        warning: txFee.fee.hasError ? 'transaction_simulation_failed'.tr : null);
   }
 
   void onFeeUpdated(void _) {
@@ -250,7 +239,7 @@ class WebSuiSignTransactionStateController
   }
 
   @override
-  Future<void> initForm(SuiClient client) async {
+  Future<void> initForm(SuiNetworkClient client) async {
     await super.initForm(client);
     _transactionData = await buildTransactionData();
     _feeListener = txFee.stream.listen(onFeeUpdated);

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:monero_dart/monero_dart.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/requets/messages.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/monero/account/state.dart';
@@ -13,20 +12,18 @@ class MoneroGenerateTxProofView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final MoneroWalletTransactionProof? requestProof =
-        context.getNullArgruments();
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    final MoneroWalletTransactionProof? requestProof = context.getNullArgruments();
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "generate_transaction_proof".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<MoneroClient, IMoneroAddress,
+        return NetworkAccountControllerView<MoneroNetworkClient, IMoneroAddress,
                 MoneroChain>(
             addressRequired: true,
+            appBarOnError: false,
             clientRequired: true,
-            childBulder: (wallet, account, client, address, onAccountChanged) =>
-                _MoneroGenerateTxProofView(
-                    account: account, client: client, txOutput: requestProof));
+            childBulder: (wallet, account, client, address) => _MoneroGenerateTxProofView(
+                account: account, client: client, txOutput: requestProof));
       },
     );
   }
@@ -36,12 +33,11 @@ class _MoneroGenerateTxProofView extends StatefulWidget {
   const _MoneroGenerateTxProofView(
       {required this.account, required this.client, required this.txOutput});
   final MoneroChain account;
-  final MoneroClient client;
+  final MoneroNetworkClient client;
   final MoneroWalletTransactionProof? txOutput;
 
   @override
-  State<_MoneroGenerateTxProofView> createState() =>
-      _MoneroGenerateTxProofViewState();
+  State<_MoneroGenerateTxProofView> createState() => _MoneroGenerateTxProofViewState();
 }
 
 class _MoneroGenerateTxProofViewState
@@ -53,7 +49,7 @@ class _MoneroGenerateTxProofViewState
   @override
   MoneroChain get account => widget.account;
   @override
-  MoneroClient get client => widget.client;
+  MoneroNetworkClient get client => widget.client;
   late IMoneroAddress selectedAccount = address;
   bool isOutputRequest = false;
   String? message;
@@ -86,24 +82,21 @@ class _MoneroGenerateTxProofViewState
   Future<void> generateProof() async {
     if (!formKey.ready()) return;
     progressKey.progressText("generating_proof_please_wait".tr);
-    final wallet = context.watch<WalletProvider>(StateConst.main);
-    final result = await MethodUtils.call(() => wallet.wallet
-        .nonEncryptedRequest(
-            NoneEncryptedRequestMoneroGenerateTxProof(
-                txId: txId,
-                provider: client.service.provider,
-                message: message,
-                receiverAddress:
-                    isOutputRequest ? widget.txOutput!.recepient : null,
-                txKeys: isOutputRequest ? widget.txOutput!.txKeys : null),
-            encryptedPart: selectedAccount.addrDetails.toCbor().encode()));
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError,
-          backToIdle: false, showBackButton: true);
-      return;
-    }
-    proof = result.result;
-    progressKey.success();
+    final params = MoneroProofTxParams(
+        txId: txId,
+        message: message,
+        receiverAddress: isOutputRequest ? widget.txOutput!.recepient : null,
+        txKeys: isOutputRequest ? widget.txOutput!.txKeys : null);
+    final result =
+        await account.generateTxProof(params: params, address: selectedAccount);
+    result.watch(
+      onErr: (error) => progressKey.errorText(error.localizationError,
+          backToIdle: false, showBackButton: true),
+      onOk: (value) {
+        proof = value;
+        progressKey.success();
+      },
+    );
   }
 
   @override
@@ -113,10 +106,8 @@ class _MoneroGenerateTxProofViewState
     if (request != null) {
       isOutputRequest = request.txKeys != null;
       txId = request.txId;
-      receiver = account.getReceiptAddress(request.recepient.address) ??
-          ReceiptAddress<MoneroAddress>(
-              view: request.recepient.address,
-              networkAddress: request.recepient);
+      receiver =
+          account.getOrCreateReceiptFromNetworkAddressSync(address: request.recepient);
     }
   }
 
@@ -161,29 +152,23 @@ class _MoneroGenerateTxProofViewState
                                   onDeactive: (context) =>
                                       ReceiptAddressView(address: receiver!),
                                   onActive: (context) => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text("account".tr,
-                                              style: context
-                                                  .textTheme.titleMedium),
-                                          Text("choose_account_received_payment"
-                                              .tr),
+                                              style: context.textTheme.titleMedium),
+                                          Text("choose_account_received_payment".tr),
                                           WidgetConstant.height8,
                                           ContainerWithBorder(
                                             onRemoveIcon: Icon(Icons.edit,
-                                                color:
-                                                    context.onPrimaryContainer),
+                                                color: context.onPrimaryContainer),
                                             child: AddressDetailsView(
                                                 address: selectedAccount,
-                                                color:
-                                                    context.onPrimaryContainer,
+                                                color: context.onPrimaryContainer,
                                                 key: ValueKey<IMoneroAddress?>(
                                                     selectedAccount)),
                                             onRemove: () {
                                               context
-                                                  .selectOrSwitchAccount<
-                                                          IMoneroAddress>(
+                                                  .selectOrSwitchAccount<IMoneroAddress>(
                                                       account: account,
                                                       showMultiSig: true)
                                                   .then(onChangeAddress);
@@ -192,8 +177,7 @@ class _MoneroGenerateTxProofViewState
                                         ],
                                       )),
                               WidgetConstant.height20,
-                              Text("message".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("message".tr, style: context.textTheme.titleMedium),
                               Text("monero_tx_proof_message_desc".tr),
                               WidgetConstant.height8,
                               ContainerWithBorder(
@@ -210,9 +194,8 @@ class _MoneroGenerateTxProofViewState
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
-                                                    Text(
-                                                        "monero_tx_proof_message_desc"
-                                                            .tr),
+                                                    Text("monero_tx_proof_message_desc"
+                                                        .tr),
                                                   ],
                                                 )),
                                             buttonText: "setup_message".tr,
@@ -223,8 +206,7 @@ class _MoneroGenerateTxProofViewState
                                   },
                                   child: OneLineTextWidget(
                                     message ?? "tap_to_input_value".tr,
-                                    style:
-                                        context.onPrimaryTextTheme.bodyMedium,
+                                    style: context.onPrimaryTextTheme.bodyMedium,
                                     maxLine: 3,
                                   )),
                               Row(
@@ -244,13 +226,11 @@ class _MoneroGenerateTxProofViewState
                               ConditionalWidget(
                                 enable: !isOutputRequest,
                                 onActive: (context) => Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text("account".tr,
                                           style: context.textTheme.titleMedium),
-                                      Text(
-                                          "choose_account_received_payment".tr),
+                                      Text("choose_account_received_payment".tr),
                                       WidgetConstant.height8,
                                       ContainerWithBorder(
                                         onRemoveIcon: Icon(Icons.edit,
@@ -266,8 +246,7 @@ class _MoneroGenerateTxProofViewState
                                     ReceiptAddressView(address: receiver!),
                               ),
                               WidgetConstant.height20,
-                              Text("proof".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("proof".tr, style: context.textTheme.titleMedium),
                               ContainerWithBorder(
                                 child: CopyableTextWidget(
                                   text: proof!,

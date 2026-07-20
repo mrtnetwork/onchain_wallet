@@ -4,7 +4,7 @@ import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/chain_permission.dart';
 import 'package:on_chain_wallet/future/wallet/web3/pages/permission_view.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/core/permission/models/authenticated.dart';
+import 'package:on_chain_wallet/web3/web3/core/permission/models/authenticated.dart';
 import 'package:xrpl_dart/xrpl_dart.dart';
 
 class RippleWeb3PermissionView extends StatefulWidget {
@@ -12,8 +12,7 @@ class RippleWeb3PermissionView extends StatefulWidget {
   final Web3ApplicationAuthentication application;
 
   @override
-  State<RippleWeb3PermissionView> createState() =>
-      _RippleWeb3PermissionViewState();
+  State<RippleWeb3PermissionView> createState() => _RippleWeb3PermissionViewState();
 }
 
 class _RippleWeb3PermissionViewState extends State<RippleWeb3PermissionView>
@@ -21,7 +20,7 @@ class _RippleWeb3PermissionViewState extends State<RippleWeb3PermissionView>
         SafeState,
         Web3PermissionState<
             RippleWeb3PermissionView,
-            XRPAddress,
+            XRPBaseAddress,
             XRPChain,
             IXRPAddress,
             Web3InternalDefaultNetworkAccount,
@@ -36,7 +35,7 @@ class _RippleWeb3PermissionViewState extends State<RippleWeb3PermissionView>
 
   @override
   Widget build(BuildContext context) {
-    return UpdateChainPermissionWidget<XRPAddress, IXRPAddress, XRPChain>(
+    return UpdateChainPermissionWidget<XRPBaseAddress, IXRPAddress, XRPChain>(
         chain: chain,
         isDefaultAddress: isDefaultAddress,
         chains: chains,

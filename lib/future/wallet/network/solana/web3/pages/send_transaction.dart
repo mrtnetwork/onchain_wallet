@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain/solana/src/rpc/models/models/simulate_transaction_response.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/network/solana/web3/operations/send_transaction.dart';
@@ -34,8 +34,7 @@ class Web3SolanaSignOrSendTransactionsStateView extends StatelessWidget {
             separatorBuilder: (context, index) => WidgetConstant.divider,
             itemBuilder: (context, index) {
               final message = transactionData.messagess[index];
-              return _SolanaWeb3MessageView(
-                  message: message, controller: controller);
+              return _SolanaWeb3MessageView(message: message, controller: controller);
             },
             itemCount: transactionData.messagess.length),
       ),
@@ -51,8 +50,8 @@ class Web3SolanaSignOrSendTransactionsStateView extends StatelessWidget {
                     onRemove: () {},
                     onRemoveIcon: ConditionalWidget(
                         enable: controller.hasFeeError,
-                        onActive: (context) => Icon(Icons.error,
-                            color: context.colors.onPrimaryContainer)),
+                        onActive: (context) =>
+                            Icon(Icons.error, color: context.colors.onPrimaryContainer)),
                     child: CoinAndMarketPriceView(
                         balance: value,
                         style: context.onPrimaryTextTheme.titleMedium,
@@ -76,8 +75,7 @@ class Web3SolanaSignOrSendTransactionsStateView extends StatelessWidget {
 }
 
 class _SolanaWeb3MessageView extends StatelessWidget {
-  const _SolanaWeb3MessageView(
-      {required this.message, required this.controller});
+  const _SolanaWeb3MessageView({required this.message, required this.controller});
   final SolanaWeb3TransactionInfo message;
   final WebSolanaSignTransactionStateController controller;
 
@@ -99,8 +97,7 @@ class _SolanaWeb3MessageView extends StatelessWidget {
         WidgetConstant.height8,
         ContainerWithBorder(
             child: APPExpansionListTile(
-          title: Text("instructions".tr,
-              style: context.onPrimaryTextTheme.bodyMedium),
+          title: Text("instructions".tr, style: context.onPrimaryTextTheme.bodyMedium),
           children: List.generate(message.instructions.length, (index) {
             final instruction = message.instructions[index];
             final isLastIndex = index == message.instructions.length - 1;
@@ -113,8 +110,7 @@ class _SolanaWeb3MessageView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("program_id".tr,
-                      style: context.primaryTextTheme.titleMedium),
+                  Text("program_id".tr, style: context.primaryTextTheme.titleMedium),
                   Text(instruction.layout.instruction.name,
                       style: context.primaryTextTheme.bodyMedium),
                   WidgetConstant.height8,
@@ -136,8 +132,7 @@ class _SolanaWeb3MessageView extends StatelessWidget {
                   )),
                   if (instruction.content != null) ...[
                     WidgetConstant.height20,
-                    Text("content".tr,
-                        style: context.primaryTextTheme.titleMedium),
+                    Text("content".tr, style: context.primaryTextTheme.titleMedium),
                     WidgetConstant.height8,
                     APPExpansionListTile(
                         color: context.primaryContainer,
@@ -149,8 +144,7 @@ class _SolanaWeb3MessageView extends StatelessWidget {
                               shrinkWrap: true,
                               physics: WidgetConstant.noScrollPhysics,
                               itemBuilder: (context, index) {
-                                final key =
-                                    instruction.content!.keys.elementAt(index);
+                                final key = instruction.content!.keys.elementAt(index);
                                 final value = instruction.content![key];
                                 if (value == null) {
                                   return WidgetConstant.sizedBox;
@@ -159,23 +153,20 @@ class _SolanaWeb3MessageView extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     ContainerWithBorder(
-                                      backgroundColor:
-                                          context.onPrimaryContainer,
+                                      backgroundColor: context.onPrimaryContainer,
                                       child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(key.camelCase,
-                                              style: context.primaryTextTheme
-                                                  .titleMedium),
+                                              style:
+                                                  context.primaryTextTheme.titleMedium),
                                           WidgetConstant.height8,
                                           ContainerWithBorder(
-                                              backgroundColor: context
-                                                  .colors.primaryContainer,
+                                              backgroundColor:
+                                                  context.colors.primaryContainer,
                                               constraints: null,
                                               child: LargeTextContainer(
-                                                  color: context
-                                                      .onPrimaryContainer,
+                                                  color: context.onPrimaryContainer,
                                                   text: value.toString())),
                                         ],
                                       ),
@@ -209,18 +200,15 @@ class _SolanaWeb3MessageView extends StatelessWidget {
                         onRemoveWidget: IconButton(
                           onPressed: status.canRetry ? message.simulate : null,
                           icon: switch (status) {
-                            SolanaWeb3SimulationStatus.pending =>
-                              WidgetConstant.sizedBox,
-                            SolanaWeb3SimulationStatus.success => Icon(
-                                Icons.check_circle,
-                                color: context.onPrimaryContainer),
+                            SolanaWeb3SimulationStatus.pending => WidgetConstant.sizedBox,
+                            SolanaWeb3SimulationStatus.success =>
+                              Icon(Icons.check_circle, color: context.onPrimaryContainer),
                             SolanaWeb3SimulationStatus.error =>
                               Icon(Icons.error, color: context.colors.error),
                             SolanaWeb3SimulationStatus.simulateError =>
                               Icon(Icons.error, color: context.colors.error),
-                            SolanaWeb3SimulationStatus.idle => Icon(
-                                Icons.refresh,
-                                color: context.onPrimaryContainer)
+                            SolanaWeb3SimulationStatus.idle =>
+                              Icon(Icons.refresh, color: context.onPrimaryContainer)
                           },
                         ),
                         enableTap: status.canRetry,
@@ -252,13 +240,12 @@ class _SolanaWeb3MessageView extends StatelessWidget {
                               child: CircularProgressIndicator(
                                   color: context.onPrimaryContainer),
                             ),
-                          SolanaWeb3FeeStatus.success => Icon(
-                              Icons.check_circle,
-                              color: context.onPrimaryContainer),
+                          SolanaWeb3FeeStatus.success =>
+                            Icon(Icons.check_circle, color: context.onPrimaryContainer),
                           SolanaWeb3FeeStatus.error =>
                             Icon(Icons.error, color: context.colors.error),
-                          SolanaWeb3FeeStatus.idle => Icon(Icons.refresh,
-                              color: context.onPrimaryContainer)
+                          SolanaWeb3FeeStatus.idle =>
+                            Icon(Icons.refresh, color: context.onPrimaryContainer)
                         },
                       ),
                       onRemove: () {
@@ -276,20 +263,17 @@ class _SolanaWeb3MessageView extends StatelessWidget {
             builder: (context, _) =>
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   WidgetConstant.height20,
-                  Text("change_balance".tr,
-                      style: context.textTheme.titleMedium),
+                  Text("change_balance".tr, style: context.textTheme.titleMedium),
                   Text("solana_change_balance_desc".tr),
                   WidgetConstant.height8,
                   ContainerWithBorder(
-                    onRemove: controller.transactionData.isMultipleWithSameOwner
-                        ? () {}
-                        : null,
+                    onRemove:
+                        controller.transactionData.isMultipleWithSameOwner ? () {} : null,
                     enableTap: false,
                     onRemoveWidget: TappedTooltipView(
                         tooltipWidget: ToolTipView(
                             message: "solana_change_balance_desc2".tr,
-                            child: Icon(Icons.warning,
-                                color: context.colors.tertiary))),
+                            child: Icon(Icons.warning, color: context.colors.tertiary))),
                     child: CoinAndMarketPriceView(
                         balance: message.accountChange,
                         style: context.onPrimaryTextTheme.titleMedium,
@@ -324,8 +308,7 @@ class _SimulateInfo extends StatelessWidget {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.max,
-                            children: List.generate(simulate.logs?.length ?? 0,
-                                (index) {
+                            children: List.generate(simulate.logs?.length ?? 0, (index) {
                               final log = simulate.logs![index];
                               return Text(log,
                                   style: context.primaryTextTheme.bodyMedium);
@@ -336,8 +319,7 @@ class _SimulateInfo extends StatelessWidget {
                 )
               ],
             ),
-        SolanaWeb3SimulationStatus.simulateError: (context) =>
-            APPExpansionListTile(
+        SolanaWeb3SimulationStatus.simulateError: (context) => APPExpansionListTile(
               trailing: TappedTooltipView(
                   tooltipWidget: ToolTipView(
                 message: simulate.err?.toString() ?? "",
@@ -354,8 +336,7 @@ class _SimulateInfo extends StatelessWidget {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.max,
-                            children: List.generate(simulate.logs?.length ?? 0,
-                                (index) {
+                            children: List.generate(simulate.logs?.length ?? 0, (index) {
                               final log = simulate.logs![index];
                               return Text(log,
                                   style: context.primaryTextTheme.bodyMedium);
@@ -398,8 +379,7 @@ class _FeeInfo extends StatelessWidget {
                   "estimating_fee_please_wait".tr,
                   style: context.onPrimaryTextTheme.bodyMedium,
                 ),
-            SolanaWeb3FeeStatus.error: (context) => Text(
-                "fee_estimate_failed".tr,
+            SolanaWeb3FeeStatus.error: (context) => Text("fee_estimate_failed".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
           }),
     );

@@ -13,10 +13,10 @@ import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/web3/core/state.dart';
 import 'package:on_chain_wallet/wallet/api/api.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/cardano/cardano.dart';
+import 'package:on_chain_wallet/web3/web3/networks/cardano/cardano.dart';
 
 class Web3ADGetCollateralStateController extends Web3CardanoStateController<
-        List<TransactionUnspentOutput>, ADAClient, Web3ADAGetCollateral>
+        List<TransactionUnspentOutput>, ADANetworkClient, Web3ADAGetCollateral>
     with
         ADATransactionApiController,
         CardanoWeb3TransactionApiController,
@@ -27,11 +27,10 @@ class Web3ADGetCollateralStateController extends Web3CardanoStateController<
   List<CardanoAccountUtxo> get utxos => _utxos;
   late final BigInt amount = params.coin ?? BigInt.zero;
 
-  late final LiveFormField<IntegerBalance, IntegerBalance> _totalUtxos =
-      LiveFormField(
-          title: "total_amount".tr,
-          value: IntegerBalance.zero(network.token),
-          optional: false);
+  late final LiveFormField<IntegerBalance, IntegerBalance> _totalUtxos = LiveFormField(
+      title: "total_amount".tr,
+      value: IntegerBalance.zero(network.token),
+      optional: false);
 
   @override
   LiveFormField<IntegerBalance, IntegerBalance> get totalUtxos => _totalUtxos;
@@ -67,12 +66,11 @@ class Web3ADGetCollateralStateController extends Web3CardanoStateController<
   }
 
   @override
-  Future<Web3RequestResponseData<List<TransactionUnspentOutput>>>
-      getResponse() async {
+  Future<Web3RequestResponseData<List<TransactionUnspentOutput>>> getResponse() async {
     return Web3RequestResponseData(
         response: _utxos
-            .map((e) => TransactionUnspentOutput(
-                input: e.utxo.input, output: e.utxo.output))
+            .map((e) =>
+                TransactionUnspentOutput(input: e.utxo.input, output: e.utxo.output))
             .toList());
   }
 
@@ -82,7 +80,7 @@ class Web3ADGetCollateralStateController extends Web3CardanoStateController<
   }
 
   @override
-  Future<void> initForm(ADAClient client) async {
+  Future<void> initForm(ADANetworkClient client) async {
     await super.initForm(client);
     final List<ICardanoAddress> addresses = [];
     for (int i = 0; i < params.requiredAccounts.length; i++) {

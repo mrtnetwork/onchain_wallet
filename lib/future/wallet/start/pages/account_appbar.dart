@@ -1,41 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
-import 'package:on_chain_wallet/app/external/coingeko/coingeko.dart';
-import 'package:on_chain_wallet/app/utils/uri/utils.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/extension.dart';
-import 'package:on_chain_wallet/future/wallet/network/aptos/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/cardano/account/account.dart';
-import 'package:on_chain_wallet/future/wallet/network/cardano/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/cosmos/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/monero/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/operations/transfer/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/solana/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/stellar/transaction/controllers/controller.dart';
-import 'package:on_chain_wallet/future/wallet/network/substrate/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/sui/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/ton/transaction/operations/transfer.dart';
-import 'package:on_chain_wallet/future/wallet/network/tron/transaction/operations/transfer/transfer.dart';
+import 'package:on_chain_wallet/future/wallet/network/network.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
 
 class AccountPageSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
   final WalletProvider wallet;
   final Chain account;
-  AccountPageSliverHeaderDelegate(
-      {required this.account, required this.wallet});
+  AccountPageSliverHeaderDelegate({required this.account, required this.wallet});
   bool get bottom => wallet.wallet.isOpen && account.haveAddress;
   PreferredSizeWidget get bottomWidget =>
       TabBar(tabs: account.services.map((e) => Tab(text: e.tr)).toList());
   final double accountSize = 150;
   @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final enabled = shrinkOffset + minExtent > accountSize;
     return AppBar(
       bottom: bottomWidget,
@@ -49,8 +33,7 @@ class AccountPageSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
             true: (c) => APPAnimatedContainer(
                 alignment: Alignment.topCenter,
                 isActive: bottom,
-                onActive: (c) =>
-                    _AccountMenuButtonView(wallet: wallet, account: account),
+                onActive: (c) => _AccountMenuButtonView(wallet: wallet, account: account),
                 onDeactive: (p0) => WidgetConstant.sizedBox),
             false: (c) => Align(
                   alignment: Alignment.topCenter,
@@ -69,12 +52,11 @@ class AccountPageSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       CoinAndMarketLivePriceView(
                                           liveBalance:
-                                              account.address.address.balance,
+                                              account.addressSync.addressData.balance,
                                           style: context.textTheme.titleLarge),
                                       WidgetConstant.height15,
                                       _AccountButtons(account)
@@ -121,7 +103,8 @@ class _AccountButtons extends StatelessWidget {
             onPressed: () {
               context.openDialogPage('',
                   child: (context) => BarcodeImageView(
-                        data: account.address.address.toAddress,
+                        data: account.addressSync.address,
+                        name: account.addressSync.address,
                       ),
                   maxWidth: APPConst.qrCodeWidth);
             },
@@ -134,58 +117,61 @@ class _AccountButtons extends StatelessWidget {
                 NetworkType.aptos => AptosTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<AptosChain>(),
-                    address: account.cast<AptosChain>().address),
+                    address: account.cast<AptosChain>().addressSync),
                 NetworkType.bitcoinCash ||
                 NetworkType.bitcoinAndForked =>
                   BitcoinTransactionTransferOperation(
                       walletProvider: wallet,
                       account: account.cast<BitcoinChain>(),
-                      address: account.cast<BitcoinChain>().address),
+                      address: account.cast<BitcoinChain>().addressSync),
                 NetworkType.ethereum => EthereumTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<EthereumChain>(),
-                    address: account.cast<EthereumChain>().address),
+                    address: account.cast<EthereumChain>().addressSync),
                 NetworkType.xrpl => RippleTransactionPaymentOperation(
                     walletProvider: wallet,
                     account: account.cast<XRPChain>(),
-                    address: account.cast<XRPChain>().address),
+                    address: account.cast<XRPChain>().addressSync),
                 NetworkType.cardano => ADATransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<ADAChain>(),
-                    address: account.cast<ADAChain>().address),
+                    address: account.cast<ADAChain>().addressSync),
                 NetworkType.cosmos => CosmosTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<CosmosChain>(),
-                    address: account.cast<CosmosChain>().address),
+                    address: account.cast<CosmosChain>().addressSync),
                 NetworkType.monero => MoneroTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<MoneroChain>(),
-                    address: account.cast<MoneroChain>().address),
+                    address: account.cast<MoneroChain>().addressSync),
                 NetworkType.solana => SolanaTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<SolanaChain>(),
-                    address: account.cast<SolanaChain>().address),
+                    address: account.cast<SolanaChain>().addressSync),
                 NetworkType.stellar => StellarTransactionStateController(
                     walletProvider: wallet,
                     account: account.cast<StellarChain>(),
-                    address: account.cast<StellarChain>().address),
+                    address: account.cast<StellarChain>().addressSync),
                 NetworkType.substrate => SubstrateTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<SubstrateChain>(),
-                    address: account.cast<SubstrateChain>().address),
+                    address: account.cast<SubstrateChain>().addressSync),
                 NetworkType.ton => TonTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<TonChain>(),
-                    address: account.cast<TonChain>().address),
+                    address: account.cast<TonChain>().addressSync),
                 NetworkType.tron => TronTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<TronChain>(),
-                    address: account.cast<TronChain>().address),
+                    address: account.cast<TronChain>().addressSync),
                 NetworkType.sui => SuiTransactionTransferOperation(
                     walletProvider: wallet,
                     account: account.cast<SuiChain>(),
-                    address: account.cast<SuiChain>().address),
-                _ => null
+                    address: account.cast<SuiChain>().addressSync),
+                NetworkType.zcash => ZcashTransactionTransferOperation(
+                    walletProvider: wallet,
+                    account: account.cast<ZcashChain>(),
+                    address: account.cast<ZcashChain>().addressSync),
               };
               context.to(PageRouter.transaction, argruments: operation);
             },
@@ -198,7 +184,11 @@ class _AccountButtons extends StatelessWidget {
                       account: account, showMultiSig: true, isSwitch: true)
                   .then((e) {
                 if (e == null) return;
-                account.switchAccount(e).catchError((_) {});
+                account.switchAccount(e).then((e) {
+                  e.watch(onErr: (e) {
+                    context.showAlert(e.localizationError);
+                  });
+                });
               });
             },
             icon: const Icon(Icons.switch_account)),
@@ -211,12 +201,11 @@ class _AccountMenuButtonView extends StatelessWidget {
   const _AccountMenuButtonView({required this.account, required this.wallet});
   final WalletProvider wallet;
   final Chain account;
-  ChainAccount get address => account.address;
+  ChainAccount get address => account.addressSync;
 
   @override
   Widget build(BuildContext context) {
-    final bool hasAccountNameOrType =
-        address.accountName != null || address.type != null;
+    final bool hasAccountNameOrType = address.accountName != null || address.type != null;
     final bool showMultiSig = address.multiSigAccount && !hasAccountNameOrType;
     return InkWell(
       onTap: () {
@@ -225,7 +214,11 @@ class _AccountMenuButtonView extends StatelessWidget {
                 account: account, showMultiSig: true, isSwitch: true)
             .then((e) {
           if (e == null) return;
-          account.switchAccount(e).catchError((_) {});
+          account.switchAccount(e).then((e) {
+            e.watch(onErr: (e) {
+              context.showAlert(e.localizationError);
+            });
+          });
         });
       },
       child: SizedBox(
@@ -261,14 +254,13 @@ class _AccountMenuButtonView extends StatelessWidget {
                               style: context.textTheme.labelLarge,
                             ),
                     if (showMultiSig)
-                      Text("multi_signature".tr,
-                          style: context.textTheme.bodyMedium),
+                      Text("multi_signature".tr, style: context.textTheme.bodyMedium),
                     OneLineTextWidget(
-                      address.address.toAddress,
+                      address.address,
                       style: context.textTheme.bodyMedium,
                     ),
                     CoinAndMarketLivePriceView(
-                      liveBalance: account.address.address.balance,
+                      liveBalance: account.addressSync.addressData.balance,
                       style: context.textTheme.titleMedium,
                       enableMarketPrice: true,
                     ),
@@ -297,14 +289,13 @@ class _AccountPopupMenu extends StatelessWidget {
         onSelected: (v) {
           switch (v) {
             case 0:
-              context.to(PageRouter.exportPrivateKey,
-                  argruments: account.address);
+              context.to(PageRouter.exportPrivateKey, argruments: account.addressSync);
               break;
             case 1:
-              context.to(PageRouter.showPublicKey, argruments: account.address);
+              context.to(PageRouter.showPublicKey, argruments: account.addressSync);
               break;
             case 2:
-              final address = account.address;
+              final address = account.addressSync;
               context
                   .openSliverBottomSheet<String>(
                     "account_name".tr,
@@ -325,8 +316,10 @@ class _AccountPopupMenu extends StatelessWidget {
                       label: "account_name".tr,
                     ),
                   )
-                  .then((value) =>
-                      account.setupAccountName(name: value, address: address));
+                  .then((value) => account
+                      .setupAccountName(name: value, address: address)
+                      .then((e) => e.watch(
+                          onErr: (err) => context.showAlert(err.localizationError))));
               break;
             case 3:
               context.to(PageRouter.removeAccount, argruments: account);
@@ -336,12 +329,13 @@ class _AccountPopupMenu extends StatelessWidget {
                   argruments: account);
               break;
             case 4:
-              final accountUrl = account.network
-                  .getAccountExplorer(account.address.address.toAddress);
-              UriUtils.lunch(accountUrl);
+              final accountUrl =
+                  account.network.getAccountExplorer(account.addressSync.address);
+              context.appContext.platformUtls.lunchUri(accountUrl);
               break;
             case 5:
-              UriUtils.lunch(account.network.coinParam.marketUri!);
+              context.appContext.platformUtls
+                  .lunchUri(account.network.coinParam.marketUri);
               break;
             case 7:
               context
@@ -354,7 +348,11 @@ class _AccountPopupMenu extends StatelessWidget {
                       label: 'remove_network'.tr)
                   .then((v) {
                 if (v != true) return;
-                wallet.wallet.removeChain(account);
+                wallet.wallet
+                    .doAction(WalletActionRemoveAccount(account: account))
+                    .then((e) {
+                  if (e.isErr) context.showAlert(e.unwrapErr().localizationError);
+                });
               });
               break;
             case 6:
@@ -367,38 +365,37 @@ class _AccountPopupMenu extends StatelessWidget {
           }
         },
         itemBuilder: (context) {
-          final accountUrl = account.network
-              .getAccountExplorer(account.address.address.toAddress);
+          final address = account.addressSync;
+          final accountUrl = account.network.getAccountExplorer(address.address);
+          bool isMultisig = address.multiSigAccount;
+          bool isSubsctrate = account.network.type == NetworkType.substrate;
           return [
-            ..._chainCustomButton(
-                account: account, context: context, value: 20),
+            ..._chainCustomButton(account: account, context: context, value: 20),
             PopupMenuItem<int>(
               value: 9,
               child: AppListTile(
                 trailing: const Icon(Icons.add_box),
-                title: Text("setup_new_address".tr,
-                    style: context.textTheme.labelMedium),
+                title: Text("setup_new_address".tr, style: context.textTheme.labelMedium),
               ),
             ),
-            if (!account.address.multiSigAccount)
+            if (!isMultisig)
               PopupMenuItem<int>(
                 value: 0,
                 child: AppListTile(
                   trailing: const Icon(Icons.north_east_sharp),
-                  title: Text("export_private_key".tr,
-                      style: context.textTheme.labelMedium),
+                  title:
+                      Text("export_private_key".tr, style: context.textTheme.labelMedium),
                 ),
               ),
-            if (!account.address.multiSigAccount)
+            if (!(isMultisig && isSubsctrate))
               PopupMenuItem<int>(
                 value: 1,
                 child: AppListTile(
                   trailing: const Icon(Icons.north_east_sharp),
-                  title: Text("address_info".tr,
-                      style: context.textTheme.labelMedium),
+                  title: Text("address_info".tr, style: context.textTheme.labelMedium),
                 ),
-              )
-            else if (account.address.iAddressType.isMultisigByPublicKey)
+              ),
+            if (address.iAddressType.isMultisigByPublicKey)
               PopupMenuItem<int>(
                 value: 8,
                 child: AppListTile(
@@ -411,50 +408,44 @@ class _AccountPopupMenu extends StatelessWidget {
               value: 2,
               child: AppListTile(
                 trailing: const Icon(Icons.edit),
-                title: Text("account_name".tr,
-                    style: context.textTheme.labelMedium),
+                title: Text("account_name".tr, style: context.textTheme.labelMedium),
               ),
             ),
             PopupMenuItem<int>(
               value: 3,
               child: AppListTile(
                   trailing: const Icon(Icons.remove),
-                  title: Text("remove_account".tr,
-                      style: context.textTheme.labelMedium)),
+                  title: Text("remove_account".tr, style: context.textTheme.labelMedium)),
             ),
             if (accountUrl != null)
               PopupMenuItem<int>(
                 value: 4,
                 child: AppListTile(
                   trailing: const Icon(Icons.open_in_new),
-                  title: Text("view_on_explorer".tr,
-                      style: context.textTheme.labelMedium),
+                  title:
+                      Text("view_on_explorer".tr, style: context.textTheme.labelMedium),
                 ),
               ),
             if (account.network.coinParam.hasMarketUrl)
               PopupMenuItem<int>(
                 value: 5,
                 child: AppListTile(
-                  trailing:
-                      CircleAssetsImageView(CoinGeckoUtils.logo, radius: 12),
-                  title: Text("CoinGecko".tr,
-                      style: context.textTheme.labelMedium),
+                  trailing: CircleAssetsImageView(CoinGeckoUtils.logo, radius: 12),
+                  title: Text("CoinGecko".tr, style: context.textTheme.labelMedium),
                 ),
               ),
             PopupMenuItem<int>(
               value: 6,
               child: AppListTile(
                   trailing: const Icon(Icons.edit),
-                  title: Text("update_network".tr,
-                      style: context.textTheme.labelMedium)),
+                  title: Text("update_network".tr, style: context.textTheme.labelMedium)),
             ),
             if (account.network.isImportedNetwork) ...[
               PopupMenuItem<int>(
                 value: 7,
                 child: AppListTile(
                   trailing: const Icon(Icons.remove),
-                  title: Text("remove_network".tr,
-                      style: context.textTheme.labelMedium),
+                  title: Text("remove_network".tr, style: context.textTheme.labelMedium),
                 ),
               ),
             ],
@@ -464,12 +455,14 @@ class _AccountPopupMenu extends StatelessWidget {
 }
 
 List<PopupMenuItem<int>> _chainCustomButton(
-    {required Chain account,
-    required BuildContext context,
-    required int value}) {
+    {required Chain account, required BuildContext context, required int value}) {
   return switch (account.network.type) {
-    NetworkType.cardano => cardanoAccountMenuButton(
-        account: account.cast(), context: context, value: value),
+    NetworkType.cardano =>
+      cardanoAccountMenuButton(account: account.cast(), context: context, value: value),
+    NetworkType.zcash =>
+      zcashAccountMenuButton(account: account.cast(), context: context, value: value),
+    NetworkType.cosmos =>
+      cosmosAccountMenuButton(account: account.cast(), context: context, value: value),
     _ => []
   };
 }

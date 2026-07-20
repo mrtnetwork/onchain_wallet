@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/security/pages/secure_backup.dart';
 import 'package:on_chain_wallet/wallet/models/access/wallet_access.dart';
@@ -56,63 +56,63 @@ class _SecureContentView2State extends State<SecureContentView>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        ContainerWithBorder(
-          onRemove: () {},
+        CustomizedContainer(
           enableTap: false,
-          onRemoveWidget: Column(
+          onButtomStackWidget: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               CopyTextIcon(
                   dataToCopy: widget.content,
-                  color: context.onPrimaryContainer,
+                  color: context.primaryContainer,
                   isSensitive: widget.isSensitive),
               ConditionalWidget(
-                  enable:
-                      widget.backupType != null && widget.credential != null,
+                  enable: widget.backupType != null && widget.credential != null,
                   onActive: (context) => IconButton(
+                      tooltip: "create_backup".tr,
                       onPressed: () {
                         context.openSliverDialog(
                             widget: (ctx) => GenerateBackupView(
                                 data: widget.content,
                                 credential: widget.credential!,
                                 type: widget.backupType!),
-                            label: "backup_mnemonic".tr);
+                            label: "create_backup".tr);
                       },
-                      icon: Icon(Icons.backup,
-                          color: context.onPrimaryContainer))),
+                      icon: Icon(Icons.backup, color: context.primaryContainer))),
               ConditionalWidget(
                 enable: widget.showBarcode,
                 onActive: (context) => BarcodeImageIconView(
                     data: widget.content,
-                    color: context.onPrimaryContainer,
+                    color: context.primaryContainer,
                     isSensitive: widget.isSensitive),
               )
             ],
           ),
-          child: ConstrainedBox(
-            constraints: WidgetConstant.constraintsMinHeight60,
-            child: Stack(
-              children: [
-                AnimatedOpacity(
-                  opacity: opacity,
-                  duration: APPConst.animationDuraion,
-                  child: SelectableText(widget.content,
-                      style: context.onPrimaryTextTheme.bodyMedium,
-                      minLines: 1,
-                      maxLines: 5),
+          child: Stack(
+            children: [
+              AnimatedOpacity(
+                opacity: opacity,
+                duration: APPConst.animationDuraion,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SelectableText(widget.content,
+                        style: context.onPrimaryTextTheme.bodyMedium,
+                        minLines: 1,
+                        maxLines: 5),
+                    WidgetConstant.height40,
+                  ],
                 ),
-                Positioned.fill(
-                  child: APPAnimatedSwitcher(enable: show, widgets: {
-                    true: (context) => WidgetConstant.sizedBox,
-                    false: (context) => FilledButton.icon(
-                        onPressed: showContent,
-                        icon: const Icon(Icons.remove_red_eye),
-                        label:
-                            Text(widget.showButtonTitle ?? "show_content".tr))
-                  }),
-                )
-              ],
-            ),
+              ),
+              Positioned.fill(
+                child: APPAnimatedSwitcher(enable: show, widgets: {
+                  true: (context) => WidgetConstant.sizedBox,
+                  false: (context) => FilledButton.icon(
+                      onPressed: showContent,
+                      icon: const Icon(Icons.remove_red_eye),
+                      label: Text(widget.showButtonTitle ?? "show_content".tr))
+                }),
+              )
+            ],
           ),
         ),
       ],

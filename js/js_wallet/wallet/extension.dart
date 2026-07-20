@@ -18,13 +18,12 @@ class JSExtentionWallet extends Web3JSWalletHandler {
   RuntimePort? _port;
   Web3APPData? _initializeAuthenticated;
 
-  bool onMessage(
-      JSWalletEvent message, MessageSender sender, JSFunction sendResponse) {
+  bool onMessage(JSWalletEvent message, MessageSender sender, JSFunction sendResponse) {
     final event = message.toEvent();
     if (event == null) return false;
     switch (event.type) {
       case WalletEventTypes.tabId:
-        final response = WalletEvent(
+        final response = JSWalletEventDart(
                 target: WalletEventTarget.external,
                 type: WalletEventTypes.tabId,
                 clientId: clientId)
@@ -33,7 +32,7 @@ class JSExtentionWallet extends Web3JSWalletHandler {
         return true;
       default:
         final update = _onWalletResponse(message.toEvent());
-        final response = WalletEvent(
+        final response = JSWalletEventDart(
             target: WalletEventTarget.external,
             type: WalletEventTypes.message,
             clientId: clientId,
@@ -47,27 +46,30 @@ class JSExtentionWallet extends Web3JSWalletHandler {
       {required ChaCha20Poly1305 crypto,
       required this.clientId,
       required this.tabId,
-      required Web3APPData authenticated})
+      required Web3APPData authenticated,
+      required AppContext context})
       : _initializeAuthenticated = authenticated,
-        super._(crypto);
+        super._(crypto, context);
 
   static JSExtentionWallet initialize(
-      {required WalletEvent activationEvent, required X25519Keypair keypair}) {
+      {required JSWalletEventDart activationEvent,
+      required X25519Keypair keypair,
+      required AppContext context}) {
     final additional = activationEvent.additional!.split(":");
     final peerKey = BytesUtils.fromHexString(additional[1]);
-    final sharedKey = JsCryptoUtils.generateShareKey(
-        privateKey: keypair.privateKey, peerKey: peerKey);
+    final sharedKey =
+        JsCryptoUtils.generateShareKey(privateKey: keypair.privateKey, peerKey: peerKey);
     final chacha = ChaCha20Poly1305(sharedKey);
     final data = List<int>.from(activationEvent.data);
     final encryptedMessage = Web3EncryptedMessage.deserialize(bytes: data);
-    final decode =
-        chacha.decrypt(encryptedMessage.nonce, encryptedMessage.message);
+    final decode = chacha.decrypt(encryptedMessage.nonce, encryptedMessage.message);
     final message = Web3ChainMessage.deserialize(bytes: decode);
 
     final handler = JSExtentionWallet._(
         crypto: chacha,
         clientId: activationEvent.clientId,
         authenticated: message.authenticated,
+        context: context,
         tabId: additional[0]);
     handler._listenOnClients();
     extension.runtime.onMessage.addListener(handler.onMessage.toJS);
@@ -100,7 +102,7 @@ class JSExtentionWallet extends Web3JSWalletHandler {
       }
 
       _pingRefrence = onEmitMessage.toJS;
-      newPort.postMessage(WalletEvent(
+      newPort.postMessage(JSWalletEventDart(
               target: WalletEventTarget.external,
               type: WalletEventTypes.ping,
               requestId: 'extension newPort')
@@ -140,15 +142,15 @@ class JSExtentionWallet extends Web3JSWalletHandler {
     });
   }
 
-  static Future<WalletEvent> sendBackgroudMessage(WalletEvent msg,
+  static Future<JSWalletEventDart> sendBackgroudMessage(JSWalletEventDart msg,
       {List<WalletEventTarget> allowTargets = const [
         WalletEventTarget.background
       ]}) async {
     bool hasListener = false;
     try {
-      final Completer<WalletEvent> completer = Completer<WalletEvent>();
-      bool onMessage(JSWalletEvent? message, MessageSender? sender,
-          JSFunction? sendResponse) {
+      final Completer<JSWalletEventDart> completer = Completer<JSWalletEventDart>();
+      bool onMessage(
+          JSWalletEvent? message, MessageSender? sender, JSFunction? sendResponse) {
         final event = message?.toEvent();
         if (event == null) return false;
         if (event.type != WalletEventTypes.ping) return false;
@@ -184,17 +186,16 @@ class JSExtentionWallet extends Web3JSWalletHandler {
   }
 
   Future<void> _sendMessageToExtention(
-      {required WalletEvent message, required String requestId}) async {
+      {required JSWalletEventDart message, required String requestId}) async {
     RuntimePort? port = await _getPort();
     if (port == null) {
-      final openWallet = await sendBackgroudMessage(
-              JSWalletConstant.openExtension,
-              allowTargets: [
-            WalletEventTarget.wallet,
-            WalletEventTarget.background
-          ])
+      final openWallet = await sendBackgroudMessage(JSWalletConstant.openExtension,
+              allowTargets: [WalletEventTarget.wallet, WalletEventTarget.background])
           .timeout(const Duration(seconds: 10))
-          .catchError((e) => throw Web3RequestExceptionConst.internalError);
+          .catchError((e) {
+        return throw Web3RequestExceptionConst.internalErr("_sendMessageToExtention",
+            reason: "Failed to start background service. ${e.toString()}");
+      });
       if (openWallet.target != WalletEventTarget.wallet &&
           openWallet.type != WalletEventTypes.ping) {
         throw Exception("Open popup failed");
@@ -220,13 +221,12 @@ class JSExtentionWallet extends Web3JSWalletHandler {
 
   @override
   Future<void> _sendMessageToWallet(
-      {required Web3WalletRequestParams message,
-      required String requestId}) async {
+      {required Web3WalletRequestParams message, required String requestId}) async {
     final encryptedMessage = _encryptMessage(message).toCbor().encode();
     switch (message.method) {
       case Web3GlobalRequestMethods.disconnect:
       case Web3GlobalRequestMethods.connectSilent:
-        final event = WalletEvent(
+        final event = JSWalletEventDart(
             clientId: clientId,
             data: encryptedMessage,
             requestId: requestId,
@@ -236,7 +236,7 @@ class JSExtentionWallet extends Web3JSWalletHandler {
         _onWalletResponse(r);
         break;
       default:
-        final event = WalletEvent(
+        final event = JSWalletEventDart(
             clientId: clientId,
             data: encryptedMessage,
             requestId: requestId,

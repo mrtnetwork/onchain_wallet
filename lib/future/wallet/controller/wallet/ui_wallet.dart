@@ -1,77 +1,66 @@
 import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
-import 'package:on_chain_wallet/future/router/page_router.dart';
+import 'package:flutter/material.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/wallet_signing_password.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/core/request/web_request.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/global/params/core/core.dart';
 
-abstract class UIWallet extends WalletCore {
-  UIWallet({required this.navigatorKey, required this.storageVersion});
+abstract class UIWallet extends AppWalletController {
+  UIWallet({required this.navigatorKey, required MainAppContext context}) {
+    config = WalletConfigDefault(uiAction: onWalletUiAction, context: context);
+  }
   final GlobalKey<NavigatorState> navigatorKey;
+
   @override
-  final int storageVersion;
-  bool get isolate => true;
+  late final WalletConfigDefault config;
 
-  Future<void> onWalletEvent(WalletActionEvent status);
-
-  Future<WalletCredentialResponseVerify> _getPassword(
-      {required Set<AddressDerivationIndex> keys,
-      required Set<ChainAccount> addresses}) async {
+  Future<IResult<WalletCredentialResponseVerify>> _getPassword(
+      {required Set<DerivableIndex> keys, required Set<ChainAccount> addresses}) async {
     final pw = await navigatorKey.currentContext
-        ?.openSliverBottomSheet<WalletCredentialResponseVerify>(
-            "sign_transaction".tr,
+        ?.openSliverBottomSheet<WalletCredentialResponseVerify>("sign_transaction".tr,
             initiaalExtend: 1,
             bodyBuilder: (controller) => WalletSigningPassword(
                 addresses: addresses, keys: keys, controller: controller));
     if (pw == null) {
-      throw WalletExceptionConst.rejectSigning;
+      return ResultErr.fromException(WalletExceptionConst.rejectSigning);
     }
-    return pw;
+    return ResultOk(pw);
   }
 
-  Future<MethodResult<T>> signTransaction<T>(
-      {required WalletSigningRequest<T> request, Duration? timeout}) async {
-    return await MethodUtils.call(() async {
-      late final Set<ChainAccount> addresses = request.addresses.toSet();
-      late final Set<AddressDerivationIndex> keys =
-          addresses.map((e) => e.signerKeyIndexes()).expand((e) => e).toSet();
-      if (wallet.protectWallet || !isUnlock) {
-        final credential = await _getPassword(addresses: addresses, keys: keys);
-        final r = (await super.signRequest(
-            request: request, credential: credential, timeout: timeout));
-        return r.result;
-      }
-      return (await super.signRequest(request: request, timeout: timeout))
-          .result;
-    });
-  }
-
-  Future<void> updateBalance() async {
-    if (!isOpen) return;
-    await updateCurrentAccountBalance();
-  }
-
-  @override
-  Future<bool> onWeb3Request(Web3Request request) async {
-    String? page;
-    if (request is Web3NetworkRequest) {
-      page = PageRouter.web3Page(request.chain.network);
-    } else if (request is Web3GlobalRequest) {
-      page = PageRouter.web3Global;
+  Future<IResult<T>> signTransaction<T>({
+    required WalletActionSign<T> params,
+  }) async {
+    late final Set<ChainAccount> addresses = params.request.addresses.toSet();
+    late final Set<DerivableIndex> keys = addresses
+        .map((e) => e.derivableIndexes(
+            request: params.derivationRequest ?? AccountDerivationIndexRequestSigners()))
+        .expand((e) => e)
+        .toSet();
+    if (wallet.protectWallet || !isUnlock) {
+      final credential = await _getPassword(addresses: addresses, keys: keys);
+      return credential.andThenAsync((credential) async {
+        return await super.doAction<T>(params.copyWith(credential: credential));
+      });
     }
-    if (page == null) return false;
-    return navigatorKey.currentContext?.toSync(page, argruments: request) ??
-        false;
+    return await super.doAction<T>(params);
   }
 
-  void dispose() {}
-
-  Future<void> init() async {
-    await initWallet();
+  Future<IResult<T>> onWalletUiAction<T extends Object?>(
+      WalletUiAction<T> request) async {
+    final context = navigatorKey.currentContext;
+    assert(context != null, "Missing navigator context");
+    if (context == null || !context.mounted) {
+      return ResultErr.fromException(AppExceptionConst.walletContextNotAvailable);
+    }
+    return context.wallet.onWalletUiAction<T>(request);
   }
+
+  Future<IResult<void>> init() async {
+    return await doAction(WalletActionInit());
+  }
+
+  // void dispose() {}
 }

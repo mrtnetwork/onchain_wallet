@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/context.dart'
-    show QuickContextAccsess;
+import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/context.dart';
 
 class MaterialPageView extends StatelessWidget {
   const MaterialPageView({required this.child, super.key});
@@ -9,8 +8,7 @@ class MaterialPageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: context.colors.primary,
-      child: SafeArea(
-          child: Container(color: context.colors.surface, child: child)),
+      child: SafeArea(child: Container(color: context.colors.surface, child: child)),
     );
   }
 }

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/app/live_listener/progress_bar.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 
@@ -11,15 +10,17 @@ class StreamPageProgressController extends StreamValue<PageProgressStatus> {
   StreamPageProgressController(
       {this.initialStatus = PageProgressStatus.idle,
       this.idleTimeout = APPConst.oneSecoundDuration})
-      : super(initialStatus);
+      : super(initialStatus, name: "StreamPageProgressController");
   final Duration idleTimeout;
 
   bool _shimmer = false;
+  BuildContext? _currentConext;
 
   PageProgressStatus get status => value;
   bool get isSuccess => value == PageProgressStatus.success;
   bool get hasError => value == PageProgressStatus.error;
   bool get inProgress => value == PageProgressStatus.progress;
+  bool get isIdle => value == PageProgressStatus.idle;
   final Map<PageProgressStatus, Widget?> _widgets = {};
   // Widget? _current;
 
@@ -28,8 +29,7 @@ class StreamPageProgressController extends StreamValue<PageProgressStatus> {
   }
 
   void _listen(PageProgressStatus status) async {
-    if (status == PageProgressStatus.progress ||
-        status == PageProgressStatus.idle) {
+    if (status == PageProgressStatus.progress || status == PageProgressStatus.idle) {
       return;
     }
     await Future.delayed(idleTimeout);
@@ -51,19 +51,18 @@ class StreamPageProgressController extends StreamValue<PageProgressStatus> {
   }
 
   void setInitialState() {
+    _currentConext = null;
     _widgets.clear();
     _shimmer = false;
     silent = initialStatus;
   }
 
-  void progress([Widget? progressWidget]) {
+  void progress([Widget? progressWidget, LivePercentProgressBar? progressBar]) {
     _updateStream(StreamWidgetStatus.progress, progressWidget: progressWidget);
   }
 
   void progressText(String text,
-      {Widget? bottomWidget,
-      Widget? icon,
-      LivePercentProgressBar? progressBar}) {
+      {Widget? bottomWidget, Widget? icon, LivePercentProgressBar? progressBar}) {
     _updateStream(StreamWidgetStatus.progress,
         progressWidget: ProgressWithTextView(
           text: text,
@@ -113,6 +112,12 @@ class StreamPageProgressController extends StreamValue<PageProgressStatus> {
     _shimmer = true;
     notify();
   }
+
+  bool pop([Object? arguments]) {
+    final mounted = _currentConext?.mounted;
+    _currentConext?.pop(arguments);
+    return mounted ?? false;
+  }
 }
 
 class StreamPageProgress extends StatefulWidget {
@@ -121,10 +126,7 @@ class StreamPageProgress extends StatefulWidget {
 
   final Widget? initialWidget;
   const StreamPageProgress(
-      {required this.controller,
-      required this.builder,
-      this.initialWidget,
-      super.key});
+      {required this.controller, required this.builder, this.initialWidget, super.key});
   @override
   State<StreamPageProgress> createState() => _StreamPageProgressState();
 }
@@ -147,6 +149,7 @@ class _StreamPageProgressState extends State<StreamPageProgress>
   @override
   void onInitOnce() {
     super.onInitOnce();
+    controller._currentConext = context;
     status = controller.value;
     _listener = controller.stream.listen(onChangeStatus);
     if (status.inProgress) {

@@ -1,7 +1,7 @@
 import 'package:blockchain_utils/bip/bip/conf/core/coins.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/keys/access/crypto_keys/crypto_keys.dart';
+import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/router/page_router.dart';
@@ -15,15 +15,12 @@ class NetworkGenericAddressDerivationView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Chain chain = context.getArgruments();
-    return AccessWalletView<WalletCredentialResponseLogin,
-            WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
         request: WalletCredentialLogin.instance,
         onAccsess: (credential) {
-          return NetworkAccountControllerView<NetworkClient?, ChainAccount?,
-              Chain>(
+          return NetworkAccountControllerView<NetworkClient?, ChainAccount?, Chain>(
             account: chain,
-            initAccount: true,
-            childBulder: (wallet, account, client, address, onAccountChanged) {
+            childBulder: (wallet, account, client, address) {
               return _NetworkGenericAddressDerivationView(account);
             },
             addressRequired: false,
@@ -59,7 +56,7 @@ class _NetworkGenericAddressDerivationViewState
   NetworkType? networkPage;
 
   static NewAccountParams getnerateAccoutParams(
-      Bip32AddressIndex keyIndex, WalletNetwork network, CryptoCoins coin) {
+      Bip32DerivationIndex keyIndex, WalletNetwork network, CryptoCoins coin) {
     switch (network.type) {
       case NetworkType.ethereum:
         return EthereumNewAddressParams(deriveIndex: keyIndex, coin: coin);
@@ -78,8 +75,8 @@ class _NetworkGenericAddressDerivationViewState
         seedGeneration: SeedTypes.bip39,
         selectedCoins: controller.network.coins.first);
     if (keyIndex == null || !keyIndex.isBip32) return;
-    final newAccountParam = getnerateAccoutParams(
-        keyIndex.cast(), controller.network, controller.coin);
+    final newAccountParam =
+        getnerateAccoutParams(keyIndex.cast(), controller.network, controller.coin);
     controller.generateAddress(newAccountParam);
   }
 
@@ -88,6 +85,8 @@ class _NetworkGenericAddressDerivationViewState
       case NetworkType.bitcoinAndForked:
       case NetworkType.bitcoinCash:
       case NetworkType.cardano:
+      case NetworkType.zcash:
+      case NetworkType.monero:
         networkPage = type;
         break;
       default:
@@ -104,8 +103,7 @@ class _NetworkGenericAddressDerivationViewState
   @override
   void onInitOnce() {
     super.onInitOnce();
-    multiSigPage =
-        PageRouter.multisigAddressDerivation(widget.chain.network.type);
+    multiSigPage = PageRouter.multisigAddressDerivation(widget.chain.network.type);
     supportMultisig = multiSigPage != null;
     switch (type) {
       case NetworkType.bitcoinAndForked:
@@ -116,8 +114,7 @@ class _NetworkGenericAddressDerivationViewState
         enableMultisig = supportMultisig && true;
         break;
       case NetworkType.substrate:
-        final network =
-            widget.chain.network.toNetwork<WalletSubstrateNetwork>();
+        final network = widget.chain.network.cast<WalletSubstrateNetwork>();
         supportMultisig = !network.coinParam.substrateChainType.isEthereum;
         enableMultisig = supportMultisig && widget.chain.haveAddress;
         break;
@@ -134,22 +131,21 @@ class _NetworkGenericAddressDerivationViewState
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.watch<WalletProvider>(StateConst.main);
+    final wallet = context.wallet;
     return APPAnimatedSwitcher(enable: networkPage, widgets: {
       NetworkType.bitcoinAndForked: (context) =>
           SetupBitcoinAddressView(widget.chain.cast()),
-      NetworkType.bitcoinCash: (context) =>
-          SetupBitcoinAddressView(widget.chain.cast()),
-      NetworkType.cardano: (context) =>
-          SetupCardanoAddressView(widget.chain.cast()),
+      NetworkType.bitcoinCash: (context) => SetupBitcoinAddressView(widget.chain.cast()),
+      NetworkType.cardano: (context) => SetupCardanoAddressView(widget.chain.cast()),
+      NetworkType.zcash: (context) => SetupZcashAddressView(widget.chain.cast()),
+      NetworkType.monero: (context) => SetupMoneroAddressView(widget.chain.cast()),
       null: (context) => StateBuilder<AddressDerivationController>(
-            controller: () => AddressDerivationController(
-                chain: widget.chain, wallet: wallet),
+            disposeStrategy: StateBuilderDisposeStrategy.onDispose,
+            controller: () =>
+                AddressDerivationController(chain: widget.chain, wallet: wallet),
             repositoryId: StateConst.addressDerivation,
             builder: (controller) => StreamPageProgress(
               controller: controller.pageProgressKey,
-              // backToIdle: APPConst.oneSecoundDuration,
-              // initialStatus: PageProgressStatus.idle,
               builder: (c) => Center(
                 child: CustomScrollView(
                   shrinkWrap: true,
@@ -168,19 +164,15 @@ class _NetworkGenericAddressDerivationViewState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 PageTitleSubtitle(
-                                    title: "setup_network_address"
-                                        .tr
-                                        .replaceOne(controller
-                                            .network.coinParam.token.name),
+                                    title: "setup_network_address".tr.replaceOne(
+                                        controller.network.coinParam.token.name),
                                     body: LargeTextView(
                                       [
                                         "disable_standard_derivation_desc".tr,
                                         "setup_address_derivation_keys_desc".tr,
-                                        "please_following_steps_to_generate_address"
-                                            .tr,
+                                        "please_following_steps_to_generate_address".tr,
                                         "custom_path_derivation_desc".tr,
-                                        if (controller.network.type ==
-                                            NetworkType.ton)
+                                        if (controller.network.type == NetworkType.ton)
                                           "ton_mnemonic_feature_desc".tr
                                       ],
                                     )),
@@ -196,19 +188,16 @@ class _NetworkGenericAddressDerivationViewState
                                 IgnorePointer(
                                   ignoring: !enableMultisig,
                                   child: Opacity(
-                                    opacity: enableMultisig
-                                        ? 1
-                                        : APPConst.disabledOpacity,
+                                    opacity:
+                                        enableMultisig ? 1 : APPConst.disabledOpacity,
                                     child: AppListTile(
                                       trailing: const Icon(Icons.arrow_forward),
                                       title: Text("multi_sig_addr".tr),
-                                      leading: const Icon(
-                                          Icons.switch_account_sharp),
+                                      leading: const Icon(Icons.switch_account_sharp),
                                       subtitle: Text(supportMultisig
                                           ? enableMultisig
                                               ? "establishing_multi_sig_addr".tr
-                                              : "at_least_one_account_required"
-                                                  .tr
+                                              : "at_least_one_account_required".tr
                                           : "unsuported_feature".tr),
                                       onTap: () {
                                         context.offTo(multiSigPage!,

@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/token_details_view.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/operations/trust_set/trust_set.dart';
@@ -41,8 +41,7 @@ class RippleTransactionTrustSetWidget extends StatelessWidget {
                         .then(form.onUpdateToken);
                   },
                   validate: value != null,
-                  onRemoveIcon:
-                      Icon(Icons.edit, color: context.onPrimaryContainer),
+                  onRemoveIcon: Icon(Icons.edit, color: context.onPrimaryContainer),
                   child: APPAnimated(
                     isActive: true,
                     onActive: (context) => ConditionalWidget(
@@ -60,17 +59,16 @@ class RippleTransactionTrustSetWidget extends StatelessWidget {
                   )),
               APPAnimated(
                   isActive: value != null,
-                  onActive: (context) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            WidgetConstant.height20,
-                            LiveFormWidgetBalanceCore(
-                                acceptZero: true,
-                                onUpdateAmount: (amount, max) {
-                                  form.onUpdateAmount(amount);
-                                },
-                                field: form.amount),
-                          ]))
+                  onActive: (context) =>
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        WidgetConstant.height20,
+                        LiveFormWidgetBalanceCore(
+                            acceptZero: true,
+                            onUpdateAmount: (amount, max) {
+                              form.onUpdateAmount(amount);
+                            },
+                            field: form.amount),
+                      ]))
             ],
           );
         },
@@ -105,8 +103,7 @@ class RippleTransactionTrustSetWidget extends StatelessWidget {
                   )
                   .then(form.onUpdateQualityIn);
             },
-            child: Text(
-                field.value?.toString().to3Digits ?? "tap_to_input_value".tr,
+            child: Text(field.value?.toString().to3Digits ?? "tap_to_input_value".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
           );
         },
@@ -141,8 +138,7 @@ class RippleTransactionTrustSetWidget extends StatelessWidget {
                   )
                   .then(form.onUpdateQualityOut);
             },
-            child: Text(
-                field.value?.toString().to3Digits ?? "tap_to_input_value".tr,
+            child: Text(field.value?.toString().to3Digits ?? "tap_to_input_value".tr,
                 style: context.onPrimaryTextTheme.bodyMedium),
           );
         },
@@ -174,8 +170,7 @@ class RippleTransactionTrustSetWidget extends StatelessWidget {
       WidgetConstant.height20,
       RippleTransactionMemoWidget(controller: form),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }

@@ -6,8 +6,8 @@ import 'package:on_chain/tron/src/models/contract/base_contract/base_contract.da
 import 'package:on_chain/tron/src/models/contract/transaction/any.dart';
 import 'package:on_chain/tron/src/models/contract/transaction/transaction_contract.dart';
 import 'package:on_chain/tron/src/models/contract/transaction/transaction_raw.dart';
-import 'package:on_chain_wallet/app/error/exception/app_exception.dart';
-import 'package:on_chain_wallet/crypto/utils/tron/tron.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/controllers/memo.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/types.dart';
@@ -18,26 +18,27 @@ import 'fee.dart';
 import 'provider.dart';
 import 'signer.dart';
 
-abstract class TronTransactionStateController2<
-        CONTRACT extends TronBaseContract>
+abstract class TronTransactionStateController2<CONTRACT extends TronBaseContract>
     extends BaseTronTransactionController<ITronTransactionData<CONTRACT>>
     with
         TronTransactionApiController,
         TronTransactionFeeController,
         TronTransactionMemoController<ITronTransactionData<CONTRACT>>,
         TronTransactionSignerController {
+  TronAccountInfo? _accountInfo;
+  TronAccountInfo? get accountInfo => _accountInfo;
+
+  TronAccountResourceInfo? _accountResource;
+  TronAccountResourceInfo? get accountResource => _accountResource;
   @override
-  Future<ITronTransactionData<CONTRACT>> buildTransactionData(
-      {bool simulate = false});
+  Future<ITronTransactionData<CONTRACT>> buildTransactionData({bool simulate = false});
 
   TronTransactionStateController2(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   @override
   BigInt getMaxFeeInput() {
-    final balance = address.address.currencyBalance;
+    final balance = address.addressData.currencyBalance;
     if (balance > TronUtils.maxTronFeeLimit) return TronUtils.maxTronFeeLimit;
     return balance;
   }
@@ -55,8 +56,7 @@ abstract class TronTransactionStateController2<
     return TronSimulateTransaction(
         transaction: rawTransaction,
         totalSigners: totalSigner,
-        accountResource:
-            address.accountResource ?? TronAccountResourceInfo.empty());
+        accountResource: _accountResource ?? TronAccountResourceInfo.empty());
   }
 
   @override
@@ -71,7 +71,7 @@ abstract class TronTransactionStateController2<
     if (!status.isReady) {
       return status;
     }
-    final max = address.address.balance.value - txFee.fee.fee;
+    final max = address.addressData.balance.value - txFee.fee.fee;
     if (max.isNegative) {
       return TransactionStateStatus.insufficient(max);
     }
@@ -126,31 +126,29 @@ abstract class TronTransactionStateController2<
   @override
   Future<List<IWalletTransaction<TronWalletTransaction, ITronAddress>>>
       buildWalletTransaction(
-          {required ITronSignedTransaction<ITronTransactionData<CONTRACT>>
-              signedTx,
+          {required ITronSignedTransaction<ITronTransactionData<CONTRACT>> signedTx,
           required SubmitTransactionSuccess txId}) async {
-    final transaction =
-        TronWalletTransaction(txId: txId.txId, network: network, outputs: [
-      TronWalletTransactionOperationOutput(
-          name: signedTx.transaction.transactionData.contract.contractType.name)
+    final txData = signedTx.transaction.transactionData;
+    final txMemo = txData.getMemo();
+
+    final transaction = TronWalletTransaction(txId: txId.txId, network: network, memos: [
+      if (txMemo != null) txMemo
+    ], outputs: [
+      TronWalletTransactionOperationOutput(name: txData.contract.contractType.name)
     ]);
 
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   @override
-  Future<ITronSignedTransaction<ITronTransactionData<CONTRACT>>>
-      signTransaction(
-          ITronTransaction<ITronTransactionData<CONTRACT>> transaction,
-          {bool fakeSignature = false}) async {
+  Future<ITronSignedTransaction<ITronTransactionData<CONTRACT>>> signTransaction(
+      ITronTransaction<ITronTransactionData<CONTRACT>> transaction,
+      {bool fakeSignature = false}) async {
     final transactionRaw = transaction.transaction;
     final signedTx = await signTransactionInternal(
-        transaction: transactionRaw,
-        address: address,
-        fakeSignature: fakeSignature);
+        transaction: transactionRaw, address: address, fakeSignature: fakeSignature);
     return ITronSignedTransaction(
         transaction: transaction,
         signatures: signedTx.signature,
@@ -161,14 +159,13 @@ abstract class TronTransactionStateController2<
   Future<SubmitTransactionResult> submitTransaction(
       {required ITronSignedTransaction<ITronTransactionData<CONTRACT>>
           signedTransaction}) async {
-    final result = await client
-        .sendTransaction(signedTransaction.finalTransactionData.toHex);
+    final result =
+        await client.sendTransaction(signedTransaction.finalTransactionData.toHex);
     if (result.result) {
       return SubmitTransactionSuccess(
           txId: result.txid, signedTransaction: signedTransaction);
     }
-    return SubmitTransactionFailed(
-        result.message ?? "submit_transaction_failed".tr);
+    return SubmitTransactionFailed(result.message ?? "submit_transaction_failed".tr);
   }
 
   @override
@@ -178,18 +175,22 @@ abstract class TronTransactionStateController2<
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
+    _accountInfo = (await address.getAccountInfo_()).unwrap();
+    _accountResource = (await address.getAccountResource_()).unwrap();
     await super.initForm(
-        context: context,
-        client: client,
-        updateAccount: address.accountResource != null);
-    if (address.accountResource == null) {
+        context: context, client: client, updateAccount: _accountResource != null);
+    // await address.getAccountInfo();
+    // await address.getAccountResource();
+    if (_accountResource == null) {
       await account.updateAddressBalance(address, tokens: false);
+      _accountInfo = (await address.getAccountInfo_()).unwrap();
+      _accountResource = (await address.getAccountResource_()).unwrap();
     }
-    if (address.accountResource == null || address.accountInfo == null) {
+    if (_accountResource == null || _accountInfo == null) {
       throw AppException("account_not_found");
     }
     final permission = checkAccountPermission(
-        address: address, transactionType: transactionType);
+        address: address, transactionType: transactionType, account: _accountInfo);
     if (!permission) {
       if (!address.multiSigAccount) {
         throw AppException("multi_sig_account_does_not_supported");

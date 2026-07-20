@@ -4,7 +4,7 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 mixin SolanaTransactionApiController on DisposableMixin {
-  SolanaClient get client;
+  SolanaNetworkClient get client;
   Future<SolAddress> getTransactionBlockHash({bool simulate = false}) async {
     if (simulate) return SolAddress.defaultPubKey;
     final blockHash =

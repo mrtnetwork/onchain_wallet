@@ -25,14 +25,12 @@ mixin TonTransactionFeeController on TonTransactionApiController {
         message: transaction.message,
         messages: transaction.messages,
         network: network);
-    final success =
-        estimate.success && estimate.internalMessages.every((e) => e.success);
+    final success = estimate.success && estimate.internalMessages.every((e) => e.success);
     String? result;
     if (!success) {
       result = estimate.resultDescription ??
           estimate.internalMessages
-              .firstWhereOrNull(
-                  (e) => !e.success && e.resultDescription != null)
+              .firstWhereOrNull((e) => !e.success && e.resultDescription != null)
               ?.resultDescription;
     }
 
@@ -50,13 +48,13 @@ mixin TonTransactionFeeController on TonTransactionApiController {
     _cancelable.cancel();
     await _lock.run(() async {
       txFee.setPending();
-      final fee = await MethodUtils.call(() async => await simulateFee());
-      if (fee.isCancel) return;
-      if (fee.hasError) {
-        setDefaultFee(error: fee.localizationError);
+      final fee = await IResult.call(() async => await simulateFee());
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
+        setDefaultFee(error: fee.unwrapErr().localizationError);
         return;
       }
-      txFee.setFee(fee.result);
+      txFee.setFee(fee.unwrap());
     });
   }
 

@@ -10,7 +10,8 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 typedef ONSELECTSOURCEACCOUNTS = Future<ChainAccount?> Function(Chain);
 mixin SwapSourceController on StreamStateController {
   final _lock = SafeAtomicLock();
-  StreamValue<IntegerBalance?> inputPrice = StreamValue(null);
+  StreamValue<IntegerBalance?> inputPrice =
+      StreamValue(null, name: "SwapSourceController");
   final Cancelable _cancelable = Cancelable();
   List<Chain> get chains;
   LiveCurrencies get liveCurrencies;
@@ -31,8 +32,7 @@ mixin SwapSourceController on StreamStateController {
     final hasBalance = this.hasBalance;
     final balance = _balance;
     final amount = _inputAmount;
-    _hasBalance =
-        (amount == null || balance == null || balance >= amount.amount);
+    _hasBalance = (amount == null || balance == null || balance >= amount.amount);
     if (hasBalance != _hasBalance) {
       notify();
     }
@@ -44,21 +44,16 @@ mixin SwapSourceController on StreamStateController {
       _checkBalance();
       final asset = sourceAsset?.asset;
       final addresses = _sourceAddresses;
-      await _sourceChain?.init();
-      final client = await _sourceChain?.clientOrNull();
+      final client = (await _sourceChain?.client())?.ok();
       if (asset == null || addresses.isEmpty || client == null) return;
-      final initClient = await client.init();
-      if (!initClient) return;
-
-      final r = await MethodUtils.call(
+      final r = await IResult.call(
           () => Future.wait(_sourceAddresses
               .map((e) async => (client as SwapNetworkClient)
-                  .getAccountsAssetBalance(
-                      sourceAsset!.asset, e.networkAddress))
+                  .getAccountsAssetBalance(sourceAsset!.asset, e.networkAddress))
               .toList()),
           cancelable: _cancelable);
-      if (r.hasError) return;
-      _balance = r.result.fold<BigInt>(BigInt.zero, (p, c) => p + c.balance);
+      if (r.isErr) return;
+      _balance = r.unwrap().fold<BigInt>(BigInt.zero, (p, c) => p + c.balance);
       _checkBalance();
     });
 
@@ -80,8 +75,9 @@ mixin SwapSourceController on StreamStateController {
     if (decimals == null) return null;
     final amount = amountController.getText();
     if (amount.trim().isEmpty) return null;
-    return MethodUtils.nullOnException(
-        () => SwapAmount.fromString(amountController.getText(), decimals));
+    return MethodUtils.fallbackOnException(
+        () => SwapAmount.fromString(amountController.getText(), decimals),
+        logOnDebug: false);
   }
 
   void setSourceAssets(Map<WalletNetwork, Set<APPSwapAssets>> assets) {
@@ -94,12 +90,11 @@ mixin SwapSourceController on StreamStateController {
     liveCurrencies.streamPrices(coingeckoId);
   }
 
-  Future<void> onSelectSourceAddress(
-      ONSELECTSOURCEACCOUNTS onSelectAddress) async {
+  Future<void> onSelectSourceAddress(ONSELECTSOURCEACCOUNTS onSelectAddress) async {
     final sChain = _sourceChain;
     if (sChain == null) return;
     final account = await onSelectAddress(sChain);
-    if (account == null || account.network != sChain.network.value) return;
+    if (account == null || account.network.value != sChain.networkId) return;
     await _lock.run(() async {
       _cancelable.cancel();
       if (_allowMultipleAccountSpent) {
@@ -146,23 +141,22 @@ mixin SwapSourceController on StreamStateController {
     await _lock.run(() async {
       _cancelable.cancel();
       _sourceAsset = asset;
-      _sourceChain =
-          chains.firstWhereOrNull((e) => e.network == sourceAsset?.network);
+      _sourceChain = chains.firstWhereOrNull((e) => e.network == sourceAsset?.network);
+      await _sourceChain?.initAsMainNetwork();
       _allowMultipleAccountSpent = sourceAsset?.network.type.isBitcoin ?? false;
       amountController.setSymbol(asset.token.symbolView);
       final sourceAddress = _sourceAddresses.firstOrNull;
-      if (sourceAddress?.network != _sourceChain?.network.value) {
+      if (sourceAddress?.network != _sourceChain?.network) {
         _sourceAddresses = [];
         final sourceChain = _sourceChain;
         if (sourceChain != null && sourceChain.haveAddress) {
-          _sourceAddresses = [sourceChain.address];
+          _sourceAddresses = [sourceChain.addressSync];
         }
       }
       _sourceSupported = _sourceChain != null;
       _allowAddSource = _allowMultipleAccountSpent || _sourceAddresses.isEmpty;
       onAmountChanged();
       _updateBalance();
-      _sourceChain?.init();
     });
   }
 

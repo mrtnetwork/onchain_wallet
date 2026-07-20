@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_bridge/models/models.dart';
-import 'package:on_chain_wallet/app/core.dart' show APPConst, ShareUtils;
+import 'package:on_chain_wallet/app/core.dart' show APPConst, IResult, ResultOk, StrUtils;
 import 'package:on_chain_wallet/future/widgets/widgets/animated/widgets/animated_switcher.dart';
 import 'package:on_chain_wallet/future/widgets/widgets/progress_bar/widgets/progress.dart';
 import '../../constraints_box_view.dart';
@@ -13,8 +13,10 @@ class BarcodeImageView extends StatefulWidget {
   final bool isSensitive;
   final String? title;
   final String? shareTitle;
+  final String? name;
   const BarcodeImageView(
       {required this.data,
+      required this.name,
       this.shareTitle,
       this.title,
       this.isSensitive = false,
@@ -27,20 +29,72 @@ class BarcodeImageView extends StatefulWidget {
 class _BarcodeImageViewState extends State<BarcodeImageView>
     with SafeState<BarcodeImageView> {
   final buttonState = GlobalKey<StreamWidgetState>();
+  final saveButtonState = GlobalKey<StreamWidgetState>();
+  IBuffer? barcodeBytes;
+  Future<IResult<IBuffer?>> getBarcodeBytes() async {
+    final barcodeBytes = this.barcodeBytes;
+    if (barcodeBytes != null) {
+      return ResultOk(barcodeBytes);
+    }
+    final data = await QrUtils.qrCodeToBytes(
+        data: widget.data,
+        uderImage: '',
+        color: context.theme.colorScheme,
+        context: context.appContext);
+    return data.map((value) {
+      this.barcodeBytes = value;
+      return value;
+    });
+  }
 
   Future<void> share() async {
     buttonState.process();
-    try {
-      final toFile = await QrUtils.qrCodeToFile(
-          data: widget.data, uderImage: '', color: context.theme.colorScheme);
+    final bytes = await getBarcodeBytes();
+    final result = await bytes.andThenAsync((e) async {
+      if (e == null) return ResultOk(false);
+      return await context.appContext.platformUtls.shareFile(
+          buffer: e,
+          name: StrUtils.toFileName(DateTime.now()),
+          type: AppFileType.imagePng,
+          text: widget.shareTitle);
+    });
+    result.fold(
+      onErr: (error) {
+        buttonState.error();
+        context.showAlert(error.localizationError);
+      },
+      onOk: (value) async {
+        if (!value) {
+          buttonState.error();
+          return;
+        }
 
-      if (!context.mounted) return;
-      await ShareUtils.shareFile(toFile!.$1, toFile.$2,
-          mimeType: FileMimeTypes.imagePng, text: widget.shareTitle);
-      buttonState.success();
-    } catch (e) {
-      buttonState.error();
-    }
+        buttonState.success();
+      },
+    );
+  }
+
+  Future<void> save() async {
+    saveButtonState.process();
+    final bytes = await getBarcodeBytes();
+    bytes.fold(
+      onErr: (error) {
+        saveButtonState.error();
+        context.showAlert(error.localizationError);
+      },
+      onOk: (value) async {
+        if (value == null) {
+          saveButtonState.error();
+          return;
+        }
+        await context.appContext.platformUtls.saveFile(
+            buffer: value,
+            name: StrUtils.toFileName(DateTime.now()),
+            type: AppFileType.imagePng,
+            title: widget.shareTitle);
+        saveButtonState.success();
+      },
+    );
   }
 
   bool show = false;
@@ -69,10 +123,13 @@ class _BarcodeImageViewState extends State<BarcodeImageView>
           title: Text(widget.title ?? ''),
           actions: [
             ButtonProgress(
-                child: (context) =>
-                    IconButton(onPressed: share, icon: Icon(Icons.share)),
+                child: (context) => IconButton(onPressed: save, icon: Icon(Icons.save)),
                 backToIdle: Duration.zero,
-                key: buttonState)
+                key: saveButtonState),
+            ButtonProgress(
+                child: (context) => IconButton(onPressed: share, icon: Icon(Icons.share)),
+                backToIdle: Duration.zero,
+                key: buttonState),
           ],
         ),
         SliverConstraintsBoxView(
@@ -92,8 +149,7 @@ class _BarcodeImageViewState extends State<BarcodeImageView>
                           data: widget.data,
                           backgroundColor: Colors.white,
                           embeddedImage: AssetImage(APPConst.logo.uri),
-                          errorStateBuilder: (context, error) =>
-                              WidgetConstant.errorIcon,
+                          errorStateBuilder: (context, error) => WidgetConstant.errorIcon,
                           eyeStyle: QrEyeStyle(
                               eyeShape: QrEyeShape.circle, color: Colors.black),
                           dataModuleStyle: QrDataModuleStyle(
@@ -129,17 +185,20 @@ class BarcodeImageIconView extends StatelessWidget {
       super.key,
       this.isSensitive = false,
       this.title,
-      this.shareTitle});
+      this.shareTitle,
+      this.name});
   final String data;
   final Color? color;
   final bool isSensitive;
   final String? title;
   final String? shareTitle;
+  final String? name;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
         color: color,
+        tooltip: "show_barcode".tr,
         onPressed: () {
           context.openDialogPage(
             '',
@@ -147,6 +206,7 @@ class BarcodeImageIconView extends StatelessWidget {
                 data: data,
                 isSensitive: isSensitive,
                 shareTitle: shareTitle,
+                name: name,
                 title: title),
             maxWidth: 500,
           );

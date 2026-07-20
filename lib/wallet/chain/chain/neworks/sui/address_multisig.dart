@@ -1,21 +1,21 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
-class SuiMultisigAccountPublicKeyInfo with CborSerializable, Equality {
+class SuiMultisigAccountPublicKeyInfo with AppSerialization, Equality {
   final List<int> publicKey;
   final int weight;
   final SuiSupportKeyScheme keyScheme;
-  final Bip32AddressIndex keyIndex;
+  final Bip32DerivationIndex derivationIndex;
   SuiMultisigAccountPublicKeyInfo._(
       {required List<int> publicKey,
       required this.weight,
       required this.keyScheme,
-      required this.keyIndex})
+      required this.derivationIndex})
       : publicKey = publicKey.asImmutableBytes;
   factory SuiMultisigAccountPublicKeyInfo.create(
       {required List<int> publicKey,
       required int wieght,
       required SuiSupportKeyScheme keyScheme,
-      required Bip32AddressIndex keyIndex}) {
+      required Bip32DerivationIndex derivationIndex}) {
     try {
       SuiMultisigPublicKeyInfo(
           publicKey: SuiCryptoPublicKey.fromBytes(
@@ -25,49 +25,46 @@ class SuiMultisigAccountPublicKeyInfo with CborSerializable, Equality {
           publicKey: publicKey,
           weight: wieght,
           keyScheme: keyScheme,
-          keyIndex: keyIndex);
+          derivationIndex: derivationIndex);
     } catch (_) {
-      throw WalletExceptionConst.invalidAccountDeta(
+      throw WalletExceptionConst.invalidAccountData(
           "SuiMultisigAccountPublicKeyInfo.create");
     }
   }
   factory SuiMultisigAccountPublicKeyInfo.deserialize(
-      {List<int>? bytes, String? hex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+      {List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: hex,
-        object: object,
-        tags: CborTagsConst.suiMultisigAccountPublicKey);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.suiMultisigAccountPublicKey);
     return SuiMultisigAccountPublicKeyInfo._(
-        publicKey: values.elementAs(0),
-        weight: values.elementAs(1),
-        keyScheme: SuiSupportKeyScheme.fromValue(values.elementAs(2)),
-        keyIndex:
-            Bip32AddressIndex.deserialize(obj: values.elementAsCborTag(3)));
+        publicKey: values.rawValueAt(0),
+        weight: values.rawValueAt(1),
+        keyScheme: SuiSupportKeyScheme.fromValue(values.rawValueAt(2)),
+        derivationIndex:
+            Bip32DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(3)));
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          CborBytesValue(publicKey),
-          CborIntValue(weight),
-          CborIntValue(keyScheme.value),
-          keyIndex.toCbor()
-        ]),
-        CborTagsConst.suiMultisigAccountPublicKey);
-  }
-
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.suiMultisigAccountPublicKey;
+  @override
+  List<CborObject?> get serializationItems => [
+        CborBytesValue(publicKey),
+        CborIntValue(weight),
+        CborIntValue(keyScheme.value),
+        derivationIndex.toCbor()
+      ];
   String toHex() {
     return CryptoKeyUtils.toPublicKeyHex(
-        publicKey, keyIndex.currencyCoin.conf.type);
+        publicKey, derivationIndex.currencyCoin.conf.type);
   }
 
   @override
-  List get variabels => [keyIndex, weight, keyScheme];
+  List get variables => [derivationIndex, weight, keyScheme];
 }
 
-class SuiMultisigAccountInfo with CborSerializable {
+class SuiMultisigAccountInfo with AppSerialization {
   final List<SuiMultisigAccountPublicKeyInfo> publicKeys;
   final int threshold;
   SuiMultisigAccountInfo._(
@@ -84,31 +81,26 @@ class SuiMultisigAccountInfo with CborSerializable {
               publicKeys: publicKeys
                   .map((e) => SuiMultisigPublicKeyInfo(
                       publicKey: SuiCryptoPublicKey.fromBytes(
-                          keyBytes: e.publicKey,
-                          algorithm: e.keyScheme.suiKeyAlgorithm),
+                          keyBytes: e.publicKey, algorithm: e.keyScheme.suiKeyAlgorithm),
                       weight: e.weight))
                   .toList(),
               threshold: threshold));
-      return SuiMultisigAccountInfo._(
-          publicKeys: publicKeys, threshold: threshold);
+      return SuiMultisigAccountInfo._(publicKeys: publicKeys, threshold: threshold);
     } catch (_) {
-      throw WalletExceptionConst.invalidAccountDeta(
-          "SuiMultisigAccountInfo.create");
+      throw WalletExceptionConst.invalidAccountData("SuiMultisigAccountInfo.create");
     }
   }
-  factory SuiMultisigAccountInfo.deserialize(
-      {List<int>? bytes, String? hex, CborObject? object}) {
-    final CborListValue values = CborSerializable.cborTagValue(
+  factory SuiMultisigAccountInfo.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
         cborBytes: bytes,
-        hex: hex,
-        object: object,
-        tags: CborTagsConst.suiMultisigAccountInfo);
+        cborObject: object,
+        identifier: AppSerializationIdentifier.suiMultisigAccountInfo);
     return SuiMultisigAccountInfo._(
         publicKeys: values
-            .elementAsListOf<CborTagValue>(0)
+            .listAt<CborTagValue>(0)
             .map((e) => SuiMultisigAccountPublicKeyInfo.deserialize(object: e))
             .toList(),
-        threshold: values.elementAs(1));
+        threshold: values.rawValueAt(1));
   }
 
   SuiMultisigAccountPublicKey toSuiMutlisigPublicKey() {
@@ -116,15 +108,13 @@ class SuiMultisigAccountInfo with CborSerializable {
         publicKeys: publicKeys
             .map((e) => SuiMultisigPublicKeyInfo(
                 publicKey: SuiCryptoPublicKey.fromBytes(
-                    keyBytes: e.publicKey,
-                    algorithm: e.keyScheme.suiKeyAlgorithm),
+                    keyBytes: e.publicKey, algorithm: e.keyScheme.suiKeyAlgorithm),
                 weight: e.weight))
             .toList(),
         threshold: threshold);
   }
 
-  SuiBaseSignature createTransactionAuthenticated(
-      List<SuiGenericSignature> signatures) {
+  SuiBaseSignature createTransactionAuthenticated(List<SuiGenericSignature> signatures) {
     int bitmap = 0;
     int weight = 0;
     for (int i = 0; i < publicKeys.length; i++) {
@@ -134,19 +124,15 @@ class SuiMultisigAccountInfo with CborSerializable {
       if (weight >= threshold) break;
     }
     return SuiMultisigSignature(
-        publicKey: toSuiMutlisigPublicKey(),
-        signatures: signatures,
-        bitmap: bitmap);
+        publicKey: toSuiMutlisigPublicKey(), signatures: signatures, bitmap: bitmap);
   }
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborListValue<CborObject>.definite([
-          CborSerializable.fromDynamic(
-              publicKeys.map((e) => e.toCbor()).toList()),
-          CborIntValue(threshold)
-        ]),
-        CborTagsConst.suiMultisigAccountInfo);
-  }
+  SerializationIdentifier get serializationIdentifier =>
+      AppSerializationIdentifier.suiMultisigAccountInfo;
+  @override
+  List<CborObject?> get serializationItems => [
+        AppSerialization.listFromObjects(publicKeys.map((e) => e.toCbor()).toList()),
+        CborIntValue(threshold)
+      ];
 }

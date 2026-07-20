@@ -1,21 +1,16 @@
 import 'dart:js_interop';
-import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:blockchain_utils/exception/exceptions.dart';
 import 'package:on_chain/on_chain.dart';
-import 'dart:async';
-import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+import 'dart:async';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import '../../models/models.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../../utils/utils/ethreum_js_provider.dart';
 import '../core/network_handler.dart';
 
-class EthereumWeb3JSStateAddress extends Web3JSStateAddress<
-    ETHAddress,
-    Web3EthereumChainAccount,
-    JSSEthereumWalletAccount,
-    Web3EthereumChainIdnetifier> {
+class EthereumWeb3JSStateAddress extends Web3JSStateAddress<ETHAddress,
+    Web3EthereumChainAccount, JSSEthereumWalletAccount, Web3EthereumChainIdnetifier> {
   const EthereumWeb3JSStateAddress(
       {required super.chainaccount,
       required super.jsAccount,
@@ -49,11 +44,10 @@ class EthereumWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory EthereumWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return EthereumWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return EthereumWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory EthereumWeb3JSStateAccount(
-      Web3EthereumChainAuthenticated? authenticated) {
+      Web3EthereumChainAuthenticated? authenticated, AppContext? context) {
     if (authenticated == null) {
       return EthereumWeb3JSStateAccount.init(state: Web3NetworkState.block);
     }
@@ -66,9 +60,7 @@ class EthereumWeb3JSStateAccount extends Web3JSStateAccount<
       return EthereumWeb3JSStateAddress(
           chainaccount: e,
           jsAccount: JSSEthereumWalletAccount.setup(
-              address: e.addressStr,
-              publicKey: e.publicKey,
-              chain: network.wsIdentifier),
+              address: e.addressStr, publicKey: e.publicKey, chain: network.wsIdentifier),
           networkIdentifier: network);
     }).toList();
     final defaultAddress = authenticated.accounts.firstWhereOrNull((e) =>
@@ -80,7 +72,9 @@ class EthereumWeb3JSStateAccount extends Web3JSStateAccount<
         accounts: accounts.whereType<EthereumWeb3JSStateAddress>().toList(),
         state: Web3NetworkState.ready,
         chains: authenticated.networks,
-        client: provider == null ? null : JSEthereumClient(provider),
+        client: provider == null || context == null
+            ? null
+            : JSEthereumClient(provider: provider, context: context),
         defaultChain: authenticated.currentNetwork,
         defaultAccount: defaultAddress == null
             ? null
@@ -100,10 +94,12 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
         Web3EthereumChainAccount,
         JSSEthereumWalletAccount,
         Web3EthereumChainIdnetifier,
+        EthereumWeb3JSStateAddress,
         EthereumWeb3JSStateAccount>
     with
         EthereumWeb3StateHandler<
             JSSEthereumWalletAccount,
+            EthereumWeb3JSStateAddress,
             EthereumWeb3JSStateAccount,
             WalletMessageResponse,
             Web3JsClientRequest,
@@ -111,9 +107,9 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
   EthereumWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
 
-  void _onSubscribe(EthereumSubscribeResult result) {
+  void _onSubscribe(Map<String, dynamic> result) {
     final event = JSWalletNetworkEvent(
-        events: [JSNetworkEventType.message], message: result.toJson().jsify());
+        events: [JSNetworkEventType.message], message: result.jsify());
     sendMessageToClient(WalletMessageEvent.build(data: event),
         JSClientType.fromNetworkName(networkType.name));
   }
@@ -139,13 +135,12 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
       currentState.client?.addSubscriptionListener(_onSubscribe);
       if (chain != null) {
         event.chainChanged = JSEthereumEIPChainChanged(
-            chainId: chain.chainId.toRadix16,
-            netVersion: chain.chainId.toString());
+            chainId: chain.chainId.toRadix16, netVersion: chain.chainId.toString());
       }
       if (chain == null || currentState.client == null) {
         final error = Web3RequestExceptionConst.disconnectProvider;
-        event.disconnect = JSEthereumEIPProviderRpcError(
-            message: error.message, code: error.code);
+        event.disconnect =
+            JSEthereumEIPProviderRpcError(message: error.message, code: error.code);
       }
     }
     return event;
@@ -157,18 +152,17 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
     switch (event) {
       case Web3NetworkEvent.chainChanged:
       case Web3NetworkEvent.connect:
-        final event = JSWalletNetworkEvent(
-            events: [JSNetworkEventType.defaultChainChanged]);
+        final event =
+            JSWalletNetworkEvent(events: [JSNetworkEventType.defaultChainChanged]);
         final chain = state.defaultChain;
         if (chain != null) {
           event.chainChanged = JSEthereumEIPChainChanged(
-              chainId: chain.chainId.toRadix16,
-              netVersion: chain.chainId.toString());
+              chainId: chain.chainId.toRadix16, netVersion: chain.chainId.toString());
         }
         if (chain == null || state.client == null) {
           final error = Web3RequestExceptionConst.disconnectProvider;
-          event.disconnect = JSEthereumEIPProviderRpcError(
-              message: error.message, code: error.code);
+          event.disconnect =
+              JSEthereumEIPProviderRpcError(message: error.message, code: error.code);
         }
         return event;
       default:
@@ -186,28 +180,23 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3EthereumRequestMethods.requestAccounts:
         return onConnect_(params);
       case Web3EthereumRequestMethods.switchEthereumChain:
-        return toSwitchNetworkRequest(
-            params: params, state: state, method: method);
+        return toSwitchNetworkRequest(params: params, state: state, method: method);
       case Web3EthereumRequestMethods.persoalSign:
       case Web3EthereumRequestMethods.ethSign:
         return toPersonalSignRequest(
             params: params,
             state: state,
             method: method,
-            network:
-                params.request.isWalletStandard ? null : state.defaultChain);
+            network: params.request.isWalletStandard ? null : state.defaultChain);
       case Web3EthereumRequestMethods.addEthereumChain:
-        return toAddNewChainRequest(
-            params: params, state: state, method: method);
+        return toAddNewChainRequest(params: params, state: state, method: method);
       case Web3EthereumRequestMethods.typedData:
-        return toSignTypedDataRequest(
-            params: params, state: state, method: method);
+        return toSignTypedDataRequest(params: params, state: state, method: method);
       case Web3EthereumRequestMethods.sendTransaction:
         return toTransactionRequest(
             params: params,
             state: state,
-            network:
-                params.request.isWalletStandard ? null : state.defaultChain,
+            network: params.request.isWalletStandard ? null : state.defaultChain,
             method: method);
       case Web3EthereumRequestMethods.ethAccounts:
         return createResponse(state.defaultAccountsAddresses);
@@ -231,10 +220,8 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
       }
       final result = await client.call(params.method, params.dartParams);
       return createResponse(result);
-    } on RPCError catch (e) {
+    } on APIError catch (e) {
       throw Web3RequestExceptionConst.fromException(e);
-    } catch (e) {
-      rethrow;
     }
   }
 
@@ -258,13 +245,16 @@ class EthereumWeb3JSStateHandler extends Web3JSStateHandler<
         return onConnectResponse(message);
       default:
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  EthereumWeb3JSStateAccount createState(Web3APPData? authenticated) {
-    if (authenticated == null) return EthereumWeb3JSStateAccount.init();
-    return EthereumWeb3JSStateAccount(authenticated.getAuth(networkType));
+  EthereumWeb3JSStateAccount createState(
+      Web3APPData? authenticated, AppContext? context) {
+    if (authenticated == null) {
+      return EthereumWeb3JSStateAccount.init();
+    }
+    return EthereumWeb3JSStateAccount(authenticated.getAuth(networkType), context);
   }
 }

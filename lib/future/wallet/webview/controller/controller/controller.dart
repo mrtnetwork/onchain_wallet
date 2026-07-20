@@ -1,105 +1,101 @@
 import 'dart:async';
 
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:flutter/foundation.dart';
-import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
+import 'package:on_chain_bridge/interface/interface.dart';
+import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
+
 import 'package:on_chain_wallet/future/state_managment/core/observer.dart';
 import 'package:on_chain_wallet/future/wallet/controller/wallet/ui_wallet.dart';
+import 'package:on_chain_wallet/future/wallet/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/webview/controller/controller/tab_controller.dart';
 import 'package:on_chain_wallet/future/wallet/webview/controller/controller/tab_handler.dart';
 import 'package:on_chain_wallet/future/wallet/web3/controller/web3_request_controller.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
-import 'package:on_chain_wallet/crypto/impl/worker_impl.dart';
+import 'package:on_chain_wallet/future/wallet/webview/repository/webview_repository.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 
-class WebViewController
-    with
-        CryptoWokerImpl,
-        Web3RequestControllerImpl,
-        WebViewListener,
-        WebViewTabImpl,
-        HttpImpl {
+class WebViewController with Web3RequestControllerImpl, WebViewListener, WebViewTabImpl {
   @override
   final WalletRouteObserver observer;
+  @override
+  final IPlatformWebViewInterface webViewController;
   final Cancelable _cancelable = Cancelable();
   final _lock = SafeAtomicLock();
   @override
   final UIWallet walletCore;
-  WebViewController({required this.walletCore, required this.observer});
+  @override
+  final WebViewRepository storage;
+  @override
+  AppContext get context => walletCore.config.context;
+  WebViewController(
+      {required this.walletCore, required this.observer, required this.webViewController})
+      : storage = WebViewRepository(walletCore.config.database);
   String? _pageScript;
   String? _webviewWalletScript;
   String? _tronScript;
 
-  final bool enableBackForwardKey = PlatformInterface.isMacos;
+  bool get enableBackForwardKey => context.platform.isMacos;
 
-  Future<String> _loadWebViewPageScript() async {
-    try {
-      if (kDebugMode) {
-        if (PlatformInterface.appPlatform == AppPlatform.android) {
-          return (await httpGet<String>("http://10.0.2.2:3000/webview_page.js"))
-              .result;
-        } else {
-          return (await httpGet<String>(
-                  "http://localhost:3000/webview_page.js"))
-              .result;
-        }
-      }
-      _pageScript ??=
-          await PlatformUtils.loadAssetText(APPConst.assetWebviewPageScript);
-      return _pageScript!;
-    } catch (e, s) {
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "_loadWebViewPageScript",
-          msg: e,
-          trace: s);
-      rethrow;
+  Future<IResult<String>> _loadWebViewPageScript() async {
+    final scritp = _pageScript;
+    if (scritp != null) {
+      return ResultOk(scritp);
     }
+    final asset = await walletCore.config.context.platformUtls
+        .loadAssetText(APPConst.assetWebviewPageScript);
+    return asset.map((script) {
+      _pageScript = script;
+      return script;
+    });
   }
 
-  Future<String> _loadTronWebScript() async {
-    _tronScript ??= await PlatformUtils.loadAssetText(APPConst.assetsTronWeb);
-    return _tronScript!;
-  }
-
-  Future<String> _loadWebViewScript() async {
-    if (kDebugMode) {
-      if (PlatformInterface.appPlatform == AppPlatform.android) {
-        return (await httpGet<String>("http://10.0.2.2:3000/webview")).result;
-      } else {
-        return (await httpGet<String>("http://localhost:3000/webview")).result;
-      }
+  Future<IResult<String>> _loadTronWebScript() async {
+    final scritp = _tronScript;
+    if (scritp != null) {
+      return ResultOk(scritp);
     }
-    _webviewWalletScript ??=
-        await PlatformUtils.loadAssetText(APPConst.assetWebviewScript);
-    return _webviewWalletScript!;
+    final asset = await walletCore.config.context.platformUtls
+        .loadAssetText(APPConst.assetsTronWeb);
+    return asset.map((script) {
+      _tronScript = script;
+      return script;
+    });
   }
 
-  Future<T?> _loadScript<T>(
-      {required String viewType, required String script}) async {
-    final result =
-        await webViewController.loadScript(viewType: viewType, script: script);
+  Future<IResult<String>> _loadWebViewScript() async {
+    final scritp = _webviewWalletScript;
+    if (scritp != null) {
+      return ResultOk(scritp);
+    }
+    final asset = await walletCore.config.context.platformUtls
+        .loadAssetText(APPConst.assetWebviewScript);
+    return asset.map((script) {
+      _webviewWalletScript = script;
+      return script;
+    });
+  }
+
+  Future<T?> _loadScript<T>({required String viewType, required String script}) async {
+    final result = await webViewController.loadScript(viewType: viewType, script: script);
     if (result == null) return null;
     return StringUtils.tryToJson(result as String);
   }
 
-  Future<void> _runPageScripts(String viewId) async {
+  Future<IResult<void>> _runPageScripts(String viewId) async {
     final tronWeb = await _loadTronWebScript();
-    appLogger.debug(runtime: runtimeType, functionName: "_runPageScripts");
-    await _loadScript(viewType: viewId, script: tronWeb);
-    appLogger.debug(
-        runtime: runtimeType,
-        functionName: "_runPageScripts",
-        msg: "_loadScript");
-    final script = await _loadWebViewPageScript();
-    await _loadScript(viewType: viewId, script: script);
-    appLogger.debug(
-        runtime: runtimeType,
-        functionName: "_runPageScripts",
-        msg: "_loadWebViewPageScript");
+    return tronWeb.andThenCatchAsync((tronWeb) async {
+      await _loadScript(viewType: viewId, script: tronWeb);
+      final script = await _loadWebViewPageScript();
+      return script.andThenAsync((script) async {
+        await _loadScript(viewType: viewId, script: script);
+        return ResultOk.okVoid;
+      });
+    });
   }
 
-  Future<bool> _postEvent(WalletEvent event, {String? viewType}) async {
+  Future<bool> _postEvent(JSWalletEventDart event, {String? viewType}) async {
     try {
       assert(tabsAuthenticated.containsKey(viewType ?? event.clientId),
           "clinet does not exists.");
@@ -107,8 +103,7 @@ class WebViewController
         return false;
       }
       final result = await _loadScript<bool>(
-          script:
-              "onChain.onWebViewMessage(${StringUtils.fromJson(event.toJson())})",
+          script: "onChain.onWebViewMessage(${StringUtils.fromJson(event.toJson())})",
           viewType: viewType ?? event.clientId);
       return result!;
     } catch (e) {
@@ -142,7 +137,7 @@ class WebViewController
 
   Future<bool> _scriptInitialized(String viewType) async {
     try {
-      final event = WalletEvent(
+      final event = JSWalletEventDart(
               target: WalletEventTarget.wallet,
               type: WalletEventTypes.message,
               clientId: "-1")
@@ -158,24 +153,30 @@ class WebViewController
 
   final bool isWorker = true;
 
-  Future<void> _activeScript(WebViewEvent event) async {
+  Future<IResult<void>> _activeScript(WebViewEvent event) async {
     final auth = tabsAuthenticated[event.viewId];
-    if (auth == null) return;
-    await _runPageScripts(event.viewId);
-    if (isWorker) {
-      final script = await _loadWebViewScript();
-      final responseEvent = toResponseEvent(
-          id: auth.viewId,
-          type: WalletEventTypes.activation,
-          additional: script,
-          platform: PlatformInterface.appPlatform.name);
-      await _postEvent(responseEvent, viewType: event.viewId);
-    }
+    if (auth == null) return ResultOk(null);
+    final run = await _runPageScripts(event.viewId);
+    return run.andThenAsync((_) async {
+      if (isWorker) {
+        final script = await _loadWebViewScript();
+        return script.andThenAsync((script) async {
+          final responseEvent = toResponseEvent(
+              id: auth.viewId,
+              type: WalletEventTypes.activation,
+              additional: script,
+              platform: context.platform.name);
+          await _postEvent(responseEvent, viewType: event.viewId);
+          return ResultOk(null);
+        });
+      }
+      return ResultOk(null);
+    });
   }
 
   Future<void> _activeClient(
       {required String viewId,
-      required WalletEvent event,
+      required JSWalletEventDart event,
       Web3ClientInfo? client}) async {
     final authenticated = await createPageAuthenticated(
         peerKey: event.clientId, info: client, identifier: viewId);
@@ -185,13 +186,11 @@ class WebViewController
     }
     final result = await _postEvent(authenticated.event, viewType: viewId);
     if (!result) {
-      updatePageScriptStatus(
-          status: WalletJSScriptStatus.failed, identifier: viewId);
+      updatePageScriptStatus(status: WalletJSScriptStatus.failed, identifier: viewId);
       return;
     }
     if (!isWorker) {
-      updatePageScriptStatus(
-          status: WalletJSScriptStatus.active, identifier: viewId);
+      updatePageScriptStatus(status: WalletJSScriptStatus.active, identifier: viewId);
     }
   }
 
@@ -211,13 +210,16 @@ class WebViewController
     await _lock.run(() async {
       onWeb3ClinetDisconnected(latestClient.value.client);
       super.onPageStart(event);
-      final execute = await MethodUtils.call(
-          () async => await _activeScript(event),
+      final execute = await IResult.block(() async => await _activeScript(event),
           cancelable: _cancelable);
-      if (execute.hasError) {
-        updatePageScriptStatus(
-            status: WalletJSScriptStatus.failed, identifier: event.viewId);
-      }
+      execute.watch(
+        onErr: (error) {
+          updatePageScriptStatus(
+              status: WalletJSScriptStatus.failed, identifier: event.viewId);
+          error.logError(
+              runtime: runtimeType, function: "onPageStart", mode: LoggerMode.info);
+        },
+      );
     });
   }
 
@@ -237,11 +239,9 @@ class WebViewController
     }
     if (isWorker) {
       final bool isWalletRequest = await _lock.run(() async {
-        final requestType =
-            WalletJSScriptStatus.fromJSWalletEvent(request.type);
+        final requestType = WalletJSScriptStatus.fromJSWalletEvent(request.type);
         if (requestType != null) {
-          updatePageScriptStatus(
-              status: requestType, identifier: request.clientId);
+          updatePageScriptStatus(status: requestType, identifier: request.clientId);
           assert(requestType != WalletJSScriptStatus.failed,
               'page script activation failed: ${StringUtils.tryDecode(request.data)}');
           return false;
@@ -250,7 +250,7 @@ class WebViewController
       });
       if (!isWalletRequest) return;
     }
-    final Completer<WalletEvent?> completer = Completer();
+    final Completer<JSWalletEventDart?> completer = Completer();
     onRequest(
         request: request,
         identifier: event.viewId,
@@ -264,15 +264,12 @@ class WebViewController
       result = await _postEvent(response, viewType: event.viewId);
     }
     completeRequest(
-        requestId: request.requestId,
-        clientId: request.clientId,
-        result: result);
+        requestId: request.requestId, clientId: request.clientId, result: result);
   }
 
   @override
   Future<void> sendMessageToClient(
-      {required Web3ActiveClient client,
-      required Web3EncryptedMessage message}) async {
+      {required Web3ActiveClient client, required Web3EncryptedMessage message}) async {
     final tab = tabsAuthenticated.values.firstWhereOrNull((e) =>
         Web3ApplicationAuthentication.toApplicationId(e.url) ==
             client.client.identifier &&
@@ -285,7 +282,7 @@ class WebViewController
     await _postEvent(event, viewType: tab.viewId);
   }
 
-  Future<void> sendToClient(WalletEvent event) async {
+  Future<void> sendToClient(JSWalletEventDart event) async {
     await _postEvent(event);
   }
 

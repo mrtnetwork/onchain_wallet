@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/address/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/address/utils.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
@@ -18,8 +18,7 @@ mixin SwapDestinationController on StreamStateController {
   bool get destSupported => _destSupported;
 
   Map<WalletNetwork, Set<APPSwapAssets>> _destinationAssets = {};
-  Map<WalletNetwork, Set<APPSwapAssets>> get destinationAssets =>
-      _destinationAssets;
+  Map<WalletNetwork, Set<APPSwapAssets>> get destinationAssets => _destinationAssets;
 
   Chain? _destinationChain;
   Chain? get destinationChain => _destinationChain;
@@ -47,15 +46,13 @@ mixin SwapDestinationController on StreamStateController {
     }
   }
 
-  Future<void> onSelectReceiptAddress(
-      ONSELECTDESTACCOUNT onSelectDestAccount) async {
+  Future<void> onSelectReceiptAddress(ONSELECTDESTACCOUNT onSelectDestAccount) async {
     final dChain = _destinationChain;
     final dAsset = destinationAsset;
     if (dChain == null || dAsset == null) return;
     final address = await onSelectDestAccount(dChain);
     if (address == null) return;
-    if (BlockchainAddressUtils.isValidNetworkAddress(
-        address.view, dAsset.network)) {
+    if (BlockchainAddressUtils.isValidNetworkAddress(address.view, dAsset.network)) {
       _destinationAddress = address;
     }
   }

@@ -23,7 +23,7 @@ class TonRquestGetFee extends TonApiRequest<TonTransactionFeeDetails, dynamic> {
           ignoreSignatureCheck: true);
     }
     return TonCenterEstimateFee(
-        address: address.toFriendlyAddress(),
+        address: address.address,
         body: message.body.toBase64(),
         initCode: message.init?.code?.toBase64() ?? "",
         initData: message.init?.data?.toBase64() ?? "");

@@ -15,13 +15,14 @@ typedef FutureT<T> = Future<T> Function();
 typedef VoidSetT<T> = Function(Set<T>);
 typedef FuncBool<T> = bool Function(T);
 typedef BigIntRationalVoid = void Function(BigRational);
-
+typedef BigIntRationalNullString = String? Function(BigRational);
 typedef FuncBoolString = bool Function(String);
 typedef FuncFutureBoolString = Future<bool> Function(String);
-typedef FuncFutureNullableBoold = Future<bool?> Function();
+typedef FuncFutureNullableBool = Future<bool?> Function();
 typedef FuncFutureNullableBoolString = Future<bool?> Function(String);
 
 typedef IntVoid = void Function(int);
+typedef NullableIntVoid = void Function(int?);
 typedef BigIntVoid = void Function(BigInt);
 
 typedef FuncVoidNullT<T> = void Function(T);

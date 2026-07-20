@@ -1,14 +1,15 @@
 import 'dart:js_interop';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/networks.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/networks.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
 import 'package:on_chain/solana/solana.dart' show SolAddress;
 import '../../models/models/networks/solana.dart';
 import '../../models/models/networks/wallet_standard.dart';
 import '../../models/models/requests.dart';
 import '../core/network_handler.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 
 class SolanaWeb3JSStateAddress extends Web3JSStateAddress<SolAddress,
     Web3SolanaChainAccount, JSSolanaWalletAccount, Web3ChainDefaultIdnetifier> {
@@ -35,8 +36,7 @@ class SolanaWeb3JSStateAccount extends Web3JSStateAccount<
   });
   factory SolanaWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return SolanaWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return SolanaWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
   factory SolanaWeb3JSStateAccount(
       Web3SolanaChainAuthenticated? authenticated, String applicationId) {
@@ -83,10 +83,16 @@ class SolanaWeb3JSStateHandler extends Web3JSStateHandler<
         Web3SolanaChainAccount,
         JSSolanaWalletAccount,
         Web3ChainDefaultIdnetifier,
+        SolanaWeb3JSStateAddress,
         SolanaWeb3JSStateAccount>
     with
-        SolanaWeb3StateHandler<JSSolanaWalletAccount, SolanaWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        SolanaWeb3StateHandler<
+            JSSolanaWalletAccount,
+            SolanaWeb3JSStateAddress,
+            SolanaWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   SolanaWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
   // Web3SolanaSendTransactionData _parseTransactionObject(
@@ -216,11 +222,9 @@ class SolanaWeb3JSStateHandler extends Web3JSStateHandler<
       case Web3SolanaRequestMethods.signAllTransactions:
       case Web3SolanaRequestMethods.signTransaction:
       case Web3SolanaRequestMethods.sendTransaction:
-        return toSignTransactionsRequest(
-            params: params, state: state, method: method!);
+        return toSignTransactionsRequest(params: params, state: state, method: method!);
       case Web3SolanaRequestMethods.signMessage:
-        return toSignMessageRequest(
-            params: params, state: state, method: method!);
+        return toSignMessageRequest(params: params, state: state, method: method!);
       case Web3SolanaRequestMethods.signIn:
         if (!state.hasAccount) {
           await onConnect_(null);
@@ -273,18 +277,18 @@ class SolanaWeb3JSStateHandler extends Web3JSStateHandler<
           final response = JSSolanaSignInResponse.setup(
               signature: signedMessage.signature,
               signedMessage: signedMessage.signedMessage,
-              account: state.getStateAddress(param.account.address,
-                  id: param.account.id));
+              account:
+                  state.getStateAddress(param.account.address, id: param.account.id));
           signatures.add(response);
         }
         return WalletMessageResponse.success(signatures.toJS);
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  SolanaWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  SolanaWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return SolanaWeb3JSStateAccount.init();
     return SolanaWeb3JSStateAccount(
         authenticated.getAuth(networkType), authenticated.applicationId);

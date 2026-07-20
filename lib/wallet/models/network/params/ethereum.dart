@@ -1,24 +1,23 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/app/error/exception/wallet_ex.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/crypto/utils/ethereum/utils.dart';
-import 'package:on_chain_wallet/wallet/api/provider/core/provider.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
+import 'package:on_chain_wallet/crypto/networks/ethereum/utils.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
 class EthereumNetworkParams extends NetworkCoinParams {
-  final BigInt chainId;
+  final String id;
   final bool supportEIP1559;
   final bool defaultNetwork;
 
   @override
   bool get isTestNet => defaultNetwork && !mainnet;
-  EthereumNetworkParams._(
-      {required super.transactionExplorer,
-      required super.addressExplorer,
+  const EthereumNetworkParams.unsafe(
+      {super.transactionExplorer,
+      super.addressExplorer,
       required super.token,
-      required this.chainId,
+      required this.id,
       required this.supportEIP1559,
       required super.chainType,
       super.bip32CoinType,
@@ -33,92 +32,72 @@ class EthereumNetworkParams extends NetworkCoinParams {
       bool defaultNetwork = true,
       int? bip32CoinType}) {
     if (chainId.isNegative || token.decimal != EthereumUtils.decimal) {
-      throw const WalletException.error("invalid_network_information");
+      throw const WalletException.message("invalid_network_information");
     }
-    return EthereumNetworkParams._(
+    return EthereumNetworkParams.unsafe(
         transactionExplorer: transactionExplorer,
         addressExplorer: addressExplorer,
         token: token,
-        chainId: chainId,
+        id: chainId.toString(),
         supportEIP1559: supportEIP1559,
         chainType: chainType,
         bip32CoinType: bip32CoinType,
         defaultNetwork: defaultNetwork);
   }
-  EthereumNetworkParams copyWith(
-      {String? transactionExplorer,
-      String? addressExplorer,
-      Token? token,
-      BigInt? chainId,
-      bool? supportEIP1559,
-      ChainType? chainType,
-      bool? defaultNetwork,
-      int? bip32CoinType}) {
-    return EthereumNetworkParams(
-        transactionExplorer: transactionExplorer ?? this.transactionExplorer,
-        addressExplorer: addressExplorer ?? this.addressExplorer,
-        token: token ?? this.token,
-        chainId: chainId ?? this.chainId,
-        supportEIP1559: supportEIP1559 ?? this.supportEIP1559,
-        chainType: chainType ?? this.chainType,
-        defaultNetwork: defaultNetwork ?? this.defaultNetwork,
-        bip32CoinType: bip32CoinType ?? this.bip32CoinType);
-  }
 
-  factory EthereumNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue cbor = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.evmNetworkParam);
-    final bool? defaultNetwork = cbor.elementAs(7);
-    return EthereumNetworkParams(
-      chainId: cbor.elementAs(0),
-      supportEIP1559: cbor.elementAs(1),
-      chainType: ChainType.fromValue(cbor.elementAs(2)),
-      token: Token.deserialize(obj: cbor.elementAsCborTag(5)),
-      defaultNetwork: defaultNetwork ?? true,
-      bip32CoinType: cbor.elementAs(8),
-      transactionExplorer: cbor.elementAs(9),
-      addressExplorer: cbor.elementAs(10),
+  factory EthereumNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue cbor = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes,
+        cborObject: object,
+        identifier: NetworkType.ethereum.identifier);
+    final bool defaultNetwork = cbor.rawValueAt(4);
+    return EthereumNetworkParams.unsafe(
+      id: cbor.rawValueAt(0),
+      supportEIP1559: cbor.rawValueAt(1),
+      chainType: ChainType.fromValue(cbor.rawValueAt(2)),
+      token: Token.deserialize(object: cbor.objectAt<CborTagValue>(3)),
+      defaultNetwork: defaultNetwork,
+      bip32CoinType: cbor.rawValueAt(5),
+      transactionExplorer: cbor.rawValueAt(6),
+      addressExplorer: cbor.rawValueAt(7),
     );
-  }
-  @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          chainId,
-          supportEIP1559,
-          chainType.name,
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          defaultNetwork,
-          bip32CoinType,
-          transactionExplorer,
-          addressExplorer,
-        ]),
-        CborTagsConst.evmNetworkParam);
   }
 
   BigInt get identifier => chainId;
 
+  BigInt get chainId => BigInt.parse(id);
+
   @override
   EthereumNetworkParams updateParams(
-      {List<APIProvider>? updateProviders,
-      Token? token,
+      {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
-    return EthereumNetworkParams(
+    return EthereumNetworkParams.unsafe(
       transactionExplorer: transactionExplorer,
       addressExplorer: addressExplorer,
-      token: NetworkCoinParams.validateUpdateParams(
-          token: this.token, updateToken: token),
-      chainId: chainId,
+      token:
+          NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
+      id: id,
       supportEIP1559: supportEIP1559,
       chainType: chainType,
       defaultNetwork: defaultNetwork,
       bip32CoinType: bip32CoinType,
     );
   }
+
+  @override
+  SerializationIdentifier get serializationIdentifier => NetworkType.ethereum.identifier;
+
+  @override
+  List<CborObject?> get serializationItems => [
+        id.toCbor(),
+        supportEIP1559.toCbor(),
+        chainType.value.toCbor(),
+        token.toCbor(),
+        defaultNetwork.toCbor(),
+        bip32CoinType?.toCbor(),
+        transactionExplorer?.toCbor(),
+        addressExplorer?.toCbor(),
+      ];
 }

@@ -5,7 +5,7 @@ import 'package:on_chain_wallet/future/text_field/input_formaters.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/crypto/utils/ethereum/utils.dart';
+import 'package:on_chain_wallet/crypto/networks/ethereum/utils.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 class EthereumGasOptionsView extends StatelessWidget {
@@ -30,13 +30,13 @@ class _EIP1559CustomGasOptionsView extends StatefulWidget {
       _EIP1559CustomGasOptionsViewState();
 }
 
-class _EIP1559CustomGasOptionsViewState
-    extends State<_EIP1559CustomGasOptionsView> with SafeState {
+class _EIP1559CustomGasOptionsViewState extends State<_EIP1559CustomGasOptionsView>
+    with SafeState {
   final GlobalKey<FormState> formKey = GlobalKey();
   late EthereumTransactionFee initialFee = widget.fee.fees.firstWhere(
     (e) => e.type == TxFeeTypes.manually,
-    orElse: () => EthereumTransactionFee.init(
-        mode: widget.fee.mode, feeToken: widget.fee.feeToken),
+    orElse: () =>
+        EthereumTransactionFee.init(mode: widget.fee.mode, feeToken: widget.fee.feeToken),
   );
   BigRational initialMaxFee = BigRational.zero;
   BigRational initialMaxPriority = BigRational.zero;
@@ -112,7 +112,7 @@ class _EIP1559CustomGasOptionsViewState
   }
 
   String? validateProrityFee(String? v) {
-    final val = BigRational.tryParseDecimaal(v ?? "");
+    final val = BigRational.tryParse(v ?? "");
 
     if (val?.isNegative ?? true) {
       return "prority_fee_validator".tr;
@@ -121,7 +121,7 @@ class _EIP1559CustomGasOptionsViewState
   }
 
   String? validatorBaseGass(String? v) {
-    final val = BigRational.tryParseDecimaal(v ?? "");
+    final val = BigRational.tryParse(v ?? "");
     if (val?.isNegative ?? true) {
       return "max_base_fee_validator".tr;
     }
@@ -178,18 +178,15 @@ class _EIP1559CustomGasOptionsViewState
     initialFee ??= normalFee;
     if (initialFee != null) {
       initialMaxFee = EthereumUtils.weiToGwei(initialFee.maxFeePerGas!);
-      initialMaxPriority =
-          EthereumUtils.weiToGwei(initialFee.maxPriorityFeePerGas!);
+      initialMaxPriority = EthereumUtils.weiToGwei(initialFee.maxPriorityFeePerGas!);
       initialGasLimit = initialFee.gasLimit;
     }
-    final min =
-        widget.fee.fees.firstWhereOrNull((e) => e.type == TxFeeTypes.slow);
+    final min = widget.fee.fees.firstWhereOrNull((e) => e.type == TxFeeTypes.slow);
     if (min != null) {
       lowMaxFee = EthereumUtils.weiToGwei(min.maxFeePerGas!);
       lowProrityFee = EthereumUtils.weiToGwei(min.maxPriorityFeePerGas!);
     }
-    final max =
-        widget.fee.fees.firstWhereOrNull((e) => e.type == TxFeeTypes.high);
+    final max = widget.fee.fees.firstWhereOrNull((e) => e.type == TxFeeTypes.high);
     if (max != null) {
       highMaxFee = EthereumUtils.weiToGwei(max.maxFeePerGas!);
       highProrityFee = EthereumUtils.weiToGwei(max.maxPriorityFeePerGas!);
@@ -205,8 +202,7 @@ class _EIP1559CustomGasOptionsViewState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PageTitleSubtitle(
-              title: "eip_1559_gas_fee".tr, body: Text("eth_fee_desc".tr)),
+          PageTitleSubtitle(title: "eip_1559_gas_fee".tr, body: Text("eth_fee_desc".tr)),
           Text("transaction_fee".tr),
           WidgetConstant.height8,
           ContainerWithBorder(
@@ -224,8 +220,8 @@ class _EIP1559CustomGasOptionsViewState
             minlines: 1,
             maxLines: 2,
             initialValue: initialMaxFee.toDecimal(),
-            keyboardType: const TextInputType.numberWithOptions(
-                decimal: true, signed: false),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true, signed: false),
             inputFormatters: [
               BigRetionalTextInputFormatter(
                   max: null, allowDecimal: true, allowSign: false),
@@ -234,8 +230,8 @@ class _EIP1559CustomGasOptionsViewState
             validator: validatorBaseGass,
             onChanged: onChangeGasPrice,
             helperText: gasPriceHelper,
-            helperStyle: context.textTheme.bodyMedium
-                ?.copyWith(color: context.colors.orange),
+            helperStyle:
+                context.textTheme.bodyMedium?.copyWith(color: context.colors.orange),
             suffixIcon: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -245,8 +241,7 @@ class _EIP1559CustomGasOptionsViewState
                   child: Text(
                     "gwei".tr,
                     style: context.textTheme.labelLarge?.copyWith(
-                        color: context.colors.primary,
-                        fontWeight: FontWeight.w900),
+                        color: context.colors.primary, fontWeight: FontWeight.w900),
                   ),
                 ),
               ],
@@ -261,8 +256,8 @@ class _EIP1559CustomGasOptionsViewState
             minlines: 1,
             maxLines: 2,
             initialValue: initialMaxPriority.toDecimal(),
-            keyboardType: const TextInputType.numberWithOptions(
-                decimal: true, signed: false),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true, signed: false),
             inputFormatters: [
               BigRetionalTextInputFormatter(
                   max: null, allowDecimal: true, allowSign: false),
@@ -271,8 +266,8 @@ class _EIP1559CustomGasOptionsViewState
             validator: validateProrityFee,
             onChanged: onChangeProrityFee,
             helperText: gasProrityHelper,
-            helperStyle: context.textTheme.bodyMedium
-                ?.copyWith(color: context.colors.orange),
+            helperStyle:
+                context.textTheme.bodyMedium?.copyWith(color: context.colors.orange),
             suffixIcon: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -282,8 +277,7 @@ class _EIP1559CustomGasOptionsViewState
                   child: Text(
                     "gwei".tr,
                     style: context.textTheme.labelLarge?.copyWith(
-                        color: context.colors.primary,
-                        fontWeight: FontWeight.w900),
+                        color: context.colors.primary, fontWeight: FontWeight.w900),
                   ),
                 ),
               ],
@@ -296,14 +290,14 @@ class _EIP1559CustomGasOptionsViewState
           AppTextField(
             label: "gas_limit".tr,
             minlines: 1,
-            helperStyle: context.textTheme.bodyMedium
-                ?.copyWith(color: context.colors.orange),
+            helperStyle:
+                context.textTheme.bodyMedium?.copyWith(color: context.colors.orange),
             maxLines: 2,
             initialValue: initialGasLimit.toString(),
             validator: validateGasLimit,
             onChanged: onChangeGasLimit,
-            keyboardType: const TextInputType.numberWithOptions(
-                decimal: true, signed: false),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true, signed: false),
             helperText: gasLimitHelper,
             inputFormatters: [
               BigRetionalTextInputFormatter(
@@ -336,14 +330,13 @@ class _LegacyCustomGasOptionsView extends StatefulWidget {
       __ETHLegacyCustomGasViewSelectViewState();
 }
 
-class __ETHLegacyCustomGasViewSelectViewState
-    extends State<_LegacyCustomGasOptionsView>
+class __ETHLegacyCustomGasViewSelectViewState extends State<_LegacyCustomGasOptionsView>
     with SafeState<_LegacyCustomGasOptionsView> {
   final GlobalKey<FormState> formKey = GlobalKey();
   late EthereumTransactionFee initialFee = widget.fee.fees.firstWhere(
     (e) => e.type == TxFeeTypes.manually,
-    orElse: () => EthereumTransactionFee.init(
-        mode: widget.fee.mode, feeToken: widget.fee.feeToken),
+    orElse: () =>
+        EthereumTransactionFee.init(mode: widget.fee.mode, feeToken: widget.fee.feeToken),
   );
   BigRational initialGasPrice = BigRational.zero;
   int initialGasLimit = EthereumUtils.baseGasLimit;
@@ -399,7 +392,7 @@ class __ETHLegacyCustomGasViewSelectViewState
   }
 
   String? validatorBaseGass(String? v) {
-    final val = BigRational.tryParseDecimaal(v ?? "");
+    final val = BigRational.tryParse(v ?? "");
     if (val?.isNegative ?? true) {
       return "gas_price_fee_validator".tr;
     }
@@ -447,8 +440,7 @@ class __ETHLegacyCustomGasViewSelectViewState
       initialGasPrice = EthereumUtils.weiToGwei(initialFee.gasPrice!);
       initialGasLimit = initialFee.gasLimit;
     }
-    final normal =
-        widget.fee.fees.firstWhereOrNull((e) => e.type == TxFeeTypes.normal);
+    final normal = widget.fee.fees.firstWhereOrNull((e) => e.type == TxFeeTypes.normal);
     if (normal != null) {
       lowGasPrice = EthereumUtils.weiToGwei(normal.gasPrice!);
       hightGasPrice = EthereumUtils.weiToGwei(normal.gasPrice!);
@@ -482,8 +474,8 @@ class __ETHLegacyCustomGasViewSelectViewState
             minlines: 1,
             maxLines: 2,
             initialValue: initialGasPrice.toDecimal(),
-            keyboardType: const TextInputType.numberWithOptions(
-                decimal: true, signed: false),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true, signed: false),
             inputFormatters: [
               BigRetionalTextInputFormatter(
                   max: null, allowSign: false, allowDecimal: true),
@@ -492,8 +484,8 @@ class __ETHLegacyCustomGasViewSelectViewState
             validator: validatorBaseGass,
             onChanged: onChangeGasPrice,
             helperText: gasPriceHelper,
-            helperStyle: context.textTheme.bodyMedium
-                ?.copyWith(color: context.colors.orange),
+            helperStyle:
+                context.textTheme.bodyMedium?.copyWith(color: context.colors.orange),
             suffixIcon: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -503,8 +495,7 @@ class __ETHLegacyCustomGasViewSelectViewState
                   child: Text(
                     "gwei".tr,
                     style: context.textTheme.labelLarge?.copyWith(
-                        color: context.colors.primary,
-                        fontWeight: FontWeight.w900),
+                        color: context.colors.primary, fontWeight: FontWeight.w900),
                   ),
                 ),
               ],
@@ -517,14 +508,14 @@ class __ETHLegacyCustomGasViewSelectViewState
           AppTextField(
             label: "gas_limit".tr,
             minlines: 1,
-            helperStyle: context.textTheme.bodyMedium
-                ?.copyWith(color: context.colors.orange),
+            helperStyle:
+                context.textTheme.bodyMedium?.copyWith(color: context.colors.orange),
             maxLines: 2,
             initialValue: initialGasLimit.toString(),
             validator: validateGasLimit,
             onChanged: onChangeGasLimit,
-            keyboardType: const TextInputType.numberWithOptions(
-                decimal: true, signed: false),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true, signed: false),
             helperText: gasLimitHelper,
             inputFormatters: [
               BigRetionalTextInputFormatter(

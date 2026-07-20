@@ -32,8 +32,7 @@ class SubstrateTransactionXCMTransferWidget extends StatelessWidget {
                     context
                         .openSliverDialog<SubstrateChain>(
                             label: "destination_network".tr,
-                            sliver: (context) =>
-                                _SelectDestinationChain(form.routes))
+                            sliver: (context) => _SelectDestinationChain(form.routes))
                         .then(form.onUpdateDestination);
                   },
                   child: Text("tap_to_choose_destination".tr)),
@@ -90,167 +89,141 @@ class _TransferForm extends StatelessWidget {
                           oTapError: () => transfer.init(),
                         ),
                     enable: !transfer.initStatus.isError,
-                    onActive: (context) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ReceiptAddressView(
-                                onTap: () {
-                                  context
-                                      .selectAccount<BaseSubstrateAddress>(
-                                          account:
-                                              transfer.destinationChain.network)
-                                      .then(
-                                    (v) {
-                                      final address = v?.firstOrNull;
-                                      form.onUpdateReceipt(transfer, address);
-                                    },
-                                  );
+                    onActive: (context) =>
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          ReceiptAddressView(
+                            onTap: () {
+                              context
+                                  .selectAccount<BaseSubstrateAddress>(
+                                      account: transfer.destinationChain.network)
+                                  .then(
+                                (v) {
+                                  final address = v?.firstOrNull;
+                                  form.onUpdateReceipt(transfer, address);
                                 },
-                                address: transfer.receipt,
-                              ),
-                              WidgetConstant.height20,
-                              FormWidgetList(
-                                  title: "transfers".tr,
-                                  subtitle: "list_of_transfers".tr,
-                                  values: transfer.transfers,
-                                  onCreate: (context) {
-                                    if (!transfer.allowAddTransfer) return null;
-                                    return ContainerWithBorder(
-                                      validate: transfer.transfers.isNotEmpty,
-                                      onRemoveWidget:
-                                          AddOrEditIconWidget(false),
-                                      onRemove: () {
-                                        context
-                                            .openMaxExtendSliverBottomSheet<
-                                                SubstrateTokenDetails>(
-                                              "fee_token".tr,
-                                              centerContent: false,
-                                              bodyBuilder: (sc) =>
-                                                  SubstrateTransactionPickTokenView(
-                                                      controller: sc,
-                                                      onFilter: transfer
-                                                          .onFilterToken,
-                                                      tokens: transfer
-                                                          .availableTokens
-                                                          .map((e) =>
-                                                              e.tokenDetails)
-                                                          .toList()),
-                                            )
-                                            .then((v) => form.onUpdateToken(
-                                                transfer, v));
+                              );
+                            },
+                            address: transfer.receipt,
+                          ),
+                          WidgetConstant.height20,
+                          FormWidgetList(
+                              title: "transfers".tr,
+                              subtitle: "list_of_transfers".tr,
+                              values: transfer.transfers,
+                              onCreate: (context) {
+                                if (!transfer.allowAddTransfer) return null;
+                                return ContainerWithBorder(
+                                  validate: transfer.transfers.isNotEmpty,
+                                  onRemoveWidget: AddOrEditIconWidget(false),
+                                  onRemove: () {
+                                    context
+                                        .openMaxExtendSliverBottomSheet<
+                                            SubstrateTokenDetails>(
+                                          "fee_token".tr,
+                                          centerContent: false,
+                                          bodyBuilder: (sc) =>
+                                              SubstrateTransactionPickTokenView(
+                                                  controller: sc,
+                                                  onFilter: transfer.onFilterToken,
+                                                  tokens: transfer.availableTokens
+                                                      .map((e) => e.tokenDetails)
+                                                      .toList()),
+                                        )
+                                        .then((v) => form.onUpdateToken(transfer, v));
+                                  },
+                                  child: Text("tap_to_select_token".tr,
+                                      style: context.onPrimaryTextTheme.bodyMedium),
+                                );
+                              },
+                              builder: (context, amount) {
+                                return CustomizedContainer(
+                                  onTapStackIcon: () {
+                                    form.onRemoveTransfer(transfer, amount);
+                                  },
+                                  onStackIcon: Icons.remove_circle,
+                                  validate: amount.hasAmount && amount.minReached,
+                                  validateText: amount.minError,
+                                  enableTap: false,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      ContainerWithBorder(
+                                        backgroundColor: context.onPrimaryContainer,
+                                        child: AccountTokenDetailsWidget(
+                                            color: context.primaryContainer,
+                                            token: amount.token.token,
+                                            liveBalance:
+                                                amount.token.tokenDetails.balance,
+                                            radius: APPConst.circleRadius25),
+                                      ),
+                                      ContainerWithBorder(
+                                          validate: amount.hasAmount,
+                                          onRemove: () {
+                                            context
+                                                .setupAmount(
+                                                    token: amount.token.token,
+                                                    min: amount.minAmount.balance,
+                                                    max: form.getMaxInput(amount))
+                                                .then((v) {
+                                              if (v == null) {
+                                                return;
+                                              }
+                                              form.onUpdateAmount(
+                                                  transfer, amount, v, false);
+                                            });
+                                          },
+                                          // validate: transfer.hasAmount,
+                                          onRemoveIcon: Icon(Icons.edit,
+                                              color: context.primaryContainer),
+                                          backgroundColor: context.onPrimaryContainer,
+                                          child: CoinAndMarketPriceView(
+                                              balance: amount.amount,
+                                              style: context.primaryTextTheme.titleMedium,
+                                              showTokenImage: true,
+                                              symbolColor: context.primaryContainer)),
+                                    ],
+                                  ),
+                                );
+                              }),
+                          ConditionalWidget(
+                            enable: transfer.haveTransfer,
+                            onActive: (context) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                WidgetConstant.height20,
+                                Text("destination_fee".tr,
+                                    style: context.textTheme.titleMedium),
+                                Text("choose_token_for_fee_on_destination_desc".tr),
+                                WidgetConstant.height8,
+                                ConditionalWidget(
+                                  enable: transfer.feeTokens.isNotEmpty,
+                                  onActive: (context) {
+                                    return AppDropDownBottomWithBorder(
+                                      isDense: false,
+                                      isExpanded: true,
+                                      value: transfer.destinationFee?.token,
+                                      onChanged: (v) =>
+                                          form.onUpdateDestinationFeeToken(transfer, v),
+                                      items: {
+                                        for (final i in transfer.feeTokens)
+                                          i: AccountTokenDetailsWidget(
+                                              color: context.onPrimaryContainer,
+                                              token: i.token,
+                                              radius: APPConst.circleRadius25)
                                       },
-                                      child: Text("tap_to_select_token".tr,
-                                          style: context
-                                              .onPrimaryTextTheme.bodyMedium),
                                     );
                                   },
-                                  builder: (context, amount) {
-                                    return CustomizedContainer(
-                                      onTapStackIcon: () {
-                                        form.onRemoveTransfer(transfer, amount);
-                                      },
-                                      onStackIcon: Icons.remove_circle,
-                                      validate:
-                                          amount.hasAmount && amount.minReached,
-                                      validateText: amount.minError,
-                                      enableTap: false,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          ContainerWithBorder(
-                                            backgroundColor:
-                                                context.onPrimaryContainer,
-                                            child: AccountTokenDetailsWidget(
-                                                color: context.primaryContainer,
-                                                token: amount.token.token,
-                                                liveBalance: amount
-                                                    .token.tokenDetails.balance,
-                                                radius:
-                                                    APPConst.circleRadius25),
-                                          ),
-                                          ContainerWithBorder(
-                                              validate: amount.hasAmount,
-                                              onRemove: () {
-                                                context
-                                                    .setupAmount(
-                                                        token:
-                                                            amount.token.token,
-                                                        min: amount
-                                                            .minAmount.balance,
-                                                        max: form.getMaxInput(
-                                                            amount))
-                                                    .then((v) {
-                                                  if (v == null) {
-                                                    return;
-                                                  }
-                                                  form.onUpdateAmount(transfer,
-                                                      amount, v, false);
-                                                });
-                                              },
-                                              // validate: transfer.hasAmount,
-                                              onRemoveIcon: Icon(Icons.edit,
-                                                  color:
-                                                      context.primaryContainer),
-                                              backgroundColor:
-                                                  context.onPrimaryContainer,
-                                              child: CoinAndMarketPriceView(
-                                                  balance: amount.amount,
-                                                  style: context
-                                                      .primaryTextTheme
-                                                      .titleMedium,
-                                                  showTokenImage: true,
-                                                  symbolColor: context
-                                                      .primaryContainer)),
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                              ConditionalWidget(
-                                enable: transfer.haveTransfer,
-                                onActive: (context) => Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    WidgetConstant.height20,
-                                    Text("destination_fee".tr,
-                                        style: context.textTheme.titleMedium),
-                                    Text(
-                                        "choose_token_for_fee_on_destination_desc"
-                                            .tr),
-                                    WidgetConstant.height8,
-                                    ConditionalWidget(
-                                      enable: transfer.feeTokens.isNotEmpty,
-                                      onActive: (context) {
-                                        return AppDropDownBottomWithBorder(
-                                          isDense: false,
-                                          isExpanded: true,
-                                          value: transfer.destinationFee?.token,
-                                          onChanged: (v) =>
-                                              form.onUpdateDestinationFeeToken(
-                                                  transfer, v),
-                                          items: {
-                                            for (final i in transfer.feeTokens)
-                                              i: AccountTokenDetailsWidget(
-                                                  color: context
-                                                      .onPrimaryContainer,
-                                                  token: i.token,
-                                                  radius:
-                                                      APPConst.circleRadius25)
-                                          },
-                                        );
-                                      },
-                                      onDeactive: (context) => ErrorTextContainer(
-                                          error:
-                                              "no_tokens_available_for_paying_fees_destination_desc"
-                                                  .tr),
-                                    )
-                                  ],
-                                ),
-                              ),
-                              _FullDryRunView(transfer),
-                              _TransferGenericWidgets(
-                                  form: form, mainContext: mainContext),
-                            ]));
+                                  onDeactive: (context) => ErrorTextContainer(
+                                      error:
+                                          "no_tokens_available_for_paying_fees_destination_desc"
+                                              .tr),
+                                )
+                              ],
+                            ),
+                          ),
+                          _FullDryRunView(transfer),
+                          _TransferGenericWidgets(form: form, mainContext: mainContext),
+                        ]));
               })
         ]);
       },
@@ -276,8 +249,7 @@ class _FullDryRunView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     WidgetConstant.height20,
-                    Text("simulate_transaction".tr,
-                        style: context.textTheme.titleMedium),
+                    Text("simulate_transaction".tr, style: context.textTheme.titleMedium),
                     Text("dry_run_local_destination_desc".tr),
                     WidgetConstant.height8,
                     ConditionalWidgets<SubstrateXCMDestinationFeeStatus>(
@@ -285,12 +257,10 @@ class _FullDryRunView extends StatelessWidget {
                       widgets: {
                         SubstrateXCMDestinationFeeStatus.failed: (context) =>
                             ErrorTextContainer(
-                                error: dryRun.error ??
-                                    "transaction_simulation_failed".tr,
+                                error: dryRun.error ?? "transaction_simulation_failed".tr,
                                 enableTap: false,
-                                errorIcon: dryRun.xcmDryRun == null
-                                    ? null
-                                    : Icons.open_in_full,
+                                errorIcon:
+                                    dryRun.xcmDryRun == null ? null : Icons.open_in_full,
                                 oTapError: () {
                                   if (dryRun.xcmDryRun == null) {
                                     transfer.onStateUpdated();
@@ -301,10 +271,9 @@ class _FullDryRunView extends StatelessWidget {
                                           text: dryRun.xcmDryRun!.toJson(),
                                           title: 'content'.tr));
                                 }),
-                        SubstrateXCMDestinationFeeStatus.unsuported:
-                            (context) => AlertTextContainer(
-                                enableTap: false,
-                                message: "unsupport_simulation".tr),
+                        SubstrateXCMDestinationFeeStatus.unsuported: (context) =>
+                            AlertTextContainer(
+                                enableTap: false, message: "unsupport_simulation".tr),
                         SubstrateXCMDestinationFeeStatus.pending: (context) =>
                             ShimmerWidget(),
                         SubstrateXCMDestinationFeeStatus.success: (context) {
@@ -314,11 +283,10 @@ class _FullDryRunView extends StatelessWidget {
                             _DryRrunView(dryRun.call),
                             ...List.generate(
                                 dryRun.routes.length,
-                                (i) => _DryRrunView(
-                                    transfer.dryRun.xcmDryRun!.routes[i])),
+                                (i) =>
+                                    _DryRrunView(transfer.dryRun.xcmDryRun!.routes[i])),
                             _DryRunFees(
-                                title: "xcm_deliveries_fee".tr,
-                                fees: dryRun.localFees),
+                                title: "xcm_deliveries_fee".tr, fees: dryRun.localFees),
                             _DryRunFees(
                                 title: "destination_fee".tr,
                                 fees: dryRun.destinationFees),
@@ -357,20 +325,17 @@ class _DryRrunView extends StatelessWidget {
               enable: dryRun.dryRunContent != null,
               onActive: (context) => ContainerWithBorder(
                     backgroundColor: context.onPrimaryContainer,
-                    onRemoveIcon: Icon(Icons.open_in_full,
-                        color: context.primaryContainer),
+                    onRemoveIcon:
+                        Icon(Icons.open_in_full, color: context.primaryContainer),
                     onRemove: () {
                       context.openDialogPage('',
-                          child: (context) => JsonView(
-                              text: dryRun.dryRunContent!,
-                              title: 'content'.tr));
+                          child: (context) =>
+                              JsonView(text: dryRun.dryRunContent!, title: 'content'.tr));
                     },
-                    child: Text("content".tr,
-                        style: context.primaryTextTheme.bodyMedium),
+                    child: Text("content".tr, style: context.primaryTextTheme.bodyMedium),
                   )),
           ConditionalWidgets(enable: dryRun.status, widgets: {
-            SubstrateXCMDryRunStatus.unsuported: (context) =>
-                AlertTextContainer(
+            SubstrateXCMDryRunStatus.unsuported: (context) => AlertTextContainer(
                   message: dryRun.network == null
                       ? "unknown_network".tr
                       : "unsupport_simulation".tr,
@@ -392,8 +357,7 @@ class _DryRrunView extends StatelessWidget {
 class _TransferGenericWidgets extends StatelessWidget {
   final SubstrateTransactionXCMTransferOperation form;
   final BuildContext mainContext;
-  const _TransferGenericWidgets(
-      {required this.form, required this.mainContext});
+  const _TransferGenericWidgets({required this.form, required this.mainContext});
 
   @override
   Widget build(BuildContext context) {
@@ -414,12 +378,12 @@ class _TransferGenericWidgets extends StatelessWidget {
                           },
                           onRemoveIcon: Icon(Icons.remove_circle,
                               color: context.onPrimaryContainer),
-                          child: Text(value,
-                              style: context.onPrimaryTextTheme.bodyMedium)),
+                          child:
+                              Text(value, style: context.onPrimaryTextTheme.bodyMedium)),
                       onCreate: (context, field) {
                         return ContainerWithBorder(
-                            onRemoveIcon: Icon(Icons.add_box,
-                                color: context.onPrimaryContainer),
+                            onRemoveIcon:
+                                Icon(Icons.add_box, color: context.onPrimaryContainer),
                             onRemove: () {
                               context
                                   .openSliverBottomSheet<String>(
@@ -487,8 +451,7 @@ class _SelectDestinationChain extends StatelessWidget {
                     onRemoveWidget: WidgetConstant.sizedBox,
                     onRemove: () => context.pop(chain),
                     child: AccountTokenDetailsWidget(
-                        token: chain.network.token,
-                        radius: APPConst.circleRadius25),
+                        token: chain.network.token, radius: APPConst.circleRadius25),
                   );
                 },
                 separatorBuilder: (context, index) => const Divider());

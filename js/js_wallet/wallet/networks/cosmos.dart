@@ -1,9 +1,10 @@
 import 'package:cosmos_sdk/cosmos_sdk.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/core/core.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/networks.dart';
-import 'package:on_chain_wallet/wallet/web3/state/state.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/core/core.dart';
+import 'package:on_chain_wallet/web3/web3/networks/networks.dart';
+import 'package:on_chain_wallet/web3/web3/state/state.dart';
+import 'package:on_chain_wallet/context/core/context.dart';
 import '../../js_wallet.dart';
 import '../../models/models/networks/cosmos.dart';
 import '../../models/models/networks/wallet_standard.dart';
@@ -46,11 +47,9 @@ class CosmosWeb3JSStateAccount extends Web3JSStateAccount<
 
   factory CosmosWeb3JSStateAccount.init(
       {Web3NetworkState state = Web3NetworkState.disconnect}) {
-    return CosmosWeb3JSStateAccount._(
-        accounts: const [], state: state, chains: []);
+    return CosmosWeb3JSStateAccount._(accounts: const [], state: state, chains: []);
   }
-  factory CosmosWeb3JSStateAccount(
-      Web3CosmosChainAuthenticated? authenticated) {
+  factory CosmosWeb3JSStateAccount(Web3CosmosChainAuthenticated? authenticated) {
     if (authenticated == null) {
       return CosmosWeb3JSStateAccount.init(state: Web3NetworkState.block);
     }
@@ -66,7 +65,7 @@ class CosmosWeb3JSStateAccount extends Web3JSStateAccount<
               address: e.addressStr,
               publicKey: e.publicKey,
               algo: e.algo.name,
-              typeUrl: e.algo.pubKeyTypeUrl.typeUrl,
+              typeUrl: e.algo.getPublicKeyTypeUrl(),
               chain: network.wsIdentifier),
           networkIdentifier: network);
     }).toList();
@@ -87,7 +86,7 @@ class CosmosWeb3JSStateAccount extends Web3JSStateAccount<
                 jsAccount: JSCosmosWalletAccount.setup(
                     address: defaultAddress.addressStr,
                     publicKey: defaultAddress.publicKey,
-                    typeUrl: defaultAddress.algo.pubKeyTypeUrl.typeUrl,
+                    typeUrl: defaultAddress.algo.getPublicKeyTypeUrl(),
                     algo: defaultAddress.algo.name,
                     chain: networks[defaultAddress.id]!.wsIdentifier),
               ));
@@ -99,10 +98,16 @@ class CosmosWeb3JSStateHandler extends Web3JSStateHandler<
         Web3CosmosChainAccount,
         JSCosmosWalletAccount,
         Web3CosmoshainIdnetifier,
+        CosmosWeb3JSStateAddress,
         CosmosWeb3JSStateAccount>
     with
-        CosmosWeb3StateHandler<JSCosmosWalletAccount, CosmosWeb3JSStateAccount,
-            WalletMessageResponse, Web3JsClientRequest, JSWalletNetworkEvent> {
+        CosmosWeb3StateHandler<
+            JSCosmosWalletAccount,
+            CosmosWeb3JSStateAddress,
+            CosmosWeb3JSStateAccount,
+            WalletMessageResponse,
+            Web3JsClientRequest,
+            JSWalletNetworkEvent> {
   CosmosWeb3JSStateHandler(
       {required super.sendMessageToClient, required super.sendInternalMessage});
 
@@ -119,11 +124,9 @@ class CosmosWeb3JSStateHandler extends Web3JSStateHandler<
         return toSignDirectTransactionRequest(
             params: params, state: state, method: method!);
       case Web3CosmosRequestMethods.signMessage:
-        return toSignMessageRequest(
-            params: params, state: state, method: method!);
+        return toSignMessageRequest(params: params, state: state, method: method!);
       case Web3CosmosRequestMethods.addNewChain:
-        return toAddNewChainRequest(
-            params: params, state: state, method: method!);
+        return toAddNewChainRequest(params: params, state: state, method: method!);
       default:
         throw Web3RequestExceptionConst.methodDoesNotSupport;
     }
@@ -156,8 +159,8 @@ class CosmosWeb3JSStateHandler extends Web3JSStateHandler<
             tx: signedResponse.tx.toJson(),
             signature: JSCosmosStdSignature.setup(
                 pubKey: JSCosmosPubKey.setup(
-                    type: signedResponse.publicKey.typeUrl,
-                    value: signedResponse.publicKey.toBase64),
+                    type: signedResponse.publicKey.typeUrl ?? "",
+                    value: signedResponse.publicKey.toBase64()),
                 signature: signedResponse.singaureAsBase64())));
       case Web3CosmosRequestMethods.signTransactionDirect:
         final transaction = response.resultAsList<int>();
@@ -172,18 +175,18 @@ class CosmosWeb3JSStateHandler extends Web3JSStateHandler<
                 accountNumber: signedResponse.accountNumber),
             signature: JSCosmosStdSignature.setup(
                 pubKey: JSCosmosPubKey.setup(
-                    type: signedResponse.publicKey.typeUrl,
-                    value: signedResponse.publicKey.toBase64),
+                    type: signedResponse.publicKey.typeUrl ?? "",
+                    value: signedResponse.publicKey.toBase64()),
                 signature: signedResponse.singaureAsBase64())));
       default:
         break;
     }
-    return super.finalizeWalletResponse(
-        message: message, params: params, response: response);
+    return super
+        .finalizeWalletResponse(message: message, params: params, response: response);
   }
 
   @override
-  CosmosWeb3JSStateAccount createState(Web3APPData? authenticated) {
+  CosmosWeb3JSStateAccount createState(Web3APPData? authenticated, AppContext? context) {
     if (authenticated == null) return CosmosWeb3JSStateAccount.init();
     return CosmosWeb3JSStateAccount(authenticated.getAuth(networkType));
   }

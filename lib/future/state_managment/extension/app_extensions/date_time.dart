@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/datetime/datetime.dart';
+import 'package:on_chain_wallet/future/state_managment/extension/app_extensions/string.dart';
 
-extension QuickDateTimeFormater on DateTime {
+extension ExtQuickDateTimeFormater on DateTime {
   static String _twoDigits(int n) {
     return n.toString().padLeft(2, "0");
-    // if (n >= 10) {
-    //   return "$n";
-    // } else {
-    //   return "0$n";
-    // }
   }
 
   String toDateAndTimeWithSecound() {
@@ -36,7 +31,16 @@ extension QuickDateTimeFormater on DateTime {
   TimeOfDay timeOfDay() {
     return TimeOfDay(hour: hour, minute: minute);
   }
+}
 
-  int get secondsSinceEpoch => DateTimeUtils.secondsSinceEpoch(this);
-  bool get isAfterNow => toUtc().isAfter(DateTime.now().toUtc());
+extension ExtDurationTranslate on Duration {
+  String remainingTime() {
+    if (inDays > 0) {
+      return "n_days".tr.replaceOne(inDays.toString());
+    }
+    if (inHours > 0) {
+      return "n_hours".tr.replaceOne(inHours.toString());
+    }
+    return "n_minutes".tr.replaceOne(inMinutes.toString());
+  }
 }

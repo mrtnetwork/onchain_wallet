@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:on_chain/ethereum/src/transaction/eth_transaction.dart';
-import 'package:on_chain_wallet/crypto/utils/solidity/solidity.dart';
+import 'package:on_chain_wallet/crypto/networks/solidity/solidity.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/controllers/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/widgets/transfer_token.dart';
@@ -10,19 +10,19 @@ import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/ethereum/client/ethereum.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
+import 'package:on_chain_wallet/wallet/models/token/token_core/networks/erc20.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/ethereum.dart';
 
 class EthereumTransactionTransferTokenOperation
-    extends EthereumTransactionStateController<
-        IEthereumTransactionTokenTransferData> {
+    extends EthereumTransactionStateController<IEthereumTransactionTokenTransferData> {
   EthereumTransactionTransferTokenOperation(
       {required super.address,
       required super.account,
       required super.walletProvider,
       required this.token});
   final ETHERC20Token token;
-  StreamSubscription<IntegerBalance>? _tokenBalanceListener;
+  StreamSubscription? _tokenBalanceListener;
 
   @override
   BigInt getMaxInput() {
@@ -34,15 +34,13 @@ class EthereumTransactionTransferTokenOperation
     final status = super.getStateStatus();
     if (!status.isReady) return status;
     BigInt totalAmount = txFee.fee.fee.balance;
-    BigInt r = address.address.currencyBalance - totalAmount;
+    BigInt r = address.addressData.currencyBalance - totalAmount;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, network.token));
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token));
     }
     totalAmount = amount.value.balance;
     r = token.balance.balance - totalAmount;
-    return TransactionStateStatus.insufficient(
-        IntegerBalance.token(r, token.token));
+    return TransactionStateStatus.insufficient(IntegerBalance.token(r, token.token));
   }
 
   @override
@@ -66,8 +64,7 @@ class EthereumTransactionTransferTokenOperation
           .encode([receipt.value!.networkAddress, amount.value.balance]);
     }
     if (memo.hasValue) {
-      transactionData =
-          List<int>.from([...transactionData, ...memoBytes() ?? <int>[]]);
+      transactionData = List<int>.from([...transactionData, ...memoBytes() ?? <int>[]]);
     }
     return transactionData;
   }
@@ -83,7 +80,7 @@ class EthereumTransactionTransferTokenOperation
             from: address.networkAddress,
             to: token.contractAddress,
             nonce: 0,
-            gasLimit: BigInt.one,
+            gasLimit: BigInt.zero,
             data: _encodeTxData(),
             value: BigInt.zero,
             chainId: network.coinParam.chainId)
@@ -92,10 +89,9 @@ class EthereumTransactionTransferTokenOperation
   }
 
   @override
-  Future<List<IWalletTransaction<EthWalletTransaction, IEthAddress>>>
+  Future<List<IWalletTransaction<EthWalletTransaction, IEthereumAddress>>>
       buildWalletTransaction(
-          {required IEthereumSignedTransaction<
-                  IEthereumTransactionTokenTransferData>
+          {required IEthereumSignedTransaction<IEthereumTransactionTokenTransferData>
               signedTx,
           required SubmitTransactionSuccess txId}) async {
     final txData = signedTx.transaction.transactionData;
@@ -115,9 +111,10 @@ class EthereumTransactionTransferTokenOperation
   }
 
   @override
-  EthereumTransactionTransferTokenOperation cloneController(
-      IEthAddress address) {
-    final addressToken = address.tokens.firstWhere(
+  Future<EthereumTransactionTransferTokenOperation> cloneController(
+      IEthereumAddress address) async {
+    final tokens = (await address.getAccountTokens()).unwrap();
+    final addressToken = tokens.firstWhere(
         (e) => e.contractAddress == token.contractAddress,
         orElse: () => token.clone(balance: BigInt.zero));
     return EthereumTransactionTransferTokenOperation(
@@ -136,25 +133,22 @@ class EthereumTransactionTransferTokenOperation
   Token get transferToken => token.token;
 
   @override
-  TransactionOperations get operation =>
-      EthereumTransactionOperations.tokenTransfer;
+  TransactionOperations get operation => EthereumTransactionOperations.tokenTransfer;
 
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required EthereumClient client,
+    required EthereumNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super
-        .initForm(context: context, client: client, updateAccount: false);
-    if (!address.tokens.contains(token)) {
+    await super.initForm(context: context, client: client, updateAccount: false);
+    if (!addressTokens.contains(token)) {
       await account.updateTokenBalance(address: address, tokens: [token]);
     } else {
       account.updateTokenBalance(address: address, tokens: [token]);
     }
-    _tokenBalanceListener =
-        token.streamBalance.stream.listen((_) => onStateUpdated());
+    _tokenBalanceListener = token.streamBalance.stream.listen((_) => onStateUpdated());
     return this;
   }
 

@@ -8,8 +8,7 @@ class TooltipConstrainsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-        constraints:
-            const BoxConstraints(maxWidth: APPConst.tooltipConstrainedWidth),
+        constraints: const BoxConstraints(maxWidth: APPConst.tooltipConstrainedWidth),
         child: child);
   }
 }

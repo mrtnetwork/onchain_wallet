@@ -6,6 +6,7 @@ import 'cosmos.dart';
 import 'monero.dart';
 import 'substrate.dart';
 import 'sui.dart';
+import 'zcash.dart';
 
 class JSWalletStandardConst {
   static const String defaultVersion = '1.0.0';
@@ -24,8 +25,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set solanaSignAndSendTransaction(
       SolanaWalletAdapterSolanaSignAndSendTransactionFeature _);
   @JS("solana:signTransaction")
-  external set solanaSignTransaction(
-      SolanaWalletAdapterSolanaSignTransactionFeature _);
+  external set solanaSignTransaction(SolanaWalletAdapterSolanaSignTransactionFeature _);
   @JS("solana:signAllTransactions")
   external set solanaSignAllTransactions(
       SolanaWalletAdapterSolanaSignAllTransactionsFeature _);
@@ -67,8 +67,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set stellarSignTransaction(
       StellarWalletAdapterStellarSignTransactionFeature _);
   @JS("stellar:signMessage")
-  external set stellarSignMessage(
-      StellarWalletAdapterStellarSignMessageFeature _);
+  external set stellarSignMessage(StellarWalletAdapterStellarSignMessageFeature _);
 
   @JS("stellar:events")
   external set stellarEvents(JSWalletStandardEventsFeature _);
@@ -91,24 +90,19 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   @JS("cardano:getUtxos")
   external set cardanoGetUtxos(JSWalletStandardADAGetUtxosFeature _);
   @JS("cardano:getAddressUtxos")
-  external set cardanoGetAddressUtxos(
-      JSWalletStandardADAGetAddressUtxosFeature _);
+  external set cardanoGetAddressUtxos(JSWalletStandardADAGetAddressUtxosFeature _);
 
   @JS("cardano:getCollateral")
   external set cardanoGetCollateral(JSWalletStandardADAGetCollateralFeature _);
   @JS("cardano:getUsedAddresses")
-  external set cardanoGetUsedAddresses(
-      JSWalletStandardADAGetUsedAddressesFeature _);
+  external set cardanoGetUsedAddresses(JSWalletStandardADAGetUsedAddressesFeature _);
   @JS("cardano:getUnusedAddresses")
-  external set cardanoGetUnusedAddresses(
-      JSWalletStandardADAGetUnusedAddressesFeature _);
+  external set cardanoGetUnusedAddresses(JSWalletStandardADAGetUnusedAddressesFeature _);
   @JS("cardano:getChangeAddress")
-  external set cardanoGetChangeAddress(
-      JSWalletStandardADAGetChangeAddressFeature _);
+  external set cardanoGetChangeAddress(JSWalletStandardADAGetChangeAddressFeature _);
 
   @JS("cardano:getRewardAddresses")
-  external set cardanoGetRewardAddresses(
-      JSWalletStandardADAGetRewardAddressesFeature _);
+  external set cardanoGetRewardAddresses(JSWalletStandardADAGetRewardAddressesFeature _);
   @JS("cardano:signTx")
   external set cardanoSignTx(JSWalletStandardADASignTxFeature _);
   @JS("cardano:signData")
@@ -116,8 +110,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   @JS("cardano:signMessage")
   external set cardanoSignMessage(JSWalletStandardADASignMessageFeature _);
   @JS("cardano:signTransaction")
-  external set cardanoSignTransaction(
-      JSWalletStandardADASignTransactionFeature _);
+  external set cardanoSignTransaction(JSWalletStandardADASignTransactionFeature _);
   @JS("cardano:signAndSendTransaction")
   external set cardanoSignAndTransaction(
       JSWalletStandardADASignAndSendTransactionFeature _);
@@ -138,8 +131,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set cardanoGetScriptRequirements(
       JSWalletStandardADAGetScriptRequirementsFeature _);
   @JS("cardano:submitUnsignedTx")
-  external set cardanoSubmitUnsignedTx(
-      JSWalletStandardADASubmitUnsignedTxFeature _);
+  external set cardanoSubmitUnsignedTx(JSWalletStandardADASubmitUnsignedTxFeature _);
 
   /// monero
   @JS("monero:signAndSendTransaction")
@@ -159,8 +151,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set rippleSignAndSendTransaction(
       RippleWalletAdapterRippleSignAndSendTransactionFeature _);
   @JS("xrpl:signTransaction")
-  external set rippleSignTransaction(
-      RippleWalletAdapterRippleSignTransactionFeature _);
+  external set rippleSignTransaction(RippleWalletAdapterRippleSignTransactionFeature _);
   @JS("xrpl:signMessage")
   external set rippleSignMessage(RippleWalletAdapterRippleSignMessageFeature _);
   @JS("xrpl:connect")
@@ -176,13 +167,11 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   @JS("bitcoin:account")
   external set bitcoinAccount(JSWalletStandardAccountFeature _);
   @JS("bitcoin:signPersonalMessage")
-  external set bitcoinSignPersonalMessage(
-      JSWalletStandardSignPersonalMessageFeature _);
+  external set bitcoinSignPersonalMessage(JSWalletStandardSignPersonalMessageFeature _);
   @JS("bitcoin:signTransaction")
   external set bitcoinSignTransaction(JSWalletStandardSignTransactionFeature _);
   @JS("bitcoin:getAccountAddresses")
-  external set bitcoingetAccountAddresses(
-      JSWalletStandardGetAccountAddressesFeature _);
+  external set bitcoingetAccountAddresses(JSWalletStandardGetAccountAddressesFeature _);
   @JS("bitcoin:sendTransaction")
   external set bitcoinSendTransaction(JSWalletStandardSendTransactionFeature _);
   @JS("bitcoin:disconnect")
@@ -200,14 +189,12 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set bitcoinCashSignPersonalMessage(
       JSWalletStandardSignPersonalMessageFeature _);
   @JS("bch:signTransaction")
-  external set bitcoinCashSignTransaction(
-      JSWalletStandardSignTransactionFeature _);
+  external set bitcoinCashSignTransaction(JSWalletStandardSignTransactionFeature _);
   @JS("bch:getAccountAddresses")
   external set bitcoinCashGetAccountAddresses(
       JSWalletStandardGetAccountAddressesFeature _);
   @JS("bch:sendTransaction")
-  external set bitcoinCashSendTransaction(
-      JSWalletStandardSendTransactionFeature _);
+  external set bitcoinCashSendTransaction(JSWalletStandardSendTransactionFeature _);
   @JS("bch:disconnect")
   external set bitcoinCashDisconnect(JSWalletStandardDisconnectFeature _);
   @JS("bch:events")
@@ -228,8 +215,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set suiSignAndExecuteTransactionBlock(
       SuiWalletAdapterStandardSignAndExecuteTransactionBlockFeature _);
   @JS("sui:signTransaction")
-  external set suiSignTransaction(
-      SuiWalletAdapterStandardSignTransactionFeature _);
+  external set suiSignTransaction(SuiWalletAdapterStandardSignTransactionFeature _);
   @JS("sui:signTransactionBlock")
   external set suiSignTransactionBlock(
       SuiWalletAdapterStandardSignTransactionBlockFeature _);
@@ -251,19 +237,15 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   @JS("aptos:network")
   external set aptosNetwork(AptosWalletAdapterStandardGetNetworkFeature _);
   @JS("aptos:onAccountChange")
-  external set aptosOnAccountChange(
-      AptosWalletAdapterStandardOnAccountChangeFeature _);
+  external set aptosOnAccountChange(AptosWalletAdapterStandardOnAccountChangeFeature _);
   @JS("aptos:onNetworkChange")
-  external set aptosOnNetworkChange(
-      AptosWalletAdapterStandardOnNetworkChangeFeature _);
+  external set aptosOnNetworkChange(AptosWalletAdapterStandardOnNetworkChangeFeature _);
   @JS("aptos:signTransaction")
-  external set aptosSignTransaction(
-      AptosWalletAdapterStandardSignTransactionFeature _);
+  external set aptosSignTransaction(AptosWalletAdapterStandardSignTransactionFeature _);
   @JS("aptos:signMessage")
   external set aptosSignMessage(AptosWalletAdapterStandardSignMessageFeature _);
   @JS("aptos:changeNetwork")
-  external set aptosChangeNetwork(
-      AptosWalletAdapterStandardChangeNetworkFeature _);
+  external set aptosChangeNetwork(AptosWalletAdapterStandardChangeNetworkFeature _);
   @JS("aptos:events")
   external set aptosEvents(JSWalletStandardEventsFeature _);
 
@@ -272,11 +254,9 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set substrateSignTransaction(
       SubstrateWalletAdapterSubstrateSignTransactionFeature _);
   @JS("polkadot:signMessage")
-  external set substrateSignMessage(
-      SubstrateWalletAdapterSubstrateSignMessageFeature _);
+  external set substrateSignMessage(SubstrateWalletAdapterSubstrateSignMessageFeature _);
   @JS("polkadot:addNewChain")
-  external set substrateAddNewChain(
-      SubstrateWalletAdapterSubstrateAddNewChainFeature _);
+  external set substrateAddNewChain(SubstrateWalletAdapterSubstrateAddNewChainFeature _);
   @JS("polkadot:connect")
   external set substrateConnect(JSSubstrateWalletStandardConnectFeature _);
   @JS("polkadot:events")
@@ -286,8 +266,7 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
 
   /// ethereum
   @JS("ethereum:sendTransaction")
-  external set ethereumSendTransaction(
-      EthereumWalletAdapterSendTransactionFeature _);
+  external set ethereumSendTransaction(EthereumWalletAdapterSendTransactionFeature _);
   @JS("ethereum:personalSign")
   external set ethereumPersonalSign(EthereumWalletAdapterPersonalSignFeature _);
   @JS("ethereum:ethSign")
@@ -297,14 +276,11 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   @JS("ethereum:events")
   external set ethereumEvents(JSWalletStandardEventsFeature _);
   @JS("ethereum:signTypedData")
-  external set ethereumsignTypedData(
-      EthereumWalletAdapterSignTypedDataFeature _);
+  external set ethereumsignTypedData(EthereumWalletAdapterSignTypedDataFeature _);
   @JS("ethereum:signTypedDataV4")
-  external set ethereumsignTypedDataV4(
-      EthereumWalletAdapterSignTypedDataV4Feature _);
+  external set ethereumsignTypedDataV4(EthereumWalletAdapterSignTypedDataV4Feature _);
   @JS("ethereum:signTypedDataV3")
-  external set ethereumsignTypedDataV3(
-      EthereumWalletAdapterSignTypedDataV3Feature _);
+  external set ethereumsignTypedDataV3(EthereumWalletAdapterSignTypedDataV3Feature _);
   @JS("ethereum:addNewChain")
   external set ethereumAddNewChain(EthereumWalletAdapterAddNewChainFeature _);
   @JS("ethereum:request")
@@ -326,13 +302,11 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
 
   /// cosmos
   @JS("cosmos:signTransaction")
-  external set cosmosSignTransaction(
-      CosmosWalletAdapterStandardSignTransactionFeature _);
+  external set cosmosSignTransaction(CosmosWalletAdapterStandardSignTransactionFeature _);
   @JS("cosmos:signer")
   external set cosmosSigner(CosmosWalletAdapterSignerFeature _);
   @JS("cosmos:signMessage")
-  external set cosmosSignMessage(
-      CosmosWalletAdapterStandardSignMessageFeature _);
+  external set cosmosSignMessage(CosmosWalletAdapterStandardSignMessageFeature _);
 
   @JS("cosmos:signTransactionDirect")
   external set cosmosSignTransactionDirect(
@@ -349,6 +323,17 @@ extension type JSWalletStandardFeature(JSAny _) implements JSAny {
   external set cosmosEvents(JSWalletStandardEventsFeature _);
   @JS("cosmos:disconnect")
   external set cosmosDisconnect(JSWalletStandardDisconnectFeature _);
+
+  @JS("zcash:payment")
+  external set payment(ZcashWalletAdapterZcashPaymentFeature _);
+  @JS("zcash:signMessage")
+  external set zcashSignMessage(ZcashWalletAdapterZcashSignMessageFeature _);
+  @JS("zcash:connect")
+  external set zcashConnect(JSZcashWalletStandardConnectFeature _);
+  @JS("zcash:events")
+  external set zcashEvents(JSWalletStandardEventsFeature _);
+  @JS("zcash:disconnect")
+  external set zcashDisconnect(JSWalletStandardDisconnectFeature _);
 }
 
 @JS()
@@ -390,8 +375,7 @@ extension type JSWalletStandardConnectParams._(JSObject _) implements JSAny {
   external JSArray<JSString>? chains;
 }
 extension type JSWalletStandardConnect._(JSObject _) implements JSAny {
-  factory JSWalletStandardConnect.setup(
-      List<JSWalletStandardAccount> accounts) {
+  factory JSWalletStandardConnect.setup(List<JSWalletStandardAccount> accounts) {
     return JSWalletStandardConnect._(JSObject())..accounts = accounts.toJS;
   }
   external JSArray<JSWalletStandardAccount> get accounts;
@@ -400,8 +384,7 @@ extension type JSWalletStandardConnect._(JSObject _) implements JSAny {
 @JS()
 extension type JSWalletStandardConnectFeature(JSAny _) implements JSAny {
   factory JSWalletStandardConnectFeature.setup(
-      {required JSFunction connect,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction connect, String version = SolanaJSConstant.version}) {
     return JSWalletStandardConnectFeature(JSObject())
       ..connect = connect
       ..version = version;
@@ -434,8 +417,7 @@ extension type JSWalletStandardDisconnectFeature(JSAny _) implements JSAny {
   external set disconnect(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardSignPersonalMessageFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardSignPersonalMessageFeature(JSAny _) implements JSAny {
   factory JSWalletStandardSignPersonalMessageFeature.setup(
       {required JSFunction signPersonalMessage,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -449,8 +431,7 @@ extension type JSWalletStandardSignPersonalMessageFeature(JSAny _)
 // typedef SNN = JSPromise<JSBitcoinSignTransactionResponse> Function(
 //     JSBitcoinSignTransactionResponse);
 @JS()
-extension type JSWalletStandardSignTransactionFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardSignTransactionFeature(JSAny _) implements JSAny {
   factory JSWalletStandardSignTransactionFeature.setup(
       {required JSFunction signTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -462,8 +443,7 @@ extension type JSWalletStandardSignTransactionFeature(JSAny _)
   external set signTransaction(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardGetAccountAddressesFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardGetAccountAddressesFeature(JSAny _) implements JSAny {
   factory JSWalletStandardGetAccountAddressesFeature.setup(
       {required JSFunction getAccountAddresses,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -475,8 +455,7 @@ extension type JSWalletStandardGetAccountAddressesFeature(JSAny _)
   external set getAccountAddresses(JSFunction _);
 }
 @JS()
-extension type JSWalletStandardSendTransactionFeature(JSAny _)
-    implements JSAny {
+extension type JSWalletStandardSendTransactionFeature(JSAny _) implements JSAny {
   factory JSWalletStandardSendTransactionFeature.setup(
       {required JSFunction sendTransaction,
       String version = JSWalletStandardConst.defaultVersion}) {
@@ -491,8 +470,7 @@ extension type JSWalletStandardSendTransactionFeature(JSAny _)
 @JS()
 extension type JSWalletStandardSignMessageFeature(JSAny _) implements JSAny {
   factory JSWalletStandardSignMessageFeature.setup(
-      {required JSFunction signMessage,
-      String version = SolanaJSConstant.version}) {
+      {required JSFunction signMessage, String version = SolanaJSConstant.version}) {
     return JSWalletStandardSignMessageFeature(JSObject())
       ..signMessage = signMessage
       ..version = version;
@@ -524,8 +502,7 @@ extension type JSWalletStandardChange._(JSObject _) implements JSAny {
   external JSArray<JSWalletStandardAccount>? get accounts;
   external JSArray<JSString>? get chains;
 }
-extension type JSWalletStandardEvent._(JSObject _)
-    implements JSWalletStandardChange {
+extension type JSWalletStandardEvent._(JSObject _) implements JSWalletStandardChange {
   factory JSWalletStandardEvent(JSWalletStandardChange change) {
     return JSWalletStandardEvent._(JSObject())
       ..change = change
@@ -554,10 +531,8 @@ extension type JSWalletNetworkEvent._(JSObject _) implements JSAny {
       ..account = account
       ..message = message;
   }
-  List<JSNetworkEventType> get eventTypes => types.toDart
-      .map((e) => e.toDart)
-      .map((e) => JSNetworkEventType.name(e))
-      .toList();
+  List<JSNetworkEventType> get eventTypes =>
+      types.toDart.map((e) => e.toDart).map((e) => JSNetworkEventType.name(e)).toList();
   external JSArray<JSString> get types;
   external set types(JSArray<JSString> _);
 

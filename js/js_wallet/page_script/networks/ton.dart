@@ -8,15 +8,13 @@ class TonPageController extends WalletStandardPageController {
     feature.tonSignAndSendTransaction =
         TonWalletAdapterTonSignAndSendTransactionFeature.setup(
             signAndSendTransaction: _sendTransaction.toJS);
-    feature.tonSignTransaction =
-        TonWalletAdapterTonSignTransactionFeature.setup(
-            signTransaction: _signTransaction.toJS);
-    feature.tonSignMessage = TonWalletAdapterTonSignMessageFeature.setup(
-        signMessage: _signMessage.toJS);
-    feature.tonConnect =
-        JSTonWalletStandardConnectFeature.setup(connect: _connect.toJS);
-    feature.tonDisconnect = JSWalletStandardDisconnectFeature.setup(
-        disconnect: _disconnectChain.toJS);
+    feature.tonSignTransaction = TonWalletAdapterTonSignTransactionFeature.setup(
+        signTransaction: _signTransaction.toJS);
+    feature.tonSignMessage =
+        TonWalletAdapterTonSignMessageFeature.setup(signMessage: _signMessage.toJS);
+    feature.tonConnect = JSTonWalletStandardConnectFeature.setup(connect: _connect.toJS);
+    feature.tonDisconnect =
+        JSWalletStandardDisconnectFeature.setup(disconnect: _disconnectChain.toJS);
     feature.tonEvents = JSWalletStandardEventsFeature.setup(on: _onEvents.toJS);
   }
 
@@ -39,8 +37,7 @@ class TonPageController extends WalletStandardPageController {
         method: TonJSConst.sendTransaction, params: [params].toJS);
   }
 
-  JSPromise<JSTonSignMessageResponse> _signMessage(
-      JSTonSignMessageParams params) {
+  JSPromise<JSTonSignMessageResponse> _signMessage(JSTonSignMessageParams params) {
     return waitForSuccessResponsePromise<JSTonSignMessageResponse>(
         method: TonJSConst.signMessage, params: [params].toJS);
   }

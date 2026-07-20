@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:monero_dart/monero_dart.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/requets/messages.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/monero/account/state.dart';
@@ -13,16 +12,16 @@ class MoneroVerifyTxProofView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccessWalletView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return AccessWalletView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       request: WalletCredentialLogin.instance,
       title: "verify_transaction_proof".tr,
       onAccsess: (_) {
-        return NetworkAccountControllerView<MoneroClient, IMoneroAddress,
+        return NetworkAccountControllerView<MoneroNetworkClient, IMoneroAddress,
                 MoneroChain>(
             addressRequired: true,
+            appBarOnError: false,
             clientRequired: true,
-            childBulder: (wallet, account, client, address, onAccountChanged) =>
+            childBulder: (wallet, account, client, address) =>
                 _MoneroVerifyTxProofView(account: account, client: client));
       },
     );
@@ -32,20 +31,19 @@ class MoneroVerifyTxProofView extends StatelessWidget {
 class _MoneroVerifyTxProofView extends StatefulWidget {
   const _MoneroVerifyTxProofView({required this.account, required this.client});
   final MoneroChain account;
-  final MoneroClient client;
+  final MoneroNetworkClient client;
 
   @override
-  State<_MoneroVerifyTxProofView> createState() =>
-      _MoneroVerifyTxProofViewState();
+  State<_MoneroVerifyTxProofView> createState() => _MoneroVerifyTxProofViewState();
 }
 
-class _MoneroVerifyTxProofViewState
-    extends MoneroAccountState<_MoneroVerifyTxProofView> with ProgressMixin {
+class _MoneroVerifyTxProofViewState extends MoneroAccountState<_MoneroVerifyTxProofView>
+    with ProgressMixin {
   final GlobalKey<FormState> formKey = GlobalKey();
   @override
   MoneroChain get account => widget.account;
   @override
-  MoneroClient get client => widget.client;
+  MoneroNetworkClient get client => widget.client;
   ReceiptAddress<MoneroAddress>? selectedAccount;
   String? message;
 
@@ -61,9 +59,8 @@ class _MoneroVerifyTxProofViewState
   }
 
   String? validateSignature(String? v) {
-    final version =
-        MethodUtils.nullOnException(() => MoneroTxVersion.fromBase58(v!));
-    if (version == null) return "monero_proof_validator".tr;
+    final isValidProof = MoneroTxProof.isValidProof(v ?? '');
+    if (!isValidProof) return "monero_proof_validator".tr;
     return null;
   }
 
@@ -87,28 +84,28 @@ class _MoneroVerifyTxProofViewState
   IntegerBalance? proofBalace;
 
   Future<void> generateProof() async {
-    if (!formKey.ready()) return;
+    final addr = selectedAccount?.networkAddress;
+    if (!formKey.ready() || addr == null) return;
     progressKey.progressText("generating_proof_please_wait".tr);
-    final wallet = context.watch<WalletProvider>(StateConst.main);
-    final result = await MethodUtils.call(() => wallet.wallet
-        .nonEncryptedRequest(NoneEncryptedRequestMoneroVerifyTxProof(
-            txId: txId,
-            provider: client.service.provider,
-            message: message,
-            address: selectedAccount!.networkAddress,
-            signature: signature)));
-    if (result.hasError) {
-      progressKey.errorText(result.localizationError,
-          backToIdle: false, showBackButton: true);
-      return;
-    }
-    if (result.result == null) {
-      progressKey.errorText("verification_failed_no_amount_received".tr,
-          backToIdle: false, showBackButton: true);
-      return;
-    }
-    proofBalace = IntegerBalance.token(result.result!, account.network.token);
-    progressKey.success();
+    final result = await account.verifyTxProof(
+        params: MoneroVerifyProofTxParams(
+            txId: txId, message: message, address: addr, proof: signature),
+        address: address);
+    result.watch(
+      onErr: (err) {
+        progressKey.errorText(err.localizationError,
+            backToIdle: false, showBackButton: true);
+      },
+      onOk: (amount) {
+        if (amount == null) {
+          progressKey.errorText("verification_failed_no_amount_received".tr,
+              backToIdle: false, showBackButton: true);
+          return;
+        }
+        proofBalace = IntegerBalance.token(amount, account.network.token);
+        progressKey.success();
+      },
+    );
   }
 
   @override
@@ -145,8 +142,7 @@ class _MoneroVerifyTxProofViewState
                                   keyboardType: TextInputType.text,
                                   onChanged: onChangeTxId),
                               WidgetConstant.height20,
-                              Text("signature".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("signature".tr, style: context.textTheme.titleMedium),
                               WidgetConstant.height8,
                               AppTextField(
                                 label: "signature".tr,
@@ -165,21 +161,18 @@ class _MoneroVerifyTxProofViewState
                               }, builder: (f) {
                                 return ReceiptAddressView(
                                   address: selectedAccount,
-                                  subtitle:
-                                      "choose_account_received_payment".tr,
+                                  subtitle: "choose_account_received_payment".tr,
                                   validate: f.isValid,
                                   onTap: () {
                                     context
-                                        .selectAccount<MoneroAddress>(
-                                            account: account)
-                                        .then((value) => onChangeAddress(
-                                            value?.firstOrNull));
+                                        .selectAccount<MoneroAddress>(account: account)
+                                        .then((value) =>
+                                            onChangeAddress(value?.firstOrNull));
                                   },
                                 );
                               }),
                               WidgetConstant.height20,
-                              Text("message".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("message".tr, style: context.textTheme.titleMedium),
                               Text("message_of_the_proof".tr),
                               WidgetConstant.height8,
                               ContainerWithBorder(
@@ -196,9 +189,8 @@ class _MoneroVerifyTxProofViewState
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
-                                                    Text(
-                                                        "monero_tx_proof_message_desc"
-                                                            .tr),
+                                                    Text("monero_tx_proof_message_desc"
+                                                        .tr),
                                                   ],
                                                 )),
                                             buttonText: "setup_message".tr,
@@ -209,8 +201,7 @@ class _MoneroVerifyTxProofViewState
                                   },
                                   child: OneLineTextWidget(
                                     message ?? "tap_to_input_value".tr,
-                                    style:
-                                        context.onPrimaryTextTheme.bodyMedium,
+                                    style: context.onPrimaryTextTheme.bodyMedium,
                                     maxLine: 3,
                                   )),
                               Row(
@@ -232,8 +223,7 @@ class _MoneroVerifyTxProofViewState
                                   title: "account".tr,
                                   validate: selectedAccount != null),
                               WidgetConstant.height20,
-                              Text("amount".tr,
-                                  style: context.textTheme.titleMedium),
+                              Text("amount".tr, style: context.textTheme.titleMedium),
                               ContainerWithBorder(
                                 child: CoinAndMarketPriceView(
                                   balance: proofBalace!,

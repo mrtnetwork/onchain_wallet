@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -13,9 +13,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionNFTokenBurnOperation
     extends RippleTransactionStateController<NFTokenBurn> {
   RippleTransactionNFTokenBurnOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionNFTokenBurnOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -39,7 +37,7 @@ class RippleTransactionNFTokenBurnOperation
     },
   );
 
-  final LiveFormField<ReceiptAddress<XRPAddress>?, ReceiptAddress<XRPAddress>>
+  final LiveFormField<ReceiptAddress<XRPBaseAddress>?, ReceiptAddress<XRPBaseAddress>>
       owner = LiveFormField(
     title: "owner".tr,
     subtitle: "ripple_nftoken_burn_owner".tr,
@@ -52,7 +50,7 @@ class RippleTransactionNFTokenBurnOperation
     estimateFee();
   }
 
-  void onUpdateOwner(ReceiptAddress<XRPAddress>? address) {
+  void onUpdateOwner(ReceiptAddress<XRPBaseAddress>? address) {
     owner.setValue(address);
     onStateUpdated();
     estimateFee();
@@ -61,7 +59,7 @@ class RippleTransactionNFTokenBurnOperation
   @override
   NFTokenBurn buildTransactionInternal() {
     return NFTokenBurn(
-      account: address.networkAddress.toAddress(),
+      account: address.networkAddress.address,
       sourceTag: address.networkAddress.tag,
       memos: RippleUtils.toXrplMemos(memos),
       fee: txFee.fee.fee.balance,
@@ -71,7 +69,7 @@ class RippleTransactionNFTokenBurnOperation
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionNFTokenBurnOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

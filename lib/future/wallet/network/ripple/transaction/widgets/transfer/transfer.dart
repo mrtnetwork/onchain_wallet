@@ -1,6 +1,6 @@
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/constant/global/app.dart';
+import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/pages/token_details_view.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/operations/transfer/transfer.dart';
@@ -129,8 +129,7 @@ class RippleTransactionTransferWidget extends StatelessWidget {
       WidgetConstant.height20,
       RippleTransactionMemoWidget(controller: form),
       WidgetConstant.height20,
-      TransactionFeeView(
-          controller: form, onRetryFeeEstimate: form.estimateFee),
+      TransactionFeeView(controller: form, onRetryFeeEstimate: form.estimateFee),
       TransactionStateSendTransaction(controller: form)
     ]);
   }

@@ -1,5 +1,5 @@
 import 'package:blockchain_utils/blockchain_utils.dart';
-import 'package:on_chain_wallet/crypto/utils/solidity/solidity.dart';
+import 'package:on_chain_wallet/crypto/networks/solidity/solidity.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain/solidity/address/core.dart';
 
@@ -28,8 +28,7 @@ class RPCERC20TokenBalance extends EthereumRequest<BigInt, String> {
     return [
       {
         "to": contractAddress,
-        "data": BytesUtils.toHexString(_function.encode([accountAddress]),
-            prefix: "0x"),
+        "data": BytesUtils.toHexString(_function.encode([accountAddress]), prefix: "0x"),
       },
       blockNumber
     ];

@@ -43,7 +43,7 @@ class _RipplePickTokenState extends State<RipplePickToken>
   }
 
   void onPickAccountToken(RippleIssueToken token) {
-    if (token.issuer == widget.address.networkAddress.address) {
+    if (token.issuer == widget.address.networkAddress.classicAddress) {
       final asset = RipplePickedAsset.create(token);
       context.pop(asset);
       return;
@@ -56,30 +56,36 @@ class _RipplePickTokenState extends State<RipplePickToken>
     final RipplePickedAsset? token =
         await context.openMaxExtendSliverBottomSheet<RipplePickedAsset>(
       "choose_payment_currency".tr,
-      bodyBuilder: (controller) => CreateRippleTokenView(
-          account: widget.account, controller: controller),
+      bodyBuilder: (controller) =>
+          CreateRippleTokenView(account: widget.account, controller: controller),
     );
     if (token == null) return;
     context.pop(token);
   }
 
   Future<void> getAccountTokens() async {
-    final r = await MethodUtils.call(() async {
-      final client = await widget.account.client();
+    final result = await IResult.block(() async {
       final cachedTokens = widget.tokens;
       if (cachedTokens != null) {
-        return cachedTokens.get(
-            onFetch: () => client.accountTokens(widget.address));
+        final result = await cachedTokens.get(onFetch: () async {
+          final client = await widget.account.client();
+          return client.unwrap().accountTokens(widget.address);
+        });
+        return ResultOk(result);
       }
-      return await client.accountTokens(widget.address);
+      final client = await widget.account.client();
+      return client.mapAsync((client) async {
+        return client.accountTokens(widget.address);
+      });
     });
-    if (r.hasError) {
-      pageKey.errorText(r.localizationError, backToIdle: false);
-      return;
-    }
-    tokens = r.result;
-    hasToken = widget.allowNative || tokens.isNotEmpty;
-    pageKey.backToIdle();
+    result.watch(
+      onErr: (error) => pageKey.errorText(error.localizationError, backToIdle: false),
+      onOk: (tokens) {
+        this.tokens = tokens;
+        hasToken = widget.allowNative || tokens.isNotEmpty;
+        pageKey.backToIdle();
+      },
+    );
   }
 
   @override
@@ -96,16 +102,15 @@ class _RipplePickTokenState extends State<RipplePickToken>
         actions: [
           ConditionalWidget(
               enable: widget.allowCreate,
-              onActive: (context) => IconButton(
-                  onPressed: onCreateToken, icon: Icon(Icons.add_box)))
+              onActive: (context) =>
+                  IconButton(onPressed: onCreateToken, icon: Icon(Icons.add_box)))
         ],
       ),
       body: StreamPageProgress(
         controller: pageKey,
         initialWidget:
             ProgressWithTextView(text: "fetching_account_token_please_wait".tr),
-        builder: (context) =>
-            CustomScrollView(controller: widget.controller, slivers: [
+        builder: (context) => CustomScrollView(controller: widget.controller, slivers: [
           EmptyItemSliverWidgetView(
               isEmpty: !hasToken,
               itemBuilder: (context) => SliverConstraintsBoxView(
@@ -120,10 +125,9 @@ class _RipplePickTokenState extends State<RipplePickToken>
                                       onRemove: onPickNativeToken,
                                       onRemoveIcon: WidgetConstant.sizedBox,
                                       child: AccountTokenDetailsWidget(
-                                        token: widget.address.address.balance
-                                            .value.token,
-                                        liveBalance:
-                                            widget.address.address.balance,
+                                        token: widget
+                                            .address.addressData.balance.value.token,
+                                        liveBalance: widget.address.addressData.balance,
                                       ),
                                     )
                                   ])),
@@ -136,8 +140,7 @@ class _RipplePickTokenState extends State<RipplePickToken>
                                 onSelect: () => onPickAccountToken(token),
                                 onSelectIcon: WidgetConstant.sizedBox);
                           },
-                          separatorBuilder: (context, index) =>
-                              WidgetConstant.sizedBox)
+                          separatorBuilder: (context, index) => WidgetConstant.sizedBox)
                     ]),
                   ),
               icon: Icons.token),
@@ -159,11 +162,11 @@ class CreateRippleTokenView extends StatefulWidget {
 
 class _CreateRippleTokenViewState extends State<CreateRippleTokenView>
     with SafeState<CreateRippleTokenView> {
-  ReceiptAddress<XRPAddress>? issuer;
+  ReceiptAddress<XRPBaseAddress>? issuer;
   String? currency;
   bool isReady = false;
 
-  void onSelectIssuer(ReceiptAddress<XRPAddress>? issue) {
+  void onSelectIssuer(ReceiptAddress<XRPBaseAddress>? issue) {
     issuer = issue;
     _isReady();
   }
@@ -185,7 +188,7 @@ class _CreateRippleTokenViewState extends State<CreateRippleTokenView>
     context.pop(RipplePickedAsset.create(RippleIssueToken.create(
         balance: '0',
         token: NonDecimalToken(name: currency, symbol: currency),
-        issuer: issuer.address,
+        issuer: issuer.classicAddress,
         assetCode: currency)));
   }
 
@@ -206,15 +209,14 @@ class _CreateRippleTokenViewState extends State<CreateRippleTokenView>
                 children: [
                   WidgetConstant.height20,
                   PageTitleSubtitle(
-                      title: "create_token".tr,
-                      body: Text("xrp_create_token_desc".tr)),
+                      title: "create_token".tr, body: Text("xrp_create_token_desc".tr)),
                   ReceiptAddressView(
                     address: issuer,
                     title: "issuer",
                     subtitle: "token_issuer".tr,
                     onTap: () {
                       context
-                          .selectAccount<XRPAddress>(
+                          .selectAccount<XRPBaseAddress>(
                               account: widget.account, title: "issuer".tr)
                           .then((value) => onSelectIssuer(value?.firstOrNull));
                     },
@@ -235,8 +237,7 @@ class _CreateRippleTokenViewState extends State<CreateRippleTokenView>
                               title: PageTitleSubtitle(
                                   title: "currency".tr,
                                   body: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text("token_currency".tr),
                                     ],

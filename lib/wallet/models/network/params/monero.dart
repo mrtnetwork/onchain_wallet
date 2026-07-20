@@ -1,9 +1,8 @@
 import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/cbor/cbor.dart';
+import 'package:on_chain_bridge/serialization/serialization.dart';
 import 'package:monero_dart/monero_dart.dart';
-import 'package:on_chain_wallet/app/serialization/serialization.dart';
-import 'package:on_chain_wallet/wallet/api/provider/provider.dart';
-import 'package:on_chain_wallet/wallet/constant/tags/constant.dart';
+import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/params/params.dart';
 import 'package:on_chain_wallet/wallet/models/token/token/token.dart';
 
@@ -11,24 +10,19 @@ class MoneroNetworkParams extends NetworkCoinParams {
   final MoneroNetwork network;
   final int rctHeight;
 
-  factory MoneroNetworkParams.fromCborBytesOrObject(
-      {List<int>? bytes, CborObject? obj}) {
-    final CborListValue values = CborSerializable.cborTagValue(
-        cborBytes: bytes, object: obj, tags: CborTagsConst.moneroNetworkParams);
+  factory MoneroNetworkParams.deserialize({List<int>? bytes, CborObject? object}) {
+    final CborListValue values = AppSerialization.decodeTaggedValue(
+        cborBytes: bytes, cborObject: object, identifier: NetworkType.monero.identifier);
 
     return MoneroNetworkParams(
-        token: Token.deserialize(obj: values.elementAsCborTag(2)),
-        // providers: values
-        //     .elementAsListOf<CborObject>(3)
-        //     .map((e) => MoneroAPIProvider.fromCborBytesOrObject(obj: e))
-        //     .toList(),
-        chainType: ChainType.fromValue(values.elementAs(4)),
-        network: MoneroNetwork.fromName(values.elementAs(5)),
-        rctHeight: values.elementAs(7),
-        addressExplorer: values.elementAs(8),
-        transactionExplorer: values.elementAs(9));
+        token: Token.deserialize(object: values.objectAt<CborTagValue>(0)),
+        chainType: ChainType.fromValue(values.rawValueAt(1)),
+        network: MoneroNetwork.fromValue(values.rawValueAt(2)),
+        rctHeight: values.rawValueAt(3),
+        addressExplorer: values.rawValueAt(4),
+        transactionExplorer: values.rawValueAt(5));
   }
-  MoneroNetworkParams(
+  const MoneroNetworkParams(
       {required super.token,
       required super.chainType,
       required this.network,
@@ -37,33 +31,26 @@ class MoneroNetworkParams extends NetworkCoinParams {
       super.transactionExplorer});
 
   @override
-  CborTagValue toCbor() {
-    return CborTagValue(
-        CborSerializable.fromDynamic([
-          const CborNullValue(),
-          const CborNullValue(),
-          token.toCbor(),
-          CborNullValue(),
-          chainType.name,
-          network.name,
-          const CborNullValue(),
-          rctHeight,
-          addressExplorer,
-          transactionExplorer
-        ]),
-        CborTagsConst.moneroNetworkParams);
-  }
+  SerializationIdentifier get serializationIdentifier => NetworkType.monero.identifier;
 
   @override
+  List<CborObject?> get serializationItems => [
+        token.toCbor(),
+        chainType.value.toCbor(),
+        network.value.toCbor(),
+        rctHeight.toCbor(),
+        addressExplorer?.toCbor(),
+        transactionExplorer?.toCbor()
+      ];
+  @override
   NetworkCoinParams updateParams(
-      {List<APIProvider>? updateProviders,
-      Token? token,
+      {Token? token,
       String? transactionExplorer,
       String? addressExplorer,
       int? bip32CoinType}) {
     return MoneroNetworkParams(
-        token: NetworkCoinParams.validateUpdateParams(
-            token: this.token, updateToken: token),
+        token:
+            NetworkCoinParams.validateUpdateParams(token: this.token, updateToken: token),
         chainType: chainType,
         network: network,
         rctHeight: rctHeight,
@@ -72,7 +59,10 @@ class MoneroNetworkParams extends NetworkCoinParams {
   }
 
   @override
-  int get averageBlockTime => 120;
+  int get averageBlockTime {
+    return 120;
+  }
+
   @override
   int get maxTxConfirmationBlock => 10;
 }

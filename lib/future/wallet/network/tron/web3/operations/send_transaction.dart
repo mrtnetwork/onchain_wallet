@@ -3,7 +3,6 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_wallet/app/core.dart';
-import 'package:on_chain_wallet/crypto/impl/worker_impl.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/web3/controllers/provider.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/controllers/fee.dart';
 import 'package:on_chain_wallet/future/wallet/network/tron/transaction/controllers/provider.dart';
@@ -16,14 +15,12 @@ import 'package:on_chain_wallet/future/wallet/network/tron/web3/types/types.dart
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/tron/params/models/transaction.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/tron/params/models/transaction.dart';
 
-class WebTronSendTransactionStateController
-    extends Web3TronTransactionStateController<Transaction,
-        Web3TronSignTransaction, IWeb3TronTransactionRawData>
+class WebTronSendTransactionStateController extends Web3TronTransactionStateController<
+        Transaction, Web3TronSignTransaction, IWeb3TronTransactionRawData>
     with
-        CryptoWokerImpl,
         SolidityWeb3TransactionApiController,
         TronWeb3TransactionApiController,
         TronTransactionApiController,
@@ -51,9 +48,9 @@ class WebTronSendTransactionStateController
     if (!remain.isNegative) {
       return TransactionStateStatus.ready();
     }
-    final error = TransactionStateStatus.insufficient(
-            IntegerBalance.token(remain, network.token))
-        .error;
+    final error =
+        TransactionStateStatus.insufficient(IntegerBalance.token(remain, network.token))
+            .error;
 
     return TransactionStateStatus.ready(warning: error);
   }
@@ -62,7 +59,7 @@ class WebTronSendTransactionStateController
   Future<IWeb3TronTransactionRawData> buildTransactionData(
       {bool simulate = false}) async {
     return _transactionRawData ??= await () async {
-      final transaction = MethodUtils.nullOnException(
+      final transaction = MethodUtils.fallbackOnException(
           () => Transaction.deserialize(request.params.transaction));
       if (transaction == null) {
         throw Web3RequestExceptionConst.invalidTransaction;
@@ -87,8 +84,7 @@ class WebTronSendTransactionStateController
       final accountResource =
           await client.getAccountResource(transaction.rawData.ownerAddress);
       final contractOwner = transaction.rawData.ownerAddress;
-      final owner =
-          getOrCreateAddressInfo(contractOwner, contractOwner.toAddress());
+      final owner = getOrCreateAddressInfo(contractOwner);
       final transactionInfo = await getWeb3TransactionInfo(
           transaction: transaction.rawData, chain: this.account);
       if (defaultAccount.multiSigAccount) {
@@ -108,9 +104,8 @@ class WebTronSendTransactionStateController
           transactionInfo: transactionInfo,
           owner: owner,
           txId: transaction.rawData.txID,
-          feeLimit: feeLimit == null
-              ? null
-              : IntegerBalance.token(feeLimit, network.token),
+          feeLimit:
+              feeLimit == null ? null : IntegerBalance.token(feeLimit, network.token),
           accountResource: accountResource,
           totalSigners: totalSigner,
           memo: memo,
@@ -127,10 +122,9 @@ class WebTronSendTransactionStateController
   }
 
   @override
-  Future<IWeb3TronSignedTransaction<IWeb3TronTransactionRawData>>
-      signTransaction(
-          IWeb3TronTransaction<IWeb3TronTransactionRawData> transaction,
-          {bool fakeSignature = false}) async {
+  Future<IWeb3TronSignedTransaction<IWeb3TronTransactionRawData>> signTransaction(
+      IWeb3TronTransaction<IWeb3TronTransactionRawData> transaction,
+      {bool fakeSignature = false}) async {
     final signexTx = await signTransactionInternal(
         transaction: transaction.transactionData.transaction.rawData,
         address: defaultAccount,
@@ -148,8 +142,7 @@ class WebTronSendTransactionStateController
   @override
   Future<List<IWalletTransaction<TronWalletTransaction, ITronAddress>>>
       buildWalletTransaction(
-          {required IWeb3TronSignedTransaction<IWeb3TronTransactionRawData>
-              signedTx,
+          {required IWeb3TronSignedTransaction<IWeb3TronTransactionRawData> signedTx,
           required SubmitTransactionSuccess? txId}) async {
     if (txId == null) return [];
     final transaction = TronWalletTransaction(
@@ -159,20 +152,16 @@ class WebTronSendTransactionStateController
         network: network,
         outputs: [
           TronWalletTransactionOperationOutput(
-              name: signedTx.finalTransactionData.rawData
-                  .getContract()
-                  .contractType
-                  .name)
+              name: signedTx.finalTransactionData.rawData.getContract().contractType.name)
         ]);
 
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account)
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account)
     ];
   }
 
   BigInt getMaxFeeInput() {
-    return defaultAccount.address.currencyBalance;
+    return defaultAccount.addressData.currencyBalance;
   }
 
   @override
@@ -194,8 +183,7 @@ class WebTronSendTransactionStateController
       getResponse() async {
     final transaction = await buildTransaction();
     final signedTx = await signTransaction(transaction);
-    return Web3RequestTransactionResponseData(
-        response: signedTx.finalTransactionData);
+    return Web3RequestTransactionResponseData(response: signedTx.finalTransactionData);
   }
 
   @override

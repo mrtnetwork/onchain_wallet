@@ -11,7 +11,7 @@ class BarcodeScannerIconView extends StatelessWidget {
   final bool isSensitive;
   @override
   Widget build(BuildContext context) {
-    final hasBarcodeScanner = context.wallet.appSetting.supportBarcodeScanner;
+    final hasBarcodeScanner = context.wallet.supportBarcodeScanner;
     if (!hasBarcodeScanner) return WidgetConstant.sizedBox;
     return IconButton(
         onPressed: () {

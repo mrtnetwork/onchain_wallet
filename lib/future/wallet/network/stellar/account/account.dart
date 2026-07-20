@@ -19,10 +19,10 @@ class StellarAccountPageView extends StatelessWidget {
           transferBuilder: (p0) => StellarTransactionStateController(
               walletProvider: context.wallet,
               account: chainAccount,
-              address: chainAccount.address,
+              address: chainAccount.addressSync,
               token: p0)),
-      AccountTransactionActivityView<IStellarAddress, StellarWalletTransaction>(
-          account: chainAccount, address: chainAccount.address)
+      AccountTransactionActivityView<StellarWalletTransaction, IStellarAddress>(
+          account: chainAccount, address: chainAccount.addressSync)
     ]);
   }
 }
@@ -34,7 +34,6 @@ class _StellarServices extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccountTabbarScrollWidget(slivers: [
-      AccountManageProviderIcon(service: account.service),
       SliverList.separated(
           itemBuilder: (context, index) {
             final element = StellarConst.supportedOperations.elementAt(index);
@@ -44,7 +43,7 @@ class _StellarServices extends StatelessWidget {
                 final operation = StellarTransactionStateController(
                     walletProvider: context.wallet,
                     account: account,
-                    address: account.address,
+                    address: account.addressSync,
                     operation: element);
                 context.to(PageRouter.transaction, argruments: operation);
               },

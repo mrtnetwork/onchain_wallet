@@ -14,8 +14,7 @@ class WalletLoginPageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final wallet = context.wallet;
-    return WalletLoginView<WalletCredentialResponseLogin,
-        WalletCredentialLogin>(
+    return WalletLoginView<WalletCredentialResponseLogin, WalletCredentialLogin>(
       key: ValueKey(true),
       appBar: AppBar(
         centerTitle: false,
@@ -48,10 +47,7 @@ class WalletLoginPageView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAssetsImageView(APPConst.logo),
-                WidgetConstant.height20
-              ],
+              children: [CircleAssetsImageView(APPConst.logo), WidgetConstant.height20],
             ),
           ),
         ],

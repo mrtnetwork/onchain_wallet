@@ -1,131 +1,145 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 final class StellarChain extends Chain<
-    StellarAPIProvider,
-    StellarNetworkParams,
     StellarAddress,
     StellarIssueToken,
     NFTCore,
-    IStellarAddress,
     WalletStellarNetwork,
-    StellarClient,
-    DefaultNetworkConfig,
     StellarWalletTransaction,
-    StellarContact,
-    StellarNewAddressParams> {
+    IStellarAddress,
+    StellarClient,
+    StellarNetworkProvider,
+    IStellarChainContext> {
   StellarChain._(
-      {required super.network,
-      required super.addressIndex,
-      required super.id,
-      required super.config,
-      required super.service,
-      required super.addresses,
-      super.totalBalance})
-      : super._();
-  @override
-  StellarChain copyWith({
-    WalletStellarNetwork? network,
-    List<ChainAccount>? addresses,
-    int? addressIndex,
-    ProviderIdentifier? service,
-    String? id,
-    DefaultNetworkConfig? config,
-    BigInt? totalBalance,
-  }) {
-    return StellarChain._(
-        network: network ?? this.network,
-        addressIndex: addressIndex ?? _addressIndex,
-        addresses: addresses?.cast<IStellarAddress>() ?? _addresses,
-        service: service ?? _serviceIdentifier,
-        id: id ?? this.id,
-        config: config ?? this.config,
-        totalBalance: totalBalance ?? this.totalBalance._value.balance);
-  }
+      {required WalletStellarNetwork network,
+      required String id,
+      required InChainWalletController controller})
+      : super._(
+            context: switch (controller) {
+          ChainWalletControllerDefault() =>
+            StellarMainChainContext(network: network, controller: controller, id: id),
+          ChainWalletControllerExternal() => throw UnimplementedError(),
+        });
 
   factory StellarChain.setup(
       {required WalletStellarNetwork network,
       required String id,
-      ProviderIdentifier? service}) {
-    return StellarChain._(
-        network: network,
-        id: id,
-        addressIndex: 0,
-        service: service,
-        addresses: [],
-        config: DefaultNetworkConfig.defaultConfig);
+      required InChainWalletController controller}) {
+    return StellarChain._(network: network, id: id, controller: controller);
   }
 
   factory StellarChain.deserialize(
-      {required WalletStellarNetwork network, required CborListValue cbor}) {
-    final int networkId = cbor.elementAs(0);
+      {required WalletStellarNetwork network,
+      required CborListValue cbor,
+      required InChainWalletController controller}) {
+    final int networkId = cbor.rawValueAt(0);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String id = cbor.elementAs<String>(2);
-    final List<IStellarAddress> accounts = cbor
-        .elementAsListOf<CborTagValue>(3)
-        .map((e) => IStellarAddress.deserialize(network, obj: e))
-        .toList();
-
-    final int addressIndex = cbor.elementAs(4);
-    final DefaultNetworkConfig config =
-        DefaultNetworkConfig.deserialize(cborObject: cbor.indexAs(5));
-    final ProviderIdentifier? service = MethodUtils.nullOnException(() {
-      final CborTagValue? identifier = cbor.elementAs(6);
-      if (identifier == null) return null;
-      return ProviderIdentifier.deserialize(cbor: identifier);
-    });
-    final BigInt? totalBalance = cbor.elementAs<BigInt?>(7);
-    return StellarChain._(
-        network: network,
-        addresses: accounts,
-        addressIndex: addressIndex,
-        service: service,
-        id: id,
-        totalBalance: totalBalance,
-        config: config);
+    final String id = cbor.rawValueAt<String>(2);
+    return StellarChain._(network: network, id: id, controller: controller);
   }
+}
+
+abstract final class IStellarChainContext
+    implements
+        IChainContext<
+            StellarAddress,
+            StellarIssueToken,
+            NFTCore,
+            WalletStellarNetwork,
+            StellarWalletTransaction,
+            IStellarAddress,
+            StellarClient,
+            StellarNetworkProvider> {}
+
+final class StellarMainChainContext extends DefaultMainChainContext<
+    StellarAddress,
+    StellarIssueToken,
+    NFTCore,
+    WalletStellarNetwork,
+    StellarWalletTransaction,
+    IStellarAddress,
+    StellarClient,
+    StellarNetworkProvider> implements IStellarChainContext {
+  StellarMainChainContext(
+      {required super.id, required super.controller, required super.network});
 
   @override
-  Future<void> _updateAddressBalanceInternal(IStellarAddress address,
+  Future<IResult<bool>> updateAddressBalanceInternal(IStellarAddress address,
       {bool tokens = true}) async {
-    await onClient(onConnect: (client) async {
-      final accountInfo = await client.getAccount(address.networkAddress);
-      final balance = accountInfo?.balances
-              .whereType<StellarNativeBalanceResponse>()
-              .fold(BigInt.zero, (p, c) => p + c.unlockedBalance) ??
-          BigInt.zero;
-      address._updateAddressBalance(balance);
-      for (final i in address.tokens) {
-        final balance = accountInfo?.getAssetByIssueAsset(i);
-        address._updateTokenBalance(
-            i, () => i._updateBalance(balance?.unlockedBalance ?? BigInt.zero));
-      }
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
+        final accountInfo = await client.getAccount(address.networkAddress);
+        final balance = accountInfo?.balances
+                .whereType<StellarNativeBalanceResponse>()
+                .fold(BigInt.zero, (p, c) => p + c.unlockedBalance) ??
+            BigInt.zero;
+        final updateBalance = await address._updateAccountBalance(balance);
+        if (updateBalance.isErr) return updateBalance;
+        final tokens = await address.getAccountTokens();
+        return tokens.andThenAsync((tokens) async {
+          for (final i in tokens) {
+            final balance = accountInfo?.getAssetByIssueAsset(i);
+            final result = await address._updateAccountTokenBalance(
+                i, () => i._updateBalance(balance?.unlockedBalance ?? BigInt.zero));
+            if (result.isErr) return result;
+          }
+          return updateBalance;
+        });
+      });
     });
   }
 
   @override
-  Future<void> updateTokenBalance(
+  Future<IResult<void>> updateTokenBalance(
       {required IStellarAddress address,
-      required List<StellarIssueToken> tokens}) async {
-    _isAccountAddress(address);
-    await onClient(onConnect: (client) async {
-      final accountInfo = await client.getAccount(address.networkAddress);
-      final balance = accountInfo?.balances
-              .whereType<StellarNativeBalanceResponse>()
-              .fold(BigInt.zero, (p, c) => p + c.unlockedBalance) ??
-          BigInt.zero;
-      address._updateAddressBalance(balance);
-      for (final i in tokens) {
-        final balance = accountInfo?.getAssetByIssueAsset(i);
-        address._updateTokenBalance(
-            i, () => i._updateBalance(balance?.unlockedBalance ?? BigInt.zero));
-      }
+      required List<StellarIssueToken> tokens,
+      bool isAccountAddress = false}) async {
+    final accountAddress =
+        await this.isAccountAddress(address, validate: !isAccountAddress);
+    return accountAddress.andThenAsync((address) async {
+      final client = await this.client();
+      return client.andThenCatchAsync((client) async {
+        final accountInfo = await client.getAccount(address.networkAddress);
+        final balance = accountInfo?.balances
+                .whereType<StellarNativeBalanceResponse>()
+                .fold(BigInt.zero, (p, c) => p + c.unlockedBalance) ??
+            BigInt.zero;
+        final updateBalance = await address._updateAccountBalance(balance);
+        if (updateBalance.isErr) return updateBalance;
+        for (final i in tokens) {
+          final balance = accountInfo?.getAssetByIssueAsset(i);
+          final result = await address._updateAccountTokenBalance(
+              i, () => i._updateBalance(balance?.unlockedBalance ?? BigInt.zero));
+          if (result.isErr) return result;
+        }
+        return ResultOk.okVoid;
+      });
     });
   }
 
   @override
-  IStellarAddress _deserializeAddress(List<int> adressBytes) {
-    return IStellarAddress.deserialize(network, bytes: adressBytes);
+  IResult<StellarNetworkProvider?> buildProviderNetworkIdentifier(
+      {required List<DefaultAPIProvider> providers,
+      List<StellarNetworkProvider> exclude = const []}) {
+    final horizon =
+        providers.where((e) => e.service == APIProviderServices.horizon).toList();
+    final soroban =
+        providers.where((e) => e.service == APIProviderServices.stellarRpc).toList();
+    for (final h in horizon) {
+      for (final s in soroban) {
+        final identifier = StellarNetworkProvider(horizon: h, soroban: s);
+        if (exclude.contains(identifier)) continue;
+        return ResultOk(identifier);
+      }
+    }
+    return ResultOk(null);
   }
+
+  @override
+  final clientRequiredServices = NetworkClientRequirment.allOf(
+      {APIProviderServices.horizon, APIProviderServices.stellarRpc});
 }

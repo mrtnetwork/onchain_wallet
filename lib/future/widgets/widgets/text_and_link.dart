@@ -1,16 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart' show UriUtils;
 import 'package:on_chain_wallet/future/state_managment/extension/extension.dart';
-import 'package:on_chain_wallet/future/constant/constant.dart';
 
 class TextAndLinkView extends StatelessWidget {
   const TextAndLinkView(
-      {required this.text,
-      required this.url,
-      super.key,
-      this.linkDesc,
-      this.style});
+      {required this.text, required this.url, super.key, this.linkDesc, this.style});
   final String text;
   final String url;
   final String? linkDesc;
@@ -24,10 +18,10 @@ class TextAndLinkView extends StatelessWidget {
       TextSpan(
           recognizer: TapGestureRecognizer()
             ..onTap = () {
-              UriUtils.lunch(url);
+              context.appContextOrNull?.platformUtls.lunchUri(url);
             },
           text: linkDesc ?? "read_more".tr,
-          style: context.textTheme.titleSmall?.copyWith(color: ColorConst.blue))
+          style: context.textTheme.titleSmall?.copyWith(color: context.colors.blue))
     ]));
   }
 }

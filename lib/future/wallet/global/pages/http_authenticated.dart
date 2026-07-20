@@ -1,9 +1,10 @@
+import 'package:blockchain_utils/service/models/params.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
-import 'package:on_chain_wallet/wallet/api/services/models/models/auth.dart';
-import 'package:on_chain_wallet/wallet/api/services/models/models/protocols.dart';
+import 'package:on_chain_wallet/wallet/api/service/types/auth.dart';
+import 'package:on_chain_wallet/network/net_api/api.dart';
 
 class HTTPServiceProviderFields extends StatefulWidget {
   const HTTPServiceProviderFields(
@@ -24,13 +25,13 @@ class HTTPServiceProviderFields extends StatefulWidget {
   final StringVoid? onChangeUrl;
 
   @override
-  State<HTTPServiceProviderFields> createState() =>
-      HTTPServiceProviderFieldsState();
+  State<HTTPServiceProviderFields> createState() => HTTPServiceProviderFieldsState();
 }
 
 class HTTPServiceProviderFieldsState extends State<HTTPServiceProviderFields>
     with SafeState {
   bool useAuthenticated = false;
+  RPCURL? initialUrl;
   ProviderAuthType auth = ProviderAuthType.header;
   final GlobalKey<AppTextFieldState> urlKey = GlobalKey();
   String authKey = "";
@@ -155,23 +156,23 @@ class HTTPServiceProviderFieldsState extends State<HTTPServiceProviderFields>
     if (useAuthenticated) {
       if (auth.isDigest) {
         authenticated =
-            DigestProviderAuthenticated(password: authKey, username: authValue);
+            DigestProviderAuthenticated(password: authValue, username: authKey);
       } else {
-        authenticated = BasicProviderAuthenticated(
-            type: auth, key: authKey, value: authValue);
+        authenticated =
+            BasicProviderAuthenticated(type: auth, key: authKey, value: authValue);
       }
     }
     return RPCURL(url: rpcURL, auth: authenticated);
   }
 
-  void initialUrl() {
-    final initialUrl = widget.initialUrl;
+  void init() {
+    final initialUrl = this.initialUrl;
     if (initialUrl != null) {
       rpcURL = initialUrl.url;
       urlKey.currentState?.updateText(rpcURL);
-      if (widget.enableAuth && initialUrl.auth != null) {
+      final auth = initialUrl.auth;
+      if (widget.enableAuth && auth != null) {
         useAuthenticated = true;
-        final auth = initialUrl.auth!;
         this.auth = auth.type;
         switch (auth.type) {
           case ProviderAuthType.header:
@@ -191,16 +192,18 @@ class HTTPServiceProviderFieldsState extends State<HTTPServiceProviderFields>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    initialUrl();
+  void onInitOnce() {
+    super.onInitOnce();
+    initialUrl = widget.initialUrl;
+    init();
   }
 
   @override
   void didUpdateWidget(covariant HTTPServiceProviderFields oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget != widget) {
-      initialUrl();
+    if (oldWidget != widget && initialUrl != widget.initialUrl) {
+      initialUrl = widget.initialUrl;
+      init();
       updateState();
     }
   }

@@ -12,8 +12,7 @@ import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
 
 class SubstrateTransactionMultisigOperation
-    extends SubstrateTransactionStateController<
-        ISubstrateMiltisigTransactionData> {
+    extends SubstrateTransactionStateController<ISubstrateMiltisigTransactionData> {
   final SubstrateMultisigTransactionData? multisig;
   bool get immutable => multisig != null;
   @override
@@ -52,39 +51,36 @@ class SubstrateTransactionMultisigOperation
     }
   }
 
-  final LiveFormField<MultisigCallPalletMethod, MultisigCallPalletMethod>
-      multisigMethod = LiveFormField(
-          title: "method_name".tr,
-          value: MultisigCallPalletMethod.asMultiThreshold1);
+  final LiveFormField<MultisigCallPalletMethod, MultisigCallPalletMethod> multisigMethod =
+      LiveFormField(
+          title: "method_name".tr, value: MultisigCallPalletMethod.asMultiThreshold1);
 
   final LiveFormField<ISubstrateMultiSigAddress?, ISubstrateMultiSigAddress>
-      multisigAccount =
-      LiveFormField(title: "multisig_account".tr, value: null);
+      multisigAccount = LiveFormField(title: "multisig_account".tr, value: null);
 
-  late final LiveFormField<SubstrateMultisigCallData?,
-      SubstrateMultisigCallData> callOrHash = LiveFormField(
+  late final LiveFormField<SubstrateMultisigCallData?, SubstrateMultisigCallData>
+      callOrHash = LiveFormField(
     title: "call_data".tr,
     subtitle: "call_data_desc".tr,
     optional: false,
     value: null,
   );
 
-  late final LiveFormField<SubstrateWeightV2?, SubstrateWeightV2> weight =
-      LiveFormField(
-          title: "weight".tr,
-          subtitle: "transaction_weight_const".tr,
-          optional: true,
-          onValidateError: (field, value) {
-            if (value != null) return null;
-            switch (multisigMethod.value) {
-              case MultisigCallPalletMethod.approveAsMulti:
-              case MultisigCallPalletMethod.asMulti:
-                return "field_is_required".tr.replaceOne(field.title);
-              default:
-            }
-            return null;
-          },
-          value: null);
+  late final LiveFormField<SubstrateWeightV2?, SubstrateWeightV2> weight = LiveFormField(
+      title: "weight".tr,
+      subtitle: "transaction_weight_const".tr,
+      optional: true,
+      onValidateError: (field, value) {
+        if (value != null) return null;
+        switch (multisigMethod.value) {
+          case MultisigCallPalletMethod.approveAsMulti:
+          case MultisigCallPalletMethod.asMulti:
+            return "field_is_required".tr.replaceOne(field.title);
+          default:
+        }
+        return null;
+      },
+      value: null);
 
   Future<void> onFieldChanged() async {
     resource.clearState();
@@ -170,20 +166,18 @@ class SubstrateTransactionMultisigOperation
     final feeToken = this.feeToken.value;
 
     final deposit = resource.value.depositAmount?.balance ?? BigInt.zero;
-    BigInt r = address.address.currencyBalance - deposit;
+    BigInt r = address.addressData.currencyBalance - deposit;
     if (feeToken == null || feeToken.isNativeAsset) {
       r -= txFee.fee.fee.balance;
     }
     String? simulateError =
         txFee.fee.hasError ? "transaction_simulation_failed".tr : null;
     if (r.isNegative) {
-      return TransactionStateStatus.insufficient(
-          IntegerBalance.token(r, network.token),
+      return TransactionStateStatus.insufficient(IntegerBalance.token(r, network.token),
           warning: simulateError);
     }
     if (feeToken != null && !feeToken.isNativeAsset) {
-      final amount =
-          feeToken.tokenDetails.balance.value.balance - txFee.fee.fee.balance;
+      final amount = feeToken.tokenDetails.balance.value.balance - txFee.fee.fee.balance;
       if (amount.isNegative) {
         return TransactionStateStatus.insufficient(
             IntegerBalance.token(amount, feeToken.token),
@@ -258,8 +252,8 @@ class SubstrateTransactionMultisigOperation
   }
 
   @override
-  Future<ISubstrateTransaction<ISubstrateMiltisigTransactionData>>
-      buildTransaction({bool simulate = false}) async {
+  Future<ISubstrateTransaction<ISubstrateMiltisigTransactionData>> buildTransaction(
+      {bool simulate = false}) async {
     final transactionData = await buildTransactionData(simulate: simulate);
     BigInt nonce = BigInt.zero;
     if (!simulate) {
@@ -280,16 +274,11 @@ class SubstrateTransactionMultisigOperation
         mortality: blockInfo.blockHashBytes,
         metadataFields: metadata.extrinsic);
     final extraFields = extrinsic.encodeExtrinsicPayload(metadata.metadata);
-    final List<int> encodeBytes =
-        [...messageBytes, ...extraFields].asImmutableBytes;
+    final List<int> encodeBytes = [...messageBytes, ...extraFields].asImmutableBytes;
     final extrinsicInfo = ExtrinsicPayloadInfo(
-        serializedExtrinsic: encodeBytes,
-        method: messageBytes,
-        extrinsic: extrinsic);
+        serializedExtrinsic: encodeBytes, method: messageBytes, extrinsic: extrinsic);
     return ISubstrateTransaction(
-        account: address,
-        transactionData: transactionData,
-        payload: extrinsicInfo);
+        account: address, transactionData: transactionData, payload: extrinsicInfo);
   }
 
   @override
@@ -332,8 +321,7 @@ class SubstrateTransactionMultisigOperation
               amount: WalletTransactionIntegerAmount(
                   amount: e.amount.balance, network: network));
         } else {
-          return SubstrateWalletTransactionOperationOutput(
-              name: e.name.camelCase);
+          return SubstrateWalletTransactionOperationOutput(name: e.name.camelCase);
         }
       }).toList();
       final totalAmount = operations
@@ -343,13 +331,12 @@ class SubstrateTransactionMultisigOperation
           block: finalApprove.block,
           txId: finalApprove.txId,
           network: network,
-          totalOutput: WalletTransactionIntegerAmount(
-              amount: totalAmount, network: network),
+          totalOutput:
+              WalletTransactionIntegerAmount(amount: totalAmount, network: network),
           outputs: outputs,
           extrinsics: finalApprove.extrinsics);
 
-      return IWalletTransaction(
-          transaction: tx, account: transactionData.address);
+      return IWalletTransaction(transaction: tx, account: transactionData.address);
     }
     final tx = SubstrateWalletTransaction(
         block: finalApprove.block,
@@ -357,29 +344,24 @@ class SubstrateTransactionMultisigOperation
         network: network,
         totalOutput: null,
         outputs: [
-          SubstrateWalletTransactionOperationOutput(
-              name: transactionData.call.type.name)
+          SubstrateWalletTransactionOperationOutput(name: transactionData.call.type.name)
         ],
         extrinsics: finalApprove.extrinsics);
-    return IWalletTransaction(
-        transaction: tx, account: transactionData.address);
+    return IWalletTransaction(transaction: tx, account: transactionData.address);
   }
 
   @override
-  Future<
-      List<
-          IWalletTransaction<SubstrateWalletTransaction,
-              ISubstrateAddress>>> buildWalletTransaction(
-      {required ISubstrateSignedTransaction<ISubstrateMiltisigTransactionData>
-          signedTx,
-      required SubmitSubstrateTransactionSuccess<
-              ISubstrateMiltisigTransactionData>
-          txId}) async {
+  Future<List<IWalletTransaction<SubstrateWalletTransaction, ISubstrateAddress>>>
+      buildWalletTransaction(
+          {required ISubstrateSignedTransaction<ISubstrateMiltisigTransactionData>
+              signedTx,
+          required SubmitSubstrateTransactionSuccess<ISubstrateMiltisigTransactionData>
+              txId}) async {
     final methodBytes =
         BytesUtils.fromHexString(signedTx.finalTransactionData.payload.method);
     final decode = metadata.metadata.decodeCall(methodBytes);
-    final operations = SubstrateKnownCallMethods.parseTxMethod(
-        data: decode.toJson(), network: network);
+    final operations =
+        SubstrateKnownCallMethods.parseTxMethod(data: decode.toJson(), network: network);
     final outputs = operations.map((e) {
       if (e is SubstrateTransferMethod) {
         return SubstrateWalletTransactionTransferOutput(
@@ -387,8 +369,7 @@ class SubstrateTransactionMultisigOperation
             amount: WalletTransactionIntegerAmount(
                 amount: e.amount.balance, network: network));
       } else {
-        return SubstrateWalletTransactionOperationOutput(
-            name: e.name.camelCase);
+        return SubstrateWalletTransactionOperationOutput(name: e.name.camelCase);
       }
     }).toList();
     final totalAmount = operations
@@ -398,22 +379,20 @@ class SubstrateTransactionMultisigOperation
         block: txId.block!,
         txId: txId.txId,
         network: network,
-        totalOutput: WalletTransactionIntegerAmount(
-            amount: totalAmount, network: network),
+        totalOutput:
+            WalletTransactionIntegerAmount(amount: totalAmount, network: network),
         outputs: outputs,
         extrinsics: signedTx.finalTransactionData.serializeHex());
     final multisigTx = _buildMultisigWalletTx(
-        finalApprove: transaction,
-        transactionData: signedTx.transaction.transactionData);
+        finalApprove: transaction, transactionData: signedTx.transaction.transactionData);
     return [
-      IWalletTransaction(
-          transaction: transaction, account: signedTx.transaction.account),
+      IWalletTransaction(transaction: transaction, account: signedTx.transaction.account),
       if (multisigTx != null) multisigTx
     ];
   }
 
   @override
-  TransactionStateController cloneController(ISubstrateAddress address) {
+  Future<TransactionStateController> cloneController(ISubstrateAddress address) async {
     return SubstrateTransactionMultisigOperation(
         walletProvider: walletProvider,
         account: account,
@@ -429,12 +408,11 @@ class SubstrateTransactionMultisigOperation
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required SubstrateClient client,
+    required SubstrateNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     _availableMethods = metadata.multisigMethods();
     if (address.multiSigAccount) {
       throw WalletExceptionConst.featureUnavailableForMultiSignature;

@@ -1,134 +1,153 @@
 part of 'package:on_chain_wallet/wallet/chain/chain/chain.dart';
 
 final class AptosChain extends Chain<
-    AptosAPIProvider,
-    AptosNetworkParams,
     AptosAddress,
     AptosFATokens,
     NFTCore,
-    IAptosAddress,
     WalletAptosNetwork,
-    AptosClient,
-    DefaultNetworkConfig,
     AptosWalletTransaction,
-    AptosContact,
-    AptosNewAddressParams> {
+    IAptosAddress,
+    AptosNetworkClient,
+    AptosNetworkProvider,
+    IAptosChainContext> {
   AptosChain._(
-      {required super.network,
-      required super.addressIndex,
-      required super.id,
-      DefaultNetworkConfig? config,
-      required super.service,
-      required super.addresses,
-      super.totalBalance})
-      : super._(config: config ?? DefaultNetworkConfig.defaultConfig);
-  @override
-  AptosChain copyWith(
-      {WalletAptosNetwork? network,
-      List<ChainAccount>? addresses,
-      int? addressIndex,
-      ProviderIdentifier? service,
-      String? id,
-      DefaultNetworkConfig? config,
-      BigInt? totalBalance}) {
-    return AptosChain._(
-        network: network ?? this.network,
-        addressIndex: addressIndex ?? _addressIndex,
-        addresses: addresses?.cast<IAptosAddress>() ?? _addresses,
-        service: service ?? _serviceIdentifier,
-        id: id ?? this.id,
-        config: config ?? this.config,
-        totalBalance: totalBalance ?? this.totalBalance.value._balance);
-  }
+      {required WalletAptosNetwork network,
+      required String id,
+      required InChainWalletController controller})
+      : super._(
+            context: switch (controller) {
+          ChainWalletControllerDefault() =>
+            AptosMainChainContext(network: network, controller: controller, id: id),
+          ChainWalletControllerExternal() => throw UnimplementedError(),
+        });
 
   factory AptosChain.setup(
       {required WalletAptosNetwork network,
       required String id,
-      ProviderIdentifier? service}) {
-    return AptosChain._(
-        network: network,
-        id: id,
-        addressIndex: 0,
-        service: service,
-        addresses: []);
+      required InChainWalletController controller}) {
+    return AptosChain._(network: network, controller: controller, id: id);
   }
 
-  factory AptosChain.deserialize(
-      {required WalletAptosNetwork network, required CborListValue cbor}) {
-    final int networkId = cbor.elementAs(0);
+  factory AptosChain.deserialize({
+    required WalletAptosNetwork network,
+    required CborListValue cbor,
+    required InChainWalletController controller,
+  }) {
+    final int networkId = cbor.rawValueAt(0);
     if (networkId != network.value) {
       throw WalletExceptionConst.incorrectNetwork;
     }
-    final String id = cbor.elementAs<String>(2);
-    final List<IAptosAddress> accounts = cbor
-        .elementAsListOf<CborTagValue>(3)
-        .map((e) => IAptosAddress.deserialize(network, obj: e))
-        .toList();
-
-    int addressIndex = cbor.elementAs(4);
-    final AptosProviderIdentifier? service = MethodUtils.nullOnException(() {
-      final CborTagValue? identifier = cbor.elementAs(6);
-      if (identifier == null) return null;
-      return AptosProviderIdentifier.deserialize(cbor: identifier);
-    });
-    BigInt? totalBalance = cbor.elementAs(7);
-    return AptosChain._(
-        network: network,
-        addresses: accounts,
-        addressIndex: addressIndex,
-        service: service,
-        id: id,
-        totalBalance: totalBalance);
+    final String id = cbor.rawValueAt<String>(2);
+    return AptosChain._(network: network, id: id, controller: controller);
   }
+}
+
+abstract final class IAptosChainContext
+    implements
+        IChainContext<
+            AptosAddress,
+            AptosFATokens,
+            NFTCore,
+            WalletAptosNetwork,
+            AptosWalletTransaction,
+            IAptosAddress,
+            AptosNetworkClient,
+            AptosNetworkProvider> {}
+
+final class AptosMainChainContext extends DefaultMainChainContext<
+    AptosAddress,
+    AptosFATokens,
+    NFTCore,
+    WalletAptosNetwork,
+    AptosWalletTransaction,
+    IAptosAddress,
+    AptosNetworkClient,
+    AptosNetworkProvider> implements IAptosChainContext {
+  AptosMainChainContext(
+      {required super.id, required super.controller, required super.network});
 
   @override
-  Future<void> _updateAddressBalanceInternal(IAptosAddress address,
+  Future<IResult<bool>> updateAddressBalanceInternal(IAptosAddress address,
       {bool tokens = true}) async {
-    await onClient(onConnect: (client) async {
+    final accountAddress = await isAccountAddress(address);
+    final client = await accountAddress.andThenAsync((e) async => await this.client());
+    return client.andThenCatchAsync((client) async {
       final balance = await client.getAccountBalance(address.networkAddress);
-      address._updateAddressBalance(balance);
+      final updateBalance = await address._updateAccountBalance(balance);
+      if (updateBalance.isErr) return updateBalance;
+      bool changed = updateBalance.unwrap();
       if (tokens) {
-        final accountTokens = address.tokens;
-        final tokenbalances = await client.getAccountTokenBalances(
-            address: address.networkAddress,
-            assetTypes: accountTokens.map((e) => e.assetType).toList());
-        for (final token in accountTokens) {
-          final balance = tokenbalances
-              .firstWhereOrNull((e) => e.assetType == token.assetType);
-          address._updateTokenBalance(token, () {
-            bool changed =
-                token._updateBalance(balance?.balance ?? BigInt.zero);
-            changed |= token.setFreeze(balance?.frozen ?? false);
-            return changed;
-          });
-        }
+        final accountTokens = await address.getAccountTokens();
+        return accountTokens.andThenCatchAsync((tokens) async {
+          final tokenbalances = await client.getAccountTokenBalances(
+              address: address.networkAddress,
+              assetTypes: tokens.map((e) => e.assetType).toList());
+          for (final token in tokens) {
+            final balance =
+                tokenbalances.firstWhereOrNull((e) => e.assetType == token.assetType);
+            final result = await address._updateAccountTokenBalance(token, () {
+              changed = token._updateBalance(balance?.balance ?? BigInt.zero);
+              changed |= token.setFreeze(balance?.frozen ?? false);
+              return changed;
+            });
+            if (result.isErr) {
+              return result.map((_) {
+                return changed;
+              });
+            }
+          }
+          return ResultOk(changed);
+        });
       }
+      return ResultOk(changed);
     });
   }
 
   @override
-  Future<void> updateTokenBalance(
+  Future<IResult<void>> updateTokenBalance(
       {required IAptosAddress address,
-      required List<AptosFATokens> tokens}) async {
-    _isAccountAddress(address);
-    await onClient(onConnect: (client) async {
+      required List<AptosFATokens> tokens,
+      bool isAccountAddress = false}) async {
+    final accountAddress =
+        await this.isAccountAddress(address, validate: !isAccountAddress);
+    final client = await accountAddress.andThenAsync((e) async => await this.client());
+    return client.andThenCatchAsync((client) async {
       final tokenbalances = await client.getAccountTokenBalances(
           address: address.networkAddress,
           assetTypes: tokens.map((e) => e.assetType).toList());
       for (final token in tokens) {
-        final balance = tokenbalances
-            .firstWhereOrNull((e) => e.assetType == token.assetType);
-        address._updateTokenBalance(token, () {
+        final balance =
+            tokenbalances.firstWhereOrNull((e) => e.assetType == token.assetType);
+        final result = await address._updateAccountTokenBalance(token, () {
           bool changed = token._updateBalance(balance?.balance ?? BigInt.zero);
           changed |= token.setFreeze(balance?.frozen ?? false);
           return changed;
         });
+        if (result.isErr) return result.map((_) {});
       }
+      return ResultOk.okVoid;
     });
   }
 
   @override
-  IAptosAddress _deserializeAddress(List<int> adressBytes) {
-    return IAptosAddress.deserialize(network, bytes: adressBytes);
+  IResult<AptosNetworkProvider?> buildProviderNetworkIdentifier(
+      {required List<DefaultAPIProvider> providers,
+      List<AptosNetworkProvider> exclude = const []}) {
+    final graphQlProviders =
+        providers.where((e) => e.service == APIProviderServices.graphQl).toList();
+    final fullNode =
+        providers.where((e) => e.service == APIProviderServices.aptos).toList();
+    for (final i in fullNode) {
+      for (final g in graphQlProviders) {
+        final identifier = AptosNetworkProvider(fullNode: i, graphQl: g);
+        if (exclude.contains(identifier)) continue;
+        return ResultOk(identifier);
+      }
+    }
+    return ResultOk(null);
   }
+
+  @override
+  final clientRequiredServices = NetworkClientRequirment.allOf(
+      {APIProviderServices.aptos, APIProviderServices.graphQl});
 }

@@ -26,12 +26,11 @@ class CardanoTransactionMemoWriteView extends StatefulWidget {
       _CardanoTransactionMemoWriteViewState();
 }
 
-class _CardanoTransactionMemoWriteViewState
-    extends State<CardanoTransactionMemoWriteView> with SafeState {
+class _CardanoTransactionMemoWriteViewState extends State<CardanoTransactionMemoWriteView>
+    with SafeState {
   final GlobalKey<AppTextFieldState> textFieldKey =
       GlobalKey(debugLabel: "_StringWriterViewState");
-  final GlobalKey<FormState> formKey =
-      GlobalKey(debugLabel: "_StringWriterViewState_1");
+  final GlobalKey<FormState> formKey = GlobalKey(debugLabel: "_StringWriterViewState_1");
   late String text = widget.defaultValue ?? "";
   BigInt label = BigInt.one;
 
@@ -47,8 +46,8 @@ class _CardanoTransactionMemoWriteViewState
     return l;
   }
 
-  void onChangeLabel(int val) {
-    if (val.isNegative) return;
+  void onChangeLabel(int? val) {
+    if (val == null || val.isNegative) return;
     label = BigInt.from(val);
   }
 
@@ -96,7 +95,7 @@ class _CardanoTransactionMemoWriteViewState
           WidgetConstant.height20,
           NumberTextField(
             label: "metadatum_label".tr,
-            onChange: onChangeLabel,
+            onChangeValue: onChangeLabel,
             validator: validateLabel,
             max: null,
             min: 0,

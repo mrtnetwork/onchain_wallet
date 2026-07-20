@@ -1,24 +1,23 @@
 import 'dart:async';
 
+import 'package:blockchain_utils/networks/types/address.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_wallet/future/future.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
-import 'package:on_chain_wallet/future/wallet/global/pages/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/pages/state_warning.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
+import 'package:on_chain_wallet/app/core.dart';
 
 class Web3RequestTransactionResponseData<RESPONSE,
-        SUCCESS extends SubmitTransactionSuccess>
-    extends Web3RequestResponseData<RESPONSE> {
+    SUCCESS extends SubmitTransactionSuccess> extends Web3RequestResponseData<RESPONSE> {
   final List<SubmitTransactionResult>? txIds;
   Web3RequestTransactionResponseData(
       {required super.response, super.message, this.txIds});
   factory Web3RequestTransactionResponseData.submitTx(
-      {required RESPONSE response,
-      required List<SubmitTransactionResult> txIds}) {
+      {required RESPONSE response, required List<SubmitTransactionResult> txIds}) {
     assert(txIds.isNotEmpty);
     return Web3RequestTransactionResponseData(
         response: response, txIds: txIds.isEmpty ? null : txIds);
@@ -26,46 +25,43 @@ class Web3RequestTransactionResponseData<RESPONSE,
 }
 
 abstract class Web3TransactionStateController<
-        RESPONSE,
-        NETWORKADDRESS,
-        ACCOUNT extends NETWORKCHAINACCOUNT<NETWORKADDRESS>,
-        CLIENT extends NetworkClient,
-        OUTCLIENT extends CLIENT?,
-        NETWORK extends WalletNetwork,
-        C extends APPCHAINADDRESSACCOUNTCLIENTNETWORK<NETWORKADDRESS, ACCOUNT,
-            CLIENT, NETWORK>,
-        CHANACCOUNT extends Web3ChainAccount,
-        PARAMS extends Web3RequestParams<RESPONSE, NETWORKADDRESS, C, ACCOUNT,
-            CHANACCOUNT>,
-        WEB3REQUEST extends Web3NetworkRequest<RESPONSE, NETWORKADDRESS, C,
-            CHANACCOUNT, ACCOUNT, PARAMS>,
-        TRANSACTIONDATA extends ITransactionData,
-        TRANSACTION extends ITransaction<TRANSACTIONDATA, ACCOUNT>,
-        SIGNEDTX extends ISignedTransaction<TRANSACTION, Object>,
-        T extends ChainTransaction,
-        SUCCESS extends SubmitTransactionSuccess<SIGNEDTX>>
-    extends Web3StateController<
-        RESPONSE,
-        NETWORKADDRESS,
-        NETWORK,
-        CLIENT,
-        OUTCLIENT,
-        ACCOUNT,
-        C,
-        CHANACCOUNT,
-        PARAMS,
-        WEB3REQUEST,
-        Web3RequestTransactionResponseData<RESPONSE, SUCCESS>,
-        T> {
-  Web3TransactionStateController(
-      {required super.walletProvider, required super.request});
+    RESPONSE,
+    NETWORKADDRESS extends IAddress,
+    NETWORK extends WalletNetwork,
+    ACCOUNT extends ACCOUNADDRESSNETWORK<NETWORKADDRESS, NETWORK>,
+    CLIENT extends CLIENTNADDRESSNETWORK<NETWORKADDRESS, NETWORK>,
+    OUTCLIENT extends CLIENT?,
+    C extends APPCHAINADDRESSNETWORKACCOUNTCLIENT<NETWORKADDRESS, NETWORK, ACCOUNT,
+        CLIENT>,
+    CHANACCOUNT extends Web3ChainAccount<NETWORKADDRESS>,
+    PARAMS extends Web3RequestParams<RESPONSE, NETWORKADDRESS, ACCOUNT, C, CHANACCOUNT>,
+    WEB3REQUEST extends Web3NetworkRequest<RESPONSE, NETWORKADDRESS, ACCOUNT, C,
+        CHANACCOUNT, PARAMS>,
+    TRANSACTIONDATA extends ITransactionData,
+    TRANSACTION extends ITransaction<TRANSACTIONDATA, ACCOUNT>,
+    SIGNEDTX extends ISignedTransaction<TRANSACTION, Object>,
+    T extends ChainTransaction,
+    SUCCESS extends SubmitTransactionSuccess<
+        SIGNEDTX>> extends Web3StateController<
+    RESPONSE,
+    NETWORKADDRESS,
+    NETWORK,
+    CLIENT,
+    OUTCLIENT,
+    ACCOUNT,
+    C,
+    CHANACCOUNT,
+    PARAMS,
+    WEB3REQUEST,
+    Web3RequestTransactionResponseData<RESPONSE, SUCCESS>,
+    T> {
+  Web3TransactionStateController({required super.walletProvider, required super.request});
 
   List<StreamSubscription<IntegerBalance>> _listeners = [];
 
   Future<TRANSACTIONDATA> buildTransactionData({bool simulate = false});
   Future<TRANSACTION> buildTransaction({bool simulate = false});
-  Future<SIGNEDTX> signTransaction(TRANSACTION transaction,
-      {bool fakeSignature = false});
+  Future<SIGNEDTX> signTransaction(TRANSACTION transaction, {bool fakeSignature = false});
   Future<SubmitTransactionResult> submitTransaction(
       {required SIGNEDTX signedTransaction});
   Future<List<IWalletTransaction<T, ACCOUNT>>> buildWalletTransaction(
@@ -82,10 +78,12 @@ abstract class Web3TransactionStateController<
     final transaction = await buildTransaction();
     final signedTransaction = await signTransaction(transaction);
     final txId = await submitTransaction(signedTransaction: signedTransaction);
-    appLogger.debug(
-        runtime: runtimeType,
-        functionName: "buildSignAndSendTransaction",
-        msg: txId);
+    Logging.debug(
+      fn: () => AppLogData(
+          runtime: runtimeType,
+          function: "buildSignAndSendTransaction",
+          msg: txId.toString()),
+    );
     if (txId.status.isFailed) {
       final error = txId.cast<SubmitTransactionFailed>();
       throw Web3RequestExceptionConst.excuteTransactionFailed(error.error);
@@ -95,15 +93,14 @@ abstract class Web3TransactionStateController<
 
   void onAccountUpdated(ACCOUNT e) {}
 
-  // Future<void> initForm() {}
   @override
   Future<void> initForm(OUTCLIENT client) async {
     for (final i in accounts) {
-      final sub = i.address.balance.stream.listen((e) => onAccountUpdated(i));
+      final sub = i.addressData.balance.stream.listen((e) => onAccountUpdated(i));
       _listeners.add(sub);
     }
     await super.initForm(client);
-    account.updateAccountBalance(addresses: accounts);
+    account.updateAccountBalances(addresses: accounts);
   }
 
   @override
@@ -128,13 +125,14 @@ abstract class Web3TransactionStateController<
           walletTxes = await buildWalletTransaction(
               signedTx: successResult.signedTransaction, txId: successResult);
           for (final i in walletTxes) {
-            await account.saveTransaction(
-                address: i.account, transaction: i.transaction);
+            await account.saveTransaction(address: i.account, transaction: i.transaction);
           }
-          appLogger.debug(
-              runtime: runtimeType,
-              functionName: "submit transaction",
-              msg: successResult.txId);
+          Logging.debug(
+            fn: () => AppLogData(
+                runtime: runtimeType,
+                function: "submit transaction",
+                msg: successResult.txId),
+          );
         }
         pageKey.responseTx(
             txIds: txIds,
@@ -143,33 +141,27 @@ abstract class Web3TransactionStateController<
       } else {
         pageKey.response(text: response.message);
       }
-
-      appLogger.debug(
-          runtime: runtimeType, functionName: "acceptRequest", msg: response);
     } on Web3RequestException catch (e, s) {
       pageKey.errorResponse(error: e);
       request.error(e);
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "acceptRequest",
-          msg: e,
-          trace: s);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", err: e, trace: s.toString()),
+      );
     } on AppException catch (e, s) {
       pageKey.error(error: e, showBackButton: true);
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "acceptRequest",
-          msg: e,
-          trace: s);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", err: e, trace: s.toString()),
+      );
     } catch (e, s) {
-      appLogger.error(
-          runtime: runtimeType,
-          functionName: "acceptRequest",
-          msg: "${e.runtimeType}:$e",
-          trace: s);
-      final exception = Web3RequestExceptionConst.fromException(e);
-      pageKey.errorResponse(error: exception);
-      request.error(e);
+      Logging.error(
+        fn: () => AppLogData(
+            runtime: runtimeType, function: "acceptRequest", err: e, trace: s.toString()),
+      );
+      final error = IExceptionUtils.findError(e);
+      pageKey.errorResponse(error: error);
+      request.error(error);
     }
   }
 

@@ -9,14 +9,14 @@ import 'package:on_chain_wallet/future/wallet/network/bitcoin/web3/pages/sign_tr
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/web3/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/core/web3.dart';
-import 'package:on_chain_wallet/wallet/api/client/networks/bitcoin/core/core.dart';
+import 'package:on_chain_wallet/wallet/api/client/networks/bitcoin/clients/bitcoin.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/others/models/receipt_address.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/core/transaction.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/bitcoin.dart';
-import 'package:on_chain_wallet/wallet/web3/constant/constant/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/constant/constants/exception.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/params/models/transaction.dart';
+import 'package:on_chain_wallet/web3/web3/constant/constant/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/constant/constants/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/params/models/transaction.dart';
 
 class Web3BitcoinSignTransactionStateController
     extends Web3BitcoinTransactionStateController<
@@ -25,9 +25,7 @@ class Web3BitcoinSignTransactionStateController
         IWeb3BitcoinSignPsbtTransactionData,
         IWeb3BitcoinPsbtTransaction,
         IWeb3BitcoinSignedPSBTTransaction>
-    with
-        BitcoinWeb3TransactionApiController,
-        BitcoinTransactionSignerController {
+    with BitcoinWeb3TransactionApiController, BitcoinTransactionSignerController {
   IWeb3BitcoinSignPsbtTransactionData? _transactionData;
   IWeb3BitcoinSignPsbtTransactionData get transactionData => _transactionData!;
   BasedUtxoNetwork get utxoNetwork => network.coinParam.transacationNetwork;
@@ -36,8 +34,7 @@ class Web3BitcoinSignTransactionStateController
       {required super.walletProvider, required super.request});
 
   @override
-  Future<IWeb3BitcoinPsbtTransaction> buildTransaction(
-      {bool simulate = false}) async {
+  Future<IWeb3BitcoinPsbtTransaction> buildTransaction({bool simulate = false}) async {
     final transactionData = await buildTransactionData(simulate: simulate);
     return IWeb3BitcoinPsbtTransaction(
         account: defaultAccount,
@@ -62,12 +59,10 @@ class Web3BitcoinSignTransactionStateController
     }
   }
 
-  ReceiptAddress<BitcoinBaseAddress>? _getReceiptAddress(
-      BitcoinBaseAddress? address) {
+  ReceiptAddress<BitcoinNetworkAddress>? _getReceiptAddress(
+      BitcoinNetworkAddress? address) {
     if (address == null) return null;
-    final addressStr = address.toAddress(utxoNetwork);
-    return account.getReceiptAddress(addressStr) ??
-        ReceiptAddress(view: addressStr, networkAddress: address);
+    return account.getOrCreateReceiptFromNetworkAddressSync(address: address);
   }
 
   @override
@@ -80,8 +75,7 @@ class Web3BitcoinSignTransactionStateController
       final inputLength = psbt.input.length;
       List<BitcoinPsbtInputWithAccount> inputs = [];
       List<PsbtBitcoinOutputWithBalance> outputs = [];
-      final sighashes =
-          PsbtUtils.getAllExistsSighashType(psbt.input, builder.txType());
+      final sighashes = PsbtUtils.getAllExistsSighashType(psbt.input, builder.txType());
       for (int i = 0; i < inputLength; i++) {
         final signash = sighashes.firstWhereOrNull((e) => e.inputIndex == i);
 
@@ -89,13 +83,11 @@ class Web3BitcoinSignTransactionStateController
         final psbtAddress = psbtInput.address;
         IBitcoinAddress? address;
         final accountAddress =
-            this.account.findAddressFromScript(psbtAddress.toScriptPubKey());
+            this.account.findAddressFromScriptSync(psbtAddress.toScriptPubKey());
         if (accountAddress != null) {
-          address =
-              this.account.getAddress(accountAddress.toAddress(utxoNetwork));
+          address = this.account.getAddressSync(networkAddress: accountAddress);
         }
-        final inputSighash =
-            _getInputSigHash(signash?.sighashType, psbtAddress);
+        final inputSighash = _getInputSigHash(signash?.sighashType, psbtAddress);
         final account = activeAccount.firstWhereOrNull(
             (e) => e.networkAddress.toScriptPubKey() == psbtInput.scriptPubKey);
         if (account != null) {
@@ -107,7 +99,10 @@ class Web3BitcoinSignTransactionStateController
             owner: address?.toUtxoRequest,
             input: psbtInput.txInput,
             index: i,
-            address: _getReceiptAddress(accountAddress ?? psbtAddress)!,
+            address: (_getReceiptAddress(accountAddress ??
+                BitcoinNetworkAddress.fromBaseAddress(
+                    address: psbtAddress,
+                    network: network.coinParam.transacationNetwork)))!,
             sighash: inputSighash,
             ownerAddress: address,
             network: network);
@@ -120,10 +115,15 @@ class Web3BitcoinSignTransactionStateController
       final outputLength = psbt.output.length;
       for (int i = 0; i < outputLength; i++) {
         final psbtOutput = builder.psbtOutput(i);
-        final currentAddress =
-            account.findAddressFromScript(psbtOutput.scriptPubKey);
+        final currentAddress = account.findAddressFromScriptSync(psbtOutput.scriptPubKey);
+        final outputAddress = psbtOutput.address;
         final output = PsbtBitcoinOutputWithBalance(
-          address: _getReceiptAddress(currentAddress ?? psbtOutput.address),
+          address: _getReceiptAddress(currentAddress ??
+              (outputAddress == null
+                  ? null
+                  : BitcoinNetworkAddress.fromBaseAddress(
+                      address: outputAddress,
+                      network: network.coinParam.transacationNetwork))),
           network: network,
           scriptPubKey: psbtOutput.scriptPubKey,
           balance: psbtOutput.amount,
@@ -150,8 +150,7 @@ class Web3BitcoinSignTransactionStateController
           builder: builder,
           totalInput: IntegerBalance.token(totalInput, network.token,
               allowNegative: false, immutable: true),
-          totalAccountInput: IntegerBalance.token(
-              totalAccountInput, network.token,
+          totalAccountInput: IntegerBalance.token(totalAccountInput, network.token,
               allowNegative: false, immutable: true),
           outputs: outputs);
     }();
@@ -162,17 +161,15 @@ class Web3BitcoinSignTransactionStateController
       buildWalletTransaction(
           {required IWeb3BitcoinSignedPSBTTransaction signedTx,
           required SubmitTransactionSuccess? txId}) async {
-    // if (txId == null) return [];
     final String? txHash = txId?.txId ??
-        MethodUtils.nullOnException(() {
+        MethodUtils.fallbackOnException(() {
           final builder = PsbtBuilder.fromBase64(signedTx.finalTransactionData);
           final finalTx = builder.finalizeAll();
           final txId = finalTx.txId();
           return txId;
-        });
+        }, logOnDebug: false);
     if (txHash == null) return [];
-    List<IWalletTransaction<BitcoinWalletTransaction, IBitcoinAddress>>
-        transactions = [];
+    List<IWalletTransaction<BitcoinWalletTransaction, IBitcoinAddress>> transactions = [];
     final accounts = signedTx.transaction.accounts.toSet();
     for (final i in accounts) {
       final totalInputs = signedTx.transaction.transactionData.accountInputs
@@ -182,8 +179,8 @@ class Web3BitcoinSignTransactionStateController
       if (totalInputs == BigInt.zero) continue;
       final tx = BitcoinWalletTransaction(
           txId: txHash,
-          totalOutput: WalletTransactionIntegerAmount(
-              amount: totalInputs, network: network),
+          totalOutput:
+              WalletTransactionIntegerAmount(amount: totalInputs, network: network),
           scriptHash: i.networkAddress.pubKeyHash(),
           web3Client: web3ClientInfo(),
           type: WalletTransactionType.web3Sign,
@@ -200,8 +197,7 @@ class Web3BitcoinSignTransactionStateController
       getResponse() async {
     final transaction = await buildTransaction();
     final signedTx = await signTransaction(transaction);
-    return Web3RequestTransactionResponseData(
-        response: signedTx.finalTransactionData);
+    return Web3RequestTransactionResponseData(response: signedTx.finalTransactionData);
   }
 
   @override
@@ -211,10 +207,8 @@ class Web3BitcoinSignTransactionStateController
     final transactionData = transaction.transactionData;
     final accountInputs = transactionData.accountInputs;
     final psbt = transactionData.builder.clone();
-    final signers = accountInputs
-        .map((e) => e.ownerAddress)
-        .whereType<IBitcoinAddress>()
-        .toList();
+    final signers =
+        accountInputs.map((e) => e.ownerAddress).whereType<IBitcoinAddress>().toList();
     final signedTx = await signPsbtTransaction(
         psbt: psbt,
         signers: signers,
@@ -234,17 +228,14 @@ class Web3BitcoinSignTransactionStateController
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IWeb3BitcoinSignedPSBTTransaction signedTransaction}) async {
-    final builder =
-        PsbtBuilder.fromBase64(signedTransaction.finalTransactionData);
+    final builder = PsbtBuilder.fromBase64(signedTransaction.finalTransactionData);
     final finalTx = builder.finalizeAll();
-    final serialize = finalTx.serialize();
-    final txId = await client.sendTransaction(serialize);
-    return SubmitTransactionSuccess(
-        txId: txId, signedTransaction: signedTransaction);
+    final txId = await client.sendTransaction(finalTx);
+    return SubmitTransactionSuccess(txId: txId, signedTransaction: signedTransaction);
   }
 
   @override
-  Future<void> initForm(BitcoinClient<IBitcoinAddress> client) async {
+  Future<void> initForm(BitcoinNetworkClient<IBitcoinAddress> client) async {
     await super.initForm(client);
     _transactionData = await buildTransactionData();
   }

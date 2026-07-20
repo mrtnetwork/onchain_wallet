@@ -2,10 +2,10 @@ import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/wallet/network/bitcoin/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
-import 'package:on_chain_wallet/wallet/web3/networks/bitcoin/constant/constants/exception.dart';
+import 'package:on_chain_wallet/web3/web3/networks/bitcoin/constant/constants/exception.dart';
 
 mixin BitcoinWeb3TransactionApiController on DisposableMixin {
-  BitcoinClient get client;
+  BitcoinNetworkClient get client;
   WalletBitcoinNetwork get network;
   Future<List<BitcoinPsbtInputWithAccount>> readAccountPsbtUtxos(
       List<BitcoinPsbtInputWithAccount> inputs) async {
@@ -19,8 +19,7 @@ mixin BitcoinWeb3TransactionApiController on DisposableMixin {
           utxos0[i.address.view] = utxos;
         }
         final utxo = utxos0[i.address.view]!.firstWhere(
-            (e) =>
-                e.utxo.txHash == i.input.txId && e.utxo.vout == i.input.txIndex,
+            (e) => e.utxo.txHash == i.input.txId && e.utxo.vout == i.input.txIndex,
             orElse: () => throw Web3BitcoinExceptionConstant.txInputNotFound(
                 i.input.txId, i.input.txIndex));
         checkedInputs.add(i.copyWith(value: utxo.utxo.value, network: network));
@@ -30,8 +29,7 @@ mixin BitcoinWeb3TransactionApiController on DisposableMixin {
       final transaction = txs[i.input.txId]!;
 
       if (i.input.txIndex >= transaction.outputs.length) {
-        throw Web3BitcoinExceptionConstant.txInputNotFound(
-            i.input.txId, i.input.txIndex);
+        throw Web3BitcoinExceptionConstant.txInputNotFound(i.input.txId, i.input.txIndex);
       }
       final output = transaction.outputs[i.input.txIndex];
       checkedInputs.add(i.copyWith(value: output.amount, network: network));

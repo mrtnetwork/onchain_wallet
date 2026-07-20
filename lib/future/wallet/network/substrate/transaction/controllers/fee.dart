@@ -13,23 +13,19 @@ mixin SubstrateTransactionFeeController on SubstrateTransactionApiController {
   final _lock = SafeAtomicLock();
 
   late final SubstrateTransactionFeeData txFee = SubstrateTransactionFeeData(
-      select: SubstrateTransactionFee.init(network.token),
-      feeToken: network.token);
+      select: SubstrateTransactionFee.init(network.token), feeToken: network.token);
 
   void setDefaultFee({String? error, Token? token}) {
-    txFee.setFee(
-        SubstrateTransactionFee.init(token ?? network.token, error: error));
+    txFee.setFee(SubstrateTransactionFee.init(token ?? network.token, error: error));
   }
 
   Future<SubstrateEstimateTransaction> simulateTransaction();
 
   Future<SubstrateTransactionFee> simulateFee() async {
     final signexTx = await simulateTransaction();
-    final feeInfo =
-        await client.queryFeeInfo(extrinsic: signexTx.extrinsic.serialize());
+    final feeInfo = await client.queryFeeInfo(extrinsic: signexTx.extrinsic.serialize());
     final dryRun = await client.dryRunCall(
-        owner: signexTx.owner,
-        callData: signexTx.extrinsic.payload.methodBytes);
+        owner: signexTx.owner, callData: signexTx.extrinsic.payload.methodBytes);
     SubstrateTransactionAssetFee? assetFee;
     final feeConfig = signexTx.fee;
     if (feeConfig != null) {
@@ -40,10 +36,7 @@ mixin SubstrateTransactionFeeController on SubstrateTransactionApiController {
       assetFee = SubstrateTransactionAssetFee(config: feeConfig, amount: fee);
     }
     return SubstrateTransactionFee.fromFeeDetails(
-        network: network,
-        info: feeInfo,
-        dryRun: dryRun,
-        assetFeeInfo: assetFee);
+        network: network, info: feeInfo, dryRun: dryRun, assetFeeInfo: assetFee);
   }
 
   Future<void> estimateFee() async {
@@ -52,14 +45,14 @@ mixin SubstrateTransactionFeeController on SubstrateTransactionApiController {
     await _lock.run(() async {
       setDefaultFee();
       txFee.setPending();
-      final fee = await MethodUtils.call(() async => await simulateFee());
-      if (fee.isCancel) return;
-      if (fee.hasError) {
-        setDefaultFee(error: fee.localizationError);
+      final fee = await IResult.call(() async => await simulateFee());
+      if (fee.err()?.canceled() ?? false) return;
+      if (fee.isErr) {
+        setDefaultFee(error: fee.unwrapErr().localizationError);
         return;
       }
-      SubstrateTransactionFee finalFee = fee.result;
-      final dryRun = fee.result.dryRun;
+      SubstrateTransactionFee finalFee = fee.unwrap();
+      final dryRun = finalFee.dryRun;
       final dryRunSuccess = dryRun?.ok?.executionResult.type.isOk ?? false;
       final assetFee = finalFee.assetFeeInfo;
       if (dryRun != null && !dryRunSuccess) {

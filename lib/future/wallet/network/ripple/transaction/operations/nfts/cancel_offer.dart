@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:on_chain_wallet/app/utils/bytes/quick_bytes.dart';
-import 'package:on_chain_wallet/crypto/utils/ripple/ripple.dart';
+import 'package:on_chain_wallet/app/core.dart';
+import 'package:on_chain_wallet/crypto/networks/ripple/ripple.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ripple/transaction/controllers/controller.dart';
@@ -13,9 +13,7 @@ import 'package:xrpl_dart/xrpl_dart.dart';
 class RippleTransactionNFTokenCancelOfferOperation
     extends RippleTransactionStateController<NFTokenCancelOffer> {
   RippleTransactionNFTokenCancelOfferOperation._(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
   factory RippleTransactionNFTokenCancelOfferOperation(
       {required WalletProvider walletProvider,
       required XRPChain account,
@@ -53,7 +51,7 @@ class RippleTransactionNFTokenCancelOfferOperation
   @override
   NFTokenCancelOffer buildTransactionInternal() {
     return NFTokenCancelOffer(
-        account: address.networkAddress.toAddress(),
+        account: address.networkAddress.address,
         sourceTag: address.networkAddress.tag,
         memos: RippleUtils.toXrplMemos(memos),
         fee: txFee.fee.fee.balance,
@@ -61,7 +59,7 @@ class RippleTransactionNFTokenCancelOfferOperation
   }
 
   @override
-  TransactionStateController cloneController(IXRPAddress address) {
+  Future<TransactionStateController> cloneController(IXRPAddress address) async {
     return RippleTransactionNFTokenCancelOfferOperation(
         walletProvider: walletProvider, account: account, address: address);
   }

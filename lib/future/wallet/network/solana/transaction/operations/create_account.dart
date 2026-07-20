@@ -9,16 +9,13 @@ import 'package:on_chain_wallet/future/wallet/network/solana/transaction/widgets
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
-class SolanaTransactionCreateAccountOperation
-    extends SolanaTransactionStateController {
+class SolanaTransactionCreateAccountOperation extends SolanaTransactionStateController {
   final _lock = SafeAtomicLock();
   final Cancelable _cancelable = Cancelable();
   SolanaTransactionCreateAccountOperation(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
-  final LiveFormField<ReceiptAddress<SolAddress>, ReceiptAddress<SolAddress>>
-      programId = LiveFormField(
+      {required super.walletProvider, required super.account, required super.address});
+  final LiveFormField<ReceiptAddress<SolAddress>, ReceiptAddress<SolAddress>> programId =
+      LiveFormField(
           title: "program_id".tr,
           value: ReceiptAddress<SolAddress>(
               view: SPLTokenProgramConst.tokenProgramId.address,
@@ -55,7 +52,7 @@ class SolanaTransactionCreateAccountOperation
   );
 
   BigInt getMaxInput() {
-    final max = address.address.currencyBalance -
+    final max = address.addressData.currencyBalance -
         (SolanaConst.solanaDefaultTxFeePerSignature * BigInt.from(2));
     if (max.isNegative) return BigInt.zero;
     return max;
@@ -71,19 +68,19 @@ class SolanaTransactionCreateAccountOperation
       this.rent.setValue(TransactionResourceRequirementSolanaRentData(
           value: IntegerBalance.zero(network.token),
           status: TransactionResourceRequirementFetchStatus.pending));
-      final rent = await MethodUtils.call(() async {
+      final rent = await IResult.call(() async {
         return client.getRent(size.toBigInt().toInt());
       }, cancelable: _cancelable);
-      if (rent.isCancel) return;
-      if (rent.hasError) {
+      if (rent.err()?.canceled() ?? false) return;
+      if (rent.isErr) {
         this.rent.setValue(TransactionResourceRequirementSolanaRentData(
             value: IntegerBalance.zero(network.token),
             status: TransactionResourceRequirementFetchStatus.failed,
-            error: rent.localizationError));
+            error: rent.unwrapErr().localizationError));
         return;
       }
       this.rent.setValue(TransactionResourceRequirementSolanaRentData(
-          value: IntegerBalance.token(rent.result, network.token),
+          value: IntegerBalance.token(rent.unwrap(), network.token),
           status: TransactionResourceRequirementFetchStatus.success));
       estimateFee();
     });
@@ -119,7 +116,7 @@ class SolanaTransactionCreateAccountOperation
   }
 
   @override
-  TransactionStateController cloneController(ISolanaAddress address) {
+  Future<TransactionStateController> cloneController(ISolanaAddress address) async {
     return SolanaTransactionCreateAccountOperation(
         walletProvider: walletProvider, account: account, address: address);
   }
@@ -130,12 +127,10 @@ class SolanaTransactionCreateAccountOperation
   }
 
   @override
-  TransactionOperations get operation =>
-      SolanaTransactionOperations.createAccount;
+  TransactionOperations get operation => SolanaTransactionOperations.createAccount;
 
   @override
-  Future<ISolanaTransactionData> buildTransactionData(
-      {bool simulate = false}) async {
+  Future<ISolanaTransactionData> buildTransactionData({bool simulate = false}) async {
     final blockHash = await getTransactionBlockHash(simulate: simulate);
     return ISolanaTransactionData(
         fee: txFee.fee,
@@ -157,11 +152,11 @@ class SolanaTransactionCreateAccountOperation
       buildWalletTransaction(
           {required ISolanaSignedTransaction signedTx,
           required SubmitTransactionSuccess txId}) async {
+    final memo = signedTx.transaction.transactionData.getWalletTxMemo();
     final transaction = SolanaWalletTransaction(
         txId: txId.txId,
-        outputs: [
-          SolanaWalletTransactionOperationOutput(name: operation.value.tr)
-        ],
+        memos: [if (memo != null) memo],
+        outputs: [SolanaWalletTransactionOperationOutput(name: operation.value.tr)],
         network: network,
         totalOutput: WalletTransactionIntegerAmount(
             amount: rent.value.value.balance, network: network));

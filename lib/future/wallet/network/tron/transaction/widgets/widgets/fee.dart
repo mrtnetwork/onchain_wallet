@@ -23,22 +23,21 @@ class TronTransactionFeeDataView extends StatelessWidget {
                 onActive: (context) => Shimmer(
                     key: ValueKey(fee.fee),
                     onActive: (enable, context) {
+                      final isError = fee.fee.error != null;
                       return ContainerWithBorder(
-                        validate: fee.fee.error == null,
-                        onRemove: fee.fee.error == null ? () {} : null,
+                        validate: !isError,
+                        onRemove: isError ? null : () {},
                         enableTap: false,
+                        onTapError: controller.estimateFee,
                         validateText: fee.fee.error,
                         onRemoveWidget: ConditionalWidget(
                           enable: fee.fee.error == null && fee.fee.isSimulate,
                           onActive: (context) => TappedTooltipView(
                               tooltipWidget: ToolTipView(
-                                  backgroundColor: context
-                                      .colors.inverseSurface,
+                                  backgroundColor: context.colors.inverseSurface,
                                   child: Icon(Icons.help),
-                                  tooltipWidget: (context) =>
-                                      ToolTipConstrainedBox(
-                                          child: _TronFeeInfoWidget(
-                                              fee: fee.fee)))),
+                                  tooltipWidget: (context) => ToolTipConstrainedBox(
+                                      child: _TronFeeInfoWidget(fee: fee.fee)))),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

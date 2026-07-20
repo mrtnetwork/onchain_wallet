@@ -4,40 +4,35 @@ import 'package:blockchain_utils/signer/types/eth_signature.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:on_chain/on_chain.dart';
-import 'package:on_chain_wallet/crypto/requets/messages/models/models/signing.dart';
+import 'package:on_chain_wallet/crypto/basic_crypto/requets/messages/models/models/signing.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/network/ethereum/transaction/types/types.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
+import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 import 'fee.dart';
 import 'memo.dart';
 
-abstract class EthereumTransactionStateController<
-        T extends IEthereumTransactionData>
+abstract class EthereumTransactionStateController<T extends IEthereumTransactionData>
     extends BaseEthereumTransactionController<T>
-    with
-        EthereumTransactionFeeController,
-        EthereumTransactionMemoController<T> {
+    with EthereumTransactionFeeController, EthereumTransactionMemoController<T> {
   bool _lockedMax = false;
   bool get lockedMax => _lockedMax;
   EthereumTransactionStateController(
-      {required super.walletProvider,
-      required super.account,
-      required super.address});
+      {required super.walletProvider, required super.account, required super.address});
 
   Token get transferToken;
 
   BigInt getMaxInput();
 
-  final LiveFormField<ReceiptAddress<ETHAddress>?, ReceiptAddress<ETHAddress>>
-      receipt = LiveFormField(
+  final LiveFormField<ReceiptAddress<ETHAddress>?, ReceiptAddress<ETHAddress>> receipt =
+      LiveFormField(
           title: "recipient".tr,
           subtitle: "receiver_address_desc".tr,
           value: null,
           optional: false);
-  late final LiveFormField<IntegerBalance, IntegerBalance> amount =
-      LiveFormField(
+  late final LiveFormField<IntegerBalance, IntegerBalance> amount = LiveFormField(
     title: "transfer_amount".tr,
     subtitle: "input_the_amout".tr,
     value: IntegerBalance.zero(transferToken),
@@ -83,8 +78,7 @@ abstract class EthereumTransactionStateController<
   }
 
   @override
-  Future<IEthereumTransaction<T>> buildTransaction(
-      {bool simulate = false}) async {
+  Future<IEthereumTransaction<T>> buildTransaction({bool simulate = false}) async {
     final txData = await buildTransactionData();
     final fee = txData.fee;
     final transaction = ETHTransaction(
@@ -110,33 +104,31 @@ abstract class EthereumTransactionStateController<
       IEthereumTransaction<T> transaction,
       {bool fakeSignature = false}) async {
     final ethTransaction = transaction.transaction;
-    final WalletSigningRequest<ETHSignature> request =
-        WalletSigningRequest<ETHSignature>(
+    final WalletSigningRequest<ETHSignature> request = WalletSigningRequest<ETHSignature>(
       addresses: [address],
       network: network,
       sign: (generateSignature) async {
         final signRequest = GlobalSignRequest.eth(
-            digest: ethTransaction.serialized, index: address.keyIndex.cast());
+            digest: ethTransaction.serialized, index: address.derivationIndex.cast());
         final ethSignature = await generateSignature(signRequest);
         return ETHSignature.fromBytes(ethSignature.signature);
       },
     );
-    final signature =
-        await walletProvider.wallet.signTransaction(request: request);
-    final serializedData = BytesUtils.toHexString(
-        ethTransaction.signedSerialized(signature.result),
-        prefix: "0x");
+    final signature = (await walletProvider.wallet
+            .signTransaction(params: WalletActionSign(request: request)))
+        .unwrap();
+    final serializedData =
+        BytesUtils.toHexString(ethTransaction.signedSerialized(signature), prefix: "0x");
     return IEthereumSignedTransaction<T>(
         transaction: transaction,
-        signatures: [signature.result.toBytes()],
+        signatures: [signature.toBytes()],
         finalTransactionData: serializedData);
   }
 
   @override
   Future<SubmitTransactionResult> submitTransaction(
       {required IEthereumSignedTransaction<T> signedTransaction}) async {
-    final txId =
-        await client.sendRawTransaction(signedTransaction.finalTransactionData);
+    final txId = await client.sendRawTransaction(signedTransaction.finalTransactionData);
     return SubmitTransactionSuccess<IEthereumSignedTransaction<T>>(
         txId: txId, signedTransaction: signedTransaction);
   }
@@ -146,20 +138,12 @@ abstract class EthereumTransactionStateController<
   @override
   Future<TransactionStateController> initForm({
     required BuildContext context,
-    required EthereumClient client,
+    required EthereumNetworkClient client,
     bool updateAccount = true,
     bool updateTokens = false,
   }) async {
     await initFee();
-    await super.initForm(
-        context: context, client: client, updateAccount: updateAccount);
+    await super.initForm(context: context, client: client, updateAccount: updateAccount);
     return this;
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    receipt.dispose();
-    amount.dispose();
   }
 }

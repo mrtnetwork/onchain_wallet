@@ -1,5 +1,4 @@
 import 'package:blockchain_utils/helper/helper.dart';
-import 'package:on_chain_wallet/app/dev/logger.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/web3/operations/send_transaction.dart';
 import 'package:on_chain_wallet/future/wallet/network/ton/web3/operations/sign_message.dart';
@@ -11,16 +10,16 @@ import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
 import 'package:on_chain_wallet/wallet/models/networks/ton/models/web3_transaction_info.dart';
 import 'package:on_chain_wallet/wallet/models/transaction/networks/ton.dart';
-import 'package:on_chain_wallet/wallet/web3/web3.dart';
+import 'package:on_chain_wallet/web3/web3/web3.dart';
 import 'package:ton_dart/ton_dart.dart';
 
-abstract class Web3TonStateController<RESPONSE, CLIENT extends TonClient?,
+abstract class Web3TonStateController<RESPONSE, CLIENT extends TonNetworkClient?,
         T extends Web3TonRequestParam<RESPONSE>>
     extends Web3StateController<
         RESPONSE,
         TonAddress,
         WalletTonNetwork,
-        TonClient,
+        TonNetworkClient,
         CLIENT,
         ITonAddress,
         TonChain,
@@ -29,19 +28,10 @@ abstract class Web3TonStateController<RESPONSE, CLIENT extends TonClient?,
         Web3TonRequest<RESPONSE, T>,
         Web3RequestResponseData<RESPONSE>,
         TonWalletTransaction> {
-  Web3TonStateController(
-      {required super.walletProvider, required super.request});
+  Web3TonStateController({required super.walletProvider, required super.request});
 
   static BaseWeb3StateController findController(
-      {required Web3NetworkRequest request,
-      required WalletProvider walletProvider}) {
-    if (request is! Web3TonRequest) {
-      throw Web3RequestExceptionConst.internalError;
-    }
-    appLogger.debug(
-        runtime: "Web3TonStateController",
-        functionName: "findController",
-        msg: request.params.method.name);
+      {required Web3TonRequest request, required WalletProvider walletProvider}) {
     switch (request.params.method) {
       case Web3TonRequestMethods.signMessage:
         return Web3TonSignMessageStateController(
@@ -56,17 +46,15 @@ abstract class Web3TonStateController<RESPONSE, CLIENT extends TonClient?,
   }
 }
 
-abstract class BaseWeb3TonTransactionStateController<
-        RESPONSE,
-        T extends Web3TonRequestParam<RESPONSE>,
-        E extends IWeb3TonTransactionData>
+abstract class BaseWeb3TonTransactionStateController<RESPONSE,
+        T extends Web3TonRequestParam<RESPONSE>, E extends IWeb3TonTransactionData>
     extends Web3TransactionStateController<
         RESPONSE,
         TonAddress,
-        ITonAddress,
-        TonClient,
-        TonClient,
         WalletTonNetwork,
+        ITonAddress,
+        TonNetworkClient,
+        TonNetworkClient,
         TonChain,
         Web3TonChainAccount,
         T,
