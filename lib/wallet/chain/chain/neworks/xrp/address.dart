@@ -69,7 +69,6 @@ final class IXRPAddress extends ChainAccount<XRPBaseAddress, RippleIssueToken,
         DerivationIndex.deserialize(object: values.objectAt<CborTagValue>(1));
     final List<int> publicKey = values.rawValueAt(2);
 
-    ///TODO
     final XRPBaseAddress rippleAddress =
         XRPBaseAddress.deserializeIAddress(bytes: values.rawValueAt(3));
     final int? tag = values.rawValueAt(4);
