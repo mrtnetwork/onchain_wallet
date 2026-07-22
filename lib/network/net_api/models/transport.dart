@@ -14,6 +14,13 @@ class HttpClientManagerConst {
       maxRetry: 3,
       retryStatus: retryStatusCodes,
       retryDelay: const Duration(milliseconds: 350));
+  static NetHttpRetryConfig createRetryLogic(ProviderRetryLogic? retryLogic) {
+    if (retryLogic == null) return retryConfig;
+    return NetHttpRetryConfig(
+        maxRetry: 3,
+        retryStatus: [...retryStatusCodes, ...retryLogic.statusCodes],
+        retryDelay: retryLogic.timeout);
+  }
 }
 
 class HttpTransportManager {
@@ -67,6 +74,7 @@ class HttpTransportManager {
     required HttpMethod method,
     required Duration timeout,
     required NetMode mode,
+    ProviderRetryLogic? retryLogic,
     ProviderAuthenticated? authenticated,
     Map<String, String>? headers,
     List<int>? body,
@@ -76,6 +84,7 @@ class HttpTransportManager {
     return client.andThenAsync((client) async {
       return client.call(
           uri: uri,
+          retryLogic: retryLogic,
           type: type,
           method: method,
           timeout: timeout,
@@ -155,6 +164,7 @@ class _Client with TimerEvent {
     required HttpMethod method,
     required Duration timeout,
     required NetMode mode,
+    ProviderRetryLogic? retryLogic,
     ProviderAuthenticated? authenticated,
     Map<String, String>? headers,
     List<int>? body,
@@ -165,14 +175,14 @@ class _Client with TimerEvent {
             url: uri.toString(),
             headers: headers ?? {},
             timeout: timeout,
-            retryConfig: HttpClientManagerConst.retryConfig,
+            retryConfig: HttpClientManagerConst.createRetryLogic(retryLogic),
           ),
         HttpMethod.post => await client.post(
             url: uri.toString(),
             headers: headers ?? {},
             body: body,
             timeout: timeout,
-            retryConfig: HttpClientManagerConst.retryConfig),
+            retryConfig: HttpClientManagerConst.createRetryLogic(retryLogic)),
         _ => Err<NetResponseHttp, NetSdkException>(
             NetSdkException(NetResultStatus.invalidConfigParameters))
       };

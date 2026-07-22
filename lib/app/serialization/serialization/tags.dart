@@ -482,6 +482,8 @@ enum AppSerializationIdentifier implements SerializationIdentifier {
   runtimeFileResourceLocation(id: 1010),
   runtimeDirectoryResourceLocation(id: 1011),
 
+  providerRetryLogic(id: 1012),
+
   /// web3 mesages
   web3MsgChains(id: 2000),
   web3MsgWalletRequest(id: 2001),

@@ -626,6 +626,16 @@ class ResultErr<T extends Object?> extends IResult<T> {
   @override
   bool isError(IException exception) => this.exception == exception;
 
+  ERR? tryAs<ERR extends IException>() {
+    if (exception is ERR) {
+      return exception as ERR;
+    }
+    if (exception case AppInternalError(:var interalError) when interalError is ERR) {
+      return interalError;
+    }
+    return null;
+  }
+
   @override
   Future<IResult<U>> andThenCatchAsync<U>(FutureOr<IResult<U>> Function(T value) f,
       {ONERROR? logging, LoggerMode loggingMode = LoggerMode.error}) async {
@@ -697,11 +707,11 @@ class ResultErr<T extends Object?> extends IResult<T> {
         details: {"error": exception.runtimeType.toString(), "excpected": "$ERROR"});
   }
 
-  ERROR? tryAs<ERROR extends IException>() {
-    final exception = this.exception;
-    if (exception is ERROR) return exception;
-    return null;
-  }
+  // ERROR? tryAs<ERROR extends IException>() {
+  //   final exception = this.exception;
+  //   if (exception is ERROR) return exception;
+  //   return null;
+  // }
 }
 
 extension ExtQuickIExceptionResult<T> on Result<T, IException> {

@@ -73,6 +73,10 @@ class XRPNetworkClient extends NetworkClient<XRPWalletTransaction, RippleNetwork
     return index;
   }
 
+  Future<FeeResult> getFeeData() async {
+    return await provider.request(XRPRequestFee());
+  }
+
   Future<SimulateResult> simulateTx(SubmittableTransaction transaction) async {
     return await provider
         .request(XRPRequestSimulateTx(txBlob: transaction.toTransactionBlob()));

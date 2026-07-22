@@ -129,7 +129,8 @@ class APIError extends RPCError implements BaseAppException {
     }
     return APIError._(message: message ?? defaultError, url: url, statusCode: statusCode);
   }
-  factory APIError.fromException({String? url, Object? message, int? statusCode}) {
+  factory APIError.fromException(
+      {String? url, Object? message, int? statusCode, bool isRpcError = false}) {
     final defaultError = APIErrorConst.validStatusCode.contains(statusCode)
         ? "http_error_$statusCode"
         : "request_error";
@@ -175,6 +176,7 @@ class APIError extends RPCError implements BaseAppException {
         return APIError._(
             message: msg ?? defaultError,
             statusCode: statusCode,
+            isRpcError: isRpcError,
             url: url,
             localizedMessage: msg != null);
     }

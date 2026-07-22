@@ -14,6 +14,7 @@ abstract class IHttpTransportClient {
     required Duration timeout,
     required HTTPClientType clientMode,
     ProviderAuthenticated? authenticated,
+    ProviderRetryLogic? retryLogic,
     Map<String, String>? headers,
     NetMode mode = NetMode.clearnet,
     List<int>? body,
@@ -23,6 +24,7 @@ abstract class IHttpTransportClient {
     required Duration timeout,
     required NetMode mode,
     required HTTPClientType clientMode,
+    ProviderRetryLogic? retryLogic,
     ProviderAuthenticated? authenticated,
     Map<String, String>? headers,
   });
@@ -49,10 +51,12 @@ class DefaultHttpTransportClient implements IHttpTransportClient {
     ProviderAuthenticated? authenticated,
     Map<String, String>? headers,
     NetMode mode = NetMode.clearnet,
+    ProviderRetryLogic? retryLogic,
     List<int>? body,
   }) async {
     final data = await _clientManager.call(
         uri: uri,
+        retryLogic: retryLogic,
         timeout: timeout,
         mode: mode,
         type: clientMode,
@@ -69,12 +73,14 @@ class DefaultHttpTransportClient implements IHttpTransportClient {
     required Duration timeout,
     required NetMode mode,
     required HTTPClientType clientMode,
+    ProviderRetryLogic? retryLogic,
     ProviderAuthenticated? authenticated,
     Map<String, String>? headers,
   }) async {
     final data = await _clientManager.call(
         uri: uri,
         type: clientMode,
+        retryLogic: retryLogic,
         method: HttpMethod.get,
         timeout: timeout,
         mode: mode,

@@ -25,8 +25,8 @@ mixin XRPTransactionApiController on DisposableMixin {
     });
   }
 
-  Future<FeeResult> getFeeData() async {
-    return await client.provider.request(XRPRequestFee());
+  Future<FeeResult> getFeeData() {
+    return client.getFeeData();
   }
 
   Future<void> checkAccountPermission(IXRPAddress address) async {

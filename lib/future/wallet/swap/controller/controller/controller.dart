@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:on_chain_bridge/dev/dev.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/impls/tabs.dart';
@@ -143,15 +142,15 @@ class SwapStateController
     if (sourceAsset == asset) return;
     await super.updateSourceAsset(asset);
     final destAssets = _api.getAppDestAssets(asset.asset);
-    setDestAssets(destAssets, sourceAsset: sourceAsset);
+    await setDestAssets(destAssets, sourceAsset: sourceAsset);
     _onAmountChanged();
     notify();
   }
 
   @override
-  void updateDestinationAsset(APPSwapAssets asset) {
+  Future<void> updateDestinationAsset(APPSwapAssets asset) async {
     if (destinationAsset == asset) return;
-    super.updateDestinationAsset(asset);
+    await super.updateDestinationAsset(asset);
     _onAmountChanged();
     notify();
   }
@@ -290,7 +289,6 @@ class SwapStateController
 
   Future<void> createSwapTransaction({required ONREVIEWTX onPage}) async {
     if (!formKey.ready()) return;
-    Logg.log("start here!");
     final route = currentRoute?.route;
     final sourceAddress = sourceAddresses;
     final destinationAddress = this.destinationAddress;
@@ -335,6 +333,17 @@ class SwapStateController
     notify();
   }
 
+  List<SwapServiceProvider> supportedProviders(ChainType type) {
+    return switch (type) {
+      ChainType.testnet => [SwapConstants.chainflip],
+      ChainType.mainnet => [
+          SwapConstants.chainflip,
+          SwapConstants.mayaProvider,
+          SwapConstants.thorchainProvider
+        ],
+    };
+  }
+
   Future<IResult<void>> updateSettings(ONUPDATEPROVIDERS onUpdate) async {
     final setting = await onUpdate(this);
     if (setting == null || _settings == setting) return ResultOk.okVoid;
@@ -357,28 +366,22 @@ class SwapStateController
       final settings = await storage.storageGetSwapSettings();
       settings.map((settings) => _settings = settings);
       final networks = _chains.map((e) => e.network).toList();
-      switch (_settings.chainType) {
-        case ChainType.mainnet:
-          _api = await AppSwapServiceApi.loadApi(
-              DefaultSwapServiceApiParams(
-                  services:
-                      _settings.swapProviders.map((e) => e.service).toSet().toList(),
-                  swapKitServiceProviders: SwapConstants.supportProviders
-                      .whereType<SwapKitSwapServiceProvider>()
-                      .toList(),
-                  netApi: netApi),
-              networks);
-          break;
-        case ChainType.testnet:
-          _api = await AppSwapServiceApi.loadApi(
-              DefaultSwapServiceApiParams.testnet(netApi), networks);
-          break;
-      }
+      final provider = supportedProviders(_settings.chainType);
+      _api = await AppSwapServiceApi.loadApi(
+          DefaultSwapServiceApiParams(
+              chainType: _settings.chainType,
+              services: _settings.swapProviders
+                  .where((e) => provider.contains(e))
+                  .map((e) => e.service)
+                  .toSet()
+                  .toList(),
+              netApi: netApi),
+          networks);
 
       final assets = await _api.getAppSourceAssets();
       setSourceAssets(assets);
       if (assets.isNotEmpty) {
-        updateSourceAsset(assets.values.first.first);
+        await updateSourceAsset(assets.values.first.first);
       }
       _status = SwapRouteStatus.idle;
       notify();

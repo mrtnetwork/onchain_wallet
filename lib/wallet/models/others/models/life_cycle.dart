@@ -40,14 +40,16 @@ class WalletTimeoutController {
   void login() {
     _lock.run(() {
       final bool unlock = _onLockTime();
-      if (!unlock) return;
-      assert(_subscibtion == null);
-      _subscibtion?.cancel();
-      _tick = locktime().value;
-      _subscibtion = _buildTimer();
-      Logging.debug(
-        fn: () => AppLogData(runtime: runtimeType, function: "login", msg: "timer start"),
-      );
+      if (unlock && closed) {
+        assert(_subscibtion == null);
+        _subscibtion?.cancel();
+        _tick = locktime().value;
+        _subscibtion = _buildTimer();
+        Logging.debug(
+          fn: () =>
+              AppLogData(runtime: runtimeType, function: "login", msg: "timer start"),
+        );
+      }
     });
   }
 

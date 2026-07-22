@@ -305,20 +305,6 @@ class SolanaNetworkClient extends NetworkClient<SolanaWalletTransaction,
   }
 
   @override
-  Future<SwapSolanaAccountAssetBalance> getAccountsAssetBalance(
-      SolanaSwapAsset asset, SolAddress account) async {
-    if (asset.isContract && asset.contractAddress == null) {
-      throw APIErrorConst.unexpectedRequestData;
-    }
-    return SwapSolanaAccountAssetBalance(
-        address: account,
-        balance: asset.isNative
-            ? await getBalance(account)
-            : await getTokenBalance(account: account, mint: asset.contractAddress!),
-        asset: asset);
-  }
-
-  @override
   Future<BigInt> getTokenBalance(
       {required SolAddress account,
       required SolAddress mint,

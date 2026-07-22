@@ -3,6 +3,7 @@ import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:blockchain_utils/utils/equatable/equatable.dart';
 import 'package:blockchain_utils/utils/string/string.dart';
 import 'package:on_chain/tron/tron.dart';
+import 'package:on_chain_swap/on_chain_swap.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/transaction.dart';
@@ -225,21 +226,6 @@ class TransactionResourceRequirementTronDelegatedResource
   }
 }
 
-class ITronTransactionDataRequirment {
-  final List<int> refBlockBytes;
-  final List<int> refBlockHash;
-  final BigInt expiration;
-  final BigInt timestamp;
-
-  ITronTransactionDataRequirment({
-    required List<int> refBlockBytes,
-    required List<int> refBlockHash,
-    required this.expiration,
-    required this.timestamp,
-  })  : refBlockBytes = refBlockBytes.asImmutableBytes,
-        refBlockHash = refBlockHash.asImmutableBytes;
-}
-
 class ITronTransactionDataTokenTransfer {
   final TronAddress recipient;
   final BigInt amount;
@@ -251,7 +237,7 @@ class ITronTransactionDataTokenTransfer {
 class ITronTransactionData<T extends TronBaseContract> extends ITransactionData {
   final TronTransactionFee fee;
   final T contract;
-  final ITronTransactionDataRequirment blockData;
+  final TronTransactionBlockRequirment blockData;
   final BigInt? feeLimit;
   final String? memo;
   final ITronTransactionDataTokenTransfer? tokenTransfer;

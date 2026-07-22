@@ -37,7 +37,9 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronNetworkToken,
     return TronClient._(
         networkProvider: provider,
         provider: DefaultProvider(TronProvider(MultiChainServiceClient.fromProvider(
-            provider: provider.node, netApi: netApi))),
+            provider: provider.node,
+            netApi: netApi,
+            requestCooldown: const Duration(milliseconds: 500)))),
         ethClient:
             EthereumClient.fromProviders(provider: provider.ethereum, netApi: netApi),
         network: network);
@@ -340,11 +342,19 @@ class TronClient extends NetworkClient<TronWalletTransaction, TronNetworkToken,
     return controller.stream();
   }
 
+  Future<BigInt> getTrc20TokenBalance(
+      {required TronAddress address, required TronAddress contractAddress}) async {
+    return await ethClient.getTokenBalance(contract: contractAddress, address: address);
+  }
+
+  Future<TronGetTransactionByIdResponse?> getTransactionByTxId(String txId) async {
+    return await provider.request(TronRequestGetTransactionById(value: txId));
+  }
+
   @override
   Future<WalletTransactionStatus> transactionStatus(
       TronWalletTransaction transaction) async {
-    final tx =
-        await provider.request(TronRequestGetTransactionById(value: transaction.txId));
+    final tx = await getTransactionByTxId(transaction.txId);
     if (tx == null) return WalletTransactionStatus.unknown;
     if (tx.isSuccess) return WalletTransactionStatus.block;
     return WalletTransactionStatus.failed;

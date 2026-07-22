@@ -62,7 +62,7 @@ mixin RippleTransactionFeeController on DisposableMixin, XRPTransactionApiContro
     }
     final result = await client.simulateTx(submitableTx);
     if (!result.isSuccess) {
-      throw AppException(result.engineResult);
+      throw AppException(result.engineResult, localizedMessage: true);
     }
     return submitableTx;
   }

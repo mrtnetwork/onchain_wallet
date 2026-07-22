@@ -619,7 +619,7 @@ class ZcashTransactionMemoTransparent extends ZcashTransactionMemo<Script>
   }
 
   factory ZcashTransactionMemoTransparent.fromScript(Script script, {String? content}) {
-    if (BitcoinScriptUtils.isOpReturn(script)) {
+    if (!BitcoinScriptUtils.isOpReturn(script)) {
       throw AppInternalError.internalError("Invalid zcash transparent opRetrun script.");
     }
     content ??= BitcoinScriptUtils.getOpRetrunContent(script);

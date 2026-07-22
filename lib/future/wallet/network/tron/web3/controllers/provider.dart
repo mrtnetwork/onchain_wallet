@@ -52,14 +52,16 @@ mixin TronWeb3TransactionApiController
               amount: contract.callValue!),
           chain: chain);
     }
-    if (contract.callTokenValue != null) {
+    final tokenValue = contract.callTokenValue;
+    final tokenId = contract.tokenId;
+    if (tokenValue != null && tokenId != null) {
       transferAssets = await _getWeb3TransferAssetContractInfo(
           chain: chain,
           contract: TransferAssetContract(
-              assetName: StringUtils.encode(contract.tokenId!.toString()),
+              assetName: StringUtils.encode(tokenId.toString()),
               ownerAddress: contract.ownerAddress,
               toAddress: contract.contractAddress,
-              amount: contract.callTokenValue!));
+              amount: tokenValue));
     }
     final data = await getTransactionContractInfo(
         account: contract.ownerAddress,

@@ -2,18 +2,21 @@ import 'dart:async';
 
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
-import 'package:on_chain/ethereum/src/address/evm_address.dart';
-import 'package:on_chain/solana/src/address/sol_address.dart';
-import 'package:on_chain/solana/src/transaction/transaction/transaction.dart';
+import 'package:on_chain/on_chain.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/controller/controller.dart';
+import 'package:on_chain_wallet/future/wallet/swap/clients/tron.dart';
+import 'package:on_chain_wallet/future/wallet/swap/clients/xrp.dart';
+import 'package:on_chain_wallet/future/wallet/swap/clients/zcash.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/controller/wallet/wallet.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 import 'package:on_chain_wallet/web3/web3/networks/networks.dart';
 import 'package:polkadot_dart/polkadot_dart.dart';
+import 'package:xrpl_dart/xrpl_dart.dart';
+import 'package:zcash_dart/zcash.dart';
 
 class SwapTransactionStateController extends StateController {
   SwapTransactionStateController({required this.route, required this.wallet});
@@ -67,7 +70,8 @@ class SwapTransactionStateController extends StateController {
       SafeStreamController<(TransactionOperationStep, String?)> onUpdateState) async {
     final transaction = route.transaction;
     final source = route.sourceChain;
-    final client = (await source.client()).unwrap();
+    final client = (await source.client()).unwrapOr(
+        (e) => throw AppException("swap_source_chain_provider_connection_error"));
     final accounts = route.sources;
     void statusChanged(TransactionOperationStep step, {String? transactionHash}) {
       assert(!onUpdateState.isClosed);
@@ -107,6 +111,103 @@ class SwapTransactionStateController extends StateController {
                           .cast<ETHAddress>()
                           .toList());
                 });
+      case const (SwapRouteTronTransactionBuilder):
+        return await (transaction as SwapRouteTronTransactionBuilder).buildTransactions(
+            stepsCallBack: statusChanged,
+            client: (network) async {
+              return TronSwapClient(
+                  client: client.cast(),
+                  addresses: accounts.cast<ITronAddress>(),
+                  account: source.cast());
+            },
+            signer: (e) async {
+              final ethChain = route.sourceChain.cast<TronChain>();
+              return SwapWeb3SignerTron(
+                  onSign: (e) async {
+                    final params = WalletActionInAppWeb3Request<Transaction>(
+                        request: Web3TronSignTransaction(
+                            transaction: e.transaction.toBuffer(),
+                            txId: e.transaction.rawData.txID,
+                            accessAccount: Web3TronChainAccount.fromChainAccount(
+                                address: accounts.first.cast<ITronAddress>(),
+                                id: ethChain.network.value,
+                                isDefault: true)));
+                    return (await wallet.wallet.doAction(params)).unwrap();
+                  },
+                  onSigner: () async =>
+                      accounts.map((e) => e.networkAddress).cast<TronAddress>().toList());
+            });
+      case const (SwapRouteXRPTransactionBuilder):
+        return await (transaction as SwapRouteXRPTransactionBuilder).buildTransactions(
+            stepsCallBack: statusChanged,
+            client: (network) async {
+              return XRPSwapClinet(
+                  client: client.cast(),
+                  addresses: accounts.cast<IXRPAddress>(),
+                  account: source.cast());
+            },
+            signer: (e) async {
+              final ethChain = route.sourceChain.cast<XRPChain>();
+              return SwapWeb3SignerXRP(
+                  onSign: (e) async {
+                    final params =
+                        WalletActionInAppWeb3Request<Web3XRPTransactionResponse>(
+                            request: Web3XRPSendTransaction(
+                                txBlob: e.toTransactionBlobBytes(),
+                                method: Web3XRPRequestMethods.sendTransaction,
+                                account: Web3XRPChainAccount.fromChainAccount(
+                                    address: accounts.first.cast<IXRPAddress>(),
+                                    id: ethChain.network.value,
+                                    isDefault: true)));
+                    final result = (await wallet.wallet.doAction(params)).unwrap();
+                    final txId = result.txId;
+                    if (txId == null) {
+                      throw AppInternalError.internalError("_signTransaction",
+                          reason: "Unexpected XRP Response.");
+                    }
+                    return txId;
+                  },
+                  onSigner: () async => accounts
+                      .map((e) => e.networkAddress)
+                      .cast<XRPBaseAddress>()
+                      .toList());
+            });
+      case const (SwapRouteZcashTransactionBuilder):
+        return await (transaction as SwapRouteZcashTransactionBuilder).buildTransactions(
+            stepsCallBack: statusChanged,
+            client: (network) async {
+              return ZcashSwapClinet(client.cast());
+            },
+            signer: (e) async {
+              return SwapWeb3SignerZcash(
+                  onSign: (e) async {
+                    final accounts = sources.cast<IZcashAddress>();
+                    final params = WalletActionInAppWeb3Request<
+                            Web3ZcashTransactionResponse>(
+                        request: Web3ZcashSendTransaction(
+                            destintions: e.destinations
+                                .map((e) => Web3ZcashTransactionParams(
+                                    address: e.destination,
+                                    amount: e.amount,
+                                    protocol: e.protocol,
+                                    memo: null))
+                                .toList(),
+                            privacy: Web3ZcashTransferPrivacy.auto,
+                            transparentMemos: e.transparentMemos,
+                            accounts: accounts
+                                .map((e) => Web3ZcashChainAccount.fromChainAccount(
+                                    address: e, id: source.networkId, isDefault: false))
+                                .toList()));
+                    final result = (await wallet.wallet.doAction(params)).unwrap();
+                    final txId = result.txId;
+                    return txId;
+                  },
+                  onSigner: () async => accounts
+                      .map((e) => e.networkAddress)
+                      .cast<ZcashAddress>()
+                      .toList());
+            });
+
       case const (SwapRouteCosmosTransactionBuilder):
         return await (transaction as SwapRouteCosmosTransactionBuilder).buildTransactions(
             stepsCallBack: statusChanged,
@@ -261,10 +362,17 @@ class SwapTransactionStateController extends StateController {
       final r = await IResult.call(() async {
         return _signTransaction(onstatus);
       });
-      if (r.isErr) {
+      r.mapErr((e) {
         _step = null;
-        _latestError = r.unwrapErr().localizationError;
-      }
+        if (e.tryAs<DartOnChainSwapPluginException>()
+            case DartOnChainSwapPluginException(:final message)) {
+          _latestError = message;
+        } else {
+          _latestError = e.localizationError;
+        }
+        return e.exception;
+      });
+
       allowPop = true;
       notify();
       onstatus.close();
@@ -289,6 +397,51 @@ class SwapWeb3SignerEthereum implements Web3SignerEthereum {
 
   @override
   Future<List<ETHAddress>> signers() {
+    return onSigner();
+  }
+}
+
+class SwapWeb3SignerTron implements Web3SignerTron {
+  final Future<Transaction> Function(Web3TransactionTron transaction) onSign;
+  final Future<List<TronAddress>> Function() onSigner;
+  const SwapWeb3SignerTron({required this.onSign, required this.onSigner});
+  @override
+  Future<Transaction> signTransaction(Web3TransactionTron transaction) {
+    return onSign(transaction);
+  }
+
+  @override
+  Future<List<TronAddress>> signers() {
+    return onSigner();
+  }
+}
+
+class SwapWeb3SignerXRP implements Web3SignerXRP {
+  final Future<String> Function(SubmittableTransaction transaction) onSign;
+  final Future<List<XRPBaseAddress>> Function() onSigner;
+  const SwapWeb3SignerXRP({required this.onSign, required this.onSigner});
+  @override
+  Future<String> sendTransaction(SubmittableTransaction transaction) {
+    return onSign(transaction);
+  }
+
+  @override
+  Future<List<XRPBaseAddress>> signers() {
+    return onSigner();
+  }
+}
+
+class SwapWeb3SignerZcash implements Web3SignerZcash {
+  final Future<String> Function(Web3TransactionZcash transaction) onSign;
+  final Future<List<ZcashAddress>> Function() onSigner;
+  const SwapWeb3SignerZcash({required this.onSign, required this.onSigner});
+  @override
+  Future<String> excuteTransaction(Web3TransactionZcash transaction) {
+    return onSign(transaction);
+  }
+
+  @override
+  Future<List<ZcashAddress>> signers() {
     return onSigner();
   }
 }

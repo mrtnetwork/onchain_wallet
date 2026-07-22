@@ -18,7 +18,8 @@ class APPSwapConstants {
     },
     SwapServiceType.thor: {
       ChainType.mainnet: [
-        DefaultAPIProvider.thorDefault(url: "https://thornode.ninerealms.com/thorchain"),
+        DefaultAPIProvider.thorDefault(
+            url: "https://gateway.liquify.com/chain/thorchain_api/thorchain"),
       ]
     },
     SwapServiceType.maya: {

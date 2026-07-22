@@ -87,6 +87,7 @@ class Web3EthereumSendTransactionStateController
     final EthWalletTransaction transaction = EthWalletTransaction(
         txId: txId.txId,
         outputs: [],
+        type: WalletTransactionType.web3Tx,
         totalOutput: WalletTransactionIntegerAmount(
             amount: signedTx.transaction.transaction.value, network: network),
         web3Client: WalletWeb3ClientTransaction(

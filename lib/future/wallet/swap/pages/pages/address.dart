@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 import 'package:on_chain_wallet/future/wallet/global/global.dart';
 import 'package:on_chain_wallet/future/wallet/swap/controller/controller/controller.dart';
-import 'package:on_chain_wallet/future/wallet/swap/pages/pages/review_transaction.dart';
 import 'package:on_chain_wallet/future/widgets/custom_widgets.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 
@@ -32,10 +32,14 @@ class SwapAddressesView extends StatelessWidget {
               child:
                   AddressDetailsView(address: account, color: context.onPrimaryContainer),
               onRemove: () {
-                controller.onSelectUpdateAddress((acc) async {
-                  return context.selectOrSwitchAccount<ChainAccount>(
-                      account: acc, showMultiSig: true);
-                }, account);
+                if (controller.allowAddSource) {
+                  controller.removeSourceAddress(account);
+                } else {
+                  controller.addNewSourceAddress((account) async {
+                    return context.selectOrSwitchAccount<ChainAccount>(
+                        account: account, showMultiSig: true);
+                  }, account: account);
+                }
               },
             );
           }),
@@ -47,7 +51,7 @@ class SwapAddressesView extends StatelessWidget {
                     child: Text("tap_to_select_account".tr,
                         style: context.onPrimaryTextTheme.bodyMedium),
                     onRemove: () {
-                      controller.onSelectSourceAddress(
+                      controller.addNewSourceAddress(
                         (account) async {
                           return context.selectOrSwitchAccount<ChainAccount>(
                               account: account, showMultiSig: true);
@@ -80,9 +84,8 @@ class SwapAddressesView extends StatelessWidget {
                       activePress: true,
                       onPressed: () {
                         controller.createSwapTransaction(onPage: (route) async {
-                          return context.openDialogPage('', child: (context) {
-                            return TransactionReviewView(route: route);
-                          });
+                          return context.to(PageRouter.swapTransaction,
+                              argruments: route);
                         });
                       },
                       child: APPAnimated(

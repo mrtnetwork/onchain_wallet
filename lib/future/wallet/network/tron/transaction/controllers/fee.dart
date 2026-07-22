@@ -7,6 +7,7 @@ import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/typ
 import 'package:on_chain_wallet/future/wallet/transaction/fields/fields.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network/network.dart';
+import 'package:on_chain_wallet/wallet/models/networks/tron/models/tron_account_info.dart';
 
 import 'provider.dart';
 
@@ -64,9 +65,11 @@ mixin TronTransactionFeeController on TronTransactionApiController {
 
   Future<TronSimulateTransaction> simulateTransaction();
 
-  Future<TronTransactionFee> simulateFee() async {
-    final transaction = await simulateTransaction();
-    final rawTransaction = transaction.transaction;
+  Future<TronTransactionFee> getRawTransactionFee(
+      {required TransactionRaw rawTransaction,
+      required TronAccountResourceInfo? resource,
+      required int totalSigners}) async {
+    // final transaction = await simulateTransaction();
     final contract = rawTransaction.getContract();
     bool isAccountActive = true;
     final destination = _getContractDestinationAccount(contract);
@@ -88,12 +91,24 @@ mixin TronTransactionFeeController on TronTransactionApiController {
     final fee = TronTransactionFee.calculate(
         raw: rawTransaction,
         chainParameters: chainParameters,
-        resource: transaction.accountResource,
+        resource: resource,
         hasMemo: rawTransaction.data != null,
-        signature: transaction.totalSigners,
+        signature: totalSigners,
         consumedEnergy: energy,
         isNewAccount: !isAccountActive,
         network: network);
+    return fee;
+  }
+
+  Future<TronTransactionFee> simulateFee() async {
+    final transaction = await simulateTransaction();
+    final fee = await getRawTransactionFee(
+        rawTransaction: transaction.transaction,
+        resource: transaction.accountResource,
+        totalSigners: transaction.totalSigners);
+    final rawTransaction = transaction.transaction;
+    final contract = rawTransaction.getContract();
+
     if (contract.contractType == TransactionContractType.triggerSmartContract &&
         !_isManualFeeLimit) {
       _onUpdateFeeLimitInternal(fee.fee.balance);

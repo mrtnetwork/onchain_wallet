@@ -196,6 +196,8 @@ class WalletExceptionConst {
   static const WalletException zcashMissingSaplingParameters =
       WalletException("missing_sapling_parameters");
   static const WalletException feeTokenNotFound = WalletException("fee_token_not_found");
+  static const WalletException unsupportedSwapAsset =
+      WalletException("unsupported_swap_asset");
 }
 
 class AppCryptoExceptionConst {

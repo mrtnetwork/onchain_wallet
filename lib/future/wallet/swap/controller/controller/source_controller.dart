@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:blockchain_utils/utils/atomic/atomic.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
 import 'package:on_chain_wallet/app/core.dart';
@@ -8,70 +7,49 @@ import 'package:on_chain_wallet/marketcap/prices/live_currency.dart';
 import 'package:on_chain_wallet/wallet/wallet.dart';
 
 typedef ONSELECTSOURCEACCOUNTS = Future<ChainAccount?> Function(Chain);
+
 mixin SwapSourceController on StreamStateController {
   final _lock = SafeAtomicLock();
   StreamValue<IntegerBalance?> inputPrice =
       StreamValue(null, name: "SwapSourceController");
-  final Cancelable _cancelable = Cancelable();
   List<Chain> get chains;
   LiveCurrencies get liveCurrencies;
   Map<WalletNetwork, Set<APPSwapAssets>> _sourceAssets = {};
   Map<WalletNetwork, Set<APPSwapAssets>> get sourceAssets => _sourceAssets;
-  APPSwapAssets? _sourceAsset;
-  APPSwapAssets? get sourceAsset => _sourceAsset;
-  Chain? _sourceChain;
-  Chain? get sourceChain => _sourceChain;
-  List<ChainAccount> _sourceAddresses = [];
-  List<ChainAccount> get sourceAddresses => _sourceAddresses;
+  SwapAssetsWithBalance? _sourceAsset;
+  APPSwapAssets? get sourceAsset => _sourceAsset?.asset;
+  Chain? get sourceChain => _sourceAsset?.sourceChain;
+  List<ChainAccount> get sourceAddresses => _sourceAsset?.accounts ?? [];
   bool _sourceSupported = false;
   bool get sourceSupported => _sourceSupported;
-  BigInt? _balance;
   bool _hasBalance = false;
   bool get hasBalance => _hasBalance;
-  void _checkBalance() {
-    final hasBalance = this.hasBalance;
-    final balance = _balance;
-    final amount = _inputAmount;
-    _hasBalance = (amount == null || balance == null || balance >= amount.amount);
-    if (hasBalance != _hasBalance) {
-      notify();
-    }
-  }
 
-  Future<void> _updateBalance() async {
-    _lock.run(() async {
-      _balance = null;
-      _checkBalance();
-      final asset = sourceAsset?.asset;
-      final addresses = _sourceAddresses;
-      final client = (await _sourceChain?.client())?.ok();
-      if (asset == null || addresses.isEmpty || client == null) return;
-      final r = await IResult.call(
-          () => Future.wait(_sourceAddresses
-              .map((e) async => (client as SwapNetworkClient)
-                  .getAccountsAssetBalance(sourceAsset!.asset, e.networkAddress))
-              .toList()),
-          cancelable: _cancelable);
-      if (r.isErr) return;
-      _balance = r.unwrap().fold<BigInt>(BigInt.zero, (p, c) => p + c.balance);
-      _checkBalance();
-    });
-
-    // final balance =;
-  }
-
-  bool _allowMultipleAccountSpent = false;
-  bool get allowMultipleAccountSpent => _allowMultipleAccountSpent;
-  bool _allowAddSource = false;
-  bool get allowAddSource => _allowAddSource;
+  bool get allowMultipleAccountSpent => _sourceAsset?.allowMultipleAccountSpent ?? false;
+  bool get allowAddSource => _sourceAsset?.allowAddSource ?? false;
   SwapAmount? _inputAmount;
   SwapAmount? get inputAmount => _inputAmount;
 
   final CurrencyTextEdittingController amountController =
       CurrencyTextEdittingController(text: '');
 
+  void _checkBalance() {
+    bool hasBalance = this.hasBalance;
+    final balance = _sourceAsset?.totalAccountsBalance;
+    final amount = _inputAmount;
+    if (balance == null || amount == null) {
+      hasBalance = true;
+    } else {
+      hasBalance = balance >= amount.amount;
+    }
+    if (hasBalance != _hasBalance) {
+      _hasBalance = hasBalance;
+      notify();
+    }
+  }
+
   SwapAmount? getInputAmount() {
-    final decimals = _sourceAsset?.asset.decimal;
+    final decimals = _sourceAsset?.asset.asset.decimal;
     if (decimals == null) return null;
     final amount = amountController.getText();
     if (amount.trim().isEmpty) return null;
@@ -90,22 +68,33 @@ mixin SwapSourceController on StreamStateController {
     liveCurrencies.streamPrices(coingeckoId);
   }
 
-  Future<void> onSelectSourceAddress(ONSELECTSOURCEACCOUNTS onSelectAddress) async {
-    final sChain = _sourceChain;
+  Future<void> _selectAddress(
+      ONSELECTSOURCEACCOUNTS onSelectAddress,
+      void Function(SwapAssetsWithBalance asset, ChainAccount account)
+          onSelectedAddress) async {
+    final sChain = _sourceAsset;
     if (sChain == null) return;
-    final account = await onSelectAddress(sChain);
-    if (account == null || account.network.value != sChain.networkId) return;
-    await _lock.run(() async {
-      _cancelable.cancel();
-      if (_allowMultipleAccountSpent) {
-        _sourceAddresses = {..._sourceAddresses, account}.toList();
-      } else {
-        _sourceAddresses = [account];
-      }
-      _allowAddSource = _allowMultipleAccountSpent || _sourceAddresses.isEmpty;
-      _updateBalance();
-      notify();
-    });
+    final account = await onSelectAddress(sChain.sourceChain);
+    if (account == null || account.network.value != sChain.sourceChain.networkId) {
+      return;
+    }
+    onSelectedAddress(sChain, account);
+    notify();
+  }
+
+  Future<void> addNewSourceAddress(ONSELECTSOURCEACCOUNTS onSelectAddress,
+      {ChainAccount? account}) async {
+    await _selectAddress(
+      onSelectAddress,
+      (asset, acc) {
+        asset.updateAccount(acc, exitAccount: account);
+      },
+    );
+  }
+
+  Future<void> removeSourceAddress(ChainAccount account) async {
+    _sourceAsset?.removeAccount(account);
+    notify();
   }
 
   IntegerBalance? getTokenPrice(String amount, Token token) {
@@ -120,15 +109,15 @@ mixin SwapSourceController on StreamStateController {
     return price;
   }
 
-  Future<void> onSelectUpdateAddress(
-      ONSELECTSOURCEACCOUNTS onSelectAddress, ChainAccount account) async {
-    if (_allowMultipleAccountSpent) {
-      _sourceAddresses.remove(account);
-      notify();
-      return;
-    }
-    onSelectSourceAddress(onSelectAddress);
-  }
+  // Future<void> onSelectUpdateAddress(
+  //     ONSELECTSOURCEACCOUNTS onSelectAddress, ChainAccount account) async {
+  //   if (allowMultipleAccountSpent) {
+  //     _sourceAsset?.removeAccount(account);
+  //     notify();
+  //     return;
+  //   }
+  //   onSelectSourceAddress(onSelectAddress);
+  // }
 
   void onAmountChanged() {
     _inputAmount = getInputAmount();
@@ -139,34 +128,42 @@ mixin SwapSourceController on StreamStateController {
 
   Future<void> updateSourceAsset(APPSwapAssets asset) async {
     await _lock.run(() async {
-      _cancelable.cancel();
-      _sourceAsset = asset;
-      _sourceChain = chains.firstWhereOrNull((e) => e.network == sourceAsset?.network);
-      await _sourceChain?.initAsMainNetwork();
-      _allowMultipleAccountSpent = sourceAsset?.network.type.isBitcoin ?? false;
+      final cAsset = _sourceAsset;
+      _sourceAsset = null;
+      final sChain = chains.firstWhereOrNull((e) => e.network == asset.network);
+      await sChain?.initAsMainNetwork();
       amountController.setSymbol(asset.token.symbolView);
-      final sourceAddress = _sourceAddresses.firstOrNull;
-      if (sourceAddress?.network != _sourceChain?.network) {
-        _sourceAddresses = [];
-        final sourceChain = _sourceChain;
-        if (sourceChain != null && sourceChain.haveAddress) {
-          _sourceAddresses = [sourceChain.addressSync];
+      List<ChainAccount> addresses = this.sourceAddresses;
+      final sourceAddresses = addresses.firstOrNull;
+      if (sourceAddresses?.network != sChain?.network) {
+        addresses = [];
+        if (sChain != null && sChain.haveAddress) {
+          addresses = [sChain.addressSync];
         }
+      } else {
+        addresses =
+            addresses.where((e) => sChain?.addresses.contains(e) ?? false).toList();
       }
-      _sourceSupported = _sourceChain != null;
-      _allowAddSource = _allowMultipleAccountSpent || _sourceAddresses.isEmpty;
+      _sourceAsset = switch (sChain) {
+        null => null,
+        Chain chain =>
+          SwapAssetsWithBalance.from(asset: asset, accounts: addresses, account: chain)
+      };
+      _sourceSupported = sChain != null;
       onAmountChanged();
-      _updateBalance();
+      cAsset?.dispose();
+      _checkBalance();
+      _sourceAsset?.updateBalance();
+      _sourceAsset?.balanceStream.stream.listen((_) {
+        _checkBalance();
+      });
     });
   }
 
   void cleanSourceState() {
-    _cancelable.dispose();
-    _allowMultipleAccountSpent = false;
-    _allowAddSource = false;
     _inputAmount = null;
-    _sourceAddresses = [];
     _sourceAssets = {};
+    _sourceAsset?.dispose();
     _sourceAsset = null;
     amountController.clear();
   }
@@ -176,8 +173,7 @@ mixin SwapSourceController on StreamStateController {
     super.dispose();
     amountController.dispose();
     inputPrice.dispose();
-    _cancelable.dispose();
-    _sourceAddresses = [];
+
     _sourceAssets = {};
   }
 }

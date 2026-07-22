@@ -1,9 +1,9 @@
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:on_chain/tron/tron.dart';
+import 'package:on_chain_swap/on_chain_swap.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/networks/solidity/solidity.dart';
 import 'package:on_chain_wallet/crypto/networks/tron/tron.dart';
-import 'package:on_chain_wallet/future/wallet/network/tron/transaction/types/types.dart';
 import 'package:on_chain_wallet/wallet/api/client/networks/tron/client/tron.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
 import 'package:on_chain_wallet/wallet/models/networks/tron/models/account_delegated_resource_info.dart';
@@ -25,24 +25,23 @@ mixin TronTransactionApiController on DisposableMixin {
     return _chainParamets.get(onFetch: () async => await client.getChainParameters());
   }
 
-  Future<ITronTransactionDataRequirment> transactionBlockRequirment(
-      {bool simulate = false}) async {
+  Future<TronTransactionBlockRequirment> transactionBlockRequirment(
+      {bool simulate = false, Duration? expiration}) async {
     if (simulate) {
       final BigInt timestamp = BigInt.from(DateTime.now().millisecondsSinceEpoch);
-      return ITronTransactionDataRequirment(
+      return TronTransactionBlockRequirment(
           refBlockBytes: List<int>.filled(2, 0),
           refBlockHash: List<int>.filled(8, 0),
           expiration: timestamp,
           timestamp: timestamp);
     }
-    final BigInt expiration = BigInt.from(DateTime.now()
-        .add(TronUtils.defaultTronTrasactionExpiration)
-        .millisecondsSinceEpoch);
     final block = await client.getNowBlock();
-    return ITronTransactionDataRequirment(
+    return TronTransactionBlockRequirment(
         refBlockBytes: block.blockHeader.rawData.refBlockBytes,
         refBlockHash: block.blockHeader.rawData.refBlockHash,
-        expiration: expiration,
+        expiration: BigInt.from(DateTime.now()
+            .add(expiration ?? TronUtils.defaultTronTrasactionExpiration)
+            .millisecondsSinceEpoch),
         timestamp: block.blockHeader.rawData.timestamp);
   }
 

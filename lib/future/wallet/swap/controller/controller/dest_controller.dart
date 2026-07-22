@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/networks/address/utils.dart';
 import 'package:on_chain_wallet/wallet/chain/account.dart';
@@ -23,26 +22,28 @@ mixin SwapDestinationController on StreamStateController {
   Chain? _destinationChain;
   Chain? get destinationChain => _destinationChain;
 
-  void setDestAssets(Map<WalletNetwork, Set<APPSwapAssets>> assets,
-      {APPSwapAssets? sourceAsset}) {
+  Future<void> setDestAssets(Map<WalletNetwork, Set<APPSwapAssets>> assets,
+      {APPSwapAssets? sourceAsset}) async {
     _destinationAssets = assets;
     if (!_destinationAssets.values.any((e) => e.contains(destinationAsset))) {
       _destinationAsset = null;
     }
-    APPSwapAssets? asset;
-    if (sourceAsset == null) {
-      asset = _destinationAssets.values.lastOrNull?.firstOrNull;
-    } else {
-      asset = _destinationAssets[_destinationAssets.keys
-                  .firstWhereOrNull((e) => e != sourceAsset.network)]
-              ?.firstOrNull ??
-          _destinationAssets.values
-              .expand((e) => e)
-              .firstWhereOrNull((e) => e != sourceAsset) ??
-          _destinationAssets.values.firstOrNull?.firstOrNull;
+    APPSwapAssets? asset = _destinationAsset;
+    if (asset == null) {
+      if (sourceAsset == null) {
+        asset = _destinationAssets.values.lastOrNull?.firstOrNull;
+      } else {
+        asset = _destinationAssets[_destinationAssets.keys
+                    .firstWhereOrNull((e) => e != sourceAsset.network)]
+                ?.firstOrNull ??
+            _destinationAssets.values
+                .expand((e) => e)
+                .firstWhereOrNull((e) => e != sourceAsset) ??
+            _destinationAssets.values.firstOrNull?.firstOrNull;
+      }
     }
     if (asset != null) {
-      updateDestinationAsset(asset);
+      await updateDestinationAsset(asset);
     }
   }
 
@@ -57,11 +58,12 @@ mixin SwapDestinationController on StreamStateController {
     }
   }
 
-  void updateDestinationAsset(APPSwapAssets asset) {
+  Future<void> updateDestinationAsset(APPSwapAssets asset) async {
     if (destinationAsset == asset) return;
     _destinationAsset = asset;
     _destinationChain =
         chains.firstWhereOrNull((e) => e.network == destinationAsset?.network);
+    await _destinationChain?.initAsMainNetwork();
     final destAsset = destinationAsset;
     if (destAsset != null &&
         _destinationAddress != null &&

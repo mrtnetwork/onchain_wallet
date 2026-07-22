@@ -46,4 +46,7 @@ class TronNetworkParams extends NetworkCoinParams {
         addressExplorer?.toCbor(),
         transactionExplorer?.toCbor()
       ];
+
+  @override
+  int get averageBlockTime => 5;
 }

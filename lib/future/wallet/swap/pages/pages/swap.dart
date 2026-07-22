@@ -222,14 +222,7 @@ class _SelectSwapProvidersViewState extends State<SelectSwapProvidersView>
     if (chainType == null) return;
     this.chainType = chainType;
     activeProviders.clear();
-    switch (chainType) {
-      case ChainType.testnet:
-        supportProviders = SwapConstants.testnetProviders;
-        break;
-      case ChainType.mainnet:
-        supportProviders = SwapConstants.supportProviders;
-        break;
-    }
+    supportProviders = controller.supportedProviders(chainType);
     activeProviders.addAll(supportProviders);
     updateState();
   }

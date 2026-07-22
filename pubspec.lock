@@ -125,10 +125,10 @@ packages:
     dependency: "direct main"
     description:
       name: cosmos_sdk
-      sha256: e45d49006cc4df2397070e48de8d51a7bc2116ef0be521f9962d638eb77339e8
+      sha256: "34da27475d9c958d417c2a46561edc7f21a5486de4db489361c197c0c8e181e3"
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.0"
+    version: "4.1.0"
   coverage:
     dependency: transitive
     description:
@@ -390,10 +390,10 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: ed09d312d381110b5782b180716b16d5f091cd39
+      resolved-ref: "6e9f9683c54edc16c4f99cfb68d46ceb2b1e64c0"
       url: "https://github.com/mrtnetwork/onchain_swap.git"
     source: git
-    version: "0.4.0"
+    version: "0.5.0"
   package_config:
     dependency: transitive
     description:
@@ -667,10 +667,10 @@ packages:
     dependency: "direct main"
     description:
       name: xrpl_dart
-      sha256: "16c3bedf2ce18b4f8b16f2dd76c8a658e33325c80957608947d0dac7d131fca5"
+      sha256: "0ed6d6b3f98598455b3a5dc8b0c0b7597a97385704b02c0a5e0a7aed8e84aa14"
       url: "https://pub.dev"
     source: hosted
-    version: "7.5.0"
+    version: "7.6.0"
   yaml:
     dependency: transitive
     description:

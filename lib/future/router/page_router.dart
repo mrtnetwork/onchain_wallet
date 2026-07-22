@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:on_chain_wallet/crypto/types/networks.dart';
 import 'package:on_chain_wallet/future/future.dart';
+import 'package:on_chain_wallet/future/wallet/swap/pages/pages/review_transaction.dart';
 import 'package:on_chain_wallet/future/wallet/transaction/pages/transaction_state_builder.dart';
 import 'package:on_chain_wallet/wallet/models/network/core/network.dart';
 
@@ -172,6 +173,8 @@ class PageRouter {
   static const String webViewSearch = "webview/search";
   static const String settingMenu = "setting/menu";
 
+  static const String swapTransaction = "swap/transaction";
+
   static const String publicKeyDeration = "account/public_key_derivation";
 
   static const String zcashAccountSync = "setting/zcash/sync";
@@ -340,8 +343,8 @@ class PageRouter {
         return const GlobalWeb3FieldsView();
       case zcashAccountSync:
         return const ZcashAccountSyncView();
-      // case zcashCreateSyncRequest:
-      //   return const ZcashCreateSyncRequest();
+      case swapTransaction:
+        return const TransactionReviewView();
       case zcashUpdateSyncNetwork:
         return const ZcashUpdateSyncNetwork();
       default:

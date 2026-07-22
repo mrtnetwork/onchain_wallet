@@ -55,6 +55,10 @@ final class CosmosChain extends Chain<
   Future<IResult<void>> addNewIbcChannel(CosmosIBCChannelId channel) {
     return _context.addNewIbcChannel(channel);
   }
+
+  Future<IResult<BigInt>> getTokenDenomBalance(
+          {required ICosmosAddress address, required String denom}) =>
+      _context.getTokenDenomBalance(address: address, denom: denom);
 }
 
 abstract final class ICosmosChainContext
@@ -74,6 +78,8 @@ abstract final class ICosmosChainContext
   /// storages
   Future<IResult<void>> storageSaveIbcChannelIds(CosmosAccountIBCChannelIds channelIds);
   Future<IResult<CosmosAccountIBCChannelIds>> storageGetIbcChannelIds();
+  Future<IResult<BigInt>> getTokenDenomBalance(
+      {required ICosmosAddress address, required String denom});
 }
 
 final class CosmosMainChainContext extends DefaultMainChainContext<
@@ -217,4 +223,29 @@ final class CosmosMainChainContext extends DefaultMainChainContext<
     APIProviderServices.cosmosRest,
     APIProviderServices.cosmosGrpc
   });
+
+  @override
+  Future<IResult<BigInt>> getTokenDenomBalance(
+      {required ICosmosAddress address, required String denom}) async {
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      if (network.coinParam.denom == denom) {
+        final balance = await updateAddressBalance(address, tokens: false);
+        return balance.map((e) => address.addressData.currencyBalance);
+      }
+      final tokens = await address.getAccountTokens();
+      return tokens.andThenAsync((tokens) async {
+        final wToken = tokens.firstWhereOrNull((e) => e.denom == denom);
+        if (wToken == null) {
+          final client = await this.client();
+          return client.andThenCatchAsync((client) async {
+            final balance = await client.getBalance(address.networkAddress, denom);
+            return ResultOk(balance);
+          });
+        }
+        final update = await updateTokenBalance(address: address, tokens: [wToken]);
+        return update.map((e) => wToken.balance.balance);
+      });
+    });
+  }
 }

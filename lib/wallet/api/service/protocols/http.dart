@@ -56,6 +56,7 @@ class HttpServiceClient extends IServiceClientHttp {
                   uri: uri,
                   timeout: timeout,
                   mode: mode,
+                  retryLogic: provider.retryLogic,
                   clientMode: HTTPClientType.cached,
                   headers: headers,
                   authenticated: authenticated),
@@ -63,6 +64,7 @@ class HttpServiceClient extends IServiceClientHttp {
                   uri: uri,
                   clientMode: HTTPClientType.cached,
                   timeout: timeout,
+                  retryLogic: provider.retryLogic,
                   headers: headers,
                   mode: mode,
                   body: request.encodeBody(protocol: ServiceProtocol.http),
@@ -111,6 +113,8 @@ class HttpServiceClient extends IServiceClientHttp {
       onErr: (error) {
         throw APIError.fromException(message: error.exception, url: url.toString());
       },
+
+      /// 191582853900
     );
   }
 
@@ -124,6 +128,7 @@ class HttpServiceClient extends IServiceClientHttp {
     onDispose();
   }
 
+  /// 1000000000
   @override
   int? get transportId => null;
 }

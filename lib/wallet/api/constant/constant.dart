@@ -271,7 +271,7 @@ class ProvidersConst {
     ],
     203: <DefaultAPIProvider>[
       DefaultAPIProvider.tendermintDefault(
-        url: "https://rpc.thorchain.liquify.com/",
+        url: "https://gateway.liquify.com/chain/thorchain_rpc",
       ),
     ],
     204: <DefaultAPIProvider>[
@@ -445,9 +445,15 @@ class ProvidersConst {
     1001: <DefaultAPIProvider>[
       DefaultAPIProvider.tronDefault(
         url: "https://api.trongrid.io",
+        requestCooldown: NetworkConst.hightRequestCooldown,
+        retryLogic: ProviderRetryLogic(statusCodes: [429], timeout: Duration(seconds: 1)),
       ),
       DefaultAPIProvider.ethereumDefault(
-          url: "https://api.trongrid.io/jsonrpc", protocol: ServiceProtocol.http),
+          requestCooldown: NetworkConst.hightRequestCooldown,
+          retryLogic:
+              ProviderRetryLogic(statusCodes: [429], timeout: Duration(seconds: 1)),
+          url: "https://api.trongrid.io/jsonrpc",
+          protocol: ServiceProtocol.http),
     ],
     1002: <DefaultAPIProvider>[
       DefaultAPIProvider.tronDefault(

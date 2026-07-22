@@ -207,11 +207,12 @@ extension ExtQuickContextAccsess on BuildContext {
     WidgetContext? widget,
     String? routeName,
     double? maxWidth,
+    bool barrierDismissible = true,
   }) async {
     return await showAdaptiveDialog(
       context: this,
       useRootNavigator: false,
-      barrierDismissible: true,
+      barrierDismissible: barrierDismissible,
       useSafeArea: false,
       routeSettings: routeName == null ? null : RouteSettings(name: routeName),
       builder: (context) {

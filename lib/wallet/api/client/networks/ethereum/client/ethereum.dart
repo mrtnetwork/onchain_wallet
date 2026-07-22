@@ -114,10 +114,10 @@ abstract mixin class EthereumClientMethods {
   }
 
   Future<BigInt> getAllowance(
-      {required ETHAddress contract,
-      required ETHAddress owner,
-      required ETHAddress spender}) async {
-    final function = EthereumAbiCons.getAllowance;
+      {required SolidityAddress contract,
+      required SolidityAddress owner,
+      required SolidityAddress spender}) async {
+    final function = EthereumAbiConst.getAllowance;
     final result = await provider.request(EthereumRequestFunctionCall(
         contractAddress: contract.address, function: function, params: [owner, spender]));
     return result[0];

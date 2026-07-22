@@ -400,13 +400,6 @@ class BitcoinNetworkClient<T extends IBitcoinAddress> extends NetworkClient<
     return genesisHash == network.identifier;
   }
 
-  @override
-  Future<SwapBitcoinAccountAssetBalance> getAccountsAssetBalance(
-      BitcoinSwapAsset asset, BitcoinBaseAddress account) async {
-    return SwapBitcoinAccountAssetBalance(
-        address: account, balance: await getBalance(account), asset: asset);
-  }
-
   Future<List<BitcoinBlockTransactionInfo>> getTrasactionsBlockInfo(
       List<String> txIds) async {
     txIds = txIds.toSet().toList();

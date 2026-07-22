@@ -36,23 +36,27 @@ class APPSwapUtils {
     final token = asset == null
         ? Token(name: fee.asset, symbol: fee.asset, decimal: 0)
         : swapAssetToToken(asset);
+    IntegerBalance? feeAmount;
+    if (fee.amount case SwapAmount(:final amount)) {
+      feeAmount = IntegerBalance.token(amount, token);
+    }
     return APPSwapFee(
       token: asset == null ? null : token,
       fee: fee,
-      amount: IntegerBalance.token(fee.amount.amount, token),
+      amount: feeAmount,
     );
   }
 }
 
 class APPSwapAssets with Equality {
   final BaseSwapAsset asset;
-  // final IntegerBalance amount;
   final WalletNetwork network;
   final Token token;
-  const APPSwapAssets({required this.asset, required this.network, required this.token});
+  const APPSwapAssets._(
+      {required this.asset, required this.network, required this.token});
   factory APPSwapAssets.fromAsset(
       {required BaseSwapAsset asset, required WalletNetwork network}) {
-    return APPSwapAssets(
+    return APPSwapAssets._(
         asset: asset, network: network, token: APPSwapUtils.swapAssetToToken(asset));
   }
 
@@ -89,9 +93,10 @@ class SwapRouteWithBps {
 
 class APPSwapFee {
   final SwapFee fee;
-  final IntegerBalance amount;
+  final IntegerBalance? amount;
   final Token? token;
   const APPSwapFee({required this.fee, required this.amount, this.token});
+  String get feeAmount => amount?.viewPrice ?? fee.amount.amountString;
 }
 
 class APPSwapRoutes {
@@ -150,12 +155,15 @@ class APPSwapRoutes {
     if (index.isNegative) return;
     final updateRoute = route.value.route.updateTolerance(tolerance);
     final newRoute = SwapRouteWithBps(
-        route: updateRoute,
-        bps: route.value.bps,
-        totalFee: route.value.totalFee,
-        amount: route.value.amount,
-        fees: route.value.fees,
-        worstCaseAmount: route.value.worstCaseAmount);
+      route: updateRoute,
+      bps: route.value.bps,
+      totalFee: route.value.totalFee,
+      amount: route.value.amount,
+      fees: route.value.fees,
+      // worstCaseAmount: route.value.worstCaseAmount,
+      worstCaseAmount: IntegerBalance.token(
+          updateRoute.worstCaseAmount.amount, route.value.worstCaseAmount.token),
+    );
     routes[index] = newRoute;
     _routes = routes.immutable;
     _tolerance = newRoute.route.tolerance;

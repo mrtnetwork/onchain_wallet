@@ -39,6 +39,9 @@ final class SolanaChain extends Chain<
     final String id = cbor.rawValueAt<String>(2);
     return SolanaChain._(network: network, id: id, controller: controller);
   }
+  Future<IResult<BigInt>> getSplTokenBalance(
+          {required ISolanaAddress address, required SolAddress mint}) =>
+      _context.getSplTokenBalance(address: address, mint: mint);
 }
 
 abstract final class ISolanaChainContext
@@ -51,7 +54,10 @@ abstract final class ISolanaChainContext
             SolanaWalletTransaction,
             ISolanaAddress,
             SolanaNetworkClient,
-            SolanaNetworkProvider> {}
+            SolanaNetworkProvider> {
+  Future<IResult<BigInt>> getSplTokenBalance(
+      {required ISolanaAddress address, required SolAddress mint});
+}
 
 final class SolanaMainChainContext extends DefaultMainChainContext<
     SolAddress,
@@ -149,4 +155,26 @@ final class SolanaMainChainContext extends DefaultMainChainContext<
   @override
   final clientRequiredServices =
       NetworkClientRequirment.oneOf({APIProviderServices.solanaJsonRpc});
+
+  @override
+  Future<IResult<BigInt>> getSplTokenBalance(
+      {required ISolanaAddress address, required SolAddress mint}) async {
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      final tokens = await address.getAccountTokens();
+      return tokens.andThenAsync((tokens) async {
+        final wToken = tokens.firstWhereOrNull((e) => e.mint == mint);
+        if (wToken == null) {
+          final client = await this.client();
+          return client.andThenCatchAsync((client) async {
+            final balance =
+                await client.getTokenBalance(account: address.networkAddress, mint: mint);
+            return ResultOk(balance);
+          });
+        }
+        final update = await updateTokenBalance(address: address, tokens: [wToken]);
+        return update.map((e) => wToken.balance.balance);
+      });
+    });
+  }
 }

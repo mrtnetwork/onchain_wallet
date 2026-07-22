@@ -21,6 +21,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
   final APIProviderServices service;
   final Duration? timeout;
   final Duration? requestCooldown;
+  final ProviderRetryLogic? retryLogic;
 
   bool isLocalHost() {
     return StrUtils.isLocalHost(url);
@@ -32,18 +33,20 @@ class DefaultAPIProvider with Equality, AppSerialization {
         cborBytes: bytes,
         cborObject: object);
     return DefaultAPIProvider.unsafe(
-      url: values.rawValueAt(0),
-      identifier: values.rawValueAt(1),
-      protocol: ServiceProtocol.fromValue(values.rawValueAt(2)),
-      auth: values.maybeObjectAt<ProviderAuthenticated, CborTagValue>(
-          3, (e) => ProviderAuthenticated.deserialize(object: e)),
-      allowInWeb3: values.rawValueAt(4),
-      mode: NetMode.fromValue(values.rawValueAt(5)),
-      service: APIProviderServices.fromValue(values.rawValueAt(6)),
-      timeout: values.maybeRawValueAt<Duration, int>(7, (m) => Duration(milliseconds: m)),
-      requestCooldown:
-          values.maybeRawValueAt<Duration, int>(8, (m) => Duration(milliseconds: m)),
-    );
+        url: values.rawValueAt(0),
+        identifier: values.rawValueAt(1),
+        protocol: ServiceProtocol.fromValue(values.rawValueAt(2)),
+        auth: values.maybeObjectAt<ProviderAuthenticated, CborTagValue>(
+            3, (e) => ProviderAuthenticated.deserialize(object: e)),
+        allowInWeb3: values.rawValueAt(4),
+        mode: NetMode.fromValue(values.rawValueAt(5)),
+        service: APIProviderServices.fromValue(values.rawValueAt(6)),
+        timeout:
+            values.maybeRawValueAt<Duration, int>(7, (m) => Duration(milliseconds: m)),
+        requestCooldown:
+            values.maybeRawValueAt<Duration, int>(8, (m) => Duration(milliseconds: m)),
+        retryLogic: values.maybeObjectAt<ProviderRetryLogic, CborTagValue>(
+            9, (e) => ProviderRetryLogic.deserialize(object: e)));
   }
 
   const DefaultAPIProvider.unsafe({
@@ -53,6 +56,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.mode,
     required this.service,
     required this.url,
+    this.retryLogic,
     this.timeout,
     this.requestCooldown,
     this.auth,
@@ -63,6 +67,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.url,
     this.timeout,
     this.requestCooldown,
+    this.retryLogic,
     this.auth,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.mempool,
@@ -73,6 +78,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.url,
     this.timeout,
     this.requestCooldown,
+    this.retryLogic,
     this.auth,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.blockCypher,
@@ -85,6 +91,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.electrum;
   const DefaultAPIProvider.defaultRipple({
@@ -95,6 +102,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.ripple;
   const DefaultAPIProvider.solanaDefault({
@@ -104,6 +112,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.solanaJsonRpc,
         protocol = ServiceProtocol.http;
@@ -114,6 +123,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.blockfrost,
         protocol = ServiceProtocol.http;
@@ -125,6 +135,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.url,
     required this.protocol,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.ethereumJsonRpc;
   const DefaultAPIProvider.tendermintDefault({
@@ -134,6 +145,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.tendermint,
         protocol = ServiceProtocol.http;
@@ -144,6 +156,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.monero,
         protocol = ServiceProtocol.http;
@@ -155,6 +168,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         protocol = ServiceProtocol.http;
   const DefaultAPIProvider.zcashDefault({
@@ -164,6 +178,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.walletD,
         protocol = ServiceProtocol.grpc;
@@ -174,6 +189,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.tron,
         protocol = ServiceProtocol.http;
@@ -184,6 +200,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.sui,
         protocol = ServiceProtocol.http;
@@ -195,6 +212,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         protocol = ServiceProtocol.http;
   const DefaultAPIProvider.substateDefault({
@@ -205,6 +223,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.substrateJsonRpc;
 
@@ -215,6 +234,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.chainFlip,
         protocol = ServiceProtocol.http;
@@ -225,6 +245,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     this.timeout,
     this.requestCooldown,
     this.auth,
+    this.retryLogic,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.thor,
         protocol = ServiceProtocol.http;
@@ -234,6 +255,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.url,
     this.timeout,
     this.requestCooldown,
+    this.retryLogic,
     this.auth,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.maya,
@@ -244,6 +266,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.url,
     this.timeout,
     this.requestCooldown,
+    this.retryLogic,
     this.auth,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.skipGo,
@@ -254,6 +277,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.url,
     this.timeout,
     this.requestCooldown,
+    this.retryLogic,
     this.auth,
   })  : identifier = ProvidersConst.defaultidentifierName,
         service = APIProviderServices.swapKit,
@@ -266,6 +290,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
     required this.service,
     this.timeout,
     this.requestCooldown,
+    this.retryLogic,
     this.auth,
   })  : identifier = ProvidersConst.defaultidentifierName,
         protocol = ServiceProtocol.http;
@@ -278,6 +303,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
       ProviderAuthenticated? auth,
       Duration? requestCooldown,
       bool allowInWeb3 = true,
+      ProviderRetryLogic? retryLogic,
       NetMode? mode}) {
     final info = APIUtils.getUrlDetails(url);
     if (info == null) {
@@ -322,6 +348,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
         allowInWeb3: allowInWeb3,
         mode: mode,
         service: service,
+        retryLogic: retryLogic,
         auth: auth,
         url: url,
         timeout: timeout,
@@ -336,6 +363,9 @@ class DefaultAPIProvider with Equality, AppSerialization {
           protocol: protocol,
           allowInWeb3: allowInWeb3,
           mode: mode,
+          requestCooldown: requestCooldown,
+          retryLogic: retryLogic,
+          timeout: timeout,
           service: service,
           auth: auth,
           url: url);
@@ -368,7 +398,8 @@ class DefaultAPIProvider with Equality, AppSerialization {
         mode.value.toCbor(),
         service.value.toCbor(),
         timeout?.inMilliseconds.toCbor(),
-        requestCooldown?.inMilliseconds.toCbor()
+        requestCooldown?.inMilliseconds.toCbor(),
+        retryLogic?.toCbor()
       ];
 
   @override
@@ -384,6 +415,9 @@ class DefaultAPIProvider with Equality, AppSerialization {
         mode: mode,
         service: service,
         url: url,
+        requestCooldown: requestCooldown,
+        retryLogic: retryLogic,
+        timeout: timeout,
         auth: auth);
   }
 
@@ -396,7 +430,8 @@ class DefaultAPIProvider with Equality, AppSerialization {
       NetMode? mode,
       APIProviderServices? service,
       Duration? timeout,
-      Duration? requestCooldown}) {
+      Duration? requestCooldown,
+      ProviderRetryLogic? retryLogic}) {
     return DefaultAPIProvider.unsafe(
         identifier: identifier ?? this.identifier,
         protocol: protocol ?? this.protocol,
@@ -406,6 +441,7 @@ class DefaultAPIProvider with Equality, AppSerialization {
         service: service ?? this.service,
         url: url ?? this.url,
         timeout: timeout ?? this.timeout,
+        retryLogic: retryLogic,
         requestCooldown: requestCooldown ?? this.requestCooldown);
   }
 

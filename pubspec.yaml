@@ -55,7 +55,7 @@ dependencies:
   blockchain_utils: ^7.1.0
   # blockchain_utils:
   #   path: ../blockchain_utils
-  cosmos_sdk: ^4.0.0
+  cosmos_sdk: ^4.1.0
   # cosmos_sdk:
   #   path: ../cosmos_sdk
   on_chain_swap:
@@ -71,7 +71,7 @@ dependencies:
   bitcoin_base: ^7.2.0
   # bitcoin_base:
   #   path: ../bitcoin_base
-  xrpl_dart: ^7.4.0
+  xrpl_dart: ^7.5.0
   # xrpl_dart:
   #   path: ../xrpl_dart
   on_chain: ^8.1.0

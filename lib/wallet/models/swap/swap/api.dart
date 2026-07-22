@@ -54,6 +54,14 @@ class AppSwapServiceApi extends SwapServiceApi {
         return NetworkType.bitcoinAndForked;
       case SwapChainType.cosmos:
         return NetworkType.cosmos;
+      case SwapChainType.tron:
+        return NetworkType.tron;
+      case SwapChainType.xrp:
+        return NetworkType.xrpl;
+      case SwapChainType.ada:
+        return NetworkType.cardano;
+      case SwapChainType.zcash:
+        return NetworkType.zcash;
     }
   }
 
@@ -68,10 +76,7 @@ class AppSwapServiceApi extends SwapServiceApi {
               .whereType<WalletEthereumNetwork>()
               .firstWhereNullable((e) => e.coinParam.chainId == ethNetwork.chainId);
         case NetworkType.cosmos:
-          final cosmosNetwork = network.cast<SwapCosmosNetwork>();
-          return networks.whereType<WalletCosmosNetwork>().firstWhereNullable((e) =>
-              e.coinParam.chainId == cosmosNetwork.identifier &&
-              e.coinParam.chainType == cosmosNetwork.chainType);
+          return null;
 
         case NetworkType.bitcoinAndForked:
           final btcNetwork = network.cast<SwapBitcoinNetwork>();
@@ -93,6 +98,28 @@ class AppSwapServiceApi extends SwapServiceApi {
           return substrateChains.firstWhereNullable((e) {
             return StringUtils.hexEqual(genesis, e.genesisBlock);
           });
+        case NetworkType.tron:
+          final genesis = network.cast<SwapTronNetwork>().genesis;
+          final substrateChains = networks.whereType<WalletTronNetwork>();
+          return substrateChains.firstWhereNullable((e) {
+            return StringUtils.hexEqual(genesis, e.genesisBlock);
+          });
+
+        case NetworkType.xrpl:
+          final networkId = network.cast<SwapXRPNetwork>().networkId;
+
+          final substrateChains = networks.whereType<WalletXRPNetwork>();
+          return substrateChains.firstWhereNullable((e) {
+            return networkId == e.coinParam.networkId;
+          });
+        case NetworkType.zcash:
+          final nu6BlockHash = network.cast<SwapZcashNetwork>().nu6BlockHash;
+          final substrateChains = networks.whereType<WalletZcashNetwork>();
+          return substrateChains.firstWhereNullable((e) {
+            return e.getNu6BlockHash() == nu6BlockHash;
+          });
+        case NetworkType.cardano:
+          return null;
         default:
           return null;
       }
@@ -183,21 +210,13 @@ class DefaultSwapServiceApiParams extends BaseSwapServiceApiParams {
   final ChainType chainType;
   final INetApi netApi;
   final List<SwapKitSwapServiceProvider>? swapKitServiceProviders;
-  DefaultSwapServiceApiParams.testnet(this.netApi)
-      : chainType = ChainType.testnet,
-        swapKitServiceProviders = null,
-        super([SwapServiceType.chainFlip]);
+
   DefaultSwapServiceApiParams({
     required this.netApi,
-    List<SwapServiceType> services = const [
-      SwapServiceType.chainFlip,
-      SwapServiceType.maya,
-      SwapServiceType.thor,
-      SwapServiceType.swapKit
-    ],
+    required this.chainType,
+    required List<SwapServiceType> services,
     List<SwapKitSwapServiceProvider>? swapKitServiceProviders,
   })  : swapKitServiceProviders = swapKitServiceProviders?.immutable,
-        chainType = ChainType.mainnet,
         super(services);
 
   @override

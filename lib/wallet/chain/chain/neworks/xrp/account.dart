@@ -146,7 +146,7 @@ final class XRPMainChainContext extends DefaultMainChainContext<
       return client.andThenCatchAsync(
         (client) async {
           final ledgerIndex = await address._stoageGetAccountLedgerIndex();
-          return ledgerIndex.map((e) => e ?? -1).andThenAsync(
+          return ledgerIndex.map((e) => e).andThenAsync(
             (ledgerIndex) async {
               final txes = await client.getAccountTxes(
                   address: address.networkAddress, ledger: ledgerIndex);

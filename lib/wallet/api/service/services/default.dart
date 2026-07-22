@@ -22,9 +22,11 @@ class MultiChainServiceClient
       {required this.client, required this.timeout, required this.provider});
 
   factory MultiChainServiceClient.fromProvider(
-      {required DefaultAPIProvider provider, required INetApi netApi}) {
+      {required DefaultAPIProvider provider,
+      required INetApi netApi,
+      Duration? requestCooldown}) {
     Duration? timeout = provider.timeout;
-    Duration? requestCooldown = provider.requestCooldown;
+    requestCooldown ??= provider.requestCooldown;
     timeout ??= switch (provider.mode) {
       NetMode.clearnet => NetworkConst.defaultRequestTimeout,
       NetMode.tor => NetworkConst.defaultTorRequestTimeout,

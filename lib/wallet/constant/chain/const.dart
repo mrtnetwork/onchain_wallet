@@ -599,6 +599,7 @@ class _DefaultAppCoins {
       keysAlgs: [
         CosmosKeysAlgs.secp256k1,
       ]);
+
   static const CosmosNetworkParams thorchain = CosmosNetworkParams.unsafe(
       chainType: ChainType.mainnet,
       hrp: CosmosAddrConst.thor,
@@ -628,7 +629,7 @@ class _DefaultAppCoins {
           decimal: 8,
           assetLogo: APPConst.thor),
       chainId: "thorchain-1",
-      networkConstantUri: "https://thornode.ninerealms.com/thorchain/constants",
+      networkConstantUri: "https://gateway.liquify.com/chain/thorchain_api/thorchain",
       keysAlgs: [CosmosKeysAlgs.secp256k1]);
   static const CosmosNetworkParams kujiraTestnet = CosmosNetworkParams.unsafe(
       chainType: ChainType.testnet,
@@ -1453,7 +1454,8 @@ class _DefaultAppCoins {
     812: "https://explorer.aptoslabs.com/txn/#txid?network=devnet",
     1001: "https://tronscan.org/#/transaction/#txid",
     1002: "https://shasta.tronscan.org/#/transaction/#txid",
-    1003: "https://nile.tronscan.org/#/transaction/#txid"
+    1003: "https://nile.tronscan.org/#/transaction/#txid",
+    900: "https://mainnet.zcashexplorer.app/transactions/#txid",
   };
 }
 

@@ -2381,6 +2381,7 @@ class Localization {
           "networks_and_addresses": "Networks and addresses",
           "use_current_wallet_password": "Use current wallet password",
           "use_new_password": "Use new password",
+          "unsupported_swap_asset": "Unsuported swap asset.",
 
           /// wc
           "invalid_pairing_url": "Invalid pairing url.",
@@ -3193,7 +3194,9 @@ class Localization {
           "save_channel": "Save Channel",
           "save_channel_desc": "Would you like to save this channel for next time?",
           "fee_token_not_found": "Fee token not found.",
-          "service_out_of_sync": "Service is out of sync"
+          "service_out_of_sync": "Service is out of sync",
+          "swap_source_chain_provider_connection_error":
+              "Source chain connection failed. Please verify the chain provider is connected."
 
           // "n_minutes": "___1__ minutes"
         }

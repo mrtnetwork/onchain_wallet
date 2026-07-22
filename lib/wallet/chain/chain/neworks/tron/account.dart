@@ -50,12 +50,18 @@ final class TronChain extends Chain<
     final String id = cbor.rawValueAt<String>(2);
     return TronChain._(network: network, id: id, controller: controller);
   }
+  Future<IResult<BigInt>> getTrc20TokenBalance(
+          {required ITronAddress address, required TronAddress contract}) =>
+      _context.getTrc20TokenBalance(address: address, contract: contract);
 }
 
 abstract final class ITronChainContext
     implements
         IChainContext<TronAddress, TronToken, NFTCore, WalletTronNetwork,
-            TronWalletTransaction, ITronAddress, TronClient, TronNetworkProvider> {}
+            TronWalletTransaction, ITronAddress, TronClient, TronNetworkProvider> {
+  Future<IResult<BigInt>> getTrc20TokenBalance(
+      {required ITronAddress address, required TronAddress contract});
+}
 
 final class TronMainChainContext extends DefaultMainChainContext<
     TronAddress,
@@ -189,4 +195,29 @@ final class TronMainChainContext extends DefaultMainChainContext<
   @override
   final clientRequiredServices = NetworkClientRequirment.allOf(
       {APIProviderServices.tron, APIProviderServices.ethereumJsonRpc});
+
+  @override
+  Future<IResult<BigInt>> getTrc20TokenBalance(
+      {required ITronAddress address, required TronAddress contract}) async {
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      final tokens = await address.getAccountTokens();
+      return tokens.andThenAsync((tokens) async {
+        final wToken = tokens
+            .whereType<SolidityToken>()
+            .firstWhereOrNull((e) => e.contractAddress == contract);
+        if (wToken == null) {
+          final client = await this.client();
+          return client.andThenCatchAsync((client) async {
+            final balance = await client.getTrc20TokenBalance(
+                address: address.networkAddress, contractAddress: contract);
+            return ResultOk(balance);
+          });
+        }
+        final update =
+            await updateTokenBalance(address: address, tokens: [wToken as TronToken]);
+        return update.map((e) => wToken.balance.balance);
+      });
+    });
+  }
 }

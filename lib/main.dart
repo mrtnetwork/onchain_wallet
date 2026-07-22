@@ -12,7 +12,7 @@ import 'package:on_chain_wallet/future/router/page_router.dart';
 import 'package:on_chain_wallet/future/state_managment/state_managment.dart';
 
 void main() async {
-  final logging = kDebugMode || true ? LoggerMode.debug : LoggerMode.error;
+  final logging = kDebugMode ? LoggerMode.debug : LoggerMode.error;
   Logging.init(
       LoggingConfig(
           mode: logging,

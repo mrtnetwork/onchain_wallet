@@ -353,7 +353,7 @@ class _FeeInfo extends StatelessWidget {
         ),
         WidgetConstant.height20,
         ConditionalWidget(
-            enable: fee.token != null,
+            enable: fee.token != null && fee.amount != null,
             onDeactive: (context) =>
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text("asset".tr, style: context.onPrimaryTextTheme.titleMedium),
@@ -367,7 +367,7 @@ class _FeeInfo extends StatelessWidget {
                   WidgetConstant.height8,
                   ContainerWithBorder(
                       backgroundColor: context.onPrimaryContainer,
-                      child: Text(fee.amount.viewPrice,
+                      child: Text(fee.amount?.viewPrice ?? fee.fee.amount.amountString,
                           style: context.primaryTextTheme.bodyMedium)),
                 ]),
             onActive: (context) => Column(
@@ -378,7 +378,7 @@ class _FeeInfo extends StatelessWidget {
                     ContainerWithBorder(
                         backgroundColor: context.onPrimaryContainer,
                         child: CoinAndMarketPriceView(
-                            balance: fee.amount,
+                            balance: fee.amount!,
                             showTokenImage: true,
                             symbolColor: context.primaryContainer,
                             style: context.primaryTextTheme.titleMedium)),

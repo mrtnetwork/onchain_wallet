@@ -7,6 +7,7 @@ import 'package:cosmos_sdk/proto_messages/cosmos/base/v1beta1/src/coin.dart';
 import 'package:cosmos_sdk/proto_messages/ibc/core/channel/v1/src/channel.dart';
 import 'package:cosmos_sdk/proto_messages/ibc/core/channel/v1/src/query.dart';
 import 'package:cosmos_sdk/proto_messages/ibc/core/client/v1/src/query.dart';
+import 'package:on_chain_bridge/dev/dev.dart';
 import 'package:on_chain_bridge/net_sdk/types/config.dart';
 import 'package:on_chain_swap/on_chain_swap.dart';
 import 'package:on_chain_wallet/app/core.dart';
@@ -332,7 +333,6 @@ class CosmosNetworkClient extends NetworkClient<CosmosWalletTransaction, BaseNet
     return tokens;
   }
 
-  @override
   Future<ThorNodeNetworkConstants> getThorNodeConstants() async {
     if (network.coinParam.networkConstantUri == null) {
       throw APIErrorConst.invalidRequestUrl;
@@ -352,57 +352,46 @@ class CosmosNetworkClient extends NetworkClient<CosmosWalletTransaction, BaseNet
 
   @override
   Future<CosmosSwapTransactionRequirment> getSwapTransactionRequirment(
-      CosmosBaseAddress address) async {
+      CosmosBaseAddress address, int totalMessages) async {
     final cosmosAccount = await getAccount(address);
     BigInt? fixedFee;
     if (network.coinParam.networkType == CosmosNetworkTypes.thorAndForked) {
-      final fee = await IResult.call(() async {
-        final networkConst = await getThorNodeConstants();
-        return BigInt.from(networkConst.nativeTransactionFee);
+      const Map<String, int> fees = {
+        "thorchain-1": 2000000,
+        "mayachain-mainnet-v1": 2000000000
+      };
+      final fee = await IResult.call(
+        () async {
+          final networkConst = await getThorNodeConstants();
+          return BigInt.from(networkConst.nativeTransactionFee);
+        },
+        mode: LoggerMode.info,
+        onError: (exception, trace) => AppLogData(
+            err: exception,
+            trace: trace.toString(),
+            function: "getSwapTransactionRequirment",
+            runtime: runtimeType),
+      );
+      fixedFee = fee.unwrapOr((_) {
+        final fee = fees[network.coinParam.chainId];
+        if (fee == null) {
+          throw AppInternalError.internalError("getSwapTransactionRequirment",
+              reason: "Unknown forked network chainId ${network.coinParam.chainId}");
+        }
+        return BigInt.from(fee);
       });
-      assert(fee.isOk,
-          "failed to fetch ${network.networkName} native trasaction fee: ${fee.err()?.localizationError}");
-      fixedFee = fee
-          .unwrapOr((_) => network.coinParam.getFeeToken().getAverageGasPrice().balance);
-    }
-    BigRational? ethermintTxFee;
-
-    if (network.coinParam.networkType.isEthreum) {
-      ethermintTxFee = BigRational.parseDecimal(
-          network.coinParam.getFeeToken().getAverageGasPrice().price);
     }
     return CosmosSwapTransactionRequirment(
-        account: cosmosAccount, fixedNativeGas: fixedFee, ethermintTxFee: ethermintTxFee);
+        account: cosmosAccount, fixedNativeGas: fixedFee);
   }
 
   @override
   CosmosSwapNetworkReuirment get chainInfo => CosmosSwapNetworkReuirment(
-      native: CosmosSdkAsset(
-          name: network.token.name,
-          decimals: network.coinDecimal,
-          denom: network.coinParam.denom,
-          imagePng: null,
-          imageSvg: null,
-          coingeckoId: null,
-          symbol: network.token.symbol),
+      native: CosmosSwapCoin(denom: network.coinParam.denom),
       feeTokens: network.coinParam.feeTokens
-          .map((e) => CosmosSdkAsset(
-              name: e.token.name,
-              decimals: e.token.decimal,
-              denom: e.denom,
-              imagePng: null,
-              imageSvg: null,
-              coingeckoId: null,
-              symbol: e.token.symbol,
-              averageGasPrice: double.parse(e.getAverageGasPrice().price)))
+          .map((e) => CosmosSwapFeeCoin(
+              denom: e.denom, averageGasPrice: e.getAverageGasPrice().balance))
           .toList());
-
-  @override
-  Future<SwapCosmosAccountAssetBalance> getAccountsAssetBalance(
-      CosmosSwapAsset asset, CosmosBaseAddress account) async {
-    return SwapCosmosAccountAssetBalance(
-        address: account, balance: await getBalance(account, asset.denom), asset: asset);
-  }
 
   Future<void> _fetchTokenMetadata(CosmosNetworkToken token) async {
     if (!token.status.allowRetry) return;

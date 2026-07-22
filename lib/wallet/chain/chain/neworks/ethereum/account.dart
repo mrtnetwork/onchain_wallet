@@ -41,6 +41,10 @@ final class EthereumChain extends Chain<
   }
 
   late final BigInt chainId = network.coinParam.chainId;
+
+  Future<IResult<BigInt>> getErc20TokenBalance(
+          {required IEthereumAddress address, required ETHAddress contract}) =>
+      _context.getErc20TokenBalance(address: address, contract: contract);
 }
 
 abstract final class IEthereumChainContext
@@ -53,7 +57,10 @@ abstract final class IEthereumChainContext
             EthWalletTransaction,
             IEthereumAddress,
             EthereumNetworkClient,
-            EthereumNetworkProvider> {}
+            EthereumNetworkProvider> {
+  Future<IResult<BigInt>> getErc20TokenBalance(
+      {required IEthereumAddress address, required ETHAddress contract});
+}
 
 final class EthereumMainChainContext extends DefaultMainChainContext<
     ETHAddress,
@@ -130,6 +137,28 @@ final class EthereumMainChainContext extends DefaultMainChainContext<
         return balances
             .firstWhere((e) => e.isErr, orElse: () => ResultOk(BigInt.zero))
             .map((_) {});
+      });
+    });
+  }
+
+  @override
+  Future<IResult<BigInt>> getErc20TokenBalance(
+      {required IEthereumAddress address, required ETHAddress contract}) async {
+    final accountAddress = await isAccountAddress(address);
+    return accountAddress.andThenAsync((address) async {
+      final tokens = await address.getAccountTokens();
+      return tokens.andThenAsync((tokens) async {
+        final wToken = tokens.firstWhereOrNull((e) => e.contractAddress == contract);
+        if (wToken == null) {
+          final client = await this.client();
+          return client.andThenCatchAsync((client) async {
+            final balance = await client.getTokenBalance(
+                address: address.networkAddress, contract: contract);
+            return ResultOk(balance);
+          });
+        }
+        final update = await updateTokenBalance(address: address, tokens: [wToken]);
+        return update.map((e) => wToken.balance.balance);
       });
     });
   }

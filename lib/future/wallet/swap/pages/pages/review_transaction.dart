@@ -11,28 +11,30 @@ import 'package:flutter/material.dart';
 import 'config.dart';
 
 class TransactionReviewView extends StatelessWidget {
-  final APPSwapRoute route;
-  const TransactionReviewView({required this.route, super.key});
+  // final APPSwapRoute route;
+  const TransactionReviewView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return StateBuilder<SwapTransactionStateController>(
       disposeStrategy: StateBuilderDisposeStrategy.onDispose,
-      controller: () =>
-          SwapTransactionStateController(route: route, wallet: context.wallet),
+      controller: () => SwapTransactionStateController(
+          route: context.getArgruments<APPSwapRoute>(), wallet: context.wallet),
       builder: (controller) {
         return PopScope(
           canPop: controller.allowPop,
           onPopInvokedWithResult: (didPop, result) async {
-            final close = await controller.onPop(() async {
-              return context.openSliverDialog<bool>(
-                widget: (context) => DialogTextView(
-                    text: "close_swap_page_desc".tr,
-                    buttonWidget: DialogDoubleButtonView()),
-                label: 'close_page'.tr,
-              );
-            });
-            if (close == true && context.mounted) context.popToHome();
+            if (!controller.allowPop) {
+              final close = await controller.onPop(() async {
+                return context.openSliverDialog<bool>(
+                  widget: (context) => DialogTextView(
+                      text: "close_swap_page_desc".tr,
+                      buttonWidget: DialogDoubleButtonView()),
+                  label: 'close_page'.tr,
+                );
+              });
+              if (close == true && context.mounted) context.popToHome();
+            }
           },
           child: Scaffold(
             appBar: AppBar(
