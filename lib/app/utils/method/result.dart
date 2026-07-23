@@ -161,7 +161,8 @@ sealed class IResult<T extends Object?> {
         logOnDebug: logOnDebug,
         onError: onError,
         waitAtError: waitAtError);
-    return result.fold<IResult<T>>(onErr: (error) => error.cast<T>(), onOk: (v) => v);
+    return result.fold<IResult<T>>(
+        onErr: (error) => error.cast<T>(), onOk: (v) => v);
   }
 
   static Future<IResult<T>> wait<T>(
@@ -228,15 +229,19 @@ sealed class IResult<T extends Object?> {
   Future<IResult<U>> mapCatchAsync<U>(FutureOr<U> Function(T value) f);
   IResult<T> mapErr(IException Function(ResultErr<T> error) f);
   IResult<T?> unwrapOrNull();
-  Future<IResult<T>> mapErrAsync(FutureOr<IException> Function(ResultErr<T> error) f);
+  Future<IResult<T>> mapErrAsync(
+      FutureOr<IException> Function(ResultErr<T> error) f);
   IResult<U> andThen<U>(IResult<U> Function(T value) f);
   IResult<U> andThenCatch<U>(IResult<U> Function(T value) f,
       {ONERROR? logging, LoggerMode loggingMode = LoggerMode.error});
   Future<IResult<U>> andThenAsync<U>(FutureOr<IResult<U>> Function(T value) f);
-  Future<IResult<U>> andThenCatchAsync<U>(FutureOr<IResult<U>> Function(T value) f,
-      {ONERROR? logging, LoggerMode loggingMode = LoggerMode.error});
+  Future<IResult<U>> andThenCatchAsync<U>(
+      FutureOr<IResult<U>> Function(T value) f,
+      {ONERROR? logging,
+      LoggerMode loggingMode = LoggerMode.error});
   IResult<U> and<U>(IResult<U> Function(T? value, IException? error) f);
-  Future<IResult<T>> onComplete(FutureOr<void> Function(T? value, ResultErr<T>? error) f);
+  Future<IResult<T>> onComplete(
+      FutureOr<void> Function(T? value, ResultErr<T>? error) f);
   Future<IResult<U>> andAsync<U>(
       FutureOr<IResult<U>> Function(T? value, ResultErr<T>? error) f);
 
@@ -323,7 +328,8 @@ class ResultOk<T extends Object?> extends IResult<T> {
   }
 
   @override
-  Future<IResult<U>> andThenAsync<U>(FutureOr<IResult<U>> Function(T value) f) async {
+  Future<IResult<U>> andThenAsync<U>(
+      FutureOr<IResult<U>> Function(T value) f) async {
     return await f(value);
   }
 
@@ -393,8 +399,10 @@ class ResultOk<T extends Object?> extends IResult<T> {
   }
 
   @override
-  Future<IResult<U>> andThenCatchAsync<U>(FutureOr<IResult<U>> Function(T value) f,
-      {ONERROR? logging, LoggerMode loggingMode = LoggerMode.error}) async {
+  Future<IResult<U>> andThenCatchAsync<U>(
+      FutureOr<IResult<U>> Function(T value) f,
+      {ONERROR? logging,
+      LoggerMode loggingMode = LoggerMode.error}) async {
     try {
       return await f(value);
     } catch (exception, trace) {
@@ -460,7 +468,8 @@ class ResultOk<T extends Object?> extends IResult<T> {
 
   @override
   void watch<R extends Object?>(
-      {void Function(T value)? onOk, void Function(ResultErr<T> error)? onErr}) {
+      {void Function(T value)? onOk,
+      void Function(ResultErr<T> error)? onErr}) {
     if (onOk != null) onOk(value);
   }
 
@@ -484,13 +493,15 @@ class ResultErr<T extends Object?> extends IResult<T> {
   final String? trace;
   final bool localizedMessage;
 
-  const ResultErr._(this.exception, {this.trace, this.localizedMessage = false});
+  const ResultErr._(this.exception,
+      {this.trace, this.localizedMessage = false});
   factory ResultErr.fromNetSkd(NetResultStatus error, {StackTrace? trace}) {
     return ResultErr.fromException(
         APIError.fromNetSdk(NetSdkException(error), url: null));
   }
   factory ResultErr.from(Object error, {StackTrace? trace}) {
-    return ResultErr.fromException(IExceptionUtils.findError(error), trace: trace);
+    return ResultErr.fromException(IExceptionUtils.findError(error),
+        trace: trace);
   }
   factory ResultErr.fromException(IException error, {StackTrace? trace}) {
     final traceInfo = trace?.toString();
@@ -553,7 +564,8 @@ class ResultErr<T extends Object?> extends IResult<T> {
   }
 
   @override
-  Future<IResult<U>> andThenAsync<U>(FutureOr<IResult<U>> Function(T value) f) async {
+  Future<IResult<U>> andThenAsync<U>(
+      FutureOr<IResult<U>> Function(T value) f) async {
     return ResultErr<U>._(exception);
   }
 
@@ -630,15 +642,18 @@ class ResultErr<T extends Object?> extends IResult<T> {
     if (exception is ERR) {
       return exception as ERR;
     }
-    if (exception case AppInternalError(:var interalError) when interalError is ERR) {
+    if (exception case AppInternalError(:var interalError)
+        when interalError is ERR) {
       return interalError;
     }
     return null;
   }
 
   @override
-  Future<IResult<U>> andThenCatchAsync<U>(FutureOr<IResult<U>> Function(T value) f,
-      {ONERROR? logging, LoggerMode loggingMode = LoggerMode.error}) async {
+  Future<IResult<U>> andThenCatchAsync<U>(
+      FutureOr<IResult<U>> Function(T value) f,
+      {ONERROR? logging,
+      LoggerMode loggingMode = LoggerMode.error}) async {
     return ResultErr<U>._(exception);
   }
 
@@ -666,7 +681,8 @@ class ResultErr<T extends Object?> extends IResult<T> {
 
   @override
   void watch<R extends Object?>(
-      {void Function(T value)? onOk, void Function(ResultErr<T> error)? onErr}) {
+      {void Function(T value)? onOk,
+      void Function(ResultErr<T> error)? onErr}) {
     if (onErr != null) onErr(this);
   }
 
@@ -688,8 +704,8 @@ class ResultErr<T extends Object?> extends IResult<T> {
   }) {
     Logging.logData(
       mode: mode,
-      fn: () =>
-          AppLogData(runtime: runtime, function: function, msg: msg, err: exception),
+      fn: () => AppLogData(
+          runtime: runtime, function: function, msg: msg, err: exception),
     );
   }
 
@@ -703,8 +719,10 @@ class ResultErr<T extends Object?> extends IResult<T> {
   ERROR as<ERROR extends IException>() {
     final exception = this.exception;
     if (exception is ERROR) return exception;
-    throw AppInternalError.internalError("ResultErr.as",
-        details: {"error": exception.runtimeType.toString(), "excpected": "$ERROR"});
+    throw AppInternalError.internalError("ResultErr.as", details: {
+      "error": exception.runtimeType.toString(),
+      "excpected": "$ERROR"
+    });
   }
 
   // ERROR? tryAs<ERROR extends IException>() {

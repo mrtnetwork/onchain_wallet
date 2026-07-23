@@ -38,9 +38,17 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+message(STATUS "CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}")
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}")
 install(FILES "${CMAKE_SOURCE_DIR}/libsqlite3mc.dll"
   DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
-install(FILES "${CMAKE_SOURCE_DIR}/libed25519.dll"
+install(FILES "${CMAKE_SOURCE_DIR}/libcrypto_c.dll"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_SOURCE_DIR}/libnet_sdk.dll"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_SOURCE_DIR}/libzk.dll"
   DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)

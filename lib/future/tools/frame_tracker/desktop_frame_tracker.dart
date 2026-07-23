@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:on_chain_bridge/dev/dev.dart';
 import 'package:on_chain_bridge/interface/interface.dart';
 import 'package:on_chain_bridge/models/models.dart';
 import 'package:on_chain_wallet/app/core.dart';
@@ -34,17 +35,27 @@ mixin DesktopFrameTracker on StateController {
   Timer? _onUpdateFrame;
 
   Future<void> _updateFrame() async {
-    final pixelRatio = navigatorKey?.currentContext?.mediaQuery.devicePixelRatio;
+    final pixelRatio =
+        navigatorKey?.currentContext?.mediaQuery.devicePixelRatio;
     if (pixelRatio == null) return;
     WidgetRect? rect = await _windowsPlatform?.getBounds(pixelRatio);
     if (rect == null) return;
     rect = rect.copyWith(devicePixelRatio: pixelRatio);
-    context.setting.updateAppSetting(context.setting.setting.copyWith(size: rect));
+    context.setting
+        .updateAppSetting(context.setting.setting.copyWith(size: rect))
+        .then((e) {
+      Logg.log(
+          "Frame updated! ${rect?.x} ${rect?.y} ${rect?.height} ${rect?.width} $e");
+    });
   }
 
+//// [Main]: Frame updated! 1139.0 83.0 729.0 833.0 ResultOk(null)
   void _start() {
     if (appStatus.status.isError) return;
-    context.platformInterface().andThen((e) => e.desktop.toResult()).map((wPlatform) {
+    context
+        .platformInterface()
+        .andThen((e) => e.desktop.toResult())
+        .map((wPlatform) {
       _windowsPlatform = wPlatform;
       _tracker = _WindowsFrameTracker(_detectFrame);
       wPlatform.addListener(_tracker);

@@ -123,6 +123,7 @@ class BigRationalTextFieldState extends State<BigRationalTextField>
       showDecimal = maxScale != null;
       min = widget.min;
       max = widget.max;
+      
     }
   }
 

@@ -85,10 +85,10 @@ packages:
     dependency: transitive
     description:
       name: cli_util
-      sha256: "5909d2c6b66817222779e1eedc19e0e28b76d1df7bd9856a4792ccb9881df358"
+      sha256: "71e43f1976c3eae2d9468a5b4d6600bf8cae61508b87f27fa1799228935d48ab"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.1"
+    version: "0.5.2"
   clock:
     dependency: transitive
     description:
@@ -381,7 +381,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: bf4103ceb807234c503a456ad0f5d00498fdf731
+      resolved-ref: "88439e0772796e3b39823e9a4573d34e67eca641"
       url: "https://github.com/mrtnetwork/onchain_bridge.git"
     source: git
     version: "0.0.3"

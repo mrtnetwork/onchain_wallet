@@ -3,6 +3,7 @@ import 'package:blockchain_utils/bip/bip.dart';
 import 'package:blockchain_utils/helper/helper.dart';
 import 'package:blockchain_utils/utils/numbers/rational/big_rational.dart';
 import 'package:flutter/material.dart';
+import 'package:on_chain_bridge/dev/src/logging.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/crypto/wallet/keys/crypto_keys.dart';
 import 'package:on_chain_wallet/crypto/types/next_derivation.dart';
@@ -32,10 +33,11 @@ class SetupZcashAddressView extends StatefulWidget {
 
 class _SetupZcashAddressViewState extends State<SetupZcashAddressView>
     with SafeState<SetupZcashAddressView> {
-  late _ZcashAddressGeneratorController controller = _ZcashAddressGeneratorController(
-      account: widget.account,
-      walletProvider: context.wallet,
-      supportedProtocols: widget.account.supportedProtocols());
+  late _ZcashAddressGeneratorController controller =
+      _ZcashAddressGeneratorController(
+          account: widget.account,
+          walletProvider: context.wallet,
+          supportedProtocols: widget.account.supportedProtocols());
 
   @override
   void safeDispose() {
@@ -60,29 +62,37 @@ class _SetupZcashAddressViewState extends State<SetupZcashAddressView>
                 slivers: [
                   SliverConstraintsBoxView(
                       padding: WidgetConstant.padding20,
-                      sliver:
-                          APPSliverAnimatedSwitcher(enable: controller.page, widgets: {
-                        _Pages.mode: (context) => _SelectMode(controller),
-                        _Pages.protocol: (context) => _SelectProtocols(controller),
-                        _Pages.sapling: (context) => _BuildSheild(
-                              controller: controller,
-                              currentDerivation: controller.saplingDerivation,
-                            ),
-                        _Pages.orchard: (context) => _BuildSheild(
-                              controller: controller,
-                              currentDerivation: controller.orchardDerivation,
-                            ),
-                        _Pages.transparent: (context) => APPSliverAnimated(
-                              onActive: (context) => _BuildTransparentMultisig(
-                                  currentDerivation: controller.transparentMSigDerivation,
-                                  controller: controller),
-                              onDeactive: (context) => _BuildTransparent(
-                                controller: controller,
-                                currentDerivation: controller.transparentDerivation,
-                              ),
-                              isActive: controller.transparentMultisigDerivation,
-                            ),
-                      }))
+                      sliver: APPSliverAnimatedSwitcher(
+                          enable: controller.page,
+                          widgets: {
+                            _Pages.mode: (context) => _SelectMode(controller),
+                            _Pages.protocol: (context) =>
+                                _SelectProtocols(controller),
+                            _Pages.sapling: (context) => _BuildSheild(
+                                  controller: controller,
+                                  currentDerivation:
+                                      controller.saplingDerivation,
+                                ),
+                            _Pages.orchard: (context) => _BuildSheild(
+                                  controller: controller,
+                                  currentDerivation:
+                                      controller.orchardDerivation,
+                                ),
+                            _Pages.transparent: (context) => APPSliverAnimated(
+                                  onActive: (context) =>
+                                      _BuildTransparentMultisig(
+                                          currentDerivation: controller
+                                              .transparentMSigDerivation,
+                                          controller: controller),
+                                  onDeactive: (context) => _BuildTransparent(
+                                    controller: controller,
+                                    currentDerivation:
+                                        controller.transparentDerivation,
+                                  ),
+                                  isActive:
+                                      controller.transparentMultisigDerivation,
+                                ),
+                          }))
                 ],
               ),
             ),
@@ -104,8 +114,10 @@ class _SelectMode extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text("select_zcash_protocol".tr, style: context.textTheme.titleMedium),
-          Text("select_zcash_protocol_desc".tr, style: context.textTheme.bodyMedium),
+          Text("select_zcash_protocol".tr,
+              style: context.textTheme.titleMedium),
+          Text("select_zcash_protocol_desc".tr,
+              style: context.textTheme.bodyMedium),
           WidgetConstant.height8,
           DisabledWidget(
             disabled: !controller.protocolSupported(ZcashProtocol.orchard),
@@ -114,7 +126,8 @@ class _SelectMode extends StatelessWidget {
                 onTap: () => controller.onChangeMode(
                     ZCashNewAddressDerivationMode.unified,
                     (err) => context.showAlert(err)),
-                title: Text("orchard_upgrade".tr, style: context.textTheme.titleMedium),
+                title: Text("orchard_upgrade".tr,
+                    style: context.textTheme.titleMedium),
                 subtitle: Text("derive_new_unified_address".tr),
                 trailing: Icon(Icons.arrow_forward),
               );
@@ -127,7 +140,8 @@ class _SelectMode extends StatelessWidget {
                 onTap: () => controller.onChangeMode(
                     ZCashNewAddressDerivationMode.sapling,
                     (err) => context.showAlert(err)),
-                title: Text("sapling_upgrade".tr, style: context.textTheme.titleMedium),
+                title: Text("sapling_upgrade".tr,
+                    style: context.textTheme.titleMedium),
                 subtitle: Text("derive_new_sapling_payment_address".tr),
                 trailing: Icon(Icons.arrow_forward),
               );
@@ -140,7 +154,8 @@ class _SelectMode extends StatelessWidget {
                 onTap: () => controller.onChangeMode(
                     ZCashNewAddressDerivationMode.transparent,
                     (err) => context.showAlert(err)),
-                title: Text("transparent".tr, style: context.textTheme.titleMedium),
+                title: Text("transparent".tr,
+                    style: context.textTheme.titleMedium),
                 subtitle: Text("zcash_transparent_derivation_desc".tr),
                 trailing: Icon(Icons.arrow_forward),
               );
@@ -203,10 +218,12 @@ class _SelectProtocols extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           FixedElevatedButton(
-            onPressed: () => controller.nextPage((err) => context.showAlert(err)),
+            onPressed: () =>
+                controller.nextPage((err) => context.showAlert(err)),
             activePress: controller.stateReady,
             padding: WidgetConstant.paddingVertical40,
-            child: Text(controller.latestPage ? "setup_address".tr : "continue".tr),
+            child: Text(
+                controller.latestPage ? "setup_address".tr : "continue".tr),
           ),
         ],
       ),
@@ -217,7 +234,8 @@ class _SelectProtocols extends StatelessWidget {
 class _BuildSheild extends StatelessWidget {
   final _ZcashAddressGeneratorController controller;
   final _ShieldedDerivation currentDerivation;
-  const _BuildSheild({required this.controller, required this.currentDerivation});
+  const _BuildSheild(
+      {required this.controller, required this.currentDerivation});
 
   @override
   Widget build(BuildContext context) {
@@ -264,13 +282,16 @@ class _BuildSheild extends StatelessWidget {
                           children: [
                             AppCheckListTile(
                               contentPadding: EdgeInsets.zero,
-                              onChanged: (p0) => controller.onChangeFollowingSaplingRole(
+                              onChanged: (p0) =>
+                                  controller.onChangeFollowingSaplingRole(
                                 (err) => context.showAlert(err),
                               ),
                               value: fs,
-                              title: Text("followng_sapling_diversifier_role".tr,
+                              title: Text(
+                                  "followng_sapling_diversifier_role".tr,
                                   style: context.textTheme.titleMedium),
-                              subtitle: Text("followng_sapling_diversifier_role_desc".tr),
+                              subtitle: Text(
+                                  "followng_sapling_diversifier_role_desc".tr),
                             ),
                           ],
                         );
@@ -296,20 +317,21 @@ class _BuildSheild extends StatelessWidget {
                         children: [
                           AppRadioListTile<Bip44Changes>(
                             value: Bip44Changes.chainExt,
-                            title:
-                                Text("external".tr, style: context.textTheme.titleMedium),
+                            title: Text("external".tr,
+                                style: context.textTheme.titleMedium),
                           ),
                           AppRadioListTile<Bip44Changes>(
                             value: Bip44Changes.chainInt,
-                            title:
-                                Text("internal".tr, style: context.textTheme.titleMedium),
+                            title: Text("internal".tr,
+                                style: context.textTheme.titleMedium),
                           ),
                         ],
                       );
                     },
                   ),
                   WidgetConstant.height20,
-                  Text("diversifier_index".tr, style: context.textTheme.titleMedium),
+                  Text("diversifier_index".tr,
+                      style: context.textTheme.titleMedium),
                   Text("diversifier_index_of_address".tr),
                   ConditionalWidget(
                       enable: currentDerivation.protocol.isSapling,
@@ -320,11 +342,14 @@ class _BuildSheild extends StatelessWidget {
                               WidgetConstant.height8,
                               AppSwitchListTile(
                                 contentPadding: EdgeInsets.zero,
-                                onChanged: (p0) => controller.onChangeAutoDiversifier(),
-                                value: currentDerivation.diversifier.autoDiversifier,
+                                onChanged: (p0) =>
+                                    controller.onChangeAutoDiversifier(),
+                                value: currentDerivation
+                                    .diversifier.autoDiversifier,
                                 title: Text("auto_diversifier_index".tr,
                                     style: context.textTheme.titleMedium),
-                                subtitle: Text("auto_diversifier_index_desc".tr),
+                                subtitle:
+                                    Text("auto_diversifier_index_desc".tr),
                               ),
                             ],
                           )),
@@ -333,10 +358,13 @@ class _BuildSheild extends StatelessWidget {
                       maxWidth: APPConst.numberFieldsWidth,
                       child: BigRationalTextField(
                           label: 'index'.tr,
-                          onChange: currentDerivation.diversifier.onChangeDerivationIndex,
+                          onChange: currentDerivation
+                              .diversifier.onChangeDerivationIndex,
                           max: currentDerivation.diversifier.maxDiversifier,
-                          defaultValue: currentDerivation.diversifier.diversifierIndex,
-                          validator: currentDerivation.diversifier.diversifierValidator,
+                          defaultValue:
+                              currentDerivation.diversifier.diversifierIndex,
+                          validator: currentDerivation
+                              .diversifier.diversifierValidator,
                           min: controller.minDiversifier)),
                 ])),
         WidgetConstant.height20,
@@ -363,11 +391,14 @@ class _BuildSheild extends StatelessWidget {
                         maxWidth: APPConst.numberFieldsWidth,
                         child: BigRationalTextField(
                             label: 'block_height'.tr,
-                            onChange: currentDerivation.onChangeActivationHeight,
-                            max: controller.currentHeight,
+                            onChange:
+                                currentDerivation.onChangeActivationHeight,
+                            max: null,
                             defaultValue: currentDerivation.activationHeight,
-                            validator: currentDerivation.onValidateActivationHeight,
-                            min: currentDerivation.defaultActiviationHeight)),
+                            validator: (p0) =>
+                                controller.onValidateActivationHeight(
+                                    p0, currentDerivation),
+                            min: BigRational.zero)),
                   ],
                 )),
         Row(
@@ -379,7 +410,8 @@ class _BuildSheild extends StatelessWidget {
               ),
               activePress: controller.stateReady,
               padding: WidgetConstant.paddingVertical40,
-              child: Text(controller.latestPage ? "setup_address".tr : "continue".tr),
+              child: Text(
+                  controller.latestPage ? "setup_address".tr : "continue".tr),
             ),
           ],
         ),
@@ -391,7 +423,8 @@ class _BuildSheild extends StatelessWidget {
 class _BuildTransparent extends StatelessWidget {
   final _ZcashAddressGeneratorController controller;
   final _TransparentSingleKeyDerivation currentDerivation;
-  const _BuildTransparent({required this.controller, required this.currentDerivation});
+  const _BuildTransparent(
+      {required this.controller, required this.currentDerivation});
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +446,8 @@ class _BuildTransparent extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           value: controller.transparentMultisigDerivation,
           onChanged: (_) => controller.onChangeTransparentMultisignature(),
-          title: Text("multi_sig_addr".tr, style: context.textTheme.titleMedium),
+          title:
+              Text("multi_sig_addr".tr, style: context.textTheme.titleMedium),
           subtitle: Text('generate_multisignature_address_desc'.tr),
         ),
         WidgetConstant.height20,
@@ -431,8 +465,10 @@ class _BuildTransparent extends StatelessWidget {
           child: APPAnimated(
             onActive: (context) {
               return FullWidthWrapper(
-                key: ValueKey(
-                    (currentDerivation.nextIndex, currentDerivation.overridePath)),
+                key: ValueKey((
+                  currentDerivation.nextIndex,
+                  currentDerivation.overridePath
+                )),
                 child: AddressDrivationInfo(
                   currentDerivation.nextIndex,
                   style: context.textTheme.titleMedium,
@@ -452,13 +488,15 @@ class _BuildTransparent extends StatelessWidget {
                   APPAnimated(onActive: (context) {
                     return AppCheckListTile(
                       contentPadding: EdgeInsets.zero,
-                      onChanged: (p0) => controller.onChangeFollowingSaplingRole(
+                      onChanged: (p0) =>
+                          controller.onChangeFollowingSaplingRole(
                         (err) => context.showAlert(err),
                       ),
                       value: currentDerivation.followSaplingStrategy,
                       title: Text("followng_sapling_diversifier_role".tr,
                           style: context.textTheme.titleMedium),
-                      subtitle: Text("followng_sapling_diversifier_role_desc".tr),
+                      subtitle:
+                          Text("followng_sapling_diversifier_role_desc".tr),
                     );
                   }),
                 ],
@@ -478,7 +516,8 @@ class _BuildTransparent extends StatelessWidget {
               children: currentDerivation.supportTypes
                   .map((e) => AppRadioListTile<BitcoinAddressType>(
                         value: e,
-                        title: Text(e.name, style: context.textTheme.titleMedium),
+                        title:
+                            Text(e.name, style: context.textTheme.titleMedium),
                       ))
                   .toList(),
             );
@@ -493,7 +532,8 @@ class _BuildTransparent extends StatelessWidget {
               ),
               activePress: controller.stateReady,
               padding: WidgetConstant.paddingVertical40,
-              child: Text(controller.latestPage ? "setup_address".tr : "continue".tr),
+              child: Text(
+                  controller.latestPage ? "setup_address".tr : "continue".tr),
             ),
           ],
         ),
@@ -530,7 +570,8 @@ class _BuildTransparentMultisig extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             value: controller.transparentMultisigDerivation,
             onChanged: (_) => controller.onChangeTransparentMultisignature(),
-            title: Text("multi_sig_addr".tr, style: context.textTheme.titleMedium),
+            title:
+                Text("multi_sig_addr".tr, style: context.textTheme.titleMedium),
             subtitle: Text('generate_multisignature_address_desc'.tr),
           ),
           WidgetConstant.height20,
@@ -569,7 +610,8 @@ class _BuildTransparentMultisig extends StatelessWidget {
             duration: APPConst.animationDuraion,
             child: Column(
               key: ValueKey<int>(currentDerivation.signers.length),
-              children: List.generate(currentDerivation.signers.length, (index) {
+              children:
+                  List.generate(currentDerivation.signers.length, (index) {
                 final signer = currentDerivation.signers[index];
                 return CustomizedContainer(
                     enableTap: false,
@@ -619,7 +661,8 @@ class _BuildTransparentMultisig extends StatelessWidget {
                             context
                                 .selectOrSwitchAccount<IZcashAddress>(
                                     account: controller.account,
-                                    filter: controller.onFilterTransparentAccounts,
+                                    filter:
+                                        controller.onFilterTransparentAccounts,
                                     showMultiSig: false)
                                 .then(
                               (value) {
@@ -655,7 +698,9 @@ class _BuildTransparentMultisig extends StatelessWidget {
           APPAnimated(
               isActive: !currentDerivation.isReady,
               onActive: (context) => ErrorTextContainer(
-                  error: currentDerivation.signersReady ? "threshhold_desc3".tr : null,
+                  error: currentDerivation.signersReady
+                      ? "threshhold_desc3".tr
+                      : null,
                   showErrorIcon: true,
                   enableTap: false)),
           Row(
@@ -667,7 +712,8 @@ class _BuildTransparentMultisig extends StatelessWidget {
                 ),
                 activePress: controller.stateReady,
                 padding: WidgetConstant.paddingVertical40,
-                child: Text(controller.latestPage ? "setup_address".tr : "continue".tr),
+                child: Text(
+                    controller.latestPage ? "setup_address".tr : "continue".tr),
               ),
             ],
           ),
@@ -685,17 +731,20 @@ enum _Pages {
   transparent;
 }
 
-class _ZcashAddressGeneratorController with DisposableMixin, StreamStateController {
+class _ZcashAddressGeneratorController
+    with DisposableMixin, StreamStateController {
   final ZcashChain account;
   final WalletProvider walletProvider;
   final GlobalKey<FormState> form = GlobalKey();
-  StreamPageProgressController progressController = StreamPageProgressController();
+  StreamPageProgressController progressController =
+      StreamPageProgressController();
   _ShieldedDerivation? _saplingDerivation;
   _ShieldedDerivation get saplingDerivation => _saplingDerivation!;
   _ShieldedDerivation? _orchardDerivation;
   _ShieldedDerivation get orchardDerivation => _orchardDerivation!;
   _TransparentSingleKeyDerivation? _transparentDerivation;
-  _TransparentSingleKeyDerivation get transparentDerivation => _transparentDerivation!;
+  _TransparentSingleKeyDerivation get transparentDerivation =>
+      _transparentDerivation!;
   _TransparentMultisignatureDerivation? _transparentMSigDerivation;
   _TransparentMultisignatureDerivation get transparentMSigDerivation =>
       _transparentMSigDerivation!;
@@ -712,22 +761,29 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
       e.mapCatchAsync((e) async {
         final height = await e.getLatestBlockHeight();
         currentHeight = BigRational.from(height);
+        currentHeightBig = BigInt.from(height);
+        notify();
       });
     });
   }
   _Pages page = _Pages.mode;
 
-  bool protocolSupported(ZcashProtocol protocol) => supportedProtocols.contains(protocol);
-  bool protocolSelected(ZcashProtocol protocol) => selectdProtocols.contains(protocol);
+  bool protocolSupported(ZcashProtocol protocol) =>
+      supportedProtocols.contains(protocol);
+  bool protocolSelected(ZcashProtocol protocol) =>
+      selectdProtocols.contains(protocol);
   bool transparentMultisigDerivation = false;
   BigRational? currentHeight;
+  BigInt? currentHeightBig;
   bool hasSapling = false;
   bool hasOrchard = false;
   bool hasTransparent = false;
   bool stateReady = false;
   bool latestPage = false;
   bool get canPop =>
-      page == _Pages.mode || progressController.isSuccess || progressController.hasError;
+      page == _Pages.mode ||
+      progressController.isSuccess ||
+      progressController.hasError;
 
   void onBackButton(bool _, Object? __) {
     if (page == _Pages.mode) return;
@@ -780,13 +836,16 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
   ///
   final BigRational minDiversifier = BigRational.zero;
 
-  ({Bip32DerivationIndex index, BigRational diversifierIndex}) getNextDerivation(
-      {required CryptoCoins coin}) {
-    final index =
-        account.nextDerive(coin: coin, seedGeneration: SeedTypes.bip39, subId: null);
+  ({Bip32DerivationIndex index, BigRational diversifierIndex})
+      getNextDerivation({required CryptoCoins coin}) {
+    final index = account.nextDerive(
+        coin: coin, seedGeneration: SeedTypes.bip39, subId: null);
     switch (index) {
       case NextDerivationDefault():
-        return (index: index.nextIndex.cast(), diversifierIndex: BigRational.zero);
+        return (
+          index: index.nextIndex.cast(),
+          diversifierIndex: BigRational.zero
+        );
       case NextDerivationZip32():
         return (
           index: index.nextIndex.cast(),
@@ -799,8 +858,8 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
 
   _ShieldedDerivation _buildShieldedDerivaton(EllipticCurveTypes type,
       {_ShieldedDerivation? sapling}) {
-    final coin =
-        account.network.coins.firstWhere((e) => e.conf.type == type) as ZIP32Coins;
+    final coin = account.network.coins.firstWhere((e) => e.conf.type == type)
+        as ZIP32Coins;
     final nextIndex = getNextDerivation(coin: coin);
     return _ShieldedDerivation(
         sapling: sapling,
@@ -869,12 +928,24 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
 
   bool toOrchard() {
     if (hasOrchard) {
-      _orchardDerivation ??= _buildShieldedDerivaton(EllipticCurveTypes.redPallas,
+      _orchardDerivation ??= _buildShieldedDerivaton(
+          EllipticCurveTypes.redPallas,
           sapling: _saplingDerivation);
       return true;
     }
     _orchardDerivation = null;
     return false;
+  }
+
+  String? onValidateActivationHeight(
+      BigRational v, _ShieldedDerivation derivation) {
+    if (currentHeight != null && v > currentHeight!) {
+      return "activation_height_grather_than_network_height_desc"
+          .tr
+          .replaceOne(currentHeightBig.toString());
+    }
+
+    return derivation.onValidateActivationHeight(v);
   }
 
   bool toTransport() {
@@ -895,7 +966,8 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
 
   bool toSapling() {
     if (hasSapling) {
-      _saplingDerivation ??= _buildShieldedDerivaton(EllipticCurveTypes.redJubJub);
+      _saplingDerivation ??=
+          _buildShieldedDerivaton(EllipticCurveTypes.redJubJub);
       return true;
     }
     _saplingDerivation = null;
@@ -972,11 +1044,15 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
     updateState();
   }
 
-  Future<void> setupDerivationPath(BuildContext context, ZcashChain account) async {
+  Future<void> setupDerivationPath(
+      BuildContext context, ZcashChain account) async {
     final updated = switch (page) {
-      _Pages.sapling => await saplingDerivation.setupDerivation(context, account),
-      _Pages.orchard => await orchardDerivation.setupDerivation(context, account),
-      _Pages.transparent => await transparentDerivation.setupDerivation(context, account),
+      _Pages.sapling =>
+        await saplingDerivation.setupDerivation(context, account),
+      _Pages.orchard =>
+        await orchardDerivation.setupDerivation(context, account),
+      _Pages.transparent =>
+        await transparentDerivation.setupDerivation(context, account),
       _ => false
     };
     if (updated) updateState();
@@ -1070,8 +1146,10 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
         (currentHeight) async {
           final orchard = _orchardDerivation?.toUnifiedParams(currentHeight);
           final sapling = _saplingDerivation?.toUnifiedParams(currentHeight);
-          final transparent = _transparentDerivation?.toUnifiedParams(currentHeight);
-          final msig = _transparentMSigDerivation?.toUnifiedParams(currentHeight);
+          final transparent =
+              _transparentDerivation?.toUnifiedParams(currentHeight);
+          final msig =
+              _transparentMSigDerivation?.toUnifiedParams(currentHeight);
           if (transparent != null && msig != null) {
             throw AppCryptoExceptionConst.invalidNeweAddressConfiguration;
           }
@@ -1093,7 +1171,8 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
                         .toList());
               }(),
             ZCashNewAddressDerivationMode.sapling => () {
-                if (sapling == null || sapling is! ZcashAccountCreationParamsSapling) {
+                if (sapling == null ||
+                    sapling is! ZcashAccountCreationParamsSapling) {
                   throw AppCryptoExceptionConst.invalidNeweAddressConfiguration;
                 }
                 return ZcashNewAddressParamsSapling(
@@ -1107,7 +1186,8 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
                   transparentMultisigDerivation) {
                 true => () {
                     if (msig == null) {
-                      throw AppCryptoExceptionConst.invalidNeweAddressConfiguration;
+                      throw AppCryptoExceptionConst
+                          .invalidNeweAddressConfiguration;
                     }
                     return ZcashNewAddressParamsTransparentMultisignature(
                         network: account.network.coinParam.network,
@@ -1118,7 +1198,8 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
                   }(),
                 false => () {
                     if (transparent == null) {
-                      throw AppCryptoExceptionConst.invalidNeweAddressConfiguration;
+                      throw AppCryptoExceptionConst
+                          .invalidNeweAddressConfiguration;
                     }
                     return ZcashNewAddressParamsTransparent(
                         network: account.network.coinParam.network,
@@ -1137,8 +1218,9 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
           if (activationHeights.any((e) => e > currentHeight)) {
             throw AppException("invalid_activation_height");
           }
-          return await walletProvider.wallet.doAction(WalletActionDeriveNewAccount(
-              newAccountParams: newAccountParams, chain: account));
+          return await walletProvider.wallet.doAction(
+              WalletActionDeriveNewAccount(
+                  newAccountParams: newAccountParams, chain: account));
         },
       );
     });
@@ -1197,7 +1279,10 @@ class _ZcashAddressGeneratorController with DisposableMixin, StreamStateControll
       onAddSignerAction.setAction(true);
       updateState();
       await transparentMSigDerivation.onAddSigner(
-          onError: onError, account: account, addr: addr, provider: walletProvider);
+          onError: onError,
+          account: account,
+          addr: addr,
+          provider: walletProvider);
     } finally {
       onAddSignerAction.setAction(false);
       updateState();
@@ -1240,6 +1325,7 @@ class _ShieldedDerivation implements _AddressDerivation {
   final ZcashProtocol protocol;
   final ZcashChain account;
   late final BigRational defaultActiviationHeight;
+  late final BigInt defaultActiviationHeightBig;
   BigRational activationHeight = BigRational.zero;
   bool newAccount = true;
   bool get enableSaplingRole => sapling != null;
@@ -1264,11 +1350,14 @@ class _ShieldedDerivation implements _AddressDerivation {
     final activationProvider = DefaultUpgradeActivationProvider();
     defaultActiviationHeight = BigRational.from(switch (protocol) {
       ZcashProtocol.orchard =>
-        activationProvider.activationHeight(ZcashNetworkProtocol.nu5, network) + 1,
-      ZcashProtocol.sapling =>
-        activationProvider.activationHeight(ZcashNetworkProtocol.sapling, network) + 1,
+        activationProvider.activationHeight(ZcashNetworkProtocol.nu5, network) +
+            1,
+      ZcashProtocol.sapling => activationProvider.activationHeight(
+              ZcashNetworkProtocol.sapling, network) +
+          1,
       ZcashProtocol.transparent => 0,
     });
+    defaultActiviationHeightBig = defaultActiviationHeight.toBigInt();
     activationHeight = defaultActiviationHeight;
     final sapling = this.sapling;
     if (sapling != null) {
@@ -1284,16 +1373,17 @@ class _ShieldedDerivation implements _AddressDerivation {
   }
 
   Future<bool> setupDerivation(BuildContext context, ZcashChain account) async {
-    final path = await context.openMaxExtendSliverBottomSheet<Bip32DerivationIndex>(
-        "setup_derivation".tr,
-        bodyBuilder: (controller) => SetupDerivationModeView(
-              coin: coin,
-              chainAccout: account,
-              seedGenerationType: SeedTypes.bip39,
-              defaultDerivation: nextIndex,
-              buttonText: "setup_derivation".tr,
-              controller: controller,
-            ));
+    final path =
+        await context.openMaxExtendSliverBottomSheet<Bip32DerivationIndex>(
+            "setup_derivation".tr,
+            bodyBuilder: (controller) => SetupDerivationModeView(
+                  coin: coin,
+                  chainAccout: account,
+                  seedGenerationType: SeedTypes.bip39,
+                  defaultDerivation: nextIndex,
+                  buttonText: "setup_derivation".tr,
+                  controller: controller,
+                ));
     nextIndex = path ?? nextIndex;
     return path != null;
   }
@@ -1312,10 +1402,15 @@ class _ShieldedDerivation implements _AddressDerivation {
     followingSapling = !followingSapling;
     if (!followingSapling) {
       final nextIndex = account.nextDerive(
-          coin: coin, seedGeneration: SeedTypes.bip39, subId: this.nextIndex.subId);
+          coin: coin,
+          seedGeneration: SeedTypes.bip39,
+          subId: this.nextIndex.subId);
       if (nextIndex
-          case NextDerivationZip32(nextDiversifier: DiversifierIndex nextDiversifier)) {
-        diversifier.onChangeDerivationIndex(BigRational(nextDiversifier.toU128()));
+          case NextDerivationZip32(
+            nextDiversifier: DiversifierIndex nextDiversifier
+          )) {
+        diversifier
+            .onChangeDerivationIndex(BigRational(nextDiversifier.toU128()));
       }
     }
   }
@@ -1333,22 +1428,27 @@ class _ShieldedDerivation implements _AddressDerivation {
 
   String? onValidateActivationHeight(BigRational v) {
     if (v < defaultActiviationHeight) {
-      return "protocol_activiation_height_validator".tr;
+      return "address_protocol_activiation_height_validator"
+          .tr
+          .replaceOne(defaultActiviationHeightBig.toString());
     }
+
     return null;
   }
 
   @override
-  ZcashAccountCreationParams<DerivationIndex> toUnifiedParams(int currentHeight) {
-    final activationHeight =
-        newAccount ? currentHeight : this.activationHeight.toBigInt().toIntOrThrow;
+  ZcashAccountCreationParams<DerivationIndex> toUnifiedParams(
+      int currentHeight) {
+    final activationHeight = newAccount
+        ? currentHeight
+        : this.activationHeight.toBigInt().toIntOrThrow;
     switch (protocol) {
       case ZcashProtocol.sapling:
         return ZcashAccountCreationParamsSapling(
             index: nextIndex.withName(protocol.name),
             exactDiversifier: !diversifier.autoDiversifier,
-            diversifierIndex:
-                DiversifierIndex.fromBigInt(diversifier.diversifierIndex.toBigInt()),
+            diversifierIndex: DiversifierIndex.fromBigInt(
+                diversifier.diversifierIndex.toBigInt()),
             change: scope,
             activationHeight: activationHeight);
       case ZcashProtocol.orchard:
@@ -1366,8 +1466,8 @@ class _ShieldedDerivation implements _AddressDerivation {
         return ZcashAccountCreationParamsUnified(
             index: nextIndex.withName(protocol.name),
             activationHeight: activationHeight,
-            diversifierIndex:
-                DiversifierIndex.fromBigInt(diversifier.diversifierIndex.toBigInt()),
+            diversifierIndex: DiversifierIndex.fromBigInt(
+                diversifier.diversifierIndex.toBigInt()),
             change: scope);
       default:
         throw AppCryptoExceptionConst.invalidCoin;
@@ -1447,21 +1547,24 @@ class _TransparentSingleKeyDerivation implements _AddressDerivation {
           label: 'customize_key_derivation'.tr);
       if (accept != true) return false;
     }
-    Bip32DerivationIndex? path = await context
-        .openMaxExtendSliverBottomSheet<Bip32DerivationIndex>("setup_derivation".tr,
-            bodyBuilder: (controller) => SetupDerivationModeView(
-                  coin: coin,
-                  chainAccout: account,
-                  seedGenerationType: SeedTypes.bip39,
-                  defaultDerivation:
-                      followSaplingStrategy ? nextIndex.take(Bip44Levels.account) : null,
-                  buttonText: "setup_derivation".tr,
-                  fixedLevel: followSaplingStrategy ? Bip44Levels.account : null,
-                  nextAddressDerivationBuilder: (
-                          {required coin, required seedGeneration, required subId}) =>
-                      NextDerivationDefault(nextIndex),
-                  controller: controller,
-                ));
+    Bip32DerivationIndex? path = await context.openMaxExtendSliverBottomSheet<
+            Bip32DerivationIndex>("setup_derivation".tr,
+        bodyBuilder: (controller) => SetupDerivationModeView(
+              coin: coin,
+              chainAccout: account,
+              seedGenerationType: SeedTypes.bip39,
+              defaultDerivation: followSaplingStrategy
+                  ? nextIndex.take(Bip44Levels.account)
+                  : null,
+              buttonText: "setup_derivation".tr,
+              fixedLevel: followSaplingStrategy ? Bip44Levels.account : null,
+              nextAddressDerivationBuilder: (
+                      {required coin,
+                      required seedGeneration,
+                      required subId}) =>
+                  NextDerivationDefault(nextIndex),
+              controller: controller,
+            ));
     if (path == null || path == nextIndex) return false;
     nextIndex = path;
     if (followSaplingStrategy) {
@@ -1482,7 +1585,8 @@ class _TransparentSingleKeyDerivation implements _AddressDerivation {
       _ => CoinProposal.bip44
     };
     final coin = account.network.coins.firstWhere((e) {
-      return e.proposal == proposal && e.conf.type == EllipticCurveTypes.secp256k1;
+      return e.proposal == proposal &&
+          e.conf.type == EllipticCurveTypes.secp256k1;
     }) as BipCoins;
     final index = account.nextDerive(
         coin: coin, seedGeneration: SeedTypes.bip39, subId: nextIndex.subId);
@@ -1508,7 +1612,10 @@ class _TransparentSingleKeyDerivation implements _AddressDerivation {
       setSaplingRole();
     } else {
       nextIndex = account
-          .nextDerive(coin: coin, seedGeneration: SeedTypes.bip39, subId: nextIndex.subId)
+          .nextDerive(
+              coin: coin,
+              seedGeneration: SeedTypes.bip39,
+              subId: nextIndex.subId)
           .nextIndex
           .cast();
       overridePath = null;
@@ -1625,7 +1732,9 @@ class _TransparentMultisignatureDerivation implements _AddressDerivation {
     ReceiptAddress<ZcashAddress>? addrInfo;
     if (transparentAddr != null) {
       addrInfo = ReceiptAddress<ZcashAddress>(
-          networkAddress: transparentAddr, account: addr, view: transparentAddr.address);
+          networkAddress: transparentAddr,
+          account: addr,
+          view: transparentAddr.address);
     }
     onAddPublicKey(
         onError: onError,
@@ -1645,7 +1754,9 @@ class _TransparentMultisignatureDerivation implements _AddressDerivation {
       return;
     }
     final newAcc = _TransparentMultisigSigner(
-        publicKey: key, keyIndex: pubKey.derivation.index, account: transparentAddr);
+        publicKey: key,
+        keyIndex: pubKey.derivation.index,
+        account: transparentAddr);
     _signers.addAll({newAcc.publicKey: newAcc});
     onStateUpdated();
   }
@@ -1664,7 +1775,8 @@ class _TransparentMultisignatureDerivation implements _AddressDerivation {
   ZcashAccountCreationParamsP2shMultisig toUnifiedParams(int currentHeight) {
     return ZcashAccountCreationParamsP2shMultisig(
         multisig: TransparentMultiSignatureAddressDetails(
-            threshold: threshold, signers: signers.map((e) => e.toParams()).toList()));
+            threshold: threshold,
+            signers: signers.map((e) => e.toParams()).toList()));
   }
 }
 
@@ -1686,8 +1798,8 @@ class _TransparentMultisigSigner {
   TransparentMultiSignatureSignerDefaultWithDerivationIndex toParams() {
     return TransparentMultiSignatureSignerDefaultWithDerivationIndex(
       index: keyIndex,
-      signer:
-          TransparentMultiSignatureSignerDefault(publicKey: publicKey, weight: weight),
+      signer: TransparentMultiSignatureSignerDefault(
+          publicKey: publicKey, weight: weight),
     );
   }
 }

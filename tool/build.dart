@@ -33,6 +33,7 @@ import 'package:blockchain_utils/crypto/quick_crypto.dart';
 import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/utils/binary/utils.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 // import 'package:on_chain_wallet/app/core.dart';
 
 // import 'package:on_chain_wallet/app/core.dart';
@@ -54,7 +55,8 @@ abstract class BuildConfig {
   static const String webViewAssetsDir = 'assets/webview';
   static const String buildWebDir = 'build/web/';
   static const String buildWebAssetDir = 'build/web/assets/assets/web_scripts';
-  static const String buildWebFlutterAssetDir = 'build/flutter_assets/assets/web_scripts';
+  static const String buildWebFlutterAssetDir =
+      'build/flutter_assets/assets/web_scripts';
 
   static const String webOutDir = 'web';
   static const String defaultReleaseLocation = 'release/';
@@ -63,12 +65,16 @@ abstract class BuildConfig {
   static const String assetPath = "assets/image/logo_256x256.png";
 
   static const String zkGitUrl = "https://github.com/mrtnetwork/zk.git";
-  static const String netSdkGitUrl = "https://github.com/mrtnetwork/net_sdk.git";
+  static const String netSdkGitUrl =
+      "https://github.com/mrtnetwork/net_sdk.git";
   static const String cryptoCGitUrl =
       "https://github.com/mrtnetwork/onchain_crypto_c.git";
-  static const String sqlite3 = "https://github.com/utelle/SQLite3MultipleCiphers.git";
-  static String webScriptAsset(String fileName) => '$webScriptAssetsDir/$fileName';
-  static String webViewAssets(String fileName) => '$webViewAssetsDir/$fileName';
+  static const String sqlite3 =
+      "https://github.com/utelle/SQLite3MultipleCiphers.git";
+  static String webScriptAsset(String fileName) =>
+      '$webScriptAssetsDir/$fileName'.normalizePath;
+  static String webViewAssets(String fileName) =>
+      '$webViewAssetsDir/$fileName'.normalizePath;
   static const String appName = "on_chain_wallet";
   static const String packageName = "com.mrtnetwork.on_chain_wallet";
 
@@ -83,6 +89,11 @@ class CompilerError implements Exception {
   final String message;
   final Map<String, dynamic>? details;
   const CompilerError(this.message, {this.details});
+
+  @override
+  String toString() {
+    return "CompilerError($message)";
+  }
 }
 
 /// ---------------------------------------------------------------------------
@@ -112,7 +123,8 @@ class ProcessRunner {
   static Future<void> run(String command, List<String> args,
       {String? workingDirectory, Map<String, String>? environment}) async {
     final label = ([command, ...args]).join(' ');
-    Log.info('▶ $label${workingDirectory != null ? ' (in $workingDirectory)' : ''}');
+    Log.info(
+        '▶ $label${workingDirectory != null ? ' (in $workingDirectory)' : ''}');
 
     final process = await Process.start(command, args,
         runInShell: Platform.isWindows,
@@ -137,7 +149,8 @@ class ProcessRunner {
   }
 
   static Future<void> servePython(String directory, {int port = 8000}) async {
-    await run('python3', ['-m', 'http.server', '$port'], workingDirectory: directory);
+    await run('python3', ['-m', 'http.server', '$port'],
+        workingDirectory: directory);
   }
 }
 
@@ -147,13 +160,15 @@ class ProcessRunner {
 class FsUtils {
   /// Copies top-level files from [source] into [destination] (non-recursive).
   /// If [extension] is given, only files ending with it are copied.
-  static void copyFiles(Directory source, Directory destination, {String? extension}) {
+  static void copyFiles(Directory source, Directory destination,
+      {String? extension}) {
     if (!destination.existsSync()) destination.createSync(recursive: true);
 
     for (final entity in source.listSync(recursive: false)) {
       if (entity is! File) continue;
       if (extension != null && !entity.path.endsWith(extension)) continue;
-      final target = File('${destination.path}/${entity.uri.pathSegments.last}');
+      final target = File(
+          '${destination.path}/${entity.uri.pathSegments.last}'.normalizePath);
       target.writeAsBytesSync(entity.readAsBytesSync());
     }
   }
@@ -173,9 +188,11 @@ class FsUtils {
     for (final entity in source.listSync(recursive: false)) {
       final name = entity.uri.pathSegments.lastWhere((s) => s.isNotEmpty);
       if (entity is Directory) {
-        copyDirectory(entity, Directory('${destination.path}/$name'));
+        copyDirectory(
+            entity, Directory('${destination.path}/$name'.normalizePath));
       } else if (entity is File) {
-        File('${destination.path}/$name').writeAsBytesSync(entity.readAsBytesSync());
+        File('${destination.path}/$name'.normalizePath)
+            .writeAsBytesSync(entity.readAsBytesSync());
       }
     }
   }
@@ -191,38 +208,42 @@ class FsUtils {
   }
 
   static void deleteFile(String path) {
-    final file = File(path);
+    final file = File(path.normalizePath);
     if (file.existsSync()) file.deleteSync();
   }
 
   static void deleteFiles(Iterable<String> paths) => paths.forEach(deleteFile);
 
   static Directory webScriptAssetsDirectory() =>
-      Directory(BuildConfig.webScriptAssetsDir);
+      Directory(BuildConfig.webScriptAssetsDir.normalizePath);
 
   /// Copies the compiled web-script assets into both build output locations
   /// Flutter expects them in.
   static void publishWebScriptAssets() {
-    copyDirectory(webScriptAssetsDirectory(), Directory(BuildConfig.buildWebAssetDir));
+    copyDirectory(
+        webScriptAssetsDirectory(), Directory(BuildConfig.buildWebAssetDir));
     copyDirectory(
       webScriptAssetsDirectory(),
-      Directory(BuildConfig.buildWebFlutterAssetDir),
+      Directory(BuildConfig.buildWebFlutterAssetDir.normalizePath),
     );
-    Log.success('web-script assets published to ${BuildConfig.buildWebFlutterAssetDir}');
+    Log.success(
+        'web-script assets published to ${BuildConfig.buildWebFlutterAssetDir}');
   }
 
   static void publishFile(
-      {required String source, required String destination, required String name}) {
-    final file = File(source);
+      {required String source,
+      required String destination,
+      required String name}) {
+    final file = File(source.normalizePath);
     if (!file.existsSync()) {
       throw Exception("source file missing");
     }
-    final d = File(destination);
+    final d = File(destination.normalizePath);
     if (d.existsSync()) {
       d.deleteSync();
     }
     d.createSync(recursive: true);
-    file.copySync(destination);
+    file.copySync(destination.normalizePath);
     Log.success('$name file published to ${d.path}');
   }
 
@@ -233,15 +254,15 @@ class FsUtils {
     final encoder = ZipFileEncoder();
     encoder.create(outputZip);
 
-    await encoder.addDirectory(Directory(sourceDir));
+    await encoder.addDirectory(Directory(sourceDir.normalizePath));
 
     await encoder.close();
   }
 
   /// Directory portion of a "/"-separated relative path (".", when none).
-  static String dirOf(String path) {
-    final i = path.lastIndexOf('/');
-    return i <= 0 ? '.' : path.substring(0, i);
+  static String dirOf(String p) {
+    final i = p.lastIndexOf(path.separator);
+    return i <= 0 ? '.' : p.substring(0, i);
   }
 }
 
@@ -261,7 +282,8 @@ class _DebFileBuilder {
     // Trim trailing separators too.
     name = name.replaceAll(RegExp(r'[-+.]+$'), '');
     if (name.length < 2) {
-      throw CompilerError('Cannot derive a valid Debian package name from "$raw". '
+      throw CompilerError(
+          'Cannot derive a valid Debian package name from "$raw". '
           'Provide a name with at least two alphanumeric characters.');
     }
     return name;
@@ -300,7 +322,7 @@ class _DebFileBuilder {
       required Directory outDir,
       required Directory bundleDirectory}) async {
     Directory createPackageFolders(String name) {
-      final directory = Directory("${outDir.path}/$name");
+      final directory = Directory("${outDir.path}/$name".normalizePath);
       directory.createSync(recursive: true);
       return directory;
     }
@@ -311,7 +333,8 @@ class _DebFileBuilder {
     final opt = createPackageFolders("opt/$packageName");
     final application = createPackageFolders("usr/share/applications");
     // hicolor is the standard theme every desktop environment searches.
-    final iconApps = createPackageFolders("usr/share/icons/hicolor/256x256/apps");
+    final iconApps =
+        createPackageFolders("usr/share/icons/hicolor/256x256/apps");
     // Legacy fallback: many environments show the icon from here even before
     // the icon cache is (re)built, so this makes the icon reliable.
     final pixmaps = createPackageFolders("usr/share/pixmaps");
@@ -319,7 +342,7 @@ class _DebFileBuilder {
     FsUtils.copyDirectory(bundleDirectory, opt);
 
     // Make the launcher binary executable (copyDirectory may drop the bit).
-    final launcher = File("${opt.path}/$execName");
+    final launcher = File("${opt.path}/$execName".normalizePath);
     if (launcher.existsSync()) {
       await Process.run("chmod", ["0755", launcher.path]);
     }
@@ -339,15 +362,16 @@ StartupWMClass=$execName
 ''';
     // The .desktop filename should match the application id (reverse-DNS is
     // preferred by desktop environments) and must be world-readable (0644).
-    final desktopFile = File('${application.path}/$applicationId.desktop')
-      ..createSync(recursive: true)
-      ..writeAsStringSync(desktopContent);
+    final desktopFile =
+        File('${application.path}/$applicationId.desktop'.normalizePath)
+          ..createSync(recursive: true)
+          ..writeAsStringSync(desktopContent);
     await Process.run("chmod", ["0644", desktopFile.path]);
 
     // Install the icon under hicolor AND pixmaps so it resolves with or
     // without an up-to-date icon cache. Icon= in the .desktop entry must match
     // these filenames (minus extension): "$applicationId".
-    final appIcon = File(iconPath);
+    final appIcon = File(iconPath.normalizePath);
     if (!appIcon.existsSync()) {
       throw CompilerError('Icon not found at "$iconPath". '
           'Provide a 256x256 PNG so the app icon shows in the menu.');
@@ -385,9 +409,10 @@ StartupWMClass=$execName
   <pkgname>$debPackageName</pkgname>
 </component>
 ''';
-    final metainfoFile = File('${metainfoDir.path}/$applicationId.metainfo.xml')
-      ..createSync(recursive: true)
-      ..writeAsStringSync(metainfoContent);
+    final metainfoFile =
+        File('${metainfoDir.path}/$applicationId.metainfo.xml'.normalizePath)
+          ..createSync(recursive: true)
+          ..writeAsStringSync(metainfoContent);
     await Process.run("chmod", ["0644", metainfoFile.path]);
 
     // The Description first line is the "title" apt/dpkg tools display next to
@@ -403,7 +428,7 @@ Priority: optional
 Installed-Size: 500000
 Depends: libc6, libgtk-3-0, libstdc++6, libgcc-s1
 ''';
-    File('${debian.path}/control')
+    File('${debian.path}/control'.normalizePath)
       ..createSync(recursive: true)
       ..writeAsStringSync(controlContent);
 
@@ -433,17 +458,17 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 exit 0
 ''';
-    final postinstFile = File('${debian.path}/postinst')
+    final postinstFile = File('${debian.path}/postinst'.normalizePath)
       ..createSync(recursive: true)
       ..writeAsStringSync(postinst);
-    final postrmFile = File('${debian.path}/postrm')
+    final postrmFile = File('${debian.path}/postrm'.normalizePath)
       ..createSync(recursive: true)
       ..writeAsStringSync(postrm);
     // Maintainer scripts must be executable or dpkg silently ignores them.
     await Process.run("chmod", ["0755", postinstFile.path, postrmFile.path]);
 
-    final result =
-        await Process.run("dpkg-deb", ["--build", "--root-owner-group", outDir.path]);
+    final result = await Process.run(
+        "dpkg-deb", ["--build", "--root-owner-group", outDir.path]);
     if (result.exitCode != 0) {
       throw CompilerError('dpkg-deb failed: ${result.stderr}');
     }
@@ -488,16 +513,16 @@ class NativeLibraryConfig {
   Directory get cacheDir => switch (repository) {
         RustRepository.zk ||
         RustRepository.netSdk =>
-          Directory('.rust_cache/${repository.name}'),
+          Directory('.rust_cache/${repository.name}'.normalizePath),
         RustRepository.cryptoC ||
         RustRepository.sqllite =>
-          Directory('.c_cache/${repository.name}'),
+          Directory('.c_cache/${repository.name}'.normalizePath),
       };
 
   String outFileName(RustArtifactKind kind) => switch (kind) {
         RustArtifactKind.sharedObject => 'lib$libName.so',
         RustArtifactKind.dylib => '$libName.dylib',
-        RustArtifactKind.dll => '$libName.dll',
+        RustArtifactKind.dll => 'lib$libName.dll',
         RustArtifactKind.wasm => '$libName.wasm',
         RustArtifactKind.staticLib => '$libName.a',
       };
@@ -508,9 +533,11 @@ class NativeLibraryConfig {
 /// "keep latest commit if it exists, otherwise download".
 class GitSourceManager {
   static Future<String> _remoteHeadCommit(String gitUrl, String branch) async {
-    final result = await Process.run('git', ['ls-remote', gitUrl, 'refs/heads/$branch']);
+    final result =
+        await Process.run('git', ['ls-remote', gitUrl, 'refs/heads/$branch']);
     if (result.exitCode != 0) {
-      throw CompilerError('git ls-remote failed for $gitUrl ($branch): ${result.stderr}');
+      throw CompilerError(
+          'git ls-remote failed for $gitUrl ($branch): ${result.stderr}');
     }
     final line = (result.stdout as String).trim();
     if (line.isEmpty) {
@@ -520,9 +547,9 @@ class GitSourceManager {
   }
 
   static Future<String?> _localCommit(Directory dir) async {
-    if (!Directory('${dir.path}/.git').existsSync()) return null;
-    final result =
-        await Process.run('git', ['rev-parse', 'HEAD'], workingDirectory: dir.path);
+    if (!Directory('${dir.path}/.git'.normalizePath).existsSync()) return null;
+    final result = await Process.run('git', ['rev-parse', 'HEAD'],
+        workingDirectory: dir.path);
     if (result.exitCode != 0) return null;
     return (result.stdout as String).trim();
   }
@@ -537,7 +564,8 @@ class GitSourceManager {
     final remoteSha = await _remoteHeadCommit(gitUrl, branch);
     final localSha = await _localCommit(dir);
     if (localSha == remoteSha) {
-      Log.success('${dir.path}: cache up to date (${remoteSha.substring(0, 7)})');
+      Log.success(
+          '${dir.path}: cache up to date (${remoteSha.substring(0, 7)})');
       return remoteSha;
     }
 
@@ -576,7 +604,7 @@ class GitSourceManager {
     required NativeLiberaryAsset asset,
     required Directory output,
   }) async {
-    final tempZip = File("${output.path}/${asset.fileName}");
+    final tempZip = File("${output.path}/${asset.fileName}".normalizePath);
     if (tempZip.existsSync()) {
       final bytes = tempZip.readAsBytesSync().immutable;
       final sha = BytesUtils.toHexString(QuickCrypto.sha256Hash(bytes));
@@ -597,7 +625,8 @@ class GitSourceManager {
         'Download failed: ${response.statusCode}',
       );
     }
-    final sha = BytesUtils.toHexString(QuickCrypto.sha256Hash(response.bodyBytes));
+    final sha =
+        BytesUtils.toHexString(QuickCrypto.sha256Hash(response.bodyBytes));
     if (sha != asset.hash) {
       throw CompilerError(
         'Mismatch hash: ${response.statusCode}',
@@ -616,7 +645,7 @@ class GitSourceManager {
       tempZip.readAsBytesSync(),
     );
     for (final file in archive) {
-      final filename = "${output.path}/${file.name}";
+      final filename = "${output.path}/${file.name}".normalizePath;
       if (file.isFile) {
         final outFile = File(filename);
         await outFile.create(recursive: true);
@@ -676,6 +705,8 @@ class ResolvedCCompiler {
   /// Args that select the target (e.g. `--target=...` for clang cross builds
   /// or `-arch ...` on Apple platforms). Empty for a native compiler.
   final List<String> targetArgs;
+
+  bool get clang => exe == "clang";
 }
 
 /// One candidate the resolver probes, in priority order.
@@ -779,7 +810,8 @@ class CToolchainResolver {
     if (ndk != null) {
       final ext = Platform.isWindows ? '.cmd' : '';
       final clang =
-          '$ndk/toolchains/llvm/prebuilt/${_ndkHostTag()}/bin/$triple-clang$ext';
+          '$ndk/toolchains/llvm/prebuilt/${_ndkHostTag()}/bin/$triple-clang$ext'
+              .normalizePath;
       list.add(_CCandidate(clang, CCompilerFlavor.gnu));
     }
     // Last resort: a system clang that knows the target triple. Needs a
@@ -807,6 +839,16 @@ class CToolchainResolver {
         'x86' => throw CompilerError('Unsuported Android ABI: "$abi"'),
         _ => throw CompilerError('Unknown Android ABI: "$abi"'),
       };
+}
+
+enum Target {
+  android,
+  linux,
+  windows,
+  macos,
+  ios,
+  web,
+  extension;
 }
 
 /// ---------------------------------------------------------------------------
@@ -838,7 +880,10 @@ class CBuilder {
   ) {
     switch (repo) {
       case RustRepository.cryptoC:
-        return (sources: _cryptoSources, defines: _cryptoDefines);
+        return (
+          sources: _cryptoSources.map((e) => e.normalizePath).toList(),
+          defines: _cryptoDefines
+        );
       case RustRepository.sqllite:
         return (sources: _sqliteSources, defines: _sqliteDefines);
       default:
@@ -847,11 +892,25 @@ class CBuilder {
   }
 
   /// Extra, compiler-specific warning flags (crypto is built -Wall -Werror).
-  static List<String> _extraFlags(RustRepository repo, CCompilerFlavor flavor) {
-    if (flavor == CCompilerFlavor.gnu && repo == RustRepository.cryptoC) {
-      return const ['-Wall', '-Werror'];
+  static List<String> _extraFlags(
+      RustRepository repo, ResolvedCCompiler flavor, Target target) {
+    List<String> args = [];
+    if (target != Target.windows) {
+      args.add("-fPIC");
     }
-    return const [];
+    if (flavor.flavor == CCompilerFlavor.gnu &&
+        repo == RustRepository.cryptoC) {
+      args.add("-DBUILDING_DL");
+    }
+    if (flavor.flavor == CCompilerFlavor.gnu &&
+        flavor.clang &&
+        repo == RustRepository.sqllite) {
+      if (target == Target.windows) {
+        args.add("-DSQLITE_API=__declspec(dllexport)");
+      }
+      args.add("-D_CRT_SECURE_NO_WARNINGS");
+    }
+    return args;
   }
 
   static Future<Directory> _syncedSource(NativeLibraryConfig repo) async {
@@ -860,9 +919,10 @@ class CBuilder {
     if (asset != null) {
       await GitSourceManager.syncAsset(asset: asset, dir: dir);
     } else {
-      final sha =
-          await GitSourceManager.sync(gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
-      Log.info('${repo.repository.name}: building commit ${sha.substring(0, 7)}');
+      final sha = await GitSourceManager.sync(
+          gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
+      Log.info(
+          '${repo.repository.name}: building commit ${sha.substring(0, 7)}');
     }
     return dir;
   }
@@ -877,10 +937,12 @@ class CBuilder {
     required RustRepository repo,
     required String outPathRel,
     required bool release,
+    required Target target,
   }) async {
     final data = _sourcesFor(repo);
-    Directory('${dir.path}/${FsUtils.dirOf(outPathRel)}').createSync(recursive: true);
-
+    Directory('${dir.path}/${FsUtils.dirOf(outPathRel)}'.normalizePath)
+        .createSync(recursive: true);
+    print("path ${'${dir.path}/${FsUtils.dirOf(outPathRel)}'.normalizePath}");
     final List<String> args;
     if (cc.flavor == CCompilerFlavor.msvc) {
       args = [
@@ -895,17 +957,17 @@ class CBuilder {
       args = [
         ...cc.targetArgs,
         release ? '-O2' : '-O0',
-        '-fPIC',
-        ..._extraFlags(repo, cc.flavor),
+        ..._extraFlags(repo, cc, target),
         for (final d in data.defines) '-D$d',
         ...data.sources,
         '-shared',
         '-o',
-        outPathRel,
+        outPathRel
       ];
     }
+    print("out $args");
     await ProcessRunner.run(cc.exe, args, workingDirectory: dir.path);
-    return '${dir.path}/$outPathRel';
+    return '${dir.path}/$outPathRel'.normalizePath;
   }
 
   /// macOS dylib build (uses -dynamiclib + an @rpath install name so it can be
@@ -919,12 +981,12 @@ class CBuilder {
     required bool release,
   }) async {
     final data = _sourcesFor(repo);
-    Directory('${dir.path}/${FsUtils.dirOf(outPathRel)}').createSync(recursive: true);
+    Directory('${dir.path}/${FsUtils.dirOf(outPathRel)}'.normalizePath)
+        .createSync(recursive: true);
     final args = [
       ...cc.targetArgs,
       release ? '-O2' : '-O0',
-      '-fPIC',
-      ..._extraFlags(repo, cc.flavor),
+      ..._extraFlags(repo, cc, Target.macos),
       for (final d in data.defines) '-D$d',
       ...data.sources,
       '-dynamiclib',
@@ -961,26 +1023,28 @@ class CBuilder {
     final armOut = await _buildShared(
       cc: armCc,
       dir: dir,
+      target: Target.linux,
       repo: repo.repository,
-      outPathRel: 'out/linux-arm64/$fileName',
+      outPathRel: 'out/linux-arm64/$fileName'.normalizePath,
       release: release,
     );
     final intelOut = await _buildShared(
       cc: intelCc,
       dir: dir,
       repo: repo.repository,
-      outPathRel: 'out/linux-x86_64/$fileName',
+      target: Target.linux,
+      outPathRel: 'out/linux-x86_64/$fileName'.normalizePath,
       release: release,
     );
 
     FsUtils.publishFile(
       source: armOut,
-      destination: '${outputDir.path}/arm64/$fileName',
+      destination: '${outputDir.path}/arm64/$fileName'.normalizePath,
       name: repo.repository.name,
     );
     FsUtils.publishFile(
       source: intelOut,
-      destination: '${outputDir.path}/x86_64/$fileName',
+      destination: '${outputDir.path}/x86_64/$fileName'.normalizePath,
       name: repo.repository.name,
     );
   }
@@ -1012,13 +1076,17 @@ class CBuilder {
         cc: cc,
         dir: dir,
         repo: repo.repository,
-        outPathRel: 'out/android-$abi/$soName',
+        target: Target.android,
+        outPathRel: 'out/android-$abi/$soName'.normalizePath,
         release: release,
       );
-      final destDir = Directory('${jniLibsDir.path}/$abi')..createSync(recursive: true);
+      final destDir = Directory('${jniLibsDir.path}/$abi'.normalizePath)
+        ..createSync(recursive: true);
       FsUtils.publishFile(
         source: out,
-        destination: '${destDir.path}/${repo.outFileName(RustArtifactKind.sharedObject)}',
+        destination:
+            '${destDir.path}/${repo.outFileName(RustArtifactKind.sharedObject)}'
+                .normalizePath,
         name: '${repo.repository.name} ($abi)',
       );
     }
@@ -1046,7 +1114,7 @@ class CBuilder {
       cc: armCc,
       dir: dir,
       repo: repo.repository,
-      outPathRel: 'out/macos-arm64/$dylib',
+      outPathRel: 'out/macos-arm64/$dylib'.normalizePath,
       installName: '@rpath/$dylib',
       release: release,
     );
@@ -1060,8 +1128,9 @@ class CBuilder {
     );
 
     outputDir.createSync(recursive: true);
-    final outPath = '${outputDir.path}/$dylib';
-    await ProcessRunner.run('lipo', ['-create', armOut, intelOut, '-output', outPath]);
+    final outPath = '${outputDir.path}/$dylib'.normalizePath;
+    await ProcessRunner.run(
+        'lipo', ['-create', armOut, intelOut, '-output', outPath]);
     Log.success('${repo.repository.name} (universal) -> $outPath');
   }
 
@@ -1077,17 +1146,19 @@ class CBuilder {
       'windows-x64',
       CToolchainResolver.windows(),
     );
+    print("come here!");
     final out = await _buildShared(
       cc: cc,
       dir: dir,
+      target: Target.windows,
       repo: repo.repository,
-      outPathRel: 'out/windows-x64/$dll',
+      outPathRel: 'out/windows-x64/$dll'.normalizePath,
       release: release,
     );
     outputDir.createSync(recursive: true);
     FsUtils.publishFile(
       source: out,
-      destination: '${outputDir.path}/$dll',
+      destination: '${outputDir.path}/$dll'.normalizePath,
       name: repo.repository.name,
     );
   }
@@ -1118,8 +1189,9 @@ class CBuilder {
       release: release,
     );
 
-    final out = Directory('${outputDir.path}/ios')..createSync(recursive: true);
-    final xc = '${out.path}/${repo.libName}.xcframework';
+    final out = Directory('${outputDir.path}/ios'.normalizePath)
+      ..createSync(recursive: true);
+    final xc = '${out.path}/${repo.libName}.xcframework'.normalizePath;
     if (Directory(xc).existsSync()) Directory(xc).deleteSync(recursive: true);
 
     await ProcessRunner.run('xcodebuild', [
@@ -1144,7 +1216,8 @@ class CBuilder {
     required String tag,
     required bool release,
   }) async {
-    final sdkPathRes = await Process.run('xcrun', ['--sdk', sdk, '--show-sdk-path']);
+    final sdkPathRes =
+        await Process.run('xcrun', ['--sdk', sdk, '--show-sdk-path']);
     if (sdkPathRes.exitCode != 0) {
       throw CompilerError(
           'xcrun --sdk $sdk --show-sdk-path failed: ${sdkPathRes.stderr}');
@@ -1156,7 +1229,8 @@ class CBuilder {
 
     final data = _sourcesFor(repo.repository);
     final outRel = 'out/ios-$tag';
-    final objDir = Directory('${dir.path}/$outRel/obj')..createSync(recursive: true);
+    final objDir = Directory('${dir.path}/$outRel/obj'.normalizePath)
+      ..createSync(recursive: true);
     final archArgs = [
       for (final a in archs) ...['-arch', a]
     ];
@@ -1175,8 +1249,10 @@ class CBuilder {
           sysroot,
           minFlag,
           release ? '-O2' : '-O0',
-          '-fPIC',
-          ..._extraFlags(repo.repository, CCompilerFlavor.gnu),
+          ..._extraFlags(
+              repo.repository,
+              ResolvedCCompiler(exe: '', flavor: CCompilerFlavor.gnu),
+              Target.ios),
           for (final d in data.defines) '-D$d',
           '-c',
           src,
@@ -1188,7 +1264,7 @@ class CBuilder {
       objects.add(objPath);
     }
 
-    final libPath = '${dir.path}/$outRel/lib${repo.libName}.a';
+    final libPath = '${dir.path}/$outRel/lib${repo.libName}.a'.normalizePath;
     FsUtils.deleteFile(libPath);
     await ProcessRunner.run('xcrun', ['ar', 'rcs', libPath, ...objects]);
     return libPath;
@@ -1232,15 +1308,16 @@ class RustBuilder {
         Log.info('Could not "rustup target add $triple" (continuing anyway).');
       }
     } catch (_) {
-      Log.info('rustup not found; assuming target "$triple" is already installed.');
+      Log.info(
+          'rustup not found; assuming target "$triple" is already installed.');
     }
   }
 
   static Future<Directory> _syncedSource(NativeLibraryConfig repo) async {
     final dir = repo.cacheDir;
 
-    final sha =
-        await GitSourceManager.sync(gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
+    final sha = await GitSourceManager.sync(
+        gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
     Log.info('${repo.repository.name}: building commit ${sha.substring(0, 7)}');
     return dir;
   }
@@ -1251,8 +1328,9 @@ class RustBuilder {
     required bool release,
   }) async {
     await _ensureRustupTarget(triple);
-    final environment = Map<String, String>.fromEntries(Platform.environment.entries
-        .where((e) => e.key.startsWith("CARGO_TARGET") || e.key.startsWith("CC_")));
+    final environment = Map<String, String>.fromEntries(
+        Platform.environment.entries.where((e) =>
+            e.key.startsWith("CARGO_TARGET") || e.key.startsWith("CC_")));
     await ProcessRunner.run(
         'cargo',
         [
@@ -1281,7 +1359,8 @@ class RustBuilder {
       RustArtifactKind.staticLib => 'lib$libName.a',
     };
     final out = 'target/$triple/$mode';
-    Directory('${sourceDir.path}/$out').createSync(recursive: true);
+    Directory('${sourceDir.path}/$out'.normalizePath)
+        .createSync(recursive: true);
     return "$out/$fileName";
   }
 
@@ -1295,7 +1374,8 @@ class RustBuilder {
 
   /// web/extension target: wasm32-unknown-unknown, then wasm-bindgen -
   /// same output layout as before (assets/web_scripts/<'name>/...).
-  static Future<void> buildForWeb(NativeLibraryConfig repo, {bool release = true}) async {
+  static Future<void> buildForWeb(NativeLibraryConfig repo,
+      {bool release = true}) async {
     final dir = await _syncedSource(repo);
     const triple = 'wasm32-unknown-unknown';
     await _cargoBuild(dir, triple, release: release);
@@ -1311,7 +1391,8 @@ class RustBuilder {
       [
         wasmPath,
         '--out-dir',
-        '${Directory.current.path}/${BuildConfig.webScriptAssetsDir}/${repo.repository.name}',
+        '${Directory.current.path}/${BuildConfig.webScriptAssetsDir}/${repo.repository.name}'
+            .normalizePath,
         '--target',
         'web',
       ],
@@ -1342,11 +1423,13 @@ class RustBuilder {
       //   ,
       // );
       // assert(source.existsSync(), "source file not found. ${source.path}");
-      Directory('${jniLibsDir.path}/$abi').createSync(recursive: true);
+      Directory('${jniLibsDir.path}/$abi'.normalizePath)
+          .createSync(recursive: true);
       final destinationPath =
-          "${jniLibsDir.path}/$abi/${repo.outFileName(RustArtifactKind.sharedObject)}";
+          "${jniLibsDir.path}/$abi/${repo.outFileName(RustArtifactKind.sharedObject)}"
+              .normalizePath;
       FsUtils.publishFile(
-          source: "${dir.path}/$path",
+          source: "${dir.path}/$path".normalizePath,
           destination: destinationPath,
           name: repo.repository.name);
 
@@ -1384,11 +1467,11 @@ class RustBuilder {
     );
 
     outputDir.createSync(recursive: true);
-    final outPath = '${outputDir.path}/lib${repo.libName}.dylib';
+    final outPath = '${outputDir.path}/lib${repo.libName}.dylib'.normalizePath;
     await ProcessRunner.run('lipo', [
       '-create',
-      '${dir.path}/$armLib',
-      '${dir.path}/$intelLib',
+      '${dir.path}/$armLib'.normalizePath,
+      '${dir.path}/$intelLib'.normalizePath,
       '-output',
       outPath,
     ]);
@@ -1405,19 +1488,26 @@ class RustBuilder {
     final dir = await _syncedSource(repo);
     const triple = 'x86_64-pc-windows-msvc';
     await _cargoBuild(dir, triple, release: release);
-    final source = File(
-      _artifactPath(
-        sourceDir: dir,
-        triple: triple,
-        libName: repo.libName,
-        release: release,
-        kind: RustArtifactKind.dll,
-      ),
+    final sourcePath = _artifactPath(
+      sourceDir: dir,
+      triple: triple,
+      libName: repo.libName,
+      release: release,
+      kind: RustArtifactKind.dll,
     );
+    // final source = File(
+    //   "${dir.path}/$sourcePath".normalizePath
+    // );
     outputDir.createSync(recursive: true);
-    final destPath = '${outputDir.path}/${source.uri.pathSegments.last}';
-    source.copySync(destPath);
-    Log.success('${repo.repository.name} -> $destPath');
+    // final destPath = '${outputDir.path}/${source.uri.pathSegments.last}'.normalizePath;
+    // source.copySync(destPath);
+    // Log.success('${repo.repository.name} -> $destPath');
+    FsUtils.publishFile(
+        source: "${dir.path}/$sourcePath".normalizePath,
+        destination:
+            "${outputDir.path}/${repo.outFileName(RustArtifactKind.dll)}"
+                .normalizePath,
+        name: repo.repository.name);
   }
 
   /// linux target: build arm64 + x86_64 shared objects (optionally with custom
@@ -1430,15 +1520,7 @@ class RustBuilder {
     final dir = await _syncedSource(repo);
     const arm = 'aarch64-unknown-linux-gnu';
     const intel = 'x86_64-unknown-linux-gnu';
-    // final Map<String, String> env = {};
-    // final archLinker = linker.rustAarch64;
-    // final x86Linker = linker.rustX86x68;
-    // if (archLinker != null) {
-    //   env["CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER"] = archLinker;
-    // }
-    // if (x86Linker != null) {
-    //   env["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER"] = x86Linker;
-    // }
+
     await _cargoBuild(dir, arm, release: release);
     await _cargoBuild(dir, intel, release: release);
     final armLib = _artifactPath(
@@ -1454,17 +1536,19 @@ class RustBuilder {
       release: release,
       kind: RustArtifactKind.sharedObject,
     );
-    FsUtils.publishFile(
-        source: "${dir.path}/$armLib",
-        destination:
-            "${outputDir.path}/arm64/${repo.outFileName(RustArtifactKind.sharedObject)}",
-        name: repo.repository.name);
-    FsUtils.publishFile(
-        source: "${dir.path}/$intelLib",
-        destination:
-            "${outputDir.path}/x86_64/${repo.outFileName(RustArtifactKind.sharedObject)}",
-        name: repo.repository.name);
     outputDir.createSync(recursive: true);
+    FsUtils.publishFile(
+        source: "${dir.path}/$armLib".normalizePath,
+        destination:
+            "${outputDir.path}/arm64/${repo.outFileName(RustArtifactKind.sharedObject)}"
+                .normalizePath,
+        name: repo.repository.name);
+    FsUtils.publishFile(
+        source: "${dir.path}/$intelLib".normalizePath,
+        destination:
+            "${outputDir.path}/x86_64/${repo.outFileName(RustArtifactKind.sharedObject)}"
+                .normalizePath,
+        name: repo.repository.name);
   }
 
   /// iOS target: build a device (arm64) static lib and a universal simulator
@@ -1486,13 +1570,15 @@ class RustBuilder {
       await _cargoBuild(dir, triple, release: release);
     }
 
-    String artifact(String triple) => '${dir.path}/'
-        '${_artifactPath(sourceDir: dir, triple: triple, libName: repo.libName, release: release, kind: RustArtifactKind.staticLib)}';
+    String artifact(String triple) =>
+        '${dir.path}/${_artifactPath(sourceDir: dir, triple: triple, libName: repo.libName, release: release, kind: RustArtifactKind.staticLib)}'
+            .normalizePath;
 
-    final out = Directory('${outputDir.path}/ios')..createSync(recursive: true);
+    final out = Directory('${outputDir.path}/ios'.normalizePath)
+      ..createSync(recursive: true);
 
     // Simulator: lipo the two sim slices into one fat archive.
-    final simFat = '${out.path}/lib${repo.libName}_sim.a';
+    final simFat = '${out.path}/lib${repo.libName}_sim.a'.normalizePath;
     FsUtils.deleteFile(simFat);
     await ProcessRunner.run('lipo', [
       '-create',
@@ -1502,7 +1588,7 @@ class RustBuilder {
       simFat,
     ]);
 
-    final xc = '${out.path}/${repo.libName}.xcframework';
+    final xc = '${out.path}/${repo.libName}.xcframework'.normalizePath;
     if (Directory(xc).existsSync()) Directory(xc).deleteSync(recursive: true);
     await ProcessRunner.run('xcodebuild', [
       '-create-xcframework',
@@ -1549,7 +1635,7 @@ class ScriptCompiler {
       if (wasm && minify) '-O4',
       '-o',
       outPath,
-      '$directory/$scriptName.dart',
+      '$directory/$scriptName.dart'.normalizePath,
       '--no-source-maps',
     ]);
 
@@ -1568,7 +1654,8 @@ class ScriptCompiler {
 /// ---------------------------------------------------------------------------
 class WebScriptsBuilder {
   static Future<void> crypto({bool wasm = true, bool minify = true}) async {
-    await ScriptCompiler.compile(scriptName: 'crypto', wasm: wasm, minify: minify);
+    await ScriptCompiler.compile(
+        scriptName: 'crypto', wasm: wasm, minify: minify);
     await ScriptCompiler.compile(
       scriptName: 'stream_crypto',
       wasm: wasm,
@@ -1595,7 +1682,9 @@ class WebScriptsBuilder {
     }
     if (options.context) await context(minify: options.minify);
     if (options.worker) await worker(minify: options.minify);
-    if (options.crypto) await crypto(wasm: options.wasm, minify: options.minify);
+    if (options.crypto) {
+      await crypto(wasm: options.wasm, minify: options.minify);
+    }
   }
 }
 
@@ -1629,7 +1718,7 @@ class FlutterWebCompiler {
   /// main.dart.js is rewritten to a local `/canvaskit/` path.
   static Future<void> _rewriteCanvaskitUrl() async {
     const pattern = r'https://www\.gstatic\.com/flutter-canvaskit/([a-f0-9]+)/';
-    final file = File('${BuildConfig.buildWebDir}main.dart.js');
+    final file = File('${BuildConfig.buildWebDir}main.dart.js'.normalizePath);
     var data = await file.readAsString();
 
     final match = RegExp(pattern).firstMatch(data);
@@ -1670,11 +1759,14 @@ class BuildOptions {
     Directory? windowsLibDir,
     Directory? linuxLibDir,
     Directory? iosLibDir,
-  })  : jniLibsDir = jniLibsDir ?? Directory('android/app/src/main/jniLibs'),
-        macosLibDir = macosLibDir ?? Directory('macos/Runner/NativeLibs'),
-        windowsLibDir = windowsLibDir ?? Directory('windows/runner'),
+  })  : jniLibsDir = jniLibsDir ??
+            Directory('android/app/src/main/jniLibs'.normalizePath),
+        macosLibDir =
+            macosLibDir ?? Directory('macos/Runner/NativeLibs'.normalizePath),
+        windowsLibDir = windowsLibDir ?? Directory('windows'.normalizePath),
         linuxLibDir = linuxLibDir ?? Directory('linux'),
-        iosLibDir = iosLibDir ?? Directory('ios/Runner/NativeLibs');
+        iosLibDir =
+            iosLibDir ?? Directory('ios/Runner/NativeLibs'.normalizePath);
 
   final bool debug;
   final bool wasm;
@@ -1724,9 +1816,10 @@ class WebAppBuilder {
         baseHref: options.production ? BuildConfig.productionBaseHref : null,
         noCdn: true);
 
-    final destination = Directory('${options.releaseLocation}web/');
+    final destination =
+        Directory('${options.releaseLocation}web/'.normalizePath);
     FsUtils.copyDirectory(
-      Directory(BuildConfig.buildWebDir),
+      Directory(BuildConfig.buildWebDir.normalizePath),
       destination,
       cleanDestination: true,
     );
@@ -1734,7 +1827,7 @@ class WebAppBuilder {
   }
 
   static void _cleanExtensionOnlyFiles() {
-    if (!Directory(BuildConfig.buildWebDir).existsSync()) return;
+    if (!Directory(BuildConfig.buildWebDir.normalizePath).existsSync()) return;
     const extensionOnlyFiles = [
       'tron_web.js',
       'content.js',
@@ -1745,14 +1838,16 @@ class WebAppBuilder {
       'iframe.html',
       'iframe_events.js',
     ];
-    FsUtils.deleteFiles(extensionOnlyFiles.map((f) => '${BuildConfig.buildWebDir}$f'));
+    FsUtils.deleteFiles(
+        extensionOnlyFiles.map((f) => '${BuildConfig.buildWebDir}$f'));
   }
 
   static void _copyBrowserShell() {
-    final webDir = Directory(BuildConfig.webOutDir);
+    final webDir = Directory(BuildConfig.webOutDir.normalizePath);
     if (webDir.existsSync()) webDir.deleteSync(recursive: true);
     webDir.createSync(recursive: true);
-    FsUtils.copyDirectory(Directory(BuildConfig.browserSourceDir), webDir);
+    FsUtils.copyDirectory(
+        Directory(BuildConfig.browserSourceDir.normalizePath), webDir);
   }
 }
 
@@ -1775,23 +1870,25 @@ class WebviewScriptBuilder {
     await ScriptCompiler.compile(
       scriptName: 'webview',
       directory: 'js',
-      out: '${BuildConfig.webviewSourceDir}script',
+      out: '${BuildConfig.webviewSourceDir}script'.normalizePath,
       minify: minify,
       wasm: false,
     );
-    final file = File("${BuildConfig.webviewSourceDir}script.js");
+    final file = File("${BuildConfig.webviewSourceDir}script.js".normalizePath);
     file.copySync(BuildConfig.webViewAssets("script.js"));
   }
 
-  static Future<void> buildWebviewPage({bool minify = false, bool worker = true}) async {
+  static Future<void> buildWebviewPage(
+      {bool minify = false, bool worker = true}) async {
     await ScriptCompiler.compile(
       scriptName: worker ? 'webview_page' : "webview_page_main",
       directory: 'js',
-      out: '${BuildConfig.webviewSourceDir}script_page',
+      out: '${BuildConfig.webviewSourceDir}script_page'.normalizePath,
       minify: minify,
       wasm: false,
     );
-    final file = File("${BuildConfig.webviewSourceDir}script_page.js");
+    final file =
+        File("${BuildConfig.webviewSourceDir}script_page.js".normalizePath);
     file.copySync(BuildConfig.webViewAssets("script_page.js"));
   }
 }
@@ -1822,9 +1919,10 @@ class ExtensionBuilder {
       baseHref: options.production ? BuildConfig.productionBaseHref : null,
     );
 
-    final destination = Directory('${options.releaseLocation}${target.folderName}/');
+    final destination = Directory(
+        '${options.releaseLocation}${target.folderName}/'.normalizePath);
     FsUtils.copyDirectory(
-      Directory(BuildConfig.buildWebDir),
+      Directory(BuildConfig.buildWebDir.normalizePath),
       destination,
       cleanDestination: true,
     );
@@ -1832,10 +1930,11 @@ class ExtensionBuilder {
         'Extension (${target.folderName}) copied to ${destination.absolute.path}');
   }
 
-  static Future<void> _buildPage({bool minify = false}) => ScriptCompiler.compile(
+  static Future<void> _buildPage({bool minify = false}) =>
+      ScriptCompiler.compile(
         scriptName: 'page',
         directory: 'js',
-        out: '${BuildConfig.extensionSourceDir}page',
+        out: '${BuildConfig.extensionSourceDir}page'.normalizePath,
         minify: minify,
         wasm: false,
       );
@@ -1843,8 +1942,8 @@ class ExtensionBuilder {
   static Future<void> _buildBackground({bool minify = false}) async {
     await ScriptCompiler.compile(
       scriptName: 'background',
-      directory: 'js/background',
-      out: '${BuildConfig.extensionSourceDir}background',
+      directory: 'js/background'.normalizePath,
+      out: '${BuildConfig.extensionSourceDir}background'.normalizePath,
       minify: minify,
       wasm: false,
     );
@@ -1854,7 +1953,7 @@ class ExtensionBuilder {
     final compiledPath = await ScriptCompiler.compile(
       scriptName: 'content',
       directory: 'js',
-      out: '${BuildConfig.extensionSourceDir}content',
+      out: '${BuildConfig.extensionSourceDir}content'.normalizePath,
       minify: minify,
       wasm: false,
     );
@@ -1867,7 +1966,7 @@ class ExtensionBuilder {
     String compiledPath, {
     required bool minify,
   }) async {
-    final source = File(compiledPath);
+    final source = File(compiledPath.normalizePath);
     var data = source.readAsStringSync();
 
     if (minify) {
@@ -1884,7 +1983,8 @@ class ExtensionBuilder {
     } else {
       const marker = 'main() {';
       if (!data.contains(marker)) {
-        throw CompilerError('Unrecognized content script output (marker not found)');
+        throw CompilerError(
+            'Unrecognized content script output (marker not found)');
       }
       data = data.replaceFirst(marker, '''    main() {
       if(self.browser === undefined){
@@ -1894,7 +1994,8 @@ class ExtensionBuilder {
       }''');
     }
 
-    final firefoxFile = File('${BuildConfig.extensionSourceDir}firefox_content.js');
+    final firefoxFile = File(
+        '${BuildConfig.extensionSourceDir}firefox_content.js'.normalizePath);
     if (firefoxFile.existsSync()) firefoxFile.deleteSync();
     firefoxFile.createSync(recursive: true);
     await firefoxFile.writeAsString(data);
@@ -1903,15 +2004,13 @@ class ExtensionBuilder {
   /// Copies the right manifest + supporting html for [target] into `web/`.
   static void _assembleManifest(ExtensionTarget target) {
     void copyToWeb(String fileName, {String? outName}) {
-      if (fileName.contains('/')) {
-        final subDir = Directory('${BuildConfig.webOutDir}/${fileName.split('/').first}');
-        if (!subDir.existsSync()) subDir.createSync(recursive: true);
-      }
-      final file = File('${BuildConfig.extensionSourceDir}$fileName');
+      final file =
+          File('${BuildConfig.extensionSourceDir}$fileName'.normalizePath);
       if (!file.existsSync()) {
         throw CompilerError('Required extension file not found: ${file.path}');
       }
-      file.copySync('${BuildConfig.webOutDir}/${outName ?? fileName}');
+      file.copySync(
+          '${BuildConfig.webOutDir}/${outName ?? fileName}'.normalizePath);
     }
 
     copyToWeb('tron_web.js');
@@ -1995,8 +2094,9 @@ class NativeAppBuilder {
       options.debug ? '--debug' : '--release',
       if (splitPerAbi) '--split-per-abi',
     ]);
-    final source = Directory('build/app/outputs/flutter-apk');
-    final destination = Directory('${options.releaseLocation}android/');
+    final source = Directory('build/app/outputs/flutter-apk'.normalizePath);
+    final destination =
+        Directory('${options.releaseLocation}android/'.normalizePath);
     FsUtils.copyDirectory(source, destination, cleanDestination: true);
     Log.success('APK(s) copied to ${destination.absolute.path}');
   }
@@ -2036,8 +2136,10 @@ class NativeAppBuilder {
       options.debug ? '--debug' : '--release',
     ]);
     final buildMode = options.debug ? 'Debug' : 'Release';
-    final source = Directory('build/macos/Build/Products/$buildMode');
-    final destination = Directory('${options.releaseLocation}macos/');
+    final source =
+        Directory('build/macos/Build/Products/$buildMode'.normalizePath);
+    final destination =
+        Directory('${options.releaseLocation}macos/'.normalizePath);
     FsUtils.copyDirectory(source, destination, cleanDestination: true);
     Log.success('macOS build copied to ${destination.absolute.path}');
   }
@@ -2070,13 +2172,16 @@ class NativeAppBuilder {
       options.debug ? '--debug' : '--release',
     ]);
     final buildMode = options.debug ? 'Debug' : 'Release';
-    final source = Directory('build/windows/x64/runner/$buildMode');
-    final destination = Directory('${options.releaseLocation}windows/');
+    final source =
+        Directory('build/windows/x64/runner/$buildMode'.normalizePath);
+    final destination =
+        Directory('${options.releaseLocation}windows/'.normalizePath);
     FsUtils.copyDirectory(source, destination, cleanDestination: true);
     // Windows loads DLLs from next to the exe, so make sure the compiled
     // native libs also end up in the shipped release folder.
     if (options.windowsLibDir.existsSync()) {
-      FsUtils.copyDirectory(options.windowsLibDir, destination, cleanDestination: false);
+      FsUtils.copyDirectory(options.windowsLibDir, destination,
+          cleanDestination: false);
     }
     Log.success('Windows build copied to ${destination.absolute.path}');
   }
@@ -2092,8 +2197,8 @@ class NativeAppBuilder {
   }) async {
     final requested = _valueOfFlag(rawFlags, '--linux-arch=');
     final noDocker = rawFlags.contains('--no-docker');
-    final image =
-        _valueOfFlag(rawFlags, '--docker-image=') ?? DockerCrossBuilder.defaultImage;
+    final image = _valueOfFlag(rawFlags, '--docker-image=') ??
+        DockerCrossBuilder.defaultImage;
     final List<LinuxArch> targets;
     if (requested != null) {
       final arch = LinuxArch.fromString(requested);
@@ -2112,16 +2217,13 @@ class NativeAppBuilder {
     // problems before the (slow) emulated build starts.
     final ordered = [...targets]
       ..sort((a, b) => (a == host ? 0 : 1).compareTo(b == host ? 0 : 1));
-    Log.error("come $ordered $targets");
     for (final arch in ordered) {
       if (arch == host) {
-        Log.error("yes linux native");
         await _linuxNative(options: options, arch: arch);
       } else if (noDocker) {
         Log.info('Skipping Linux ${arch.name}: --no-docker was given and this '
             'host is ${host.name}.');
       } else {
-        Log.error("go docker");
         await DockerCrossBuilder.build(
           arch: arch,
           forwardFlags: rawFlags,
@@ -2145,7 +2247,6 @@ class NativeAppBuilder {
   }) async {
     final rustRepos = _rustRepos(options);
     final cRepos = _cRepos(options);
-    Log.error("resut ${options.rust}");
     if (options.rust && rustRepos.isNotEmpty) {
       await RustBuilder.ensureToolchain();
       for (final repo in rustRepos) {
@@ -2156,7 +2257,6 @@ class NativeAppBuilder {
         );
       }
     }
-    Log.error("resut $cRepos");
     for (final repo in cRepos) {
       await CBuilder.buildForLinux(
         repo: repo,
@@ -2164,7 +2264,6 @@ class NativeAppBuilder {
         release: !options.debug,
       );
     }
-    Log.error("come flutter!");
     await ProcessRunner.run('flutter', [
       'build',
       'linux',
@@ -2175,16 +2274,21 @@ class NativeAppBuilder {
     final buildMode = options.debug ? 'debug' : 'release';
     // Flutter writes the bundle under build/linux/<x64|arm64>/... depending
     // on the (container or host) architecture that ran the build.
-    final bundleDirectory = Directory('build/linux/${arch.flutterDir}/$buildMode/bundle');
+    final bundleDirectory = Directory(
+        'build/linux/${arch.flutterDir}/$buildMode/bundle'.normalizePath);
     if (!bundleDirectory.existsSync()) {
-      throw CompilerError('Expected bundle at ${bundleDirectory.path} but it does '
+      throw CompilerError(
+          'Expected bundle at ${bundleDirectory.path} but it does '
           'not exist; the flutter linux build may have failed.');
     }
     await FsUtils.zipDirectory(
-        sourceDir: "${bundleDirectory.path}/",
-        outputZip: "${options.releaseLocation}linux/${BuildConfig.appName}_$debArch.zip");
-    final deb =
-        Directory('${options.releaseLocation}linux/${BuildConfig.appName}_$debArch');
+        sourceDir: "${bundleDirectory.path}/".normalizePath,
+        outputZip:
+            "${options.releaseLocation}linux/${BuildConfig.appName}_$debArch.zip"
+                .normalizePath);
+    final deb = Directory(
+        '${options.releaseLocation}linux/${BuildConfig.appName}_$debArch'
+            .normalizePath);
     await _DebFileBuilder.createDebFile(
         displayName: "OnChain Wallet",
         version: "1.0.0",
@@ -2195,7 +2299,8 @@ class NativeAppBuilder {
         bundleDirectory: bundleDirectory,
         iconPath: BuildConfig.assetPath);
     Log.success('Linux ${arch.name} zip + deb written to '
-        '${options.releaseLocation}linux/');
+            '${options.releaseLocation}linux/'
+        .normalizePath);
   }
 
   static Future<void> ios({required BuildOptions options}) async {
@@ -2237,8 +2342,9 @@ class NativeAppBuilder {
       options.debug ? '--debug' : '--release',
       if (options.noCodesign) '--no-codesign',
     ]);
-    final source = Directory('build/ios/iphoneos');
-    final destination = Directory('${options.releaseLocation}ios/');
+    final source = Directory('build/ios/iphoneos'.normalizePath);
+    final destination =
+        Directory('${options.releaseLocation}ios/'.normalizePath);
     if (source.existsSync()) {
       FsUtils.copyDirectory(source, destination, cleanDestination: true);
       Log.success('iOS build copied to ${destination.absolute.path}');
@@ -2258,7 +2364,8 @@ enum LinuxArch {
   x86_64('x86_64', 'amd64', 'x64', 'linux/amd64'),
   arm64('aarch64', 'arm64', 'arm64', 'linux/arm64');
 
-  const LinuxArch(this.uname, this.debianArch, this.flutterDir, this.dockerPlatform);
+  const LinuxArch(
+      this.uname, this.debianArch, this.flutterDir, this.dockerPlatform);
 
   /// `uname -m` value for this arch.
   final String uname;
@@ -2290,7 +2397,8 @@ enum LinuxArch {
     final machine = (result.stdout as String).trim();
     final arch = fromString(machine);
     if (arch == null) {
-      throw CompilerError('Unsupported host architecture "$machine" for Linux builds.');
+      throw CompilerError(
+          'Unsupported host architecture "$machine" for Linux builds.');
     }
     return arch;
   }
@@ -2322,12 +2430,17 @@ class DockerCrossBuilder {
     }
     // Probe whether the kernel can execute foreign-arch binaries (binfmt_misc
     // + QEMU). A tiny alpine container is enough to find out.
-    final probe = await Process.run('docker',
-        ['run', '--rm', '--platform', arch.dockerPlatform, 'alpine', 'uname', '-m']);
-    print('exit=${probe.exitCode}');
-    print('stdout=${probe.stdout}');
-    print('stderr=${probe.stderr}');
-    if (probe.exitCode != 0 || !(probe.stdout as String).trim().contains(arch.uname)) {
+    final probe = await Process.run('docker', [
+      'run',
+      '--rm',
+      '--platform',
+      arch.dockerPlatform,
+      'alpine',
+      'uname',
+      '-m'
+    ]);
+    if (probe.exitCode != 0 ||
+        !(probe.stdout as String).trim().contains(arch.uname)) {
       throw CompilerError(
           'This host cannot run ${arch.dockerPlatform} containers. Enable '
           'QEMU emulation once with:\n'
@@ -2357,7 +2470,12 @@ class DockerCrossBuilder {
     final relativeScript = scriptPath.startsWith(projectDir)
         ? scriptPath.substring(projectDir.length + 1)
         : 'tool/build.dart';
-    forwardFlags = {...forwardFlags, "--no-crypto-c", "--no-sqlite3", "--no-rust"};
+    forwardFlags = {
+      ...forwardFlags,
+      "--no-crypto-c",
+      "--no-sqlite3",
+      "--no-rust"
+    };
     final innerFlags = forwardFlags
         .where((f) => !_orchestrationPrefixes.any((p) => f.startsWith(p)))
         .map(shellEscape)
@@ -2570,7 +2688,8 @@ class Cli {
             splitPerAbi: !flags.contains('--universal'),
           );
         case 'linux':
-          await NativeAppBuilder.linux(options: _parseOptions(flags), rawFlags: flags);
+          await NativeAppBuilder.linux(
+              options: _parseOptions(flags), rawFlags: flags);
         case 'macos':
           await NativeAppBuilder.macos(options: _parseOptions(flags));
         case 'windows':
@@ -2592,6 +2711,7 @@ class Cli {
     final options = _parseOptions(flags);
     final target = _parseExtensionTarget(flags);
     final noScript = flags.contains('--no-script');
+    final bool all = flags.contains('--all');
 
     // If none of the per-script flags are given, build all three scripts
     // (matches "full build" behaviour). Otherwise build only what's asked.
@@ -2607,10 +2727,10 @@ class Cli {
       target: target,
       buildPageScript:
           !noScript && (!scriptFlagsGiven || flags.contains('--script-page')),
-      buildContentScript:
-          !noScript && (!scriptFlagsGiven || flags.contains('--script-content')),
-      buildBackgroundScript:
-          !noScript && (!scriptFlagsGiven || flags.contains('--script-background')),
+      buildContentScript: !noScript &&
+          (!scriptFlagsGiven || flags.contains('--script-content')),
+      buildBackgroundScript: !noScript &&
+          (!scriptFlagsGiven || flags.contains('--script-background')),
     );
   }
 
@@ -2637,7 +2757,8 @@ class Cli {
       context: !flags.contains('--no-context'),
       production: flags.contains('--production'),
       noCodesign: !flags.contains('--codesign'),
-      releaseLocation: _valueOf(flags, '--out=') ?? BuildConfig.defaultReleaseLocation,
+      releaseLocation:
+          _valueOf(flags, '--out=') ?? BuildConfig.defaultReleaseLocation,
       zkRepo: _rustRepo(
         flags: flags,
         enabled: rustEnabled,
@@ -2664,10 +2785,13 @@ class Cli {
               fileName: "sqlite3mc-2.3.6-sqlite-3.53.3-amalgamation.zip",
               url:
                   "https://github.com/utelle/SQLite3MultipleCiphers/releases/download/v2.3.6/sqlite3mc-2.3.6-sqlite-3.53.3-amalgamation.zip",
-              hash: "bbd0434f9456d810cd1bb8d3767985f18f6b84648f1cd9cd1db6ccfb01819da2")),
-      androidAbis:
-          _valueOf(flags, '--android-abis=')?.split(',').map((s) => s.trim()).toList() ??
-              const ['arm64-v8a', 'armeabi-v7a', 'x86_64'],
+              hash:
+                  "bbd0434f9456d810cd1bb8d3767985f18f6b84648f1cd9cd1db6ccfb01819da2")),
+      androidAbis: _valueOf(flags, '--android-abis=')
+              ?.split(',')
+              .map((s) => s.trim())
+              .toList() ??
+          const ['arm64-v8a', 'armeabi-v7a', 'x86_64'],
       androidApi: int.tryParse(_valueOf(flags, '--android-api=') ?? '') ??
           BuildConfig.defaultAndroidApi,
       jniLibsDir: _dirValueOf(flags, '--jni-libs-dir='),
@@ -2691,7 +2815,10 @@ class Cli {
 
     final url = repository.gitUrl;
     return NativeLibraryConfig(
-        repository: repository, gitUrl: url, branch: branch ?? "main", asset: asset);
+        repository: repository,
+        gitUrl: url,
+        branch: branch ?? "main",
+        asset: asset);
   }
 
   static String? _valueOf(Set<String> flags, String prefix) {
@@ -2787,4 +2914,8 @@ Examples:
 
 Future<void> main(List<String> args) async {
   await Cli.run(args);
+}
+
+extension _PathNormalize on String {
+  String get normalizePath => path.normalize(this);
 }

@@ -14,27 +14,39 @@ import 'package:on_chain_wallet/app/utils/map/extension.dart';
 import 'package:on_chain_wallet/app/utils/string/utils.dart';
 
 class APIErrorConst {
-  static const List<int> validStatusCode = [404, 400, 401, 403, 405, 408, 500, 503];
+  static const List<int> validStatusCode = [
+    404,
+    400,
+    401,
+    403,
+    405,
+    408,
+    500,
+    503
+  ];
   static const int timeoutStatucCode = 10001;
   static const int notFoundStatusCode = 404;
   static const APIError noNetworkConnection =
       APIError._(message: 'no_network_connection');
-  static const APIError connectionClosed = APIError._(message: 'http_connection_closed');
+  static const APIError connectionClosed =
+      APIError._(message: 'http_connection_closed');
   static const APIError clientDisposed = APIError._(message: 'client_disposed');
   static const APIError socketConnectingFailed =
       APIError._(message: 'socket_connection_failed');
   static const APIError initializeClientFailed =
       APIError._(message: 'network_client_initialize_failed');
-  static const APIError invalidRequestType = APIError._(message: 'invalid_request_type');
+  static const APIError invalidRequestType =
+      APIError._(message: 'invalid_request_type');
   static const APIError invalidOrUnsuportedDigestAuth =
       APIError._(message: 'invalid_or_unsuported_dgiest_auth');
-  static const APIError timeoutException =
-      APIError._(message: 'api_http_timeout_error', statusCode: timeoutStatucCode);
+  static const APIError timeoutException = APIError._(
+      message: 'api_http_timeout_error', statusCode: timeoutStatucCode);
   static const APIError serverUnexpectedResponse =
       APIError._(message: 'server_unexpected_response');
   static const APIError unexpectedRequestData =
       APIError._(message: 'unexpected_request_data');
-  static const APIError invalidRequestUrl = APIError._(message: 'invalid_request_url');
+  static const APIError invalidRequestUrl =
+      APIError._(message: 'invalid_request_url');
   static const APIError clientIsNotInitialized =
       APIError._(message: 'client_is_not_initialized');
   static const APIError serviceInternalError =
@@ -48,10 +60,12 @@ class APIErrorConst {
 
   static const APIError failedToParseResponseContent =
       APIError._(message: 'failed_to_parse_response_content');
-  static const APIError badClientState = APIError._(message: 'bad_client_state');
+  static const APIError badClientState =
+      APIError._(message: 'bad_client_state');
   static const APIError apiConnectionFailed =
       APIError._(message: 'api_connection_failed');
-  static const APIError serviceOutOfSync = APIError._(message: 'service_out_of_sync');
+  static const APIError serviceOutOfSync =
+      APIError._(message: 'service_out_of_sync');
 }
 
 class APIError extends RPCError implements BaseAppException {
@@ -86,8 +100,9 @@ class APIError extends RPCError implements BaseAppException {
         localizedMessage: values.rawValueAt(3),
         request: values.maybeRawMapAt<String, dynamic>(4),
         details: values.maybeRawMapAt<String, String?>(5),
-        jsonRpcErrpr: values.maybeObjectAt<Map<String, dynamic>, CborStringValue>(
-            6, (v) => StringUtils.toJson(v.value)),
+        jsonRpcErrpr:
+            values.maybeObjectAt<Map<String, dynamic>, CborStringValue>(
+                6, (v) => StringUtils.toJson(v.value)),
         errorCode: values.rawValueAt(7),
         isRpcError: values.rawValueAt(8));
   }
@@ -107,17 +122,20 @@ class APIError extends RPCError implements BaseAppException {
     }
     return APIError._(
         message: switch (status) {
-          NetResultStatus.requestTimeout => APIErrorConst.timeoutException.message,
+          NetResultStatus.requestTimeout =>
+            APIErrorConst.timeoutException.message,
           NetResultStatus status when status.isDevError() =>
             APIErrorConst.serviceInternalError.message,
           _ => status.dsecription
         },
         url: url,
         errorCode: error.details?.valueAsInt("code"),
-        details:
-            {"status": status.name, "message": message}.withoutNullValue.nullOnEmpty);
+        details: {"status": status.name, "message": message}
+            .withoutNullValue
+            .nullOnEmpty);
   }
-  factory APIError.fromNetResponseHttp(NetResponseHttp response, {required String? url}) {
+  factory APIError.fromNetResponseHttp(NetResponseHttp response,
+      {required String? url}) {
     final statusCode = response.statusCode;
     final defaultError = APIErrorConst.validStatusCode.contains(statusCode)
         ? "http_error_$statusCode"
@@ -127,10 +145,17 @@ class APIError extends RPCError implements BaseAppException {
     if (message != null && StrUtils.isHtml(message)) {
       message = null;
     }
-    return APIError._(message: message ?? defaultError, url: url, statusCode: statusCode);
+    return APIError._(
+        message: message ?? defaultError,
+        url: url,
+        statusCode: statusCode,
+        localizedMessage: message == null);
   }
   factory APIError.fromException(
-      {String? url, Object? message, int? statusCode, bool isRpcError = false}) {
+      {String? url,
+      Object? message,
+      int? statusCode,
+      bool isRpcError = false}) {
     final defaultError = APIErrorConst.validStatusCode.contains(statusCode)
         ? "http_error_$statusCode"
         : "request_error";
@@ -161,15 +186,18 @@ class APIError extends RPCError implements BaseAppException {
 
       case null:
       case String message when StrUtils.isHtml(message):
-        return APIError._(message: defaultError, statusCode: statusCode, url: url);
+        return APIError._(
+            message: defaultError, statusCode: statusCode, url: url);
       default:
         final Map<String, dynamic>? decode = StringUtils.tryToJson(message);
         String? msg =
-            (decode?["message"] ?? decode?["error"] ?? decode?["Error"])?.toString();
+            (decode?["message"] ?? decode?["error"] ?? decode?["Error"])
+                ?.toString();
         if (msg == null && message is String && message.trim().isNotEmpty) {
           msg = message;
         }
-        if (msg == null && !APIErrorConst.validStatusCode.contains(statusCode)) {
+        if (msg == null &&
+            !APIErrorConst.validStatusCode.contains(statusCode)) {
           return APIError._(
               message: 'api_unknown_error', statusCode: statusCode, url: url);
         }

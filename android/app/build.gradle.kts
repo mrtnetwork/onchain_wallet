@@ -11,11 +11,13 @@ val localProperties = Properties().apply {
         propsFile.inputStream().use { load(it) }
     }
 }
-
+fun getSigningProperty(name: String): String? {
+    return System.getenv(name.uppercase()) 
+        ?: localProperties.getProperty(name)
+}
 android {
     namespace = "com.mrtnetwork.on_chain_wallet"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -45,24 +47,29 @@ android {
         versionName = flutter.versionName
         vectorDrawables.useSupportLibrary = true
     }
-    signingConfigs {
+  signingConfigs {
         create("release") {
-            keyAlias = localProperties.getProperty("keyAlias")
-            keyPassword = localProperties.getProperty("keyPassword")
-            val storeFilePath = localProperties.getProperty("storeFile")
+            keyAlias = getSigningProperty("ONCHAIN_KEY_ALIAS")
+            keyPassword = getSigningProperty("ONCHAIN_KEY_PASSWORD")
+
+            val storeFilePath = getSigningProperty("ONCHAIN_STORE_FILE")
             if (!storeFilePath.isNullOrBlank()) {
                 storeFile = file(storeFilePath)
             }
-            storePassword = localProperties.getProperty("storePassword")
+
+            storePassword = getSigningProperty("ONCHAIN_STORE_PASSWORD")
         }
     }
+
     buildTypes {
         getByName("release") {
-            signingConfig = if (localProperties.getProperty("storePassword").isNullOrEmpty()) {
-                println("Using DEBUG signing config for release build.")
+            val storePassword = getSigningProperty("storePassword")
+
+            signingConfig = if (storePassword.isNullOrBlank()) {
+                println("⚠️ Release signing keys not found. Using DEBUG signing key.")
                 signingConfigs.getByName("debug")
             } else {
-                println("Using RELEASE signing config.")
+                println("✅ Using RELEASE signing key.")
                 signingConfigs.getByName("release")
             }
         }

@@ -93,7 +93,7 @@ BEGIN
             VALUE "FileDescription", "on_chain_wallet" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "on_chain_wallet" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.mrtnetwork. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.mrtnetwork. All rights reserved." "\0"
             VALUE "OriginalFilename", "on_chain_wallet.exe" "\0"
             VALUE "ProductName", "on_chain_wallet" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

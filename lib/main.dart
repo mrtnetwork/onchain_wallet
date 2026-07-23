@@ -16,8 +16,8 @@ void main() async {
   Logging.init(
       LoggingConfig(
           mode: logging,
-          netsdk: LoggerMode.info,
-          libs: LoggerMode.debug,
+          netsdk: LoggerMode.error,
+          libs: LoggerMode.error,
           printDebug: true,
           environment: "Main"),
       writer: LogWriterDefault(logging));
