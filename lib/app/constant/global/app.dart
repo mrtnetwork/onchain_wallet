@@ -15,7 +15,7 @@ class APPConst {
   static const APPAssetUri assetWebviewPageScript =
       APPAssetUri(url: "assets/webview/script_page.js");
   static const APPAssetUri assetsTronWeb = APPAssetUri(url: "assets/webview/tron_web.js");
-  // static const String bnJs = "assets/webview/bn.js";
+
   static const APPImage logo = APPImage.local("assets/image/wallet.png");
   static const APPImage wc = APPImage.local("assets/image/wc.png");
   static const APPImage telegramLogo = APPImage.local("assets/image/t.png");

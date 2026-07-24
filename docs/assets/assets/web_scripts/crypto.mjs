@@ -346,6 +346,12 @@ class CompiledApp {
         }
       },
       _919: x0 => new ArrayBuffer(x0),
+      _920: s => {
+        if (/[[\]{}()*+?.\\^$|]/.test(s)) {
+            s = s.replace(/[[\]{}()*+?.\\^$|]/g, '\\$&');
+        }
+        return s;
+      },
       _922: x0 => x0.index,
       _924: x0 => x0.flags,
       _925: x0 => x0.multiline,

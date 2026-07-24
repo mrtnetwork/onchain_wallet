@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain_bridge/dev/src/logger.dart';
 import 'package:on_chain_bridge/platform_interface.dart';
+import 'package:on_chain_bridge/utils/utils.dart';
+import 'package:on_chain_bridge/web/api/window/window.dart';
 import 'package:on_chain_bridge/web/interface/interface.dart';
 import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/context/api/api_connection.dart';
@@ -82,17 +84,28 @@ class DefaultAppContextWeb extends MainAppContext {
       required this.resourceApi,
       required this.utils});
   static Future<IResult<DefaultAppContextWeb>> init(AppConfig config) async {
-    final resourceApi = AppResourceWeb();
+    final platform = PlatformInterface.instance as IWebOnChainBridgeInterface;
+    String flutterHref = "";
+    if (!platform.isExtensionContext) {
+      final Uri href = Uri.parse(jsWindow.location.href);
+      final segments = href.pathSegments;
+      if (segments.isNotEmpty) {
+        flutterHref =
+            "/${OnChainBridgeUtils.joinPathWithRoot(segments, separator: "/")}/";
+      }
+    }
+    final resourceApi = AppResourceWeb(WebAssetPathResolver(
+        href: flutterHref, isExtension: platform.isExtensionContext));
     final contextUrl = resourceApi.contextModule();
     return contextUrl.andThenAsync((contextUrl) async {
-      final platform = PlatformInterface.instance as IWebOnChainBridgeInterface;
       final platformConfig = (await platform.initMain(config)).toResult();
 
       return platformConfig.andThenAsync((platformConfig) async {
         final contextKey = X25519Keypair.generate();
         final config = AppContextConfigWeb(
             config: Logging.config.copyWith(environment: "context"),
-            contextKey: contextKey.publicKey);
+            contextKey: contextKey.publicKey,
+            href: resourceApi.resolver.href);
         final result = await DefaultWorkerApiWeb.createWorkerStatic<
                 ISolateMessageRequest<AppContextMessageRequest>,
                 ISolateMessageResponse<AppContextMessageResponse>,
@@ -129,7 +142,8 @@ class DefaultAppContextWeb extends MainAppContext {
                     AppContextMessageSection.lockingTask,
                     AppContextMessageSection.isolateConnection,
                   ])));
-          final worker = DefaultWorkerApiWeb(api: api, resourcesApi: resourceApi);
+          final worker = DefaultWorkerApiWeb(
+              api: api, resourcesApi: resourceApi, href: resourceApi.resolver.href);
           final shareKey = contextKey * response.contextKey;
           final cryptoConnector = WebCryptoTransporterMain.init(
               sharedKey: shareKey,
@@ -161,7 +175,8 @@ class DefaultAppContextWeb extends MainAppContext {
                   platform: platformConfig.platform,
                   resourceApi: resourceApi,
                   connectionApi: api,
-                  platformUtls: DefaultPlatformUtilsWeb(platform),
+                  platformUtls: DefaultPlatformUtilsWeb(
+                      platform: platform, pathResolver: resourceApi.resolver),
                   platformCrypto: DefaultPlatformCryptoApi(platform),
                   cryptoLib: crypto,
                   worker: worker,

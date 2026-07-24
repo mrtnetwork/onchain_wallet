@@ -90,79 +90,75 @@ class WorkerAppContextWeb extends AppContext {
   }
   static Future<IResult<WorkerAppContextWeb>> init(
       {required JSMessagePort port, required AppContextConfigWeb config}) async {
-    final resourceApi = AppResourceWeb();
-    final module = resourceApi.netSdkRustWasm();
-    return module.andThenAsync((netSdkModule) async {
-      // final moduleUrl =
-      final receive = StreamMessageTransform<
-              ISolateMessageResponse<AppContextMessageResponse>,
-              MessageEvent<JSWorkerMessage?>>.broadcast(
-          decoder: JSIsolateContextResponseMessageDecoder(), name: "WorkerAppContextWeb");
-      port.onmessage = receive.listen.toJS;
-      port.start();
-      final contextPort = SinkMessageTransform<
-              ISolateMessageRequest<AppContextMessageRequest>, WebIsolateEncodedMessage>(
-          sink: JSMessageChannelSink(port: port),
-          encoder: JSIsolateContextMessageEncoder());
-      final PortMessageChannel<ISolateMessageRequest<AppContextMessageRequest>,
-              ISolateMessageResponse<AppContextMessageResponse>> connector =
-          PortMessageChannel(
-              receive: DefaultMessageChannelStream(receive.stream), sink: contextPort);
-      final api = AppContextConnectionApi(
-          connection: ISolateMessageChannel(
-              connector: connector,
-              stream: connector.stream.filterMessages([
-                AppContextMessageSection.lockingTask,
-                AppContextMessageSection.isolateConnection,
-              ])));
-      final key = X25519Keypair.generate();
-      final message = AppContextMessageStablishConnection(key.publicKey);
-      final response =
-          await api.sendRequest<AppContextMessageStablishConnectionResponse>(message);
-      return response.andThenAsync((response) {
-        final sharedKey = key * response.contextKey;
-        final cryptoConnector = WebCryptoTransporterMain.init(
-            sharedKey: sharedKey,
-            connector: PortMessageChannel(
-                receive: DefaultMessageChannelStream(connector.stream
-                    .filterMessage<AppContextMessageCryptoResponseDefault>(
-                        AppContextMessageSection.crypto)
-                    .map((e) => WebCryptoApiUtils.resolveMessage(
-                        e.message.map((e) => e.message), e.id))),
-                sink: SinkMessageTransform(
-                    sink: DefaultMessageChannelSink(connector.add),
-                    encoder: JSCryptoIsolateContextMessageEncoder())));
-
-        final databaseConnector = ISolateMessageChannel<
-                ISolateMessageRequest<AppContextMessageDatabaseRequest>,
-                ISolateMessageResponse<AppContextMessageDatabaseResponse>>(
+    final resourceApi = AppResourceWeb(WebAssetPathResolver(href: config.href));
+    // final moduleUrl =
+    final receive = StreamMessageTransform<
+            ISolateMessageResponse<AppContextMessageResponse>,
+            MessageEvent<JSWorkerMessage?>>.broadcast(
+        decoder: JSIsolateContextResponseMessageDecoder(), name: "WorkerAppContextWeb");
+    port.onmessage = receive.listen.toJS;
+    port.start();
+    final contextPort = SinkMessageTransform<
+            ISolateMessageRequest<AppContextMessageRequest>, WebIsolateEncodedMessage>(
+        sink: JSMessageChannelSink(port: port),
+        encoder: JSIsolateContextMessageEncoder());
+    final PortMessageChannel<ISolateMessageRequest<AppContextMessageRequest>,
+            ISolateMessageResponse<AppContextMessageResponse>> connector =
+        PortMessageChannel(
+            receive: DefaultMessageChannelStream(receive.stream), sink: contextPort);
+    final api = AppContextConnectionApi(
+        connection: ISolateMessageChannel(
             connector: connector,
-            stream: connector.stream.filterMessage(AppContextMessageSection.database));
-        // final logging = config.loggingMode;
-        final logWriter = LogWriterDefault(config.config.mode);
-        final workerApi = DisabledWorkerWeb();
-        final crypto = IsolateAppBasicCryptoApi.instance(workerApi, cryptoConnector);
-        final utils = MainAppContextUtils(
-            connection: ISolateMessageChannel<
-                    ISolateMessageRequest<AppContextMessageUtilsRequest>,
-                    ISolateMessageResponse<AppContextMessageResponse>>(
-                connector: connector,
-                stream: connector.stream.filterMessage(AppContextMessageSection.utils)));
-        return crypto.andThenAsync((crypto) async {
-          return ResultOk(WorkerAppContextWeb(
-              cryptoLib: crypto,
-              worker: workerApi,
-              resourceApi: resourceApi,
-              workerMode: config.mode,
-              connectionApi: api,
-              utils: utils,
-              platformCrypto: DisabledPlatformCryptoApi(),
-              database: DefaultAppDatabase(connector: databaseConnector),
-              contextPort: contextPort,
-              logWriter: logWriter,
-              netApi:
-                  DefaultNetApi(DefaultNetSdkApi(DefaultNetSdk(AppEnvironment.web)))));
-        });
+            stream: connector.stream.filterMessages([
+              AppContextMessageSection.lockingTask,
+              AppContextMessageSection.isolateConnection,
+            ])));
+    final key = X25519Keypair.generate();
+    final message = AppContextMessageStablishConnection(key.publicKey);
+    final response =
+        await api.sendRequest<AppContextMessageStablishConnectionResponse>(message);
+    return response.andThenAsync((response) {
+      final sharedKey = key * response.contextKey;
+      final cryptoConnector = WebCryptoTransporterMain.init(
+          sharedKey: sharedKey,
+          connector: PortMessageChannel(
+              receive: DefaultMessageChannelStream(connector.stream
+                  .filterMessage<AppContextMessageCryptoResponseDefault>(
+                      AppContextMessageSection.crypto)
+                  .map((e) => WebCryptoApiUtils.resolveMessage(
+                      e.message.map((e) => e.message), e.id))),
+              sink: SinkMessageTransform(
+                  sink: DefaultMessageChannelSink(connector.add),
+                  encoder: JSCryptoIsolateContextMessageEncoder())));
+
+      final databaseConnector = ISolateMessageChannel<
+              ISolateMessageRequest<AppContextMessageDatabaseRequest>,
+              ISolateMessageResponse<AppContextMessageDatabaseResponse>>(
+          connector: connector,
+          stream: connector.stream.filterMessage(AppContextMessageSection.database));
+      // final logging = config.loggingMode;
+      final logWriter = LogWriterDefault(config.config.mode);
+      final workerApi = DisabledWorkerWeb();
+      final crypto = IsolateAppBasicCryptoApi.instance(workerApi, cryptoConnector);
+      final utils = MainAppContextUtils(
+          connection: ISolateMessageChannel<
+                  ISolateMessageRequest<AppContextMessageUtilsRequest>,
+                  ISolateMessageResponse<AppContextMessageResponse>>(
+              connector: connector,
+              stream: connector.stream.filterMessage(AppContextMessageSection.utils)));
+      return crypto.andThenAsync((crypto) async {
+        return ResultOk(WorkerAppContextWeb(
+            cryptoLib: crypto,
+            worker: workerApi,
+            resourceApi: resourceApi,
+            workerMode: config.mode,
+            connectionApi: api,
+            utils: utils,
+            platformCrypto: DisabledPlatformCryptoApi(),
+            database: DefaultAppDatabase(connector: databaseConnector),
+            contextPort: contextPort,
+            logWriter: logWriter,
+            netApi: DefaultNetApi(DefaultNetSdkApi(DefaultNetSdk(AppEnvironment.web)))));
       });
     });
   }

@@ -44,19 +44,10 @@ abstract class AppResourcesApi {
   // =========================
   IResult<String> workerExecutorPath() =>
       ResultErr.from(AppExceptionConst.resourceNotSupported);
-  IResult<String> netSdkJsModule() =>
-      ResultErr.from(AppExceptionConst.resourceNotSupported);
+
   IResult<WasmModuleInfo> contextModule() =>
       ResultErr.from(AppExceptionConst.resourceNotSupported);
-  IResult<WasmModuleInfo> netSdkWasm() =>
-      ResultErr.from(AppExceptionConst.resourceNotSupported);
-  IResult<WasmModuleInfo> netSdkRustWasm() =>
-      ResultErr.from(AppExceptionConst.resourceNotSupported);
-  IResult<String> cryptoJsModule() =>
-      ResultErr.from(AppExceptionConst.resourceNotSupported);
   IResult<WasmModuleInfo> cryptoWasm() =>
-      ResultErr.from(AppExceptionConst.resourceNotSupported);
-  IResult<String> cryptoStreamingJsModule() =>
       ResultErr.from(AppExceptionConst.resourceNotSupported);
   IResult<WasmModuleInfo> streamCryptoWasm() =>
       ResultErr.from(AppExceptionConst.resourceNotSupported);

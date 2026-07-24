@@ -48,8 +48,8 @@ class CryptoWebWorkerController extends CryptoWorkerController<
           param: WebIsolateEncodedMessage.bytes(
               bytes: k.publicKey, type: IsolateMessageTypes.createCryptoConnector, id: 0),
           wasmModule: wasmModule,
-          config:
-              AppContextConfigWeb(config: Logging.config.copyWith(environment: "main")),
+          config: AppContextConfigWeb(
+              config: Logging.config.copyWith(environment: "main"), href: api.href),
           decoder: JSIsolateCryptoMessageDecoder(),
           encoder: JSIsolateCryptoMessageEncoder(),
           transferParams: (JSDartWorkerMessage message) {
@@ -86,7 +86,9 @@ class CryptoWebWorkerController extends CryptoWorkerController<
           decoder: JSIsolateCryptoMessageDecoder(),
           encoder: JSIsolateCryptoMessageEncoder(),
           config: AppContextConfigWeb(
-              mode: mode, config: Logging.config.copyWith(environment: mode.name)),
+              mode: mode,
+              config: Logging.config.copyWith(environment: mode.name),
+              href: api.href),
           transferParams: (JSDartWorkerMessage message) {
             final bytes = message.buffer;
             if (bytes != null) return ResultOk(bytes);

@@ -28,7 +28,9 @@ class AppContextConfigWeb with AppSerialization {
   final List<int>? contextKey;
   final SyncWorkerMode? mode;
   final LoggingConfig config;
-  AppContextConfigWeb({required this.config, this.mode, List<int>? contextKey})
+  final String href;
+  AppContextConfigWeb(
+      {required this.config, this.mode, List<int>? contextKey, required this.href})
       : contextKey = contextKey?.asImmutableBytes.exc(
           length: Ed25519KeysConst.privKeyByteLen,
           operation: "AppContextConfigWeb",
@@ -43,7 +45,8 @@ class AppContextConfigWeb with AppSerialization {
         contextKey: values.rawValueAt(0),
         mode: values.maybeRawValueAt<SyncWorkerMode, int>(
             1, (v) => SyncWorkerMode.fromValue(v)),
-        config: LoggingConfig.deserialize(object: values.objectAt(2)));
+        config: LoggingConfig.deserialize(object: values.objectAt(2)),
+        href: values.rawValueAt(3));
   }
 
   @override
@@ -52,7 +55,7 @@ class AppContextConfigWeb with AppSerialization {
 
   @override
   List<CborObject?> get serializationItems =>
-      [contextKey?.toCborBytes(), mode?.value.toCbor(), config.toCbor()];
+      [contextKey?.toCborBytes(), mode?.value.toCbor(), config.toCbor(), href.toCbor()];
 }
 
 class AppContextConfigResponse with AppSerialization {

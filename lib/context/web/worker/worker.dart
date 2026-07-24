@@ -15,7 +15,8 @@ import 'package:on_chain_wallet/context/web/worker/types.dart';
 
 abstract class WorkerApiWeb extends AppWorkerApi {
   final AppResourcesApi resourcesApi;
-  WorkerApiWeb({required this.resourcesApi});
+  final String href;
+  WorkerApiWeb({required this.resourcesApi, required this.href});
   Future<
           IResult<
               DartInitializedWorker<WRITE, READ, RESPONSE,
@@ -33,7 +34,8 @@ abstract class WorkerApiWeb extends AppWorkerApi {
 
 class DefaultWorkerApiWeb extends WorkerApiWeb {
   final IAppContextConnectionApi api;
-  DefaultWorkerApiWeb({required this.api, required super.resourcesApi});
+  DefaultWorkerApiWeb(
+      {required this.api, required super.resourcesApi, required super.href});
   static Future<
       IResult<
           DartInitializedWorker<WRITE, READ, RESPONSE,
@@ -97,7 +99,7 @@ class DefaultWorkerApiWeb extends WorkerApiWeb {
 }
 
 class DisabledWorkerWeb extends WorkerApiWeb {
-  DisabledWorkerWeb() : super(resourcesApi: DisabledResourcesApi());
+  DisabledWorkerWeb() : super(resourcesApi: DisabledResourcesApi(), href: "");
 
   @override
   Future<

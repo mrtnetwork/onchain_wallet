@@ -98,67 +98,55 @@ class IsolateAppContextController {
               ISolateMessageResponse<AppContextMessageResponse>,
               ISolateMessageRequest<AppContextMessageRequest>>(
           receive: DefaultMessageChannelStream(port.stream), sink: sendPort);
-      // final resource = AppResourceConst.webResources;
-      final resourceApi = AppResourceWeb();
-      return resourceApi.netSdkRustWasm().andThenAsync((netSdkModule) async {
-        final database = IDatabseInterfaceJS(resourceApi.dbName(), instanceId: 1);
-        final init = (await database.openDatabase()).toResult();
-        return init.andThenAsync((_) async {
-          Logging.init(webConfig.config,
-              writer: LogWriterDatabase(
-                  action: database.storageAction,
-                  storage: resourceApi.loggingStorageId(),
-                  tableId: resourceApi.loggingTableName(),
-                  storageActionId: resourceApi.loggingActionId(),
-                  mode: webConfig.config.mode == LoggerMode.debug
-                      ? LoggerMode.debug
-                      : LoggerMode.error));
-          final channel = ISolateMessageChannel<
-                  ISolateMessageResponse<AppContextMessageNetSdkResponse>,
-                  ISolateMessageRequest<AppContextMessageNetSdkRequest>>(
-              connector: connector,
-              stream: connector.stream.filterMessage(AppContextMessageSection.netSdk));
-          // final backgroundSdk = (await WebNetSdk.rustWasm(NetSdkConfigWebWasm(
-          //         config: NetCreateInstanceConfig(
-          //             logging: true, mode: webConfig.config.netsdk),
-          //         info: netSdkModule,
-          //         timeout: const Duration(seconds: 10))))
-          //     .transformError(
-          //   (error) => NetSdkException(error),
-          // );
-          final key = X25519Keypair.generate();
-          final sharedKey = key * contextKey;
-          final sdk = DefaultNetSdk(AppEnvironment.web);
-          final netApi = DefaultNetApi(DefaultNetSdkApi(sdk));
-          final db = SyncAppDatabase(database);
-          final utils = WebAppContextUtils(netApi: netApi, database: db);
-          final context = DefaultAppContext(
-              path: null,
-              utils: utils,
-              platform: AppPlatform.web,
-              resourceApi: resourceApi,
-              database: db,
-              mode: AppContextMode.backgroundContextController,
-              cryptoLib: DisabledAppBasicCryptoApi(),
-              netApi: netApi);
+      final resourceApi = AppResourceWeb(WebAssetPathResolver(href: webConfig.href));
+      final database = IDatabseInterfaceJS(resourceApi.dbName(), instanceId: 1);
+      final init = (await database.openDatabase()).toResult();
+      return init.andThenAsync((_) async {
+        Logging.init(webConfig.config,
+            writer: LogWriterDatabase(
+                action: database.storageAction,
+                storage: resourceApi.loggingStorageId(),
+                tableId: resourceApi.loggingTableName(),
+                storageActionId: resourceApi.loggingActionId(),
+                mode: webConfig.config.mode == LoggerMode.debug
+                    ? LoggerMode.debug
+                    : LoggerMode.error));
+        final channel = ISolateMessageChannel<
+                ISolateMessageResponse<AppContextMessageNetSdkResponse>,
+                ISolateMessageRequest<AppContextMessageNetSdkRequest>>(
+            connector: connector,
+            stream: connector.stream.filterMessage(AppContextMessageSection.netSdk));
+        final key = X25519Keypair.generate();
+        final sharedKey = key * contextKey;
+        final sdk = DefaultNetSdk(AppEnvironment.web);
+        final netApi = DefaultNetApi(DefaultNetSdkApi(sdk));
+        final db = SyncAppDatabase(database);
+        final utils = WebAppContextUtils(netApi: netApi, database: db);
+        final context = DefaultAppContext(
+            path: null,
+            utils: utils,
+            platform: AppPlatform.web,
+            resourceApi: resourceApi,
+            database: db,
+            mode: AppContextMode.backgroundContextController,
+            cryptoLib: DisabledAppBasicCryptoApi(),
+            netApi: netApi);
 
-          final instance = IsolateAppContextController(
-            mainConnection: IsolateAppContextMainConnectionControllerWeb(
-                context: context,
-                connector: connector,
-                crypto: WebCryptoResponseBuilder(
-                    chacha: ChaCha20Poly1305(sharedKey), context: context),
-                netsdk: IsolateNetSdkConnector(netSdk: sdk, connector: channel),
-                database: database),
-          );
-          closeScript = instance.onClose.toJS;
-          final result = AppContextConfigResponse(contextKey: key.publicKey);
-          return ResultOk(JSIsolateEncodedMessage.fromBuffer(
-              bytes: result.toCbor().encode(),
-              type: IsolateMessageTypes.createMainContext,
-              id: id));
-          // return ResultOk.okVoid.map((sdkModule) {});
-        });
+        final instance = IsolateAppContextController(
+          mainConnection: IsolateAppContextMainConnectionControllerWeb(
+              context: context,
+              connector: connector,
+              crypto: WebCryptoResponseBuilder(
+                  chacha: ChaCha20Poly1305(sharedKey), context: context),
+              netsdk: IsolateNetSdkConnector(netSdk: sdk, connector: channel),
+              database: database),
+        );
+        closeScript = instance.onClose.toJS;
+        final result = AppContextConfigResponse(contextKey: key.publicKey);
+        return ResultOk(JSIsolateEncodedMessage.fromBuffer(
+            bytes: result.toCbor().encode(),
+            type: IsolateMessageTypes.createMainContext,
+            id: id));
       });
     });
   }

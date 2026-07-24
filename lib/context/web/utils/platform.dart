@@ -9,10 +9,13 @@ import 'package:on_chain_wallet/app/core.dart';
 import 'package:on_chain_wallet/context/api/platform_utils.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:on_chain_bridge/exception/exception.dart';
+import 'package:on_chain_wallet/context/web/api/resources.dart';
 
 class DefaultPlatformUtilsWeb implements IPlatformUtils {
-  DefaultPlatformUtilsWeb(IWebOnChainBridgeInterface platform)
-      : _utils = _NativeMethods(platform);
+  DefaultPlatformUtilsWeb(
+      {required IWebOnChainBridgeInterface platform,
+      required WebAssetPathResolver pathResolver})
+      : _utils = _NativeMethods(platform: platform, pathResolver: pathResolver);
   final _NativeMethods _utils;
 
   @override
@@ -115,8 +118,9 @@ class DefaultPlatformUtilsWeb implements IPlatformUtils {
 }
 
 class _NativeMethods {
+  final WebAssetPathResolver pathResolver;
   final IWebOnChainBridgeInterface platform;
-  const _NativeMethods(this.platform);
+  const _NativeMethods({required this.pathResolver, required this.platform});
 
   Future<IResult<List<int>>> _loadAssetBuffer(String path, {String? package}) async {
     final assetPath = _assetPath(path, package: package);
