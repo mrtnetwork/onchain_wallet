@@ -381,7 +381,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "88439e0772796e3b39823e9a4573d34e67eca641"
+      resolved-ref: "066793b910c8d1116a4ea4967c076f13a5e30946"
       url: "https://github.com/mrtnetwork/onchain_bridge.git"
     source: git
     version: "0.0.3"
@@ -446,10 +446,10 @@ packages:
     dependency: transitive
     description:
       name: posix
-      sha256: "185ef7606574f789b40f289c233efa52e96dead518aed988e040a10737febb07"
+      sha256: bc1bad54ad2b735816e31f8d4600cfde6c7839975085ddfbca48b6c9f7c4044e
       url: "https://pub.dev"
     source: hosted
-    version: "6.5.0"
+    version: "6.5.2"
   pub_semver:
     dependency: transitive
     description:

@@ -46,17 +46,18 @@ import 'package:path/path.dart' as path;
 /// so this file isn't tied to one developer's home directory.
 abstract class BuildConfig {
   static const String extensionSourceDir = 'requirement/extensions/';
-  static const String webviewSourceDir = 'requirement/webview/';
+  static const String requiredmentWebviewAssetsDir = 'requirement/assets/webview';
   static const String browserSourceDir = 'requirement/browser/';
-  static const String dmgInstallerDir = 'requirement/dmg_installer/';
 
   static const String jsScriptsDir = 'js_scripts';
-  static const String webScriptAssetsDir = 'assets/web_scripts';
+  // static const String webScriptAssetsDir = 'assets/web_scripts';
   static const String webViewAssetsDir = 'assets/webview';
   static const String buildWebDir = 'build/web/';
   static const String buildWebAssetDir = 'build/web/assets/assets/web_scripts';
-  static const String buildWebFlutterAssetDir =
-      'build/flutter_assets/assets/web_scripts';
+  static const String buildWebFlutterAssetDir = 'build/flutter_assets/assets/web_scripts';
+  static const String requiredmentWebscriptAssetsDir = 'requirement/assets/web_scripts';
+  static const String requiredmentWebscriptZkAssetsDir =
+      'requirement/assets/web_scripts/zk';
 
   static const String webOutDir = 'web';
   static const String defaultReleaseLocation = 'release/';
@@ -65,16 +66,15 @@ abstract class BuildConfig {
   static const String assetPath = "assets/image/logo_256x256.png";
 
   static const String zkGitUrl = "https://github.com/mrtnetwork/zk.git";
-  static const String netSdkGitUrl =
-      "https://github.com/mrtnetwork/net_sdk.git";
+  static const String netSdkGitUrl = "https://github.com/mrtnetwork/net_sdk.git";
   static const String cryptoCGitUrl =
       "https://github.com/mrtnetwork/onchain_crypto_c.git";
-  static const String sqlite3 =
-      "https://github.com/utelle/SQLite3MultipleCiphers.git";
-  static String webScriptAsset(String fileName) =>
-      '$webScriptAssetsDir/$fileName'.normalizePath;
-  static String webViewAssets(String fileName) =>
-      '$webViewAssetsDir/$fileName'.normalizePath;
+  static const String sqlite3 = "https://github.com/utelle/SQLite3MultipleCiphers.git";
+
+  static String requiredmentWebscriptAssets(String fileName) =>
+      '$requiredmentWebscriptAssetsDir/$fileName'.normalizePath;
+  static String requiredmentWebviewAssets(String fileName) =>
+      '$requiredmentWebviewAssetsDir/$fileName'.normalizePath;
   static const String appName = "on_chain_wallet";
   static const String packageName = "com.mrtnetwork.on_chain_wallet";
 
@@ -83,6 +83,108 @@ abstract class BuildConfig {
 
   /// Minimum iOS deployment target used for native C/Rust builds.
   static const String iosDeploymentTarget = '12.0';
+}
+
+class RequiredAsset {
+  final String? requirementPath;
+  final String assetPath;
+  const RequiredAsset({required this.requirementPath, required this.assetPath});
+}
+
+class AssetController {
+  static void _verifyRequiredAssets(Directory assetDirectory, Target target) {
+    if (!FsUtils.filesExists("${assetDirectory.path}/fonts", ["icon.ttf"])) {
+      throw CompilerError(
+          "Missing asset file or folders. directory: ${assetDirectory.path}/fonts");
+    }
+    if (!FsUtils.filesExists("${assetDirectory.path}/image", ["wallet.png"])) {
+      throw CompilerError(
+          "Missing asset file or folders. directory: ${assetDirectory.path}/image");
+    }
+    if (!FsUtils.filesExists("${assetDirectory.path}/solidity",
+        ["erc20.json", "erc721.json", "erc1155.json"])) {
+      throw CompilerError(
+          "Missing asset file or folders. directory: ${assetDirectory.path}/solidity");
+    }
+    if (target == Target.android || target == Target.macos || target == Target.ios) {
+      if (!FsUtils.filesExists("${assetDirectory.path}/webview",
+          ["script_page.js", "script.js", "tron_web.js"])) {
+        throw CompilerError(
+            "Missing asset file or folders. directory: ${assetDirectory.path}/webview");
+      }
+    }
+    if (target == Target.web || target == Target.extension) {
+      if (!FsUtils.filesExists("${assetDirectory.path}/web_scripts", [
+        "context.mjs",
+        "context.wasm",
+        "crypto.mjs",
+        "crypto.wasm",
+        "stream_crypto.mjs",
+        "stream_crypto.wasm",
+        "worker.js"
+      ])) {
+        throw CompilerError(
+            "Missing asset file or folders. directory: ${assetDirectory.path}/web_scripts");
+      }
+      if (!FsUtils.filesExists("${assetDirectory.path}/web_scripts/zk", [
+        "zk_bg.wasm",
+        "zk_bg.wasm.d.ts",
+        "zk.d.ts",
+        "zk.js",
+      ])) {
+        throw CompilerError(
+            "Missing asset file or folders. directory: ${assetDirectory.path}/web_scripts/zk");
+      }
+    }
+  }
+
+  static List<RequiredAsset> getRequirementAssets(Target target) {
+    _verifyRequiredAssets(Directory("requirement/assets"), target);
+    List<RequiredAsset> files = [];
+    files.add(RequiredAsset(
+        requirementPath: "requirement/assets/fonts", assetPath: "assets/fonts"));
+    files.add(RequiredAsset(
+        requirementPath: "requirement/assets/image", assetPath: "assets/image"));
+    files.add(RequiredAsset(
+        requirementPath: "requirement/assets/solidity", assetPath: "assets/solidity"));
+    final bool webviewRequired =
+        target == Target.android || target == Target.macos || target == Target.ios;
+    files.add(RequiredAsset(
+        requirementPath: webviewRequired ? "requirement/assets/webview" : null,
+        assetPath: "assets/webview"));
+    final bool isWeb = target == Target.web || target == Target.extension;
+    files.add(RequiredAsset(
+        requirementPath: isWeb ? "requirement/assets/web_scripts" : null,
+        assetPath: "assets/web_scripts"));
+    files.add(RequiredAsset(
+        requirementPath: isWeb ? "requirement/assets/web_scripts/zk" : null,
+        assetPath: "assets/web_scripts/zk"));
+    return files;
+  }
+
+  static void copyTargetAsset(Target target) {
+    final assets = getRequirementAssets(target);
+    final dir = Directory("assets");
+    dir.deleteSync(recursive: true);
+    dir.createSync(recursive: true);
+    for (final i in assets) {
+      final requirmentPath = i.requirementPath?.normalizePath;
+      final destination = Directory(i.assetPath.normalizePath);
+      destination.createSync(recursive: true);
+      if (requirmentPath == null) continue;
+      FsUtils.copyFiles(Directory(requirmentPath), destination);
+    }
+  }
+
+  static void validateAndroidLibs(Directory jniLibsDir, List<String> abis) {
+    for (final i in abis) {
+      print("path ${"${jniLibsDir.path}/$i"}");
+      if (!FsUtils.filesExists("${jniLibsDir.path}/$i",
+          ["libcrypto_c.so", "libnet_sdk.so", "libsqlite3mc.so", "libzk.so"])) {
+        throw CompilerError("Missing dynamic liberary for abi $i.");
+      }
+    }
+  }
 }
 
 class CompilerError implements Exception {
@@ -123,8 +225,7 @@ class ProcessRunner {
   static Future<void> run(String command, List<String> args,
       {String? workingDirectory, Map<String, String>? environment}) async {
     final label = ([command, ...args]).join(' ');
-    Log.info(
-        '▶ $label${workingDirectory != null ? ' (in $workingDirectory)' : ''}');
+    Log.info('▶ $label${workingDirectory != null ? ' (in $workingDirectory)' : ''}');
 
     final process = await Process.start(command, args,
         runInShell: Platform.isWindows,
@@ -146,11 +247,18 @@ class ProcessRunner {
   static Future<void> flutterClean() async {
     await run('flutter', ['clean']);
     await run('flutter', ['pub', 'get']);
+    final cCache = Directory(".c_cache");
+    if (cCache.existsSync()) {
+      cCache.deleteSync(recursive: true);
+    }
+    final rCache = Directory(".rust_cache");
+    if (rCache.existsSync()) {
+      rCache.deleteSync(recursive: true);
+    }
   }
 
   static Future<void> servePython(String directory, {int port = 8000}) async {
-    await run('python3', ['-m', 'http.server', '$port'],
-        workingDirectory: directory);
+    await run('python3', ['-m', 'http.server', '$port'], workingDirectory: directory);
   }
 }
 
@@ -160,15 +268,14 @@ class ProcessRunner {
 class FsUtils {
   /// Copies top-level files from [source] into [destination] (non-recursive).
   /// If [extension] is given, only files ending with it are copied.
-  static void copyFiles(Directory source, Directory destination,
-      {String? extension}) {
+  static void copyFiles(Directory source, Directory destination, {String? extension}) {
     if (!destination.existsSync()) destination.createSync(recursive: true);
 
     for (final entity in source.listSync(recursive: false)) {
       if (entity is! File) continue;
       if (extension != null && !entity.path.endsWith(extension)) continue;
-      final target = File(
-          '${destination.path}/${entity.uri.pathSegments.last}'.normalizePath);
+      final target =
+          File('${destination.path}/${entity.uri.pathSegments.last}'.normalizePath);
       target.writeAsBytesSync(entity.readAsBytesSync());
     }
   }
@@ -188,8 +295,7 @@ class FsUtils {
     for (final entity in source.listSync(recursive: false)) {
       final name = entity.uri.pathSegments.lastWhere((s) => s.isNotEmpty);
       if (entity is Directory) {
-        copyDirectory(
-            entity, Directory('${destination.path}/$name'.normalizePath));
+        copyDirectory(entity, Directory('${destination.path}/$name'.normalizePath));
       } else if (entity is File) {
         File('${destination.path}/$name'.normalizePath)
             .writeAsBytesSync(entity.readAsBytesSync());
@@ -214,26 +320,8 @@ class FsUtils {
 
   static void deleteFiles(Iterable<String> paths) => paths.forEach(deleteFile);
 
-  static Directory webScriptAssetsDirectory() =>
-      Directory(BuildConfig.webScriptAssetsDir.normalizePath);
-
-  /// Copies the compiled web-script assets into both build output locations
-  /// Flutter expects them in.
-  static void publishWebScriptAssets() {
-    copyDirectory(
-        webScriptAssetsDirectory(), Directory(BuildConfig.buildWebAssetDir));
-    copyDirectory(
-      webScriptAssetsDirectory(),
-      Directory(BuildConfig.buildWebFlutterAssetDir.normalizePath),
-    );
-    Log.success(
-        'web-script assets published to ${BuildConfig.buildWebFlutterAssetDir}');
-  }
-
   static void publishFile(
-      {required String source,
-      required String destination,
-      required String name}) {
+      {required String source, required String destination, required String name}) {
     final file = File(source.normalizePath);
     if (!file.existsSync()) {
       throw Exception("source file missing");
@@ -264,6 +352,14 @@ class FsUtils {
     final i = p.lastIndexOf(path.separator);
     return i <= 0 ? '.' : p.substring(0, i);
   }
+
+  static bool filesExists(String directory, List<String> fileNames) {
+    if (!Directory(directory.normalizePath).existsSync()) return false;
+    for (final i in fileNames) {
+      if (!File("$directory/$i".normalizePath).existsSync()) return false;
+    }
+    return true;
+  }
 }
 
 class _DebFileBuilder {
@@ -282,8 +378,7 @@ class _DebFileBuilder {
     // Trim trailing separators too.
     name = name.replaceAll(RegExp(r'[-+.]+$'), '');
     if (name.length < 2) {
-      throw CompilerError(
-          'Cannot derive a valid Debian package name from "$raw". '
+      throw CompilerError('Cannot derive a valid Debian package name from "$raw". '
           'Provide a name with at least two alphanumeric characters.');
     }
     return name;
@@ -333,8 +428,7 @@ class _DebFileBuilder {
     final opt = createPackageFolders("opt/$packageName");
     final application = createPackageFolders("usr/share/applications");
     // hicolor is the standard theme every desktop environment searches.
-    final iconApps =
-        createPackageFolders("usr/share/icons/hicolor/256x256/apps");
+    final iconApps = createPackageFolders("usr/share/icons/hicolor/256x256/apps");
     // Legacy fallback: many environments show the icon from here even before
     // the icon cache is (re)built, so this makes the icon reliable.
     final pixmaps = createPackageFolders("usr/share/pixmaps");
@@ -362,10 +456,9 @@ StartupWMClass=$execName
 ''';
     // The .desktop filename should match the application id (reverse-DNS is
     // preferred by desktop environments) and must be world-readable (0644).
-    final desktopFile =
-        File('${application.path}/$applicationId.desktop'.normalizePath)
-          ..createSync(recursive: true)
-          ..writeAsStringSync(desktopContent);
+    final desktopFile = File('${application.path}/$applicationId.desktop'.normalizePath)
+      ..createSync(recursive: true)
+      ..writeAsStringSync(desktopContent);
     await Process.run("chmod", ["0644", desktopFile.path]);
 
     // Install the icon under hicolor AND pixmaps so it resolves with or
@@ -467,8 +560,8 @@ exit 0
     // Maintainer scripts must be executable or dpkg silently ignores them.
     await Process.run("chmod", ["0755", postinstFile.path, postrmFile.path]);
 
-    final result = await Process.run(
-        "dpkg-deb", ["--build", "--root-owner-group", outDir.path]);
+    final result =
+        await Process.run("dpkg-deb", ["--build", "--root-owner-group", outDir.path]);
     if (result.exitCode != 0) {
       throw CompilerError('dpkg-deb failed: ${result.stderr}');
     }
@@ -533,11 +626,9 @@ class NativeLibraryConfig {
 /// "keep latest commit if it exists, otherwise download".
 class GitSourceManager {
   static Future<String> _remoteHeadCommit(String gitUrl, String branch) async {
-    final result =
-        await Process.run('git', ['ls-remote', gitUrl, 'refs/heads/$branch']);
+    final result = await Process.run('git', ['ls-remote', gitUrl, 'refs/heads/$branch']);
     if (result.exitCode != 0) {
-      throw CompilerError(
-          'git ls-remote failed for $gitUrl ($branch): ${result.stderr}');
+      throw CompilerError('git ls-remote failed for $gitUrl ($branch): ${result.stderr}');
     }
     final line = (result.stdout as String).trim();
     if (line.isEmpty) {
@@ -548,8 +639,8 @@ class GitSourceManager {
 
   static Future<String?> _localCommit(Directory dir) async {
     if (!Directory('${dir.path}/.git'.normalizePath).existsSync()) return null;
-    final result = await Process.run('git', ['rev-parse', 'HEAD'],
-        workingDirectory: dir.path);
+    final result =
+        await Process.run('git', ['rev-parse', 'HEAD'], workingDirectory: dir.path);
     if (result.exitCode != 0) return null;
     return (result.stdout as String).trim();
   }
@@ -564,8 +655,7 @@ class GitSourceManager {
     final remoteSha = await _remoteHeadCommit(gitUrl, branch);
     final localSha = await _localCommit(dir);
     if (localSha == remoteSha) {
-      Log.success(
-          '${dir.path}: cache up to date (${remoteSha.substring(0, 7)})');
+      Log.success('${dir.path}: cache up to date (${remoteSha.substring(0, 7)})');
       return remoteSha;
     }
 
@@ -625,8 +715,7 @@ class GitSourceManager {
         'Download failed: ${response.statusCode}',
       );
     }
-    final sha =
-        BytesUtils.toHexString(QuickCrypto.sha256Hash(response.bodyBytes));
+    final sha = BytesUtils.toHexString(QuickCrypto.sha256Hash(response.bodyBytes));
     if (sha != asset.hash) {
       throw CompilerError(
         'Mismatch hash: ${response.statusCode}',
@@ -809,9 +898,8 @@ class CToolchainResolver {
     final list = <_CCandidate>[];
     if (ndk != null) {
       final ext = Platform.isWindows ? '.cmd' : '';
-      final clang =
-          '$ndk/toolchains/llvm/prebuilt/${_ndkHostTag()}/bin/$triple-clang$ext'
-              .normalizePath;
+      final clang = '$ndk/toolchains/llvm/prebuilt/${_ndkHostTag()}/bin/$triple-clang$ext'
+          .normalizePath;
       list.add(_CCandidate(clang, CCompilerFlavor.gnu));
     }
     // Last resort: a system clang that knows the target triple. Needs a
@@ -898,8 +986,7 @@ class CBuilder {
     if (target != Target.windows) {
       args.add("-fPIC");
     }
-    if (flavor.flavor == CCompilerFlavor.gnu &&
-        repo == RustRepository.cryptoC) {
+    if (flavor.flavor == CCompilerFlavor.gnu && repo == RustRepository.cryptoC) {
       args.add("-DBUILDING_DL");
     }
     if (flavor.flavor == CCompilerFlavor.gnu &&
@@ -919,10 +1006,9 @@ class CBuilder {
     if (asset != null) {
       await GitSourceManager.syncAsset(asset: asset, dir: dir);
     } else {
-      final sha = await GitSourceManager.sync(
-          gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
-      Log.info(
-          '${repo.repository.name}: building commit ${sha.substring(0, 7)}');
+      final sha =
+          await GitSourceManager.sync(gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
+      Log.info('${repo.repository.name}: building commit ${sha.substring(0, 7)}');
     }
     return dir;
   }
@@ -1084,9 +1170,8 @@ class CBuilder {
         ..createSync(recursive: true);
       FsUtils.publishFile(
         source: out,
-        destination:
-            '${destDir.path}/${repo.outFileName(RustArtifactKind.sharedObject)}'
-                .normalizePath,
+        destination: '${destDir.path}/${repo.outFileName(RustArtifactKind.sharedObject)}'
+            .normalizePath,
         name: '${repo.repository.name} ($abi)',
       );
     }
@@ -1129,8 +1214,7 @@ class CBuilder {
 
     outputDir.createSync(recursive: true);
     final outPath = '${outputDir.path}/$dylib'.normalizePath;
-    await ProcessRunner.run(
-        'lipo', ['-create', armOut, intelOut, '-output', outPath]);
+    await ProcessRunner.run('lipo', ['-create', armOut, intelOut, '-output', outPath]);
     Log.success('${repo.repository.name} (universal) -> $outPath');
   }
 
@@ -1216,8 +1300,7 @@ class CBuilder {
     required String tag,
     required bool release,
   }) async {
-    final sdkPathRes =
-        await Process.run('xcrun', ['--sdk', sdk, '--show-sdk-path']);
+    final sdkPathRes = await Process.run('xcrun', ['--sdk', sdk, '--show-sdk-path']);
     if (sdkPathRes.exitCode != 0) {
       throw CompilerError(
           'xcrun --sdk $sdk --show-sdk-path failed: ${sdkPathRes.stderr}');
@@ -1249,10 +1332,8 @@ class CBuilder {
           sysroot,
           minFlag,
           release ? '-O2' : '-O0',
-          ..._extraFlags(
-              repo.repository,
-              ResolvedCCompiler(exe: '', flavor: CCompilerFlavor.gnu),
-              Target.ios),
+          ..._extraFlags(repo.repository,
+              ResolvedCCompiler(exe: '', flavor: CCompilerFlavor.gnu), Target.ios),
           for (final d in data.defines) '-D$d',
           '-c',
           src,
@@ -1308,16 +1389,15 @@ class RustBuilder {
         Log.info('Could not "rustup target add $triple" (continuing anyway).');
       }
     } catch (_) {
-      Log.info(
-          'rustup not found; assuming target "$triple" is already installed.');
+      Log.info('rustup not found; assuming target "$triple" is already installed.');
     }
   }
 
   static Future<Directory> _syncedSource(NativeLibraryConfig repo) async {
     final dir = repo.cacheDir;
 
-    final sha = await GitSourceManager.sync(
-        gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
+    final sha =
+        await GitSourceManager.sync(gitUrl: repo.gitUrl, branch: repo.branch, dir: dir);
     Log.info('${repo.repository.name}: building commit ${sha.substring(0, 7)}');
     return dir;
   }
@@ -1328,9 +1408,8 @@ class RustBuilder {
     required bool release,
   }) async {
     await _ensureRustupTarget(triple);
-    final environment = Map<String, String>.fromEntries(
-        Platform.environment.entries.where((e) =>
-            e.key.startsWith("CARGO_TARGET") || e.key.startsWith("CC_")));
+    final environment = Map<String, String>.fromEntries(Platform.environment.entries
+        .where((e) => e.key.startsWith("CARGO_TARGET") || e.key.startsWith("CC_")));
     await ProcessRunner.run(
         'cargo',
         [
@@ -1359,8 +1438,7 @@ class RustBuilder {
       RustArtifactKind.staticLib => 'lib$libName.a',
     };
     final out = 'target/$triple/$mode';
-    Directory('${sourceDir.path}/$out'.normalizePath)
-        .createSync(recursive: true);
+    Directory('${sourceDir.path}/$out'.normalizePath).createSync(recursive: true);
     return "$out/$fileName";
   }
 
@@ -1374,8 +1452,7 @@ class RustBuilder {
 
   /// web/extension target: wasm32-unknown-unknown, then wasm-bindgen -
   /// same output layout as before (assets/web_scripts/<'name>/...).
-  static Future<void> buildForWeb(NativeLibraryConfig repo,
-      {bool release = true}) async {
+  static Future<void> buildForWeb(NativeLibraryConfig repo, {bool release = true}) async {
     final dir = await _syncedSource(repo);
     const triple = 'wasm32-unknown-unknown';
     await _cargoBuild(dir, triple, release: release);
@@ -1391,13 +1468,14 @@ class RustBuilder {
       [
         wasmPath,
         '--out-dir',
-        '${Directory.current.path}/${BuildConfig.webScriptAssetsDir}/${repo.repository.name}'
-            .normalizePath,
+        'zk_wasm_binding',
         '--target',
         'web',
       ],
       workingDirectory: dir.path,
     );
+    FsUtils.copyFiles(Directory("${dir.path}/zk_wasm_binding".normalizePath),
+        Directory(BuildConfig.requiredmentWebscriptZkAssetsDir));
   }
 
   /// android target: one .so per ABI, copied straight into
@@ -1423,8 +1501,7 @@ class RustBuilder {
       //   ,
       // );
       // assert(source.existsSync(), "source file not found. ${source.path}");
-      Directory('${jniLibsDir.path}/$abi'.normalizePath)
-          .createSync(recursive: true);
+      Directory('${jniLibsDir.path}/$abi'.normalizePath).createSync(recursive: true);
       final destinationPath =
           "${jniLibsDir.path}/$abi/${repo.outFileName(RustArtifactKind.sharedObject)}"
               .normalizePath;
@@ -1505,8 +1582,7 @@ class RustBuilder {
     FsUtils.publishFile(
         source: "${dir.path}/$sourcePath".normalizePath,
         destination:
-            "${outputDir.path}/${repo.outFileName(RustArtifactKind.dll)}"
-                .normalizePath,
+            "${outputDir.path}/${repo.outFileName(RustArtifactKind.dll)}".normalizePath,
         name: repo.repository.name);
   }
 
@@ -1626,7 +1702,7 @@ class ScriptCompiler {
         ? out.contains('.')
             ? out
             : '$out.$suffix'
-        : BuildConfig.webScriptAsset('$scriptName.$suffix');
+        : BuildConfig.requiredmentWebscriptAssets('$scriptName.$suffix');
 
     await ProcessRunner.run('dart', [
       'compile',
@@ -1654,8 +1730,7 @@ class ScriptCompiler {
 /// ---------------------------------------------------------------------------
 class WebScriptsBuilder {
   static Future<void> crypto({bool wasm = true, bool minify = true}) async {
-    await ScriptCompiler.compile(
-        scriptName: 'crypto', wasm: wasm, minify: minify);
+    await ScriptCompiler.compile(scriptName: 'crypto', wasm: wasm, minify: minify);
     await ScriptCompiler.compile(
       scriptName: 'stream_crypto',
       wasm: wasm,
@@ -1759,14 +1834,12 @@ class BuildOptions {
     Directory? windowsLibDir,
     Directory? linuxLibDir,
     Directory? iosLibDir,
-  })  : jniLibsDir = jniLibsDir ??
-            Directory('android/app/src/main/jniLibs'.normalizePath),
-        macosLibDir =
-            macosLibDir ?? Directory('macos/Runner/NativeLibs'.normalizePath),
+  })  : jniLibsDir =
+            jniLibsDir ?? Directory('android/app/src/main/jniLibs'.normalizePath),
+        macosLibDir = macosLibDir ?? Directory('macos/Runner/Frameworks'.normalizePath),
         windowsLibDir = windowsLibDir ?? Directory('windows'.normalizePath),
         linuxLibDir = linuxLibDir ?? Directory('linux'),
-        iosLibDir =
-            iosLibDir ?? Directory('ios/Runner/NativeLibs'.normalizePath);
+        iosLibDir = iosLibDir ?? Directory('ios/Runner/Frameworks'.normalizePath);
 
   final bool debug;
   final bool wasm;
@@ -1807,6 +1880,7 @@ class BuildOptions {
 class WebAppBuilder {
   static Future<void> build(BuildOptions options) async {
     await WebScriptsBuilder.buildEnabled(options);
+    AssetController.copyTargetAsset(Target.web);
     _cleanExtensionOnlyFiles();
     _copyBrowserShell();
     await FlutterWebCompiler.compileApp(
@@ -1816,8 +1890,7 @@ class WebAppBuilder {
         baseHref: options.production ? BuildConfig.productionBaseHref : null,
         noCdn: true);
 
-    final destination =
-        Directory('${options.releaseLocation}web/'.normalizePath);
+    final destination = Directory('${options.releaseLocation}web/'.normalizePath);
     FsUtils.copyDirectory(
       Directory(BuildConfig.buildWebDir.normalizePath),
       destination,
@@ -1838,23 +1911,21 @@ class WebAppBuilder {
       'iframe.html',
       'iframe_events.js',
     ];
-    FsUtils.deleteFiles(
-        extensionOnlyFiles.map((f) => '${BuildConfig.buildWebDir}$f'));
+    FsUtils.deleteFiles(extensionOnlyFiles.map((f) => '${BuildConfig.buildWebDir}$f'));
   }
 
   static void _copyBrowserShell() {
     final webDir = Directory(BuildConfig.webOutDir.normalizePath);
     if (webDir.existsSync()) webDir.deleteSync(recursive: true);
     webDir.createSync(recursive: true);
-    FsUtils.copyDirectory(
-        Directory(BuildConfig.browserSourceDir.normalizePath), webDir);
+    FsUtils.copyDirectory(Directory(BuildConfig.browserSourceDir.normalizePath), webDir);
   }
 }
 
 /// ---------------------------------------------------------------------------
 /// Browser extension build
 /// ---------------------------------------------------------------------------
-enum ExtensionTarget { chrome, firefox, opera, ie }
+enum ExtensionTarget { chrome, firefox, opera, ie, brave }
 
 extension on ExtensionTarget {
   String get folderName => switch (this) {
@@ -1862,34 +1933,31 @@ extension on ExtensionTarget {
         ExtensionTarget.firefox => 'firefox',
         ExtensionTarget.opera => 'opera',
         ExtensionTarget.ie => 'internet_explorer',
+        ExtensionTarget.brave => 'brave',
       };
 }
 
 class WebviewScriptBuilder {
   static Future<void> buildWebview({bool minify = false}) async {
+    final out = BuildConfig.requiredmentWebviewAssets("script").normalizePath;
     await ScriptCompiler.compile(
       scriptName: 'webview',
       directory: 'js',
-      out: '${BuildConfig.webviewSourceDir}script'.normalizePath,
+      out: out,
       minify: minify,
       wasm: false,
     );
-    final file = File("${BuildConfig.webviewSourceDir}script.js".normalizePath);
-    file.copySync(BuildConfig.webViewAssets("script.js"));
   }
 
-  static Future<void> buildWebviewPage(
-      {bool minify = false, bool worker = true}) async {
+  static Future<void> buildWebviewPage({bool minify = false, bool worker = true}) async {
+    final out = BuildConfig.requiredmentWebviewAssets("script_page").normalizePath;
     await ScriptCompiler.compile(
       scriptName: worker ? 'webview_page' : "webview_page_main",
       directory: 'js',
-      out: '${BuildConfig.webviewSourceDir}script_page'.normalizePath,
+      out: out,
       minify: minify,
       wasm: false,
     );
-    final file =
-        File("${BuildConfig.webviewSourceDir}script_page.js".normalizePath);
-    file.copySync(BuildConfig.webViewAssets("script_page.js"));
   }
 }
 
@@ -1902,11 +1970,11 @@ class ExtensionBuilder {
     bool buildBackgroundScript = true,
   }) async {
     await WebScriptsBuilder.buildEnabled(options);
+    AssetController.copyTargetAsset(Target.extension);
 
     if (buildPageScript) await _buildPage(minify: options.minify);
     if (buildBackgroundScript) await _buildBackground(minify: options.minify);
     if (buildContentScript) await _buildContent(minify: options.minify);
-
     WebAppBuilder._cleanExtensionOnlyFiles();
     WebAppBuilder._copyBrowserShell();
     _assembleManifest(target);
@@ -1919,8 +1987,8 @@ class ExtensionBuilder {
       baseHref: options.production ? BuildConfig.productionBaseHref : null,
     );
 
-    final destination = Directory(
-        '${options.releaseLocation}${target.folderName}/'.normalizePath);
+    final destination =
+        Directory('${options.releaseLocation}${target.folderName}/'.normalizePath);
     FsUtils.copyDirectory(
       Directory(BuildConfig.buildWebDir.normalizePath),
       destination,
@@ -1930,8 +1998,7 @@ class ExtensionBuilder {
         'Extension (${target.folderName}) copied to ${destination.absolute.path}');
   }
 
-  static Future<void> _buildPage({bool minify = false}) =>
-      ScriptCompiler.compile(
+  static Future<void> _buildPage({bool minify = false}) => ScriptCompiler.compile(
         scriptName: 'page',
         directory: 'js',
         out: '${BuildConfig.extensionSourceDir}page'.normalizePath,
@@ -1983,8 +2050,7 @@ class ExtensionBuilder {
     } else {
       const marker = 'main() {';
       if (!data.contains(marker)) {
-        throw CompilerError(
-            'Unrecognized content script output (marker not found)');
+        throw CompilerError('Unrecognized content script output (marker not found)');
       }
       data = data.replaceFirst(marker, '''    main() {
       if(self.browser === undefined){
@@ -1994,8 +2060,8 @@ class ExtensionBuilder {
       }''');
     }
 
-    final firefoxFile = File(
-        '${BuildConfig.extensionSourceDir}firefox_content.js'.normalizePath);
+    final firefoxFile =
+        File('${BuildConfig.extensionSourceDir}firefox_content.js'.normalizePath);
     if (firefoxFile.existsSync()) firefoxFile.deleteSync();
     firefoxFile.createSync(recursive: true);
     await firefoxFile.writeAsString(data);
@@ -2004,13 +2070,11 @@ class ExtensionBuilder {
   /// Copies the right manifest + supporting html for [target] into `web/`.
   static void _assembleManifest(ExtensionTarget target) {
     void copyToWeb(String fileName, {String? outName}) {
-      final file =
-          File('${BuildConfig.extensionSourceDir}$fileName'.normalizePath);
+      final file = File('${BuildConfig.extensionSourceDir}$fileName'.normalizePath);
       if (!file.existsSync()) {
         throw CompilerError('Required extension file not found: ${file.path}');
       }
-      file.copySync(
-          '${BuildConfig.webOutDir}/${outName ?? fileName}'.normalizePath);
+      file.copySync('${BuildConfig.webOutDir}/${outName ?? fileName}'.normalizePath);
     }
 
     copyToWeb('tron_web.js');
@@ -2018,7 +2082,9 @@ class ExtensionBuilder {
     copyToWeb('page.js');
     copyToWeb('index.html');
 
-    if (target == ExtensionTarget.chrome || target == ExtensionTarget.ie) {
+    if (target == ExtensionTarget.chrome ||
+        target == ExtensionTarget.ie ||
+        target == ExtensionTarget.brave) {
       copyToWeb('content.js');
       copyToWeb('chrome_manifest.json', outName: 'manifest.json');
       copyToWeb('side_panel.html');
@@ -2087,6 +2153,8 @@ class NativeAppBuilder {
       await WebviewScriptBuilder.buildWebviewPage(
           minify: !options.debug, worker: options.webViewWorker);
     }
+    AssetController.copyTargetAsset(Target.android);
+    AssetController.validateAndroidLibs(options.jniLibsDir, options.androidAbis);
 
     await ProcessRunner.run('flutter', [
       'build',
@@ -2095,8 +2163,7 @@ class NativeAppBuilder {
       if (splitPerAbi) '--split-per-abi',
     ]);
     final source = Directory('build/app/outputs/flutter-apk'.normalizePath);
-    final destination =
-        Directory('${options.releaseLocation}android/'.normalizePath);
+    final destination = Directory('${options.releaseLocation}android/'.normalizePath);
     FsUtils.copyDirectory(source, destination, cleanDestination: true);
     Log.success('APK(s) copied to ${destination.absolute.path}');
   }
@@ -2129,17 +2196,20 @@ class NativeAppBuilder {
         'phase into Frameworks) if it does not already.',
       );
     }
-
+    if (options.webView) {
+      await WebviewScriptBuilder.buildWebview(minify: !options.debug);
+      await WebviewScriptBuilder.buildWebviewPage(
+          minify: !options.debug, worker: options.webViewWorker);
+    }
+    AssetController.copyTargetAsset(Target.macos);
     await ProcessRunner.run('flutter', [
       'build',
       'macos',
       options.debug ? '--debug' : '--release',
     ]);
     final buildMode = options.debug ? 'Debug' : 'Release';
-    final source =
-        Directory('build/macos/Build/Products/$buildMode'.normalizePath);
-    final destination =
-        Directory('${options.releaseLocation}macos/'.normalizePath);
+    final source = Directory('build/macos/Build/Products/$buildMode'.normalizePath);
+    final destination = Directory('${options.releaseLocation}macos/'.normalizePath);
     FsUtils.copyDirectory(source, destination, cleanDestination: true);
     Log.success('macOS build copied to ${destination.absolute.path}');
   }
@@ -2165,23 +2235,20 @@ class NativeAppBuilder {
         release: !options.debug,
       );
     }
-
+    AssetController.copyTargetAsset(Target.windows);
     await ProcessRunner.run('flutter', [
       'build',
       'windows',
       options.debug ? '--debug' : '--release',
     ]);
     final buildMode = options.debug ? 'Debug' : 'Release';
-    final source =
-        Directory('build/windows/x64/runner/$buildMode'.normalizePath);
-    final destination =
-        Directory('${options.releaseLocation}windows/'.normalizePath);
+    final source = Directory('build/windows/x64/runner/$buildMode'.normalizePath);
+    final destination = Directory('${options.releaseLocation}windows/'.normalizePath);
     FsUtils.copyDirectory(source, destination, cleanDestination: true);
     // Windows loads DLLs from next to the exe, so make sure the compiled
     // native libs also end up in the shipped release folder.
     if (options.windowsLibDir.existsSync()) {
-      FsUtils.copyDirectory(options.windowsLibDir, destination,
-          cleanDestination: false);
+      FsUtils.copyDirectory(options.windowsLibDir, destination, cleanDestination: false);
     }
     Log.success('Windows build copied to ${destination.absolute.path}');
   }
@@ -2197,8 +2264,9 @@ class NativeAppBuilder {
   }) async {
     final requested = _valueOfFlag(rawFlags, '--linux-arch=');
     final noDocker = rawFlags.contains('--no-docker');
-    final image = _valueOfFlag(rawFlags, '--docker-image=') ??
-        DockerCrossBuilder.defaultImage;
+    final host = await LinuxArch.host();
+    final image =
+        _valueOfFlag(rawFlags, '--docker-image=') ?? DockerCrossBuilder.defaultImage;
     final List<LinuxArch> targets;
     if (requested != null) {
       final arch = LinuxArch.fromString(requested);
@@ -2209,10 +2277,9 @@ class NativeAppBuilder {
       targets = [arch];
     } else {
       // No arch detection games: always ship both.
-      targets = LinuxArch.values;
+      targets = [host];
     }
 
-    final host = await LinuxArch.host();
     // Build the native arch first: it is fast and fails early on real
     // problems before the (slow) emulated build starts.
     final ordered = [...targets]
@@ -2264,6 +2331,7 @@ class NativeAppBuilder {
         release: !options.debug,
       );
     }
+    AssetController.copyTargetAsset(Target.linux);
     await ProcessRunner.run('flutter', [
       'build',
       'linux',
@@ -2274,21 +2342,18 @@ class NativeAppBuilder {
     final buildMode = options.debug ? 'debug' : 'release';
     // Flutter writes the bundle under build/linux/<x64|arm64>/... depending
     // on the (container or host) architecture that ran the build.
-    final bundleDirectory = Directory(
-        'build/linux/${arch.flutterDir}/$buildMode/bundle'.normalizePath);
+    final bundleDirectory =
+        Directory('build/linux/${arch.flutterDir}/$buildMode/bundle'.normalizePath);
     if (!bundleDirectory.existsSync()) {
-      throw CompilerError(
-          'Expected bundle at ${bundleDirectory.path} but it does '
+      throw CompilerError('Expected bundle at ${bundleDirectory.path} but it does '
           'not exist; the flutter linux build may have failed.');
     }
     await FsUtils.zipDirectory(
         sourceDir: "${bundleDirectory.path}/".normalizePath,
-        outputZip:
-            "${options.releaseLocation}linux/${BuildConfig.appName}_$debArch.zip"
-                .normalizePath);
-    final deb = Directory(
-        '${options.releaseLocation}linux/${BuildConfig.appName}_$debArch'
+        outputZip: "${options.releaseLocation}linux/${BuildConfig.appName}_$debArch.zip"
             .normalizePath);
+    final deb = Directory(
+        '${options.releaseLocation}linux/${BuildConfig.appName}_$debArch'.normalizePath);
     await _DebFileBuilder.createDebFile(
         displayName: "OnChain Wallet",
         version: "1.0.0",
@@ -2335,6 +2400,12 @@ class NativeAppBuilder {
         'Embedded Content) if they are not already linked.',
       );
     }
+    if (options.webView) {
+      await WebviewScriptBuilder.buildWebview(minify: !options.debug);
+      await WebviewScriptBuilder.buildWebviewPage(
+          minify: !options.debug, worker: options.webViewWorker);
+    }
+    AssetController.copyTargetAsset(Target.ios);
 
     await ProcessRunner.run('flutter', [
       'build',
@@ -2343,8 +2414,7 @@ class NativeAppBuilder {
       if (options.noCodesign) '--no-codesign',
     ]);
     final source = Directory('build/ios/iphoneos'.normalizePath);
-    final destination =
-        Directory('${options.releaseLocation}ios/'.normalizePath);
+    final destination = Directory('${options.releaseLocation}ios/'.normalizePath);
     if (source.existsSync()) {
       FsUtils.copyDirectory(source, destination, cleanDestination: true);
       Log.success('iOS build copied to ${destination.absolute.path}');
@@ -2364,8 +2434,7 @@ enum LinuxArch {
   x86_64('x86_64', 'amd64', 'x64', 'linux/amd64'),
   arm64('aarch64', 'arm64', 'arm64', 'linux/arm64');
 
-  const LinuxArch(
-      this.uname, this.debianArch, this.flutterDir, this.dockerPlatform);
+  const LinuxArch(this.uname, this.debianArch, this.flutterDir, this.dockerPlatform);
 
   /// `uname -m` value for this arch.
   final String uname;
@@ -2397,8 +2466,7 @@ enum LinuxArch {
     final machine = (result.stdout as String).trim();
     final arch = fromString(machine);
     if (arch == null) {
-      throw CompilerError(
-          'Unsupported host architecture "$machine" for Linux builds.');
+      throw CompilerError('Unsupported host architecture "$machine" for Linux builds.');
     }
     return arch;
   }
@@ -2430,17 +2498,9 @@ class DockerCrossBuilder {
     }
     // Probe whether the kernel can execute foreign-arch binaries (binfmt_misc
     // + QEMU). A tiny alpine container is enough to find out.
-    final probe = await Process.run('docker', [
-      'run',
-      '--rm',
-      '--platform',
-      arch.dockerPlatform,
-      'alpine',
-      'uname',
-      '-m'
-    ]);
-    if (probe.exitCode != 0 ||
-        !(probe.stdout as String).trim().contains(arch.uname)) {
+    final probe = await Process.run('docker',
+        ['run', '--rm', '--platform', arch.dockerPlatform, 'alpine', 'uname', '-m']);
+    if (probe.exitCode != 0 || !(probe.stdout as String).trim().contains(arch.uname)) {
       throw CompilerError(
           'This host cannot run ${arch.dockerPlatform} containers. Enable '
           'QEMU emulation once with:\n'
@@ -2470,12 +2530,7 @@ class DockerCrossBuilder {
     final relativeScript = scriptPath.startsWith(projectDir)
         ? scriptPath.substring(projectDir.length + 1)
         : 'tool/build.dart';
-    forwardFlags = {
-      ...forwardFlags,
-      "--no-crypto-c",
-      "--no-sqlite3",
-      "--no-rust"
-    };
+    forwardFlags = {...forwardFlags, "--no-crypto-c", "--no-sqlite3", "--no-rust"};
     final innerFlags = forwardFlags
         .where((f) => !_orchestrationPrefixes.any((p) => f.startsWith(p)))
         .map(shellEscape)
@@ -2688,8 +2743,7 @@ class Cli {
             splitPerAbi: !flags.contains('--universal'),
           );
         case 'linux':
-          await NativeAppBuilder.linux(
-              options: _parseOptions(flags), rawFlags: flags);
+          await NativeAppBuilder.linux(options: _parseOptions(flags), rawFlags: flags);
         case 'macos':
           await NativeAppBuilder.macos(options: _parseOptions(flags));
         case 'windows':
@@ -2711,7 +2765,6 @@ class Cli {
     final options = _parseOptions(flags);
     final target = _parseExtensionTarget(flags);
     final noScript = flags.contains('--no-script');
-    final bool all = flags.contains('--all');
 
     // If none of the per-script flags are given, build all three scripts
     // (matches "full build" behaviour). Otherwise build only what's asked.
@@ -2727,10 +2780,10 @@ class Cli {
       target: target,
       buildPageScript:
           !noScript && (!scriptFlagsGiven || flags.contains('--script-page')),
-      buildContentScript: !noScript &&
-          (!scriptFlagsGiven || flags.contains('--script-content')),
-      buildBackgroundScript: !noScript &&
-          (!scriptFlagsGiven || flags.contains('--script-background')),
+      buildContentScript:
+          !noScript && (!scriptFlagsGiven || flags.contains('--script-content')),
+      buildBackgroundScript:
+          !noScript && (!scriptFlagsGiven || flags.contains('--script-background')),
     );
   }
 
@@ -2738,6 +2791,7 @@ class Cli {
     if (flags.contains('--firefox')) return ExtensionTarget.firefox;
     if (flags.contains('--opera')) return ExtensionTarget.opera;
     if (flags.contains('--ie')) return ExtensionTarget.ie;
+    if (flags.contains('--brave')) return ExtensionTarget.brave;
     return ExtensionTarget.chrome; // default
   }
 
@@ -2757,8 +2811,7 @@ class Cli {
       context: !flags.contains('--no-context'),
       production: flags.contains('--production'),
       noCodesign: !flags.contains('--codesign'),
-      releaseLocation:
-          _valueOf(flags, '--out=') ?? BuildConfig.defaultReleaseLocation,
+      releaseLocation: _valueOf(flags, '--out=') ?? BuildConfig.defaultReleaseLocation,
       zkRepo: _rustRepo(
         flags: flags,
         enabled: rustEnabled,
@@ -2785,13 +2838,10 @@ class Cli {
               fileName: "sqlite3mc-2.3.6-sqlite-3.53.3-amalgamation.zip",
               url:
                   "https://github.com/utelle/SQLite3MultipleCiphers/releases/download/v2.3.6/sqlite3mc-2.3.6-sqlite-3.53.3-amalgamation.zip",
-              hash:
-                  "bbd0434f9456d810cd1bb8d3767985f18f6b84648f1cd9cd1db6ccfb01819da2")),
-      androidAbis: _valueOf(flags, '--android-abis=')
-              ?.split(',')
-              .map((s) => s.trim())
-              .toList() ??
-          const ['arm64-v8a', 'armeabi-v7a', 'x86_64'],
+              hash: "bbd0434f9456d810cd1bb8d3767985f18f6b84648f1cd9cd1db6ccfb01819da2")),
+      androidAbis:
+          _valueOf(flags, '--android-abis=')?.split(',').map((s) => s.trim()).toList() ??
+              const ['arm64-v8a', 'armeabi-v7a', 'x86_64'],
       androidApi: int.tryParse(_valueOf(flags, '--android-api=') ?? '') ??
           BuildConfig.defaultAndroidApi,
       jniLibsDir: _dirValueOf(flags, '--jni-libs-dir='),
@@ -2815,10 +2865,7 @@ class Cli {
 
     final url = repository.gitUrl;
     return NativeLibraryConfig(
-        repository: repository,
-        gitUrl: url,
-        branch: branch ?? "main",
-        asset: asset);
+        repository: repository, gitUrl: url, branch: branch ?? "main", asset: asset);
   }
 
   static String? _valueOf(Set<String> flags, String prefix) {

@@ -23,3 +23,7 @@ requirement/dmg_installer/onchain.dmg
 /.c_cache
 /.rust_cache
 /tmp
+assets/*
+requirement/assets/webview/script_page.js
+requirement/assets/webview/script.js
+requirement/assets/web_scripts/*

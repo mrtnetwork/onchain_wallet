@@ -51,19 +51,19 @@ android {
         create("release") {
             keyAlias = getSigningProperty("ONCHAIN_KEY_ALIAS")
             keyPassword = getSigningProperty("ONCHAIN_KEY_PASSWORD")
-
+            storePassword = getSigningProperty("ONCHAIN_STORE_PASSWORD")
             val storeFilePath = getSigningProperty("ONCHAIN_STORE_FILE")
             if (!storeFilePath.isNullOrBlank()) {
                 storeFile = file(storeFilePath)
             }
 
-            storePassword = getSigningProperty("ONCHAIN_STORE_PASSWORD")
+            
         }
     }
 
     buildTypes {
         getByName("release") {
-            val storePassword = getSigningProperty("storePassword")
+            val storePassword = getSigningProperty("ONCHAIN_STORE_PASSWORD")
 
             signingConfig = if (storePassword.isNullOrBlank()) {
                 println("⚠️ Release signing keys not found. Using DEBUG signing key.")
