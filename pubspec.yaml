@@ -227,18 +227,3 @@ flutter_native_splash:
     web: false
     fullscreen: true
 
-msix_config:
-    # display_name: OnChain Wallet
-    # publisher_display_name: mrtnetwork
-    # identity_name: com.mrtnetwork.mrtnetwork
-    msix_version: 5.0.0.0
-    # logo_path: D:\onchain\assets\image\wallet.png
-    certificate_path: D:\mrt_wallet_key\mrt_certificate.pfx
-    certificate_password: Tomas@@1991
-    app_installer: #<-- app installer configuration
-      publish_folder_path: D:\onchain\release\windows
-      hours_between_update_checks: 0
-      automatic_background_task: false
-      update_blocks_activation: false
-      show_prompt: true
-      force_update_from_any_version: false
