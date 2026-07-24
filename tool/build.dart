@@ -178,7 +178,6 @@ class AssetController {
 
   static void validateAndroidLibs(Directory jniLibsDir, List<String> abis) {
     for (final i in abis) {
-      print("path ${"${jniLibsDir.path}/$i"}");
       if (!FsUtils.filesExists("${jniLibsDir.path}/$i",
           ["libcrypto_c.so", "libnet_sdk.so", "libsqlite3mc.so", "libzk.so"])) {
         throw CompilerError("Missing dynamic liberary for abi $i.");
@@ -324,7 +323,7 @@ class FsUtils {
       {required String source, required String destination, required String name}) {
     final file = File(source.normalizePath);
     if (!file.existsSync()) {
-      throw Exception("source file missing");
+      throw CompilerError("Source file missing, ${file.path}");
     }
     final d = File(destination.normalizePath);
     if (d.existsSync()) {
@@ -1028,7 +1027,6 @@ class CBuilder {
     final data = _sourcesFor(repo);
     Directory('${dir.path}/${FsUtils.dirOf(outPathRel)}'.normalizePath)
         .createSync(recursive: true);
-    print("path ${'${dir.path}/${FsUtils.dirOf(outPathRel)}'.normalizePath}");
     final List<String> args;
     if (cc.flavor == CCompilerFlavor.msvc) {
       args = [
@@ -1051,7 +1049,6 @@ class CBuilder {
         outPathRel
       ];
     }
-    print("out $args");
     await ProcessRunner.run(cc.exe, args, workingDirectory: dir.path);
     return '${dir.path}/$outPathRel'.normalizePath;
   }
@@ -1230,7 +1227,6 @@ class CBuilder {
       'windows-x64',
       CToolchainResolver.windows(),
     );
-    print("come here!");
     final out = await _buildShared(
       cc: cc,
       dir: dir,
@@ -1510,8 +1506,6 @@ class RustBuilder {
           destination: destinationPath,
           name: repo.repository.name);
 
-      // final destPath = '${destDir.path}/${source.uri.pathSegments.last}';
-      // source.copySync(destPath);
       Log.success('${repo.repository.name} ($abi) -> $destinationPath');
     }
   }
@@ -1572,13 +1566,7 @@ class RustBuilder {
       release: release,
       kind: RustArtifactKind.dll,
     );
-    // final source = File(
-    //   "${dir.path}/$sourcePath".normalizePath
-    // );
     outputDir.createSync(recursive: true);
-    // final destPath = '${outputDir.path}/${source.uri.pathSegments.last}'.normalizePath;
-    // source.copySync(destPath);
-    // Log.success('${repo.repository.name} -> $destPath');
     FsUtils.publishFile(
         source: "${dir.path}/$sourcePath".normalizePath,
         destination:
@@ -2642,7 +2630,6 @@ dart $relativeScript linux --linux-arch=${arch.name} --no-docker $innerFlags
       ]);
     }
     Log.info("run command $script");
-    // Run build
     await ProcessRunner.run('docker', [
       'exec',
       '--user',
@@ -2653,64 +2640,6 @@ dart $relativeScript linux --linux-arch=${arch.name} --no-docker $innerFlags
       script,
     ]);
   }
-//   static Future<void> build({
-//     required LinuxArch arch,
-//     required Set<String> forwardFlags,
-//     required String image,
-//     required bool rustEnabled,
-//   }) async {
-//     await ensureAvailable(arch);
-
-//     // Re-invoke the same script that is currently running (works whether the
-//     // file is named build.dart, build2.dart, ...).
-//     final scriptPath = Platform.script.toFilePath();
-//     final projectDir = Directory.current.absolute.path;
-//     var relativeScript = scriptPath.startsWith(projectDir)
-//         ? scriptPath.substring(projectDir.length + 1)
-//         : 'tool/build.dart';
-
-//     final innerFlags = forwardFlags
-//         .where((f) => !_orchestrationPrefixes.any((p) => f.startsWith(p)))
-//         .join(' ');
-
-//     // Container setup: install the Linux desktop build dependencies (and rust
-//     // when needed), then run the exact same tool for the single native arch.
-//     final rustSetup = rustEnabled
-//         ? 'if ! command -v cargo >/dev/null 2>&1; then '
-//             'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; '
-//             'fi; . "\$HOME/.cargo/env";'
-//         : '';
-//     final script = '''
-// set -e
-// export DEBIAN_FRONTEND=noninteractive
-// apt-get update -qq
-// apt-get install -y -qq clang cmake ninja-build pkg-config libgtk-3-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-//   liblzma-dev curl git unzip zip file gcc g++ >/dev/null
-// $rustSetup
-// git config --global --add safe.directory '*'
-// flutter config --enable-linux-desktop >/dev/null
-// cd /work
-// flutter pub get
-// dart $relativeScript linux --linux-arch=${arch.name} --no-docker $innerFlags
-// ''';
-
-//     Log.info('Building Linux ${arch.name} inside a ${arch.dockerPlatform} '
-//         'container (emulated - this is slow, grab a pizza)...');
-//     await ProcessRunner.run('docker', [
-//       'run',
-//       '--rm',
-//       '--platform',
-//       arch.dockerPlatform,
-//       // Persistent caches per arch so repeat builds are much faster.
-//       '-v', 'onchain-pub-cache-${arch.name}:/root/.pub-cache',
-//       '-v', 'onchain-cargo-cache-${arch.name}:/root/.cargo',
-//       '-v', '$projectDir:/work',
-//       '-w', '/work',
-//       image,
-//       'bash', '-lc', script,
-//     ]);
-//     Log.success('Linux ${arch.name} build finished (via Docker).');
-//   }
 }
 
 /// ---------------------------------------------------------------------------
@@ -2724,8 +2653,6 @@ class Cli {
       _printHelp();
       return;
     }
-    Log.info("Args $args");
-
     final command = args.first;
     final flags = args.skip(1).toSet();
 
@@ -2756,7 +2683,6 @@ class Cli {
           exitCode = 64; // EX_USAGE
       }
     } on BuildFailure catch (e) {
-      Log.error(e.toString());
       exitCode = e.exitCode == 0 ? 1 : e.exitCode;
     }
   }
