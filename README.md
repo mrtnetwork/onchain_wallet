@@ -1,6 +1,6 @@
 # About OnChain Wallet
 
-Welcome to OnChain Wallet, the open-source wallet crafted for the decentralized future of finance. Our mission is to provide users with a secure and versatile solution supporting a wide range of cryptocurrencies, including Bitcoin, Bitcoin Cash, Litecoin, Dogecoin, Dash, Ethereum, Tron, Ripple, Solana, Cardano, Cosmos, Monero, Sui, Aptos, Polkadot, and Kusama. Our roadmap includes cross-platform support across Android, Windows, macOS, web, and extensions for Chrome, Brave, and Mozilla Firefox.
+OnChain Wallet is an open-source multi-chain wallet built for secure, decentralized finance across multiple platforms.
 
 ## Networks
 
@@ -42,6 +42,7 @@ Welcome to OnChain Wallet, the open-source wallet crafted for the decentralized 
   - Facilitates minting and transfer of assets.
   - Integration for stake certificates.
   - Allows for multiple account transactions.
+  - Multisignature account.
 - **Web3:** 
   - Wallet Standard (available on extension, Android, and macOS platforms.).
   - Cardano CIP-30 (available on extension, Android, and macOS platforms.).
@@ -124,6 +125,14 @@ Welcome to OnChain Wallet, the open-source wallet crafted for the decentralized 
   - WalletConnect (available on all platforms).
   - [examples](https://mrtnetwork.github.io/onchain_dapp/)
 
+### Zcash
+
+- **Features:** Supports Zcash transactions: Transparent, Sapling, and Orchard
+- **Web3:** 
+  - Wallet Standard (available on extension, Android, and macOS platforms.).
+  - WalletConnect (available on all platforms).
+  - [examples](https://mrtnetwork.github.io/onchain_dapp/)
+
 
 ### SUI
 
@@ -145,26 +154,33 @@ Welcome to OnChain Wallet, the open-source wallet crafted for the decentralized 
   - [examples](https://mrtnetwork.github.io/onchain_dapp/)
 
 
+## Swap
+
+- Supports Chainflip, Maya, and THORChain protocols.
+
+## Tor
+
+- Supports Tor connections through network providers on native platforms.
+
+
 ## Platform Support
 
-OnChain Wallet is available on multiple platforms to provide a seamless experience:
+OnChain Wallet is available on:
 
-- **Android:** Take your wallet on the go with our Android app, ensuring you have secure access to your funds anytime, anywhere.
-
-- **Windows:** Enjoy the convenience of OnChain Wallet on your desktop. Our Windows version brings the power of decentralized finance to your fingertips.
-
-- **Macos:** Enjoy the convenience of OnChain Wallet on your desktop. Our Mac version brings the power of decentralized finance to your fingertips.
-
-- **Web:** Access your wallet from any web browser with our web platform. Manage your assets with ease, all while enjoying the security and privacy OnChain Wallet provides.
-
-- **Browser Extensions:** Integrate seamlessly with your browser using our extensions for Chrome, Brave, and Mozilla Firefox, enhancing your web-based financial interactions.
+- Android
+- Linux
+- Windows
+- macOS
+- Web
+- Browser Extensions (Chrome, Brave, Firefox, Opera, etc)
 
 
 ## Build Instructions
 
-Clone the repository and build using Flutter:
+Clone the repository and build using Flutter.
+Ensure your build environment has Flutter and LLVM/Clang installed, as LLVM is required for compiling native dependencies.
 
-- **WEB**
+- **WEB/Extensions**
 
  you can view the web version of OnChain Wallet at <https://mrtnetwork.github.io/onchain_wallet/>.
 
@@ -172,37 +188,12 @@ Clone the repository and build using Flutter:
 gh repo clone mrtnetwork/onchain_wallet
 cd onchain_wallet
 flutter pub get
-dart run app_builder.dart -web
+dart run tool/build.dart web
+dart run app_builder.dart extension --chrome
+dart run app_builder.dart extension --firefox
+dart run app_builder.dart extension --opera
+dart run app_builder.dart extension --ie
 ```
-
-- **Chrome, Edge, Brave extention**
-
-```shell
-gh repo clone mrtnetwork/onchain_wallet
-cd onchain_wallet
-flutter pub get
-dart run app_builder.dart -chrome
-```
-
-- **Opera extention**
-
-```shell
-gh repo clone mrtnetwork/onchain_wallet
-cd onchain_wallet
-flutter pub get
-dart run app_builder.dart -opera
-```
-
-
-- **Firefox extention**
-
-```shell
-gh repo clone mrtnetwork/onchain_wallet
-cd onchain_wallet
-flutter pub get
-dart run app_builder.dart -firefox
-```
-
 
 - **Android**
 
@@ -210,25 +201,18 @@ dart run app_builder.dart -firefox
 gh repo clone mrtnetwork/onchain_wallet
 cd onchain_wallet
 flutter pub get
-dart run app_builder.dart -apk
+dart run tool/build.dart apk
 ```
 
-- **Windows**
+- **Desktop**
 
 ```shell
 gh repo clone mrtnetwork/onchain_wallet
 cd onchain_wallet
 flutter pub get
-dart run app_builder.dart -windows
-```
-
-- **Macos**
-
-```shell
-gh repo clone mrtnetwork/onchain_wallet
-cd onchain_wallet
-flutter pub get
-dart run app_builder.dart -macos
+dart run tool/build.dart --windows
+dart run tool/build.dart --macos
+dart run tool/build.dart --linux
 ```
 
 
